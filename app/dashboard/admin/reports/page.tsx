@@ -123,14 +123,17 @@ export default function AdminReportsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Kelola Laporan</h1>
-                    <p className="text-slate-500 mt-1">Kelola dan tindaklanjuti semua laporan masuk</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Kelola Laporan</h1>
+                    <p className="text-slate-500 mt-1 text-sm sm:text-base">Kelola dan tindaklanjuti semua laporan masuk</p>
                 </div>
-                <button onClick={fetchReports} className="btn btn-ghost self-start">
+                <button
+                    onClick={fetchReports}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors text-sm font-medium flex-shrink-0"
+                >
                     <RefreshCw className="w-4 h-4" />
-                    Refresh
+                    <span className="hidden sm:inline">Refresh</span>
                 </button>
             </div>
 
@@ -175,7 +178,7 @@ export default function AdminReportsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
@@ -183,16 +186,16 @@ export default function AdminReportsPage() {
                         placeholder="Cari laporan, lokasi, pelapor, atau station..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 bg-white focus:border-blue-500 focus:outline-none transition-colors"
+                        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 bg-white focus:border-blue-500 focus:outline-none transition-colors text-sm"
                     />
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                     {/* Station Filter */}
-                    <div className="relative min-w-[160px]">
+                    <div className="relative flex-1 sm:flex-none sm:min-w-[160px]">
                         <select
                             value={stationFilter}
                             onChange={(e) => setStationFilter(e.target.value)}
-                            className="w-full appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer"
+                            className="w-full appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
                         >
                             <option value="all">Semua Station</option>
                             {stations.map((s) => (
@@ -203,33 +206,35 @@ export default function AdminReportsPage() {
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
 
-                    <div className="relative">
-                        <select
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            className="appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer"
-                        >
-                            <option value="all">Semua Status</option>
-                            <option value="pending">Menunggu</option>
-                            <option value="reviewed">Ditinjau</option>
-                            <option value="resolved">Selesai</option>
-                        </select>
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    </div>
-                    <div className="relative">
-                        <select
-                            value={severityFilter}
-                            onChange={(e) => setSeverityFilter(e.target.value)}
-                            className="appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer"
-                        >
-                            <option value="all">Semua Severity</option>
-                            <option value="high">🔴 High</option>
-                            <option value="medium">🟡 Medium</option>
-                            <option value="low">🟢 Low</option>
-                        </select>
-                        <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <div className="flex gap-3">
+                        <div className="relative flex-1 sm:flex-none">
+                            <select
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                className="w-full appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
+                            >
+                                <option value="all">Semua Status</option>
+                                <option value="pending">Menunggu</option>
+                                <option value="reviewed">Ditinjau</option>
+                                <option value="resolved">Selesai</option>
+                            </select>
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        </div>
+                        <div className="relative flex-1 sm:flex-none">
+                            <select
+                                value={severityFilter}
+                                onChange={(e) => setSeverityFilter(e.target.value)}
+                                className="w-full appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
+                            >
+                                <option value="all">Semua Severity</option>
+                                <option value="high">🔴 High</option>
+                                <option value="medium">🟡 Medium</option>
+                                <option value="low">🟢 Low</option>
+                            </select>
+                            <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -257,73 +262,76 @@ export default function AdminReportsPage() {
                             return (
                                 <div
                                     key={report.id}
-                                    className={`p-5 hover:bg-slate-50 transition-colors cursor-pointer border-l-4 ${report.severity === 'high' ? 'border-l-red-500' :
+                                    className={`p-4 sm:p-5 hover:bg-slate-50 transition-colors cursor-pointer border-l-4 ${report.severity === 'high' ? 'border-l-red-500' :
                                         report.severity === 'medium' ? 'border-l-amber-500' : 'border-l-emerald-500'
                                         }`}
                                     onClick={() => setSelectedReport(report)}
                                 >
-                                    <div className="flex items-start gap-4">
+                                    <div className="flex items-start gap-3 sm:gap-4">
                                         {/* Severity Icon */}
-                                        <div className={`p-3 rounded-xl ${severity.bgLight} border flex-shrink-0`}>
-                                            <SevIcon size={22} className={severity.textColor} />
+                                        <div className={`p-2 sm:p-3 rounded-xl ${severity.bgLight} border flex-shrink-0`}>
+                                            <SevIcon size={20} className={severity.textColor} />
                                         </div>
 
                                         {/* Content */}
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase tracking-wide">
+                                            {/* Mobile: Stack header and badges vertically */}
+                                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                                                <div className="flex-1 min-w-0">
+                                                    {/* Station and Date Row */}
+                                                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase tracking-wide max-w-[150px] sm:max-w-none truncate">
                                                             {stationName}
                                                         </span>
-                                                        <span className="text-xs text-slate-400">•</span>
-                                                        <span className="text-xs text-slate-400">
+                                                        <span className="hidden sm:inline text-xs text-slate-400">•</span>
+                                                        <span className="text-[10px] sm:text-xs text-slate-400">
                                                             {new Date(report.created_at).toLocaleString('id-ID', {
                                                                 day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                                                             })}
                                                         </span>
                                                     </div>
-                                                    <h3 className="font-semibold text-slate-900 text-lg">{report.title}</h3>
-                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-slate-500">
+                                                    <h3 className="font-semibold text-slate-900 text-base sm:text-lg leading-snug">{report.title}</h3>
+                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs sm:text-sm text-slate-500">
                                                         {report.location && (
-                                                            <span className="flex items-center gap-1.5">
-                                                                <MapPin size={14} className="text-slate-400" />
-                                                                {report.location}
+                                                            <span className="flex items-center gap-1">
+                                                                <MapPin size={12} className="text-slate-400 flex-shrink-0" />
+                                                                <span className="truncate max-w-[120px] sm:max-w-none">{report.location}</span>
                                                             </span>
                                                         )}
-                                                        <span className="flex items-center gap-1.5">
-                                                            <User size={14} className="text-slate-400" />
+                                                        <span className="flex items-center gap-1">
+                                                            <User size={12} className="text-slate-400 flex-shrink-0" />
                                                             {report.users?.full_name}
                                                         </span>
                                                     </div>
                                                     {/* Flight Info */}
                                                     {(report.flight_number || report.aircraft_reg || report.gse_number) && (
-                                                        <div className="flex flex-wrap items-center gap-3 mt-2">
+                                                        <div className="flex flex-wrap items-center gap-2 mt-2">
                                                             {report.flight_number && (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium">
-                                                                    <Plane size={12} />
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-[10px] sm:text-xs font-medium">
+                                                                    <Plane size={10} />
                                                                     {report.flight_number}
                                                                 </span>
                                                             )}
                                                             {report.aircraft_reg && (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-[10px] sm:text-xs font-medium">
                                                                     {report.aircraft_reg}
                                                                 </span>
                                                             )}
                                                             {report.gse_number && (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-medium">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 text-[10px] sm:text-xs font-medium">
                                                                     GSE: {report.gse_number}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${status.color}`}>
-                                                        <StatIcon size={14} />
+                                                {/* Status and Severity Badges - Row on mobile, column on desktop */}
+                                                <div className="flex sm:flex-col items-center sm:items-end gap-2 flex-shrink-0 mt-2 sm:mt-0">
+                                                    <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold border ${status.color}`}>
+                                                        <StatIcon size={12} />
                                                         {status.label}
                                                     </span>
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${severity.color}`}>
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${severity.color}`}>
                                                         {severity.label}
                                                     </span>
                                                 </div>

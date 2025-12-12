@@ -83,22 +83,42 @@ export default function AdminUsersPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Kelola User</h1>
-                    <p className="text-slate-500 mt-1">Kelola semua pengguna dalam sistem</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Kelola User</h1>
+                    <p className="text-slate-500 mt-1 text-sm sm:text-base">Kelola semua pengguna dalam sistem</p>
                 </div>
                 <button
                     onClick={fetchUsers}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 font-medium hover:border-slate-300 hover:bg-slate-50 transition-all self-start"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors text-sm font-medium flex-shrink-0"
                 >
                     <RefreshCw className="w-4 h-4" />
-                    Refresh
+                    <span className="hidden sm:inline">Refresh</span>
                 </button>
             </div>
 
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white rounded-xl border border-slate-100 p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-slate-500">Total User</p>
+                    <p className="text-xl sm:text-2xl font-bold text-slate-900">{users.length}</p>
+                </div>
+                <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-emerald-600">Aktif</p>
+                    <p className="text-xl sm:text-2xl font-bold text-emerald-700">{users.filter(u => u.status === 'active').length}</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl border border-amber-100 p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-amber-600">Pending</p>
+                    <p className="text-xl sm:text-2xl font-bold text-amber-700">{users.filter(u => u.status === 'pending').length}</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl border border-purple-100 p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-purple-600">Admin</p>
+                    <p className="text-xl sm:text-2xl font-bold text-purple-700">{users.filter(u => u.role === 'admin').length}</p>
+                </div>
+            </div>
+
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-3">
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
@@ -106,14 +126,14 @@ export default function AdminUsersPage() {
                         placeholder="Cari nama, email, atau NIK..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 bg-white focus:border-blue-500 focus:outline-none transition-colors"
+                        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 bg-white focus:border-blue-500 focus:outline-none transition-colors text-sm"
                     />
                 </div>
-                <div className="relative">
+                <div className="relative w-full sm:w-auto">
                     <select
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
-                        className="appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer"
+                        className="w-full sm:w-auto appearance-none pl-10 pr-10 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
                     >
                         <option value="all">Semua Status</option>
                         <option value="pending">Pending</option>
@@ -122,26 +142,6 @@ export default function AdminUsersPage() {
                     </select>
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-xl border border-slate-100 p-4">
-                    <p className="text-sm text-slate-500">Total User</p>
-                    <p className="text-2xl font-bold text-slate-900">{users.length}</p>
-                </div>
-                <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-                    <p className="text-sm text-emerald-600">Aktif</p>
-                    <p className="text-2xl font-bold text-emerald-700">{users.filter(u => u.status === 'active').length}</p>
-                </div>
-                <div className="bg-amber-50 rounded-xl border border-amber-100 p-4">
-                    <p className="text-sm text-amber-600">Pending</p>
-                    <p className="text-2xl font-bold text-amber-700">{users.filter(u => u.status === 'pending').length}</p>
-                </div>
-                <div className="bg-purple-50 rounded-xl border border-purple-100 p-4">
-                    <p className="text-sm text-purple-600">Admin</p>
-                    <p className="text-2xl font-bold text-purple-700">{users.filter(u => u.role === 'admin').length}</p>
                 </div>
             </div>
 

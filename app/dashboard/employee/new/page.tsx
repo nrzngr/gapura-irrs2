@@ -172,7 +172,7 @@ export default function NewReportPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="label">Tipe Insiden</label>
                             <div className="relative">
@@ -192,15 +192,15 @@ export default function NewReportPage() {
                         </div>
                         <div>
                             <label className="label">Tingkat Keparahan</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1 sm:gap-2">
                                 {severityOptions.map((opt) => (
                                     <button
                                         key={opt.value}
                                         type="button"
                                         onClick={() => setFormData({ ...formData, severity: opt.value })}
-                                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium border-2 transition-all ${formData.severity === opt.value
-                                                ? opt.color + ' border-current'
-                                                : 'bg-slate-50 text-slate-500 border-slate-200'
+                                        className={`flex-1 px-2 sm:px-3 py-2 rounded-xl text-[10px] sm:text-xs font-medium border-2 transition-all ${formData.severity === opt.value
+                                            ? opt.color + ' border-current'
+                                            : 'bg-slate-50 text-slate-500 border-slate-200'
                                             }`}
                                     >
                                         {opt.value.toUpperCase()}
@@ -230,7 +230,7 @@ export default function NewReportPage() {
                         Lokasi Kejadian
                     </h3>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="label">Station / Bandara</label>
                             <div className="relative">
@@ -287,7 +287,7 @@ export default function NewReportPage() {
                         <span className="text-xs text-slate-400 font-normal">(Opsional)</span>
                     </h3>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label className="label">No. Penerbangan</label>
                             <input

@@ -20,7 +20,7 @@ export default async function DashboardLayout({
         <div className="min-h-screen bg-slate-50">
             <Sidebar role={session.role as 'admin' | 'user'} />
             <main className="md:ml-72 min-h-screen">
-                <div className="p-6 md:p-8 max-w-7xl mx-auto">
+                <div className="pt-16 px-4 pb-6 md:pt-8 md:px-8 md:pb-8 max-w-7xl mx-auto">
                     {children}
                 </div>
             </main>

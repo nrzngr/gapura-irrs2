@@ -335,18 +335,20 @@ export default function AnalyticsDashboard() {
     return (
         <div className="space-y-6" ref={dashboardRef}>
             {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="space-y-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
-                    <p className="text-slate-500 mt-1">Business Intelligence & Real-time Data Analytics</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
+                    <p className="text-slate-500 mt-1 text-sm sm:text-base">Business Intelligence & Real-time Data Analytics</p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+
+                {/* Controls */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     {/* Station Filter */}
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                         <select
                             value={selectedStation}
                             onChange={(e) => setSelectedStation(e.target.value)}
-                            className="appearance-none pl-10 pr-10 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
+                            className="w-full sm:w-auto appearance-none pl-10 pr-10 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
                         >
                             <option value="all">Semua Station</option>
                             {data.stations?.map((s) => (
@@ -357,26 +359,32 @@ export default function AnalyticsDashboard() {
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     </div>
 
-                    {/* Export Buttons */}
-                    <button
-                        onClick={exportToExcel}
-                        disabled={exportLoading}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-medium text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                    >
-                        <FileSpreadsheet size={18} />
-                        Export Excel
-                    </button>
-                    <button
-                        onClick={exportToPDF}
-                        disabled={exportLoading}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
-                    >
-                        <FileText size={18} />
-                        Export PDF
-                    </button>
-                    <button onClick={fetchData} className="btn btn-ghost">
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
+                    {/* Export Buttons & Refresh */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={exportToExcel}
+                            disabled={exportLoading}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-medium text-xs sm:text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                        >
+                            <FileSpreadsheet size={16} />
+                            <span>Export Excel</span>
+                        </button>
+                        <button
+                            onClick={exportToPDF}
+                            disabled={exportLoading}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium text-xs sm:text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
+                        >
+                            <FileText size={16} />
+                            <span>Export PDF</span>
+                        </button>
+                        <button
+                            onClick={fetchData}
+                            className="p-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                            title="Refresh Data"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -556,10 +564,10 @@ export default function AnalyticsDashboard() {
                                     <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
                                 </PieChart>
                             </ResponsiveContainer>
-                            <div className="flex justify-center gap-4 text-xs">
+                            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs px-2">
                                 {data.severityData.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-1">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                    <div key={idx} className="flex items-center gap-1 whitespace-nowrap">
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                                         <span className="text-slate-600">{item.name}: {item.value}</span>
                                     </div>
                                 ))}
@@ -585,10 +593,10 @@ export default function AnalyticsDashboard() {
                                     <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
                                 </PieChart>
                             </ResponsiveContainer>
-                            <div className="flex justify-center gap-4 text-xs">
+                            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs px-2">
                                 {data.statusData.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-1">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                    <div key={idx} className="flex items-center gap-1 whitespace-nowrap">
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                                         <span className="text-slate-600">{item.name}: {item.value}</span>
                                     </div>
                                 ))}
@@ -611,11 +619,11 @@ export default function AnalyticsDashboard() {
                             <p className="text-sm text-slate-500">8 tipe insiden terbanyak</p>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={data.incidentData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <ResponsiveContainer width="100%" height={320}>
+                        <BarChart data={data.incidentData} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis type="number" tick={{ fontSize: 11 }} />
-                            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
+                            <XAxis type="number" tick={{ fontSize: 10 }} />
+                            <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={95} />
                             <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
                             <Bar dataKey="value" name="Jumlah Kasus" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
                         </BarChart>
