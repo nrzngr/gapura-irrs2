@@ -24,7 +24,8 @@ export default function UQReportsPage() {
         try {
             const res = await fetch('/api/admin/reports');
             const data = await res.json();
-            setReports((Array.isArray(data) ? data : []).filter((r: Report) => r.target_division === DIVISION.code));
+            // Temporarily show all reports (no division filter)
+            setReports(Array.isArray(data) ? data : []);
         } catch (error) { console.error('Error:', error); } 
         finally { setLoading(false); }
     };

@@ -32,11 +32,8 @@ export default function OTReportsPage() {
         try {
             const res = await fetch('/api/admin/reports');
             const data = await res.json();
-            // Filter by division
-            const filtered = (Array.isArray(data) ? data : []).filter(
-                (r: Report) => r.target_division === DIVISION.code
-            );
-            setReports(filtered);
+            // Temporarily show all reports (no division filter)
+            setReports(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error:', error);
         } finally {

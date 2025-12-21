@@ -40,10 +40,8 @@ export default function OPDashboard() {
             const res = await fetch('/api/admin/reports');
             if (res.ok) {
                 const data = await res.json();
-                const filtered = (Array.isArray(data) ? data : []).filter(
-                    (r: Report) => r.target_division === DIVISION_CONFIG.code
-                );
-                setReports(filtered);
+                // Temporarily show all reports (no division filter)
+                setReports(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Failed to fetch data:', err);
