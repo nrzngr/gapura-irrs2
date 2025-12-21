@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
     FileText, Search, Filter, ChevronDown, RefreshCw, Eye, X, Check,
     MapPin, Calendar, User, AlertTriangle, AlertCircle, Shield,
-    Plane, Clock, Building2, Tag, CheckCircle2, Image
+    Plane, Clock, Building2, Tag, CheckCircle2, Image, Layers
 } from 'lucide-react';
 import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/report-status';
 import { Report } from '@/types';
@@ -15,6 +15,7 @@ export default function OSReportsPage() {
     const [stationFilter, setStationFilter] = useState('all');
     const [filter, setFilter] = useState('all');
     const [severityFilter, setSeverityFilter] = useState('all');
+    const [divisionFilter, setDivisionFilter] = useState('all');
     const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
     const [search, setSearch] = useState('');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -57,10 +58,11 @@ export default function OSReportsPage() {
     const filteredReports = reports.filter(report => {
         const matchesSearch = report.title.toLowerCase().includes(search.toLowerCase()) ||
             report.location?.toLowerCase().includes(search.toLowerCase()) ||
-            report.users?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-            report.stations?.name.toLowerCase().includes(search.toLowerCase());
+            report.users?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+            report.stations?.name?.toLowerCase().includes(search.toLowerCase());
         const matchesSeverity = severityFilter === 'all' || report.severity === severityFilter;
-        return matchesSearch && matchesSeverity;
+        const matchesDivision = divisionFilter === 'all' || report.target_division === divisionFilter;
+        return matchesSearch && matchesSeverity && matchesDivision;
     });
 
     const stats = {
@@ -167,6 +169,16 @@ export default function OSReportsPage() {
                             <option value="low">🟢 Low</option>
                         </select>
                         <AlertTriangle className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                    <div className="relative flex-1 min-w-[140px]">
+                        <select value={divisionFilter} onChange={(e) => setDivisionFilter(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>
+                            <option value="all">Semua Divisi</option>
+                            <option value="OT">🔧 OT - Teknik</option>
+                            <option value="OP">✈️ OP - Operasi</option>
+                            <option value="UQ">🛡️ UQ - Quality</option>
+                        </select>
+                        <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                     </div>
                 </div>
