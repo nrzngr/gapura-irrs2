@@ -17,12 +17,12 @@ export async function POST(request: Request) {
 
         const { data: user } = await supabase
             .from('users')
-            .select('*')
+            .select('*, positions(name)')
             .eq('email', email)
             .single();
 
         if (!user) {
-            return NextResponse.json( // Generic error for security
+            return NextResponse.json(
                 { error: 'Email atau password salah' },
                 { status: 401 }
             );
@@ -48,8 +48,25 @@ export async function POST(request: Request) {
             );
         }
 
-        // Create session
-        const token = await signSession({ id: user.id, email: user.email, role: user.role });
+        // AUTO-CORRECT ROLE for OT/OP/UQ if deemed as PARTNER
+        // This ensures they get the correct dashboard experience
+        let finalRole = user.role;
+        const posName = user.positions?.name?.toUpperCase() || '';
+        
+        console.log('[LOGIN DEBUG] User:', user.email, 'Role:', user.role, 'Position:', posName);
+
+        // Loose check for any PARTNER role
+        if (finalRole.includes('PARTNER')) {
+            const emailUpper = email.toUpperCase();
+            if (posName.includes('OT') || posName.includes('TEKNOLOGI') || emailUpper.includes('PARTNER.OT')) finalRole = 'OT_ADMIN';
+            else if (posName.includes('OP') || posName.includes('OPERASI') || emailUpper.includes('PARTNER.OP')) finalRole = 'OP_ADMIN';
+            else if (posName.includes('UQ') || posName.includes('QUAL') || emailUpper.includes('PARTNER.UQ')) finalRole = 'UQ_ADMIN';
+        }
+
+        console.log('[LOGIN DEBUG] Final Role:', finalRole);
+
+        // Create session with FINAL role
+        const token = await signSession({ id: user.id, email: user.email, role: finalRole });
         const cookieStore = await cookies();
 
         cookieStore.set('session', token, {
@@ -59,7 +76,7 @@ export async function POST(request: Request) {
             path: '/',
         });
 
-        return NextResponse.json({ success: true, role: user.role });
+        return NextResponse.json({ success: true, role: finalRole });
     } catch (err) {
         console.error('Login error:', err);
         return NextResponse.json(

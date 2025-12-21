@@ -1,10 +1,11 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import {
     Users, Search, RefreshCw, Check, X, Shield, User,
-    Filter, ChevronDown, Mail, Calendar, Building2, Briefcase, Phone
+    Filter, ChevronDown, Mail, Calendar, Building2, Briefcase, Phone,
+    Eye, Wrench, Star, Edit2, Save
 } from 'lucide-react';
+import type { UserRole, DivisionType } from '@/types';
 
 interface UserData {
     id: string;
@@ -12,7 +13,8 @@ interface UserData {
     full_name: string;
     nik: string;
     phone: string;
-    role: 'reporter' | 'supervisor' | 'investigator' | 'manager' | 'admin';
+    role: UserRole;
+    division: DivisionType;
     status: 'pending' | 'active' | 'rejected';
     created_at: string;
     stations: { code: string; name: string } | null;
@@ -26,13 +28,96 @@ const statusConfig = {
     rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-700 border-red-200' },
 };
 
-const roleConfig = {
-    admin: { label: 'Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
-    manager: { label: 'Manager', color: 'bg-blue-100 text-blue-700', icon: Briefcase },
-    investigator: { label: 'Investigator', color: 'bg-cyan-100 text-cyan-700', icon: Search },
-    supervisor: { label: 'Supervisor', color: 'bg-indigo-100 text-indigo-700', icon: Users },
-    reporter: { label: 'Reporter', color: 'bg-slate-100 text-slate-700', icon: User },
+const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof User }> = {
+    BRANCH_USER: { label: 'Petugas Cabang', color: 'bg-slate-100 text-slate-700', icon: User },
+    OS_ADMIN: { label: 'OS Admin', color: 'bg-blue-100 text-blue-700', icon: Eye },
+    PARTNER_ADMIN: { label: 'Partner Admin', color: 'bg-cyan-100 text-cyan-700', icon: Wrench },
+    OSC_LEAD: { label: 'OSC Lead', color: 'bg-indigo-100 text-indigo-700', icon: Star },
+    SUPER_ADMIN: { label: 'Super Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
+    OT_ADMIN: { label: 'Teknik Admin', color: 'bg-orange-100 text-orange-700', icon: Wrench },
+    OP_ADMIN: { label: 'Operasi Admin', color: 'bg-teal-100 text-teal-700', icon: User },
+    UQ_ADMIN: { label: 'Quality Admin', color: 'bg-pink-100 text-pink-700', icon: Shield },
 };
+
+const divisionConfig: Record<DivisionType, string> = {
+    GENERAL: 'Umum',
+    OS: 'Operational Services',
+    OT: 'Teknik (GSE)',
+    OP: 'Operasi',
+    UQ: 'Quality',
+};
+
+// --- Edit User Modal Component ---
+function EditUserModal({ user, onClose, onSave, isLoading }: { 
+    user: UserData, 
+    onClose: () => void, 
+    onSave: (data: { role: UserRole, division: DivisionType }) => void,
+    isLoading: boolean
+}) {
+    const [role, setRole] = useState<UserRole>(user.role);
+    const [division, setDivision] = useState<DivisionType>(user.division || 'GENERAL');
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-scale-in">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-gray-900">Edit User</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Nama Lengkap</label>
+                        <p className="font-semibold text-gray-900">{user.full_name}</p>
+                    </div>
+
+                    <div>
+                         <label className="block text-xs font-bold uppercase text-gray-500 mb-2">Role</label>
+                         <select 
+                            value={role} 
+                            onChange={(e) => setRole(e.target.value as UserRole)}
+                            className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 font-medium focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        >
+                            {Object.entries(roleConfig).map(([key, config]) => (
+                                <option key={key} value={key}>{config.label}</option>
+                            ))}
+                         </select>
+                    </div>
+
+                    <div>
+                         <label className="block text-xs font-bold uppercase text-gray-500 mb-2">Divisi</label>
+                         <select 
+                            value={division} 
+                            onChange={(e) => setDivision(e.target.value as DivisionType)}
+                            className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 font-medium focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        >
+                            {Object.entries(divisionConfig).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
+                            ))}
+                         </select>
+                    </div>
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                    <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50">
+                        Batal
+                    </button>
+                    <button 
+                        onClick={() => onSave({ role, division })}
+                        disabled={isLoading}
+                        className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
+                    >
+                        {isLoading ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 export default function AdminUsersPage() {
     const [users, setUsers] = useState<UserData[]>([]);
@@ -40,13 +125,14 @@ export default function AdminUsersPage() {
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [editingUser, setEditingUser] = useState<UserData | null>(null);
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/admin/users?status=${filter === 'all' ? '' : filter}`);
             const data = await res.json();
-            setUsers(data);
+            setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error:', error);
         } finally {
@@ -69,6 +155,32 @@ export default function AdminUsersPage() {
             fetchUsers();
         } catch (error) {
             alert('Gagal mengubah status');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleSaveUser = async (data: { role: UserRole, division: DivisionType }) => {
+        if (!editingUser) return;
+        setActionLoading(editingUser.id);
+        
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId: editingUser.id, 
+                    role: data.role,
+                    division: data.division 
+                }),
+            });
+
+            if (!res.ok) throw new Error('Failed to update');
+            
+            setEditingUser(null);
+            fetchUsers();
+        } catch (error) {
+            alert('Gagal menyimpan perubahan user');
         } finally {
             setActionLoading(null);
         }
@@ -112,8 +224,8 @@ export default function AdminUsersPage() {
                     <p className="text-xl sm:text-2xl font-bold text-amber-700">{users.filter(u => u.status === 'pending').length}</p>
                 </div>
                 <div className="bg-purple-50 rounded-xl border border-purple-100 p-3 sm:p-4">
-                    <p className="text-xs sm:text-sm text-purple-600">Admin</p>
-                    <p className="text-xl sm:text-2xl font-bold text-purple-700">{users.filter(u => u.role === 'admin').length}</p>
+                    <p className="text-xs sm:text-sm text-purple-600">Super Admin</p>
+                    <p className="text-xl sm:text-2xl font-bold text-purple-700">{users.filter(u => u.role === 'SUPER_ADMIN').length}</p>
                 </div>
             </div>
 
@@ -146,7 +258,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
                 {loading ? (
                     <div className="p-12 text-center">
                         <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
@@ -175,7 +287,7 @@ export default function AdminUsersPage() {
                                         <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold ${user.role === 'admin' ? 'bg-gradient-to-br from-purple-500 to-violet-600' : 'bg-gradient-to-br from-blue-500 to-cyan-500'}`}>
+                                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold ${user.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-purple-500 to-violet-600' : user.role === 'OSC_LEAD' ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-blue-500 to-cyan-500'}`}>
                                                         {user.full_name?.charAt(0).toUpperCase() || 'U'}
                                                     </div>
                                                     <div>
@@ -198,11 +310,11 @@ export default function AdminUsersPage() {
                                                             {user.stations.code}
                                                         </p>
                                                     )}
+                                                    {user.division && (
+                                                        <p className="text-xs font-bold text-slate-600 mt-0.5">{divisionConfig[user.division] || user.division}</p>
+                                                    )}
                                                     {user.units && (
                                                         <p className="text-xs text-slate-500">{user.units.name}</p>
-                                                    )}
-                                                    {user.positions && (
-                                                        <p className="text-xs text-slate-400">{user.positions.name}</p>
                                                     )}
                                                 </div>
                                             </td>
@@ -219,6 +331,15 @@ export default function AdminUsersPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-2">
+                                                    {/* Edit Button for Active Users */}
+                                                    <button 
+                                                        onClick={() => setEditingUser(user)}
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                        title="Edit User"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+
                                                     {user.status === 'pending' && (
                                                         <>
                                                             <button
@@ -243,10 +364,10 @@ export default function AdminUsersPage() {
                                                         <button
                                                             onClick={() => updateUserStatus(user.id, 'rejected')}
                                                             disabled={actionLoading === user.id}
-                                                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-red-200 text-red-600 font-medium text-sm hover:bg-red-50 transition-colors disabled:opacity-50"
+                                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                                            title="Nonaktifkan"
                                                         >
-                                                            <X size={16} />
-                                                            Nonaktifkan
+                                                            <Shield size={16} />
                                                         </button>
                                                     )}
                                                     {user.status === 'rejected' && (
@@ -269,6 +390,16 @@ export default function AdminUsersPage() {
                     </div>
                 )}
             </div>
+
+            {/* Render Edit Modal */}
+            {editingUser && (
+                <EditUserModal 
+                    user={editingUser} 
+                    onClose={() => setEditingUser(null)} 
+                    onSave={handleSaveUser}
+                    isLoading={actionLoading === editingUser.id}
+                />
+            )}
         </div>
     );
 }

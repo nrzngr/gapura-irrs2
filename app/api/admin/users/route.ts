@@ -32,11 +32,11 @@ export async function GET(request: Request) {
     }
 }
 
-// PATCH to update user status or role
+// PATCH to update user status, role, or division
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { userId, status, role } = body;
+        const { userId, status, role, division } = body;
 
         if (!userId) {
             return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -52,10 +52,19 @@ export async function PATCH(request: Request) {
         }
 
         if (role) {
-            if (!['reporter', 'supervisor', 'investigator', 'manager', 'admin'].includes(role)) {
+            const validRoles = ['SUPER_ADMIN', 'OS_ADMIN', 'OSC_LEAD', 'PARTNER_ADMIN', 'BRANCH_USER', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
+            if (!validRoles.includes(role)) {
                 return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
             }
             updates.role = role;
+        }
+
+        if (division) {
+             const validDivisions = ['OS', 'OP', 'OT', 'UQ', 'GENERAL'];
+             if (!validDivisions.includes(division)) {
+                 return NextResponse.json({ error: 'Invalid division' }, { status: 400 });
+             }
+             updates.division = division;
         }
 
         const { error } = await supabase

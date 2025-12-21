@@ -23,6 +23,7 @@ export async function GET() {
             { count: highSeverity },
             { count: mediumSeverity },
             { count: lowSeverity },
+            { count: slaBreachCount },
             { data: recentReports },
             { data: locationStats },
         ] = await Promise.all([
@@ -38,7 +39,11 @@ export async function GET() {
             supabase.from('reports').select('*', { count: 'exact', head: true }).eq('severity', 'high'),
             supabase.from('reports').select('*', { count: 'exact', head: true }).eq('severity', 'medium'),
             supabase.from('reports').select('*', { count: 'exact', head: true }).eq('severity', 'low'),
-            supabase.from('reports').select('id, title, location, status, severity, created_at, users:user_id(full_name), stations:station_id(code)').order('created_at', { ascending: false }).limit(5),
+            // SLA Breach: Reports past deadline that are not closed
+            supabase.from('reports').select('*', { count: 'exact', head: true })
+                .lt('sla_deadline', now.toISOString())
+                .not('status', 'eq', 'CLOSED'),
+            supabase.from('reports').select('id, title, location, status, severity, created_at, priority, sla_deadline, users:user_id(full_name), stations:station_id(code)').order('created_at', { ascending: false }).limit(5),
             supabase.from('reports').select('location, stations:station_id(code)'),
         ]);
 
@@ -68,6 +73,7 @@ export async function GET() {
                 pendingUsers: pendingUsers || 0,
                 activeUsers: activeUsers || 0,
                 resolutionRate,
+                slaBreachCount: slaBreachCount || 0,
             },
             severity: {
                 high: highSeverity || 0,

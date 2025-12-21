@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef } from 'react';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-    PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import {
-    BarChart3, PieChart as PieChartIcon, TrendingUp, RefreshCw, Building2,
-    AlertTriangle, CheckCircle2, Clock, Activity, Target, Zap, Download,
-    FileSpreadsheet, FileText, ChevronDown, Filter
+    BarChart3, TrendingUp, RefreshCw, Building2,
+    AlertTriangle, CheckCircle2, Clock, Activity, Target,
+    FileSpreadsheet, FileText, ChevronDown, Filter, Layers
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -16,6 +16,7 @@ import autoTable from 'jspdf-autotable';
 
 interface AnalyticsData {
     stationData: Array<{ station: string; total: number; resolved: number; pending: number; reviewed: number; high: number; medium: number; low: number; resolutionRate: number }>;
+    divisionData: Array<{ division: string; total: number; resolved: number; pending: number; high: number; resolutionRate: number }>;
     trendData: Array<{ month: string; total: number; resolved: number; high: number }>;
     severityData: Array<{ name: string; value: number; color: string }>;
     statusData: Array<{ name: string; value: number; color: string }>;
@@ -31,7 +32,17 @@ interface AnalyticsData {
     };
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+// OKLCH-inspired colors for charts
+const CHART_COLORS = {
+    primary: '#2e8b57',    // Emerald
+    secondary: '#3b82f6',  // Blue
+    warning: '#f59e0b',    // Amber
+    danger: '#ef4444',     // Red
+    success: '#10b981',    // Green
+    purple: '#8b5cf6',     // Purple
+    cyan: '#06b6d4',       // Cyan
+    pink: '#ec4899',       // Pink
+};
 
 export default function AnalyticsDashboard() {
     const [data, setData] = useState<AnalyticsData | null>(null);
@@ -66,22 +77,12 @@ export default function AnalyticsDashboard() {
                 ...data,
                 stationData: [{
                     station: selectedStation,
-                    total: 0,
-                    resolved: 0,
-                    pending: 0,
-                    reviewed: 0,
-                    high: 0,
-                    medium: 0,
-                    low: 0,
-                    resolutionRate: 0
+                    total: 0, resolved: 0, pending: 0, reviewed: 0,
+                    high: 0, medium: 0, low: 0, resolutionRate: 0
                 }],
                 summary: {
-                    totalReports: 0,
-                    resolvedReports: 0,
-                    pendingReports: 0,
-                    highSeverity: 0,
-                    avgResolutionRate: 0,
-                    stationCount: 1
+                    totalReports: 0, resolvedReports: 0, pendingReports: 0,
+                    highSeverity: 0, avgResolutionRate: 0, stationCount: 1
                 }
             };
         }
@@ -102,15 +103,12 @@ export default function AnalyticsDashboard() {
 
     const filteredData = getFilteredData();
 
-    // Export to Excel
+    // Export functions (preserved from original)
     const exportToExcel = () => {
         if (!data) return;
         setExportLoading(true);
-
         try {
             const wb = XLSX.utils.book_new();
-
-            // Summary Sheet
             const summaryData = [
                 ['GAPURA ANGKASA - ANALYTICS REPORT'],
                 ['Generated:', new Date().toLocaleString('id-ID')],
@@ -121,199 +119,84 @@ export default function AnalyticsDashboard() {
                 ['Laporan Pending', data.summary.pendingReports],
                 ['High Priority', data.summary.highSeverity],
                 ['Resolution Rate', `${data.summary.avgResolutionRate}%`],
-                ['Jumlah Station', data.summary.stationCount],
             ];
             const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
             XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-            // Station Data Sheet
-            const stationHeaders = ['Station', 'Total', 'Selesai', 'Pending', 'Ditinjau', 'High', 'Medium', 'Low', 'Resolution Rate (%)'];
-            const stationRows = data.stationData.map(s => [s.station, s.total, s.resolved, s.pending, s.reviewed || 0, s.high, s.medium, s.low, s.resolutionRate]);
+            const stationHeaders = ['Station', 'Total', 'Selesai', 'Pending', 'High', 'Medium', 'Low', 'Rate (%)'];
+            const stationRows = data.stationData.map(s => [s.station, s.total, s.resolved, s.pending, s.high, s.medium, s.low, s.resolutionRate]);
             const wsStation = XLSX.utils.aoa_to_sheet([stationHeaders, ...stationRows]);
             XLSX.utils.book_append_sheet(wb, wsStation, 'Per Station');
-
-            // Monthly Trend Sheet
-            const trendHeaders = ['Bulan', 'Total', 'Selesai', 'High Priority'];
-            const trendRows = data.trendData.map(t => [t.month, t.total, t.resolved, t.high]);
-            const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendRows]);
-            XLSX.utils.book_append_sheet(wb, wsTrend, 'Tren Bulanan');
-
-            // Incident Types Sheet
-            const incidentHeaders = ['Tipe Insiden', 'Jumlah'];
-            const incidentRows = data.incidentData.map(i => [i.name, i.value]);
-            const wsIncident = XLSX.utils.aoa_to_sheet([incidentHeaders, ...incidentRows]);
-            XLSX.utils.book_append_sheet(wb, wsIncident, 'Tipe Insiden');
+            
+            // Add Division Sheet
+            if (data.divisionData) {
+                const divisionHeaders = ['Division', 'Total', 'Selesai', 'Pending', 'High', 'Rate (%)'];
+                const divisionRows = data.divisionData.map(d => [d.division, d.total, d.resolved, d.pending, d.high, d.resolutionRate]);
+                const wsDivision = XLSX.utils.aoa_to_sheet([divisionHeaders, ...divisionRows]);
+                XLSX.utils.book_append_sheet(wb, wsDivision, 'Per Divisi');
+            }
 
             XLSX.writeFile(wb, `Gapura_Analytics_${new Date().toISOString().split('T')[0]}.xlsx`);
         } catch (error) {
             console.error('Export error:', error);
-            alert('Gagal export ke Excel');
         } finally {
             setExportLoading(false);
         }
     };
 
-    // Export to PDF
     const exportToPDF = async () => {
         if (!data) return;
         setExportLoading(true);
-
         try {
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pageWidth = pdf.internal.pageSize.getWidth();
 
-            // Header with logo placeholder
-            pdf.setFillColor(30, 58, 138); // Dark blue
-            pdf.rect(0, 0, pageWidth, 40, 'F');
-
+            pdf.setFillColor(46, 139, 87);
+            pdf.rect(0, 0, pageWidth, 35, 'F');
             pdf.setTextColor(255, 255, 255);
-            pdf.setFontSize(24);
+            pdf.setFontSize(20);
             pdf.setFont('helvetica', 'bold');
-            pdf.text('GAPURA ANGKASA', 15, 18);
-
-            pdf.setFontSize(12);
+            pdf.text('GAPURA ANGKASA', 15, 16);
+            pdf.setFontSize(11);
             pdf.setFont('helvetica', 'normal');
-            pdf.text('Analytics & Business Intelligence Report', 15, 28);
+            pdf.text('Analytics Report', 15, 24);
+            pdf.setFontSize(9);
+            pdf.text(`Generated: ${new Date().toLocaleString('id-ID')}`, 15, 31);
 
-            pdf.setFontSize(10);
-            pdf.text(`Generated: ${new Date().toLocaleString('id-ID')}`, 15, 36);
-
-            // Reset text color
             pdf.setTextColor(0, 0, 0);
+            let yPos = 50;
 
-            // Summary Section
-            let yPos = 55;
-            pdf.setFontSize(14);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('RINGKASAN KESELURUHAN', 15, yPos);
-
-            yPos += 10;
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-
-            // KPI Grid
-            const kpiData = [
-                ['Total Laporan', data.summary.totalReports.toString()],
-                ['Laporan Selesai', data.summary.resolvedReports.toString()],
-                ['Laporan Pending', data.summary.pendingReports.toString()],
-                ['High Priority', data.summary.highSeverity.toString()],
-                ['Resolution Rate', `${data.summary.avgResolutionRate}%`],
-                ['Jumlah Station', data.summary.stationCount.toString()],
-            ];
-
-            // Draw KPI boxes
-            const boxWidth = 55;
-            const boxHeight = 20;
-            let xPos = 15;
-            kpiData.forEach((kpi, idx) => {
-                if (idx % 3 === 0 && idx !== 0) {
-                    xPos = 15;
-                    yPos += boxHeight + 5;
-                }
-
-                pdf.setFillColor(248, 250, 252);
-                pdf.roundedRect(xPos, yPos, boxWidth, boxHeight, 3, 3, 'F');
-
-                pdf.setFontSize(8);
-                pdf.setTextColor(100, 116, 139);
-                pdf.text(kpi[0], xPos + 5, yPos + 8);
-
-                pdf.setFontSize(14);
-                pdf.setTextColor(15, 23, 42);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text(kpi[1], xPos + 5, yPos + 16);
-                pdf.setFont('helvetica', 'normal');
-
-                xPos += boxWidth + 5;
-            });
-
-            // Station Performance Table
-            yPos += boxHeight + 20;
-            pdf.setFontSize(14);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(0, 0, 0);
-            pdf.text('PERFORMA PER STATION', 15, yPos);
-
+            pdf.text('Performa Per Station', 15, 45);
             autoTable(pdf, {
-                startY: yPos + 5,
-                head: [['Station', 'Total', 'Selesai', 'Pending', 'High', 'Medium', 'Low', 'Rate']],
-                body: data.stationData.map(s => [
-                    s.station, s.total, s.resolved, s.pending, s.high, s.medium, s.low, `${s.resolutionRate}%`
-                ]),
+                startY: yPos,
+                head: [['Station', 'Total', 'Selesai', 'Pending', 'High', 'Rate']],
+                body: data.stationData.map(s => [s.station, s.total, s.resolved, s.pending, s.high, `${s.resolutionRate}%`]),
                 theme: 'striped',
-                headStyles: { fillColor: [30, 58, 138], fontSize: 9 },
+                headStyles: { fillColor: [46, 139, 87], fontSize: 9 },
                 bodyStyles: { fontSize: 8 },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
                 margin: { left: 15, right: 15 },
             });
 
-            // Monthly Trend Table
-            // @ts-ignore
-            yPos = pdf.lastAutoTable.finalY + 15;
+            // Add Division Table
+             if (data.divisionData && data.divisionData.length > 0) {
+                const lastY = (pdf as any).lastAutoTable.finalY || 150;
+                yPos = lastY + 20;
 
-            if (yPos > 250) {
-                pdf.addPage();
-                yPos = 20;
-            }
-
-            pdf.setFontSize(14);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('TREN BULANAN (6 BULAN TERAKHIR)', 15, yPos);
-
-            autoTable(pdf, {
-                startY: yPos + 5,
-                head: [['Bulan', 'Total Laporan', 'Selesai', 'High Priority']],
-                body: data.trendData.map(t => [t.month, t.total, t.resolved, t.high]),
-                theme: 'striped',
-                headStyles: { fillColor: [30, 58, 138], fontSize: 9 },
-                bodyStyles: { fontSize: 8 },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
-                margin: { left: 15, right: 15 },
-            });
-
-            // Top Incident Types
-            // @ts-ignore
-            yPos = pdf.lastAutoTable.finalY + 15;
-
-            if (yPos > 250) {
-                pdf.addPage();
-                yPos = 20;
-            }
-
-            pdf.setFontSize(14);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('TOP TIPE INSIDEN', 15, yPos);
-
-            autoTable(pdf, {
-                startY: yPos + 5,
-                head: [['Tipe Insiden', 'Jumlah Kasus']],
-                body: data.incidentData.map(i => [i.name, i.value]),
-                theme: 'striped',
-                headStyles: { fillColor: [30, 58, 138], fontSize: 9 },
-                bodyStyles: { fontSize: 8 },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
-                margin: { left: 15, right: 15 },
-            });
-
-            // Footer
-            // @ts-ignore
-            const pageCount = pdf.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                pdf.setPage(i);
-                pdf.setFontSize(8);
-                pdf.setTextColor(100, 116, 139);
-                pdf.text(
-                    `Halaman ${i} dari ${pageCount} | Gapura Angkasa - Confidential`,
-                    pageWidth / 2,
-                    pdf.internal.pageSize.getHeight() - 10,
-                    { align: 'center' }
-                );
+                pdf.text('Performa Per Divisi', 15, yPos - 5);
+                autoTable(pdf, {
+                    startY: yPos,
+                    head: [['Divisi', 'Total', 'Selesai', 'Pending', 'High', 'Rate']],
+                    body: data.divisionData.map(d => [d.division, d.total, d.resolved, d.pending, d.high, `${d.resolutionRate}%`]),
+                    theme: 'striped',
+                    headStyles: { fillColor: [59, 130, 246], fontSize: 9 },
+                    bodyStyles: { fontSize: 8 },
+                    margin: { left: 15, right: 15 },
+                });
             }
 
             pdf.save(`Gapura_Analytics_${new Date().toISOString().split('T')[0]}.pdf`);
         } catch (error) {
             console.error('PDF Export error:', error);
-            alert('Gagal export ke PDF');
         } finally {
             setExportLoading(false);
         }
@@ -322,355 +205,392 @@ export default function AnalyticsDashboard() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-6" />
-                    <p className="text-slate-500 font-medium">Memuat data analytics...</p>
-                </div>
+                <div 
+                    className="w-12 h-12 rounded-full border-4 animate-spin"
+                    style={{ borderColor: 'var(--surface-4)', borderTopColor: 'var(--brand-primary)' }}
+                />
             </div>
         );
     }
 
-    if (!data || !filteredData) return <div className="text-center py-12 text-slate-500">Gagal memuat data</div>;
+    if (!data || !filteredData) return <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>Gagal memuat data</div>;
+
+    const maxLocation = Math.max(...(data.stationData.map(s => s.total) || [1]));
 
     return (
-        <div className="space-y-6" ref={dashboardRef}>
+        <div className="space-y-8 stagger-children" ref={dashboardRef}>
             {/* Header */}
-            <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
-                    <p className="text-slate-500 mt-1 text-sm sm:text-base">Business Intelligence & Real-time Data Analytics</p>
+                    <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Analitik</h1>
+                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Business Intelligence & Data Analytics</p>
                 </div>
-
-                {/* Controls */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                     {/* Station Filter */}
-                    <div className="relative w-full sm:w-auto">
+                    <div className="relative">
                         <select
                             value={selectedStation}
                             onChange={(e) => setSelectedStation(e.target.value)}
-                            className="w-full sm:w-auto appearance-none pl-10 pr-10 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium focus:border-blue-500 focus:outline-none cursor-pointer text-sm"
+                            className="input-field pl-10 pr-10 py-2.5 min-w-[180px] cursor-pointer"
+                            style={{ background: 'var(--surface-2)' }}
                         >
                             <option value="all">Semua Station</option>
                             {data.stations?.map((s) => (
                                 <option key={s.code} value={s.code}>{s.code} - {s.name}</option>
                             ))}
                         </select>
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                     </div>
-
-                    {/* Export Buttons & Refresh */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={exportToExcel}
-                            disabled={exportLoading}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-medium text-xs sm:text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                        >
-                            <FileSpreadsheet size={16} />
-                            <span>Export Excel</span>
-                        </button>
-                        <button
-                            onClick={exportToPDF}
-                            disabled={exportLoading}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium text-xs sm:text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
-                        >
-                            <FileText size={16} />
-                            <span>Export PDF</span>
-                        </button>
-                        <button
-                            onClick={fetchData}
-                            className="p-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                            title="Refresh Data"
-                        >
-                            <RefreshCw className="w-4 h-4" />
-                        </button>
-                    </div>
+                    <button onClick={exportToExcel} disabled={exportLoading} className="btn-secondary" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+                        <FileSpreadsheet size={16} /> Excel
+                    </button>
+                    <button onClick={exportToPDF} disabled={exportLoading} className="btn-secondary" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+                        <FileText size={16} /> PDF
+                    </button>
+                    <button onClick={fetchData} className="btn-secondary" style={{ padding: 'var(--space-sm)' }}>
+                        <RefreshCw size={16} />
+                    </button>
                 </div>
             </div>
 
-            {/* Selected Station Banner */}
+            {/* Station Filter Banner */}
             {selectedStation !== 'all' && (
-                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl p-4 text-white flex items-center justify-between">
+                <div 
+                    className="card-solid flex items-center justify-between animate-fade-in-up"
+                    style={{ 
+                        background: 'linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end))',
+                        padding: 'var(--space-lg)'
+                    }}
+                >
                     <div className="flex items-center gap-3">
-                        <Building2 size={24} />
+                        <Building2 size={24} className="text-white" />
                         <div>
-                            <p className="font-bold">Menampilkan data untuk Station: {selectedStation}</p>
-                            <p className="text-blue-100 text-sm">Filter aktif - menampilkan analytics khusus cabang ini</p>
+                            <p className="font-bold text-white">Station: {selectedStation}</p>
+                            <p className="text-sm text-white/70">Filter aktif</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setSelectedStation('all')}
-                        className="px-4 py-2 bg-white/20 rounded-xl text-sm font-medium hover:bg-white/30 transition-colors"
-                    >
-                        Reset Filter
+                    <button onClick={() => setSelectedStation('all')} className="px-4 py-2 bg-white/20 rounded-xl text-sm font-medium text-white hover:bg-white/30 transition-colors">
+                        Reset
                     </button>
                 </div>
             )}
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white">
-                    <Activity size={24} className="mb-2 opacity-80" />
-                    <p className="text-3xl font-bold">{filteredData.summary.totalReports}</p>
-                    <p className="text-blue-100 text-sm">Total Laporan</p>
+            {/* KPI Cards — Bento Grid */}
+            <div className="bento-grid bento-3">
+                {/* Hero: Resolution Rate */}
+                <div 
+                    className="card-solid bento-span-2 row-span-2 animate-fade-in-up"
+                    style={{ 
+                        background: 'linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end))',
+                        boxShadow: 'var(--shadow-brand)'
+                    }}
+                >
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-sm font-medium uppercase tracking-wider text-white/70">Resolution Rate</p>
+                            <p className="mt-3 font-bold text-white" style={{ fontSize: 'clamp(4rem, 10vw, 6rem)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+                                {filteredData.summary.avgResolutionRate}%
+                            </p>
+                            <p className="mt-4 text-sm text-white/80">
+                                {filteredData.summary.resolvedReports} dari {filteredData.summary.totalReports} laporan terselesaikan
+                            </p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/15">
+                            <Target size={32} className="text-white" />
+                        </div>
+                    </div>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 text-white">
-                    <CheckCircle2 size={24} className="mb-2 opacity-80" />
-                    <p className="text-3xl font-bold">{filteredData.summary.resolvedReports}</p>
-                    <p className="text-emerald-100 text-sm">Selesai</p>
+
+                {/* Total */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <Activity size={22} style={{ color: 'var(--accent-primary)' }} />
+                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.totalReports}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Total Laporan</p>
                 </div>
-                <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-4 text-white">
-                    <Clock size={24} className="mb-2 opacity-80" />
-                    <p className="text-3xl font-bold">{filteredData.summary.pendingReports}</p>
-                    <p className="text-amber-100 text-sm">Menunggu</p>
+
+                {/* Resolved */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                    <CheckCircle2 size={22} style={{ color: 'var(--status-success)' }} />
+                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.resolvedReports}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Selesai</p>
                 </div>
-                <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-4 text-white">
-                    <AlertTriangle size={24} className="mb-2 opacity-80" />
-                    <p className="text-3xl font-bold">{filteredData.summary.highSeverity}</p>
-                    <p className="text-red-100 text-sm">High Priority</p>
+
+                {/* Pending */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                    <Clock size={22} style={{ color: 'var(--status-warning)' }} />
+                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.pendingReports}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Menunggu</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 text-white">
-                    <Target size={24} className="mb-2 opacity-80" />
-                    <p className="text-3xl font-bold">{filteredData.summary.avgResolutionRate}%</p>
-                    <p className="text-purple-100 text-sm">Resolution Rate</p>
+
+                {/* High Priority */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                    <AlertTriangle size={22} style={{ color: 'var(--status-error)' }} />
+                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.highSeverity}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>High Priority</p>
                 </div>
-                <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl p-4 text-white">
-                    <Building2 size={24} className="mb-2 opacity-80" />
-                    <p className="text-3xl font-bold">{filteredData.summary.stationCount}</p>
-                    <p className="text-cyan-100 text-sm">Stations</p>
+
+                {/* Stations */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+                    <Building2 size={22} style={{ color: 'var(--accent-primary)' }} />
+                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{data.summary.stationCount}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Stations</p>
+                </div>
+            </div>
+
+            {/* Division Performance Charts (New Section) */}
+            <div className="bento-grid bento-2">
+                 <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
+                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
+                            <Layers size={20} style={{ color: 'var(--accent-primary)' }} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Peforma Divisi</h3>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Total laporan per divisi</p>
+                        </div>
+                    </div>
+                    <div style={{ padding: 'var(--space-lg)' }}>
+                        <ResponsiveContainer width="100%" height={260}>
+                            <BarChart data={data.divisionData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
+                                <XAxis dataKey="division" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
+                                <Bar dataKey="total" name="Total Laporan" fill={CHART_COLORS.purple} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                 <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
+                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
+                            <Target size={20} style={{ color: 'var(--accent-primary)' }} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Resolution Rate Divisi</h3>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Tingkat penyelesaian %</p>
+                        </div>
+                    </div>
+                    <div style={{ padding: 'var(--space-lg)' }}>
+                        <ResponsiveContainer width="100%" height={260}>
+                            <BarChart data={data.divisionData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
+                                <XAxis dataKey="division" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
+                                <Bar dataKey="resolutionRate" name="Resolution %" fill={CHART_COLORS.cyan} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
 
             {/* Station Performance Chart */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                <div className="flex items-center justify-between mb-6">
+            <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="flex items-center justify-between" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-xl">
-                            <Building2 size={20} className="text-blue-600" />
+                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
+                            <Building2 size={20} style={{ color: 'oklch(0.50 0.12 250)' }} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-900">Performa Per Station</h3>
-                            <p className="text-sm text-slate-500">Jumlah irregularity dan penyelesaian per cabang</p>
+                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Performa Per Station</h3>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Jumlah irregularity per cabang</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button
-                            onClick={() => setActiveChart('bar')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeChart === 'bar' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                        >
-                            Status View
+                        <button onClick={() => setActiveChart('bar')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeChart === 'bar' ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+                            Status
                         </button>
-                        <button
-                            onClick={() => setActiveChart('stacked')}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeChart === 'stacked' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                        >
-                            Severity View
+                        <button onClick={() => setActiveChart('stacked')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeChart === 'stacked' ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: 'var(--space-sm) var(--space-md)' }}>
+                            Severity
                         </button>
                     </div>
                 </div>
-                <ResponsiveContainer width="100%" height={350}>
-                    {activeChart === 'bar' ? (
-                        <BarChart data={filteredData.stationData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="station" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-                            <Legend />
-                            <Bar dataKey="total" name="Total Laporan" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="resolved" name="Selesai" fill="#10b981" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="pending" name="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    ) : (
-                        <BarChart data={filteredData.stationData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="station" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-                            <Legend />
-                            <Bar dataKey="high" name="High Severity" stackId="severity" fill="#ef4444" />
-                            <Bar dataKey="medium" name="Medium Severity" stackId="severity" fill="#f59e0b" />
-                            <Bar dataKey="low" name="Low Severity" stackId="severity" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    )}
-                </ResponsiveContainer>
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Monthly Trend */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-emerald-100 rounded-xl">
-                            <TrendingUp size={20} className="text-emerald-600" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Tren Bulanan</h3>
-                            <p className="text-sm text-slate-500">6 bulan terakhir</p>
-                        </div>
-                    </div>
-                    <ResponsiveContainer width="100%" height={280}>
-                        <AreaChart data={data.trendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <defs>
-                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-                            <Legend />
-                            <Area type="monotone" dataKey="total" name="Total Laporan" stroke="#3b82f6" fill="url(#colorTotal)" strokeWidth={2} />
-                            <Area type="monotone" dataKey="resolved" name="Selesai" stroke="#10b981" fill="url(#colorResolved)" strokeWidth={2} />
-                            <Line type="monotone" dataKey="high" name="High Priority" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-
-                {/* Severity & Status Distribution */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-purple-100 rounded-xl">
-                            <PieChartIcon size={20} className="text-purple-600" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Distribusi</h3>
-                            <p className="text-sm text-slate-500">Severity & Status</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-xs text-slate-500 text-center mb-2 font-medium">SEVERITY</p>
-                            <ResponsiveContainer width="100%" height={200}>
-                                <PieChart>
-                                    <Pie
-                                        data={data.severityData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={40}
-                                        outerRadius={70}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {data.severityData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs px-2">
-                                {data.severityData.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-1 whitespace-nowrap">
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                                        <span className="text-slate-600">{item.name}: {item.value}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-xs text-slate-500 text-center mb-2 font-medium">STATUS</p>
-                            <ResponsiveContainer width="100%" height={200}>
-                                <PieChart>
-                                    <Pie
-                                        data={data.statusData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={40}
-                                        outerRadius={70}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {data.statusData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs px-2">
-                                {data.statusData.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-1 whitespace-nowrap">
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                                        <span className="text-slate-600">{item.name}: {item.value}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Incident Type & Station Table */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Top Incident Types */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-amber-100 rounded-xl">
-                            <Zap size={20} className="text-amber-600" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Top Tipe Insiden</h3>
-                            <p className="text-sm text-slate-500">8 tipe insiden terbanyak</p>
-                        </div>
-                    </div>
+                <div style={{ padding: 'var(--space-lg)' }}>
                     <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={data.incidentData} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis type="number" tick={{ fontSize: 10 }} />
-                            <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={95} />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
-                            <Bar dataKey="value" name="Jumlah Kasus" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                        </BarChart>
+                        {activeChart === 'bar' ? (
+                            <BarChart data={filteredData.stationData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
+                                <XAxis dataKey="station" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
+                                <Bar dataKey="total" name="Total" fill={CHART_COLORS.secondary} radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="resolved" name="Selesai" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="pending" name="Pending" fill={CHART_COLORS.warning} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        ) : (
+                            <BarChart data={filteredData.stationData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
+                                <XAxis dataKey="station" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
+                                <Bar dataKey="high" name="High" stackId="severity" fill={CHART_COLORS.danger} />
+                                <Bar dataKey="medium" name="Medium" stackId="severity" fill={CHART_COLORS.warning} />
+                                <Bar dataKey="low" name="Low" stackId="severity" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        )}
                     </ResponsiveContainer>
                 </div>
+            </div>
 
-                {/* Station Performance Table */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-cyan-100 rounded-xl">
-                            <BarChart3 size={20} className="text-cyan-600" />
+            {/* Row: Trend + Distribution */}
+            <div className="bento-grid bento-2">
+                {/* Trend Chart */}
+                <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
+                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.14 160 / 0.15)' }}>
+                            <TrendingUp size={20} style={{ color: 'var(--status-success)' }} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-900">Tabel Performa Station</h3>
-                            <p className="text-sm text-slate-500">Resolution rate per cabang</p>
+                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Tren Bulanan</h3>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>6 bulan terakhir</p>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-100">
-                                    <th className="text-left py-3 px-2 text-slate-500 font-medium">Station</th>
-                                    <th className="text-center py-3 px-2 text-slate-500 font-medium">Total</th>
-                                    <th className="text-center py-3 px-2 text-slate-500 font-medium">Selesai</th>
-                                    <th className="text-center py-3 px-2 text-slate-500 font-medium">Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.stationData.slice(0, 10).map((station, idx) => (
-                                    <tr
-                                        key={idx}
-                                        className={`border-b border-slate-50 hover:bg-slate-50 cursor-pointer ${selectedStation === station.station ? 'bg-blue-50' : ''}`}
-                                        onClick={() => setSelectedStation(station.station)}
-                                    >
-                                        <td className="py-3 px-2 font-semibold text-slate-900">{station.station}</td>
-                                        <td className="py-3 px-2 text-center">{station.total}</td>
-                                        <td className="py-3 px-2 text-center text-emerald-600">{station.resolved}</td>
-                                        <td className="py-3 px-2 text-center">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${station.resolutionRate >= 70 ? 'bg-emerald-100 text-emerald-700' : station.resolutionRate >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                                                {station.resolutionRate}%
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div style={{ padding: 'var(--space-lg)' }}>
+                        <ResponsiveContainer width="100%" height={260}>
+                            <AreaChart data={data.trendData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
+                                <defs>
+                                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={CHART_COLORS.secondary} stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor={CHART_COLORS.secondary} stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor={CHART_COLORS.success} stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
+                                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
+                                <Area type="monotone" dataKey="total" name="Total" stroke={CHART_COLORS.secondary} fill="url(#colorTotal)" strokeWidth={2} />
+                                <Area type="monotone" dataKey="resolved" name="Selesai" stroke={CHART_COLORS.success} fill="url(#colorResolved)" strokeWidth={2} />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
+                </div>
+
+                {/* Distribution Pie Charts */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '50ms', padding: 0, overflow: 'hidden' }}>
+                    <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
+                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
+                            <BarChart3 size={20} style={{ color: 'var(--accent-primary)' }} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Distribusi</h3>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Severity & Status</p>
+                        </div>
+                    </div>
+                    <div style={{ padding: 'var(--space-lg)' }}>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-center mb-2" style={{ color: 'var(--text-muted)' }}>Severity</p>
+                                <ResponsiveContainer width="100%" height={160}>
+                                    <PieChart>
+                                        <Pie data={data.severityData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={4} dataKey="value">
+                                            {data.severityData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)' }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="flex flex-wrap justify-center gap-2 mt-2 text-xs">
+                                    {data.severityData.map((item, idx) => (
+                                        <div key={idx} className="flex items-center gap-1">
+                                            <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
+                                            <span style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-center mb-2" style={{ color: 'var(--text-muted)' }}>Status</p>
+                                <ResponsiveContainer width="100%" height={160}>
+                                    <PieChart>
+                                        <Pie data={data.statusData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={4} dataKey="value">
+                                            {data.statusData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)' }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="flex flex-wrap justify-center gap-2 mt-2 text-xs">
+                                    {data.statusData.map((item, idx) => (
+                                        <div key={idx} className="flex items-center gap-1">
+                                            <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
+                                            <span style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Station Table */}
+            <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
+                    <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
+                        <BarChart3 size={20} style={{ color: 'var(--accent-primary)' }} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Tabel Performa Station</h3>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Klik baris untuk filter</p>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                                <th className="text-left py-4 px-6 font-semibold" style={{ color: 'var(--text-muted)' }}>Station</th>
+                                <th className="text-center py-4 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Total</th>
+                                <th className="text-center py-4 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Selesai</th>
+                                <th className="text-center py-4 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>High</th>
+                                <th className="text-left py-4 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.stationData.slice(0, 10).map((station, idx) => (
+                                <tr
+                                    key={idx}
+                                    onClick={() => setSelectedStation(station.station)}
+                                    className="cursor-pointer transition-colors"
+                                    style={{ 
+                                        borderBottom: '1px solid var(--surface-4)',
+                                        background: selectedStation === station.station ? 'var(--surface-3)' : 'transparent'
+                                    }}
+                                    onMouseEnter={(e) => { if (selectedStation !== station.station) e.currentTarget.style.background = 'var(--surface-3)'; }}
+                                    onMouseLeave={(e) => { if (selectedStation !== station.station) e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                    <td className="py-4 px-6 font-bold" style={{ color: 'var(--text-primary)' }}>{station.station}</td>
+                                    <td className="py-4 px-4 text-center" style={{ color: 'var(--text-secondary)' }}>{station.total}</td>
+                                    <td className="py-4 px-4 text-center" style={{ color: 'var(--status-success)' }}>{station.resolved}</td>
+                                    <td className="py-4 px-4 text-center" style={{ color: 'var(--status-error)' }}>{station.high}</td>
+                                    <td className="py-4 px-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-4)', maxWidth: '80px' }}>
+                                                <div 
+                                                    className="h-full rounded-full" 
+                                                    style={{ 
+                                                        width: `${station.resolutionRate}%`,
+                                                        background: station.resolutionRate >= 70 ? 'var(--status-success)' :
+                                                                   station.resolutionRate >= 40 ? 'var(--status-warning)' :
+                                                                   'var(--status-error)'
+                                                    }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{station.resolutionRate}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

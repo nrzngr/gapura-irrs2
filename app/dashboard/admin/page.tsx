@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-    FileText, Clock, CheckCircle, Users, RefreshCw, TrendingUp,
-    MapPin, Calendar, ArrowRight, Eye, BarChart3, Activity, UserCheck,
-    AlertCircle, Zap, AlertTriangle, Shield
+    FileText, CheckCircle, Users, RefreshCw, TrendingUp,
+    MapPin, ArrowRight, AlertTriangle, AlertCircle, Shield, Zap, Clock
 } from 'lucide-react';
 
 interface Stats {
@@ -17,17 +16,10 @@ interface Stats {
         pendingUsers: number;
         activeUsers: number;
         resolutionRate: number;
+        slaBreachCount: number;
     };
-    severity: {
-        high: number;
-        medium: number;
-        low: number;
-    };
-    trends: {
-        today: number;
-        thisWeek: number;
-        thisMonth: number;
-    };
+    severity: { high: number; medium: number; low: number };
+    trends: { today: number; thisWeek: number; thisMonth: number };
     recentReports: Array<{
         id: string;
         title: string;
@@ -38,23 +30,8 @@ interface Stats {
         users: { full_name: string };
         stations: { code: string } | null;
     }>;
-    topLocations: Array<{
-        location: string;
-        count: number;
-    }>;
+    topLocations: Array<{ location: string; count: number }>;
 }
-
-const statusConfig = {
-    pending: { label: 'Menunggu', color: 'bg-amber-500' },
-    reviewed: { label: 'Ditinjau', color: 'bg-blue-500' },
-    resolved: { label: 'Selesai', color: 'bg-emerald-500' },
-};
-
-const severityConfig = {
-    high: { label: 'High', color: 'text-red-600 bg-red-100', icon: AlertTriangle },
-    medium: { label: 'Medium', color: 'text-amber-600 bg-amber-100', icon: AlertCircle },
-    low: { label: 'Low', color: 'text-emerald-600 bg-emerald-100', icon: Shield },
-};
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState<Stats | null>(null);
@@ -64,8 +41,7 @@ export default function AdminDashboard() {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/stats');
-            const data = await res.json();
-            setStats(data);
+            setStats(await res.json());
         } catch (error) {
             console.error('Error:', error);
         } finally {
@@ -73,211 +49,291 @@ export default function AdminDashboard() {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-6" />
-                    <p className="text-slate-500 font-medium">Memuat data analytics...</p>
-                </div>
+                <div 
+                    className="w-12 h-12 rounded-full border-4 animate-spin"
+                    style={{ 
+                        borderColor: 'var(--surface-4)',
+                        borderTopColor: 'var(--brand-primary)'
+                    }}
+                />
             </div>
         );
     }
 
-    const maxLocationCount = Math.max(...(stats?.topLocations.map(l => l.count) || [1]));
+    const maxLocation = Math.max(...(stats?.topLocations.map(l => l.count) || [1]));
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 stagger-children">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
-                    <p className="text-slate-500 mt-1">Ringkasan komprehensif operasional Gapura Angkasa</p>
+                    <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                        Ringkasan
+                    </h1>
+                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+                        Analitik operasional bandara Gapura Angkasa
+                    </p>
                 </div>
-                <button
-                    onClick={fetchData}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 font-medium hover:border-slate-300 hover:bg-slate-50 transition-all self-start"
-                >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh
+                <button onClick={fetchData} className="btn-secondary self-start">
+                    <RefreshCw size={16} />
+                    Perbarui Data
                 </button>
             </div>
 
-            {/* Severity Alert Banner */}
+            {/* High Priority Alert */}
             {stats?.severity.high && stats.severity.high > 0 && (
-                <div className="bg-gradient-to-r from-red-500 to-rose-500 rounded-2xl p-4 text-white flex items-center gap-4 shadow-lg shadow-red-500/25">
-                    <div className="p-3 bg-white/20 rounded-xl">
-                        <AlertTriangle size={24} />
+                <div 
+                    className="card-solid flex items-center gap-4 animate-fade-in-up"
+                    style={{ 
+                        background: 'oklch(0.60 0.22 25 / 0.08)',
+                        border: '1px solid oklch(0.60 0.22 25 / 0.2)',
+                        padding: 'var(--space-lg)'
+                    }}
+                >
+                    <div 
+                        className="p-3 rounded-xl"
+                        style={{ background: 'oklch(0.60 0.22 25 / 0.15)' }}
+                    >
+                        <AlertTriangle size={24} style={{ color: 'oklch(0.50 0.20 25)' }} />
                     </div>
                     <div className="flex-1">
-                        <p className="font-bold">{stats.severity.high} Laporan HIGH Priority</p>
-                        <p className="text-red-100 text-sm">Membutuhkan penanganan segera</p>
+                        <p className="font-bold" style={{ color: 'oklch(0.40 0.18 25)' }}>
+                            {stats.severity.high} Laporan Prioritas Tinggi
+                        </p>
+                        <p className="text-sm" style={{ color: 'oklch(0.55 0.15 25)' }}>
+                            Membutuhkan penanganan segera
+                        </p>
                     </div>
-                    <Link href="/dashboard/admin/reports?severity=high" className="px-4 py-2 bg-white text-red-600 rounded-xl font-medium text-sm hover:bg-red-50 transition-colors">
-                        Lihat Sekarang
+                    <Link 
+                        href="/dashboard/admin/reports?severity=high"
+                        className="btn-primary"
+                        style={{ 
+                            background: 'oklch(0.55 0.20 25)',
+                            boxShadow: '0 4px 16px oklch(0.55 0.20 25 / 0.3)'
+                        }}
+                    >
+                        Lihat
+                        <ArrowRight size={16} />
                     </Link>
                 </div>
             )}
 
-            {/* Primary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                {/* Total Reports */}
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/25">
-                    <div className="flex items-center justify-between">
+            {/* Bento Grid — Primary Metrics */}
+            <div className="bento-grid bento-4">
+                {/* Resolution Rate — Hero Card */}
+                <div 
+                    className="card-solid bento-span-2 animate-fade-in-up"
+                    style={{ 
+                        background: 'linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end))',
+                        boxShadow: 'var(--shadow-brand)'
+                    }}
+                >
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-blue-100 text-sm font-medium">Total Laporan</p>
-                            <h3 className="text-4xl font-bold mt-2">{stats?.overview.totalReports}</h3>
-                            <p className="text-blue-200 text-sm mt-2">Semua waktu</p>
+                            <p className="text-sm font-medium uppercase tracking-wider text-white/80">
+                                Tingkat Resolusi
+                            </p>
+                            <p 
+                                className="mt-2 font-bold text-white"
+                                style={{ fontSize: 'clamp(3rem, 8vw, 5rem)', lineHeight: 1, letterSpacing: '-0.03em' }}
+                            >
+                                {stats?.overview.resolutionRate}%
+                            </p>
                         </div>
-                        <div className="bg-white/20 p-4 rounded-2xl">
-                            <FileText size={28} />
+                        <div className="p-3 rounded-xl bg-white/20">
+                            <TrendingUp size={28} className="text-white" />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-4">
+                        <Zap size={16} className="text-white/80" />
+                        <span className="text-sm font-medium text-white/90">Sesuai target operasional</span>
+                    </div>
+                </div>
+
+                {/* Total Reports */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '80ms' }}>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                Total Laporan
+                            </p>
+                            <p 
+                                className="mt-2 font-bold"
+                                style={{ fontSize: 'var(--text-4xl)', color: 'var(--text-primary)' }}
+                            >
+                                {stats?.overview.totalReports}
+                            </p>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                                Sepanjang waktu
+                            </p>
+                        </div>
+                        <div className="p-3 rounded-xl" style={{ background: 'var(--surface-3)' }}>
+                            <FileText size={22} style={{ color: 'var(--brand-primary)' }} />
                         </div>
                     </div>
                 </div>
 
                 {/* Pending */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                    <div className="flex items-center justify-between">
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Menunggu Review</p>
-                            <h3 className="text-4xl font-bold text-slate-900 mt-2">{stats?.overview.pendingReports}</h3>
-                            <p className="text-amber-600 text-sm mt-2 font-medium flex items-center gap-1">
-                                <AlertCircle size={14} />
+                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                Menunggu Review
+                            </p>
+                            <p 
+                                className="mt-2 font-bold"
+                                style={{ fontSize: 'var(--text-4xl)', color: 'oklch(0.60 0.18 75)' }}
+                            >
+                                {stats?.overview.pendingReports}
+                            </p>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
                                 Perlu tindakan
                             </p>
                         </div>
-                        <div className="bg-amber-100 p-4 rounded-2xl">
-                            <Clock size={28} className="text-amber-600" />
+                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.75 0.16 75 / 0.15)' }}>
+                            <AlertCircle size={22} style={{ color: 'oklch(0.60 0.18 75)' }} />
                         </div>
                     </div>
                 </div>
 
-                {/* Resolved */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                    <div className="flex items-center justify-between">
+                {/* SLA Breach Counter */}
+                <div 
+                    className="card-solid animate-fade-in-up" 
+                    style={{ 
+                        animationDelay: '240ms',
+                        background: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
+                            ? 'oklch(0.55 0.22 25 / 0.06)' 
+                            : undefined,
+                        border: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
+                            ? '1px solid oklch(0.55 0.22 25 / 0.15)' 
+                            : undefined
+                    }}
+                >
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-slate-500 text-sm font-medium">Selesai Ditangani</p>
-                            <h3 className="text-4xl font-bold text-slate-900 mt-2">{stats?.overview.resolvedReports}</h3>
-                            <p className="text-emerald-600 text-sm mt-2 font-medium flex items-center gap-1">
-                                <TrendingUp size={14} />
-                                {stats?.overview.resolutionRate}% resolution rate
+                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                                SLA Breach
+                            </p>
+                            <p 
+                                className="mt-2 font-bold"
+                                style={{ 
+                                    fontSize: 'var(--text-4xl)', 
+                                    color: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
+                                        ? 'oklch(0.55 0.20 25)' 
+                                        : 'var(--text-primary)' 
+                                }}
+                            >
+                                {stats?.overview.slaBreachCount || 0}
+                            </p>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                                Melewati deadline
                             </p>
                         </div>
-                        <div className="bg-emerald-100 p-4 rounded-2xl">
-                            <CheckCircle size={28} className="text-emerald-600" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* User Pending */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm font-medium">User Menunggu</p>
-                            <h3 className="text-4xl font-bold text-slate-900 mt-2">{stats?.overview.pendingUsers}</h3>
-                            <p className="text-slate-400 text-sm mt-2">{stats?.overview.activeUsers} user aktif</p>
-                        </div>
-                        <div className="bg-purple-100 p-4 rounded-2xl">
-                            <Users size={28} className="text-purple-600" />
+                        <div 
+                            className="p-3 rounded-xl" 
+                            style={{ 
+                                background: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
+                                    ? 'oklch(0.55 0.22 25 / 0.12)' 
+                                    : 'var(--surface-3)' 
+                            }}
+                        >
+                            <Clock 
+                                size={22} 
+                                style={{ 
+                                    color: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
+                                        ? 'oklch(0.55 0.20 25)' 
+                                        : 'var(--text-muted)' 
+                                }} 
+                            />
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Severity & Trend Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Secondary Row */}
+            <div className="bento-grid bento-3">
                 {/* Severity Breakdown */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-red-100 rounded-xl">
-                            <AlertTriangle size={20} className="text-red-600" />
-                        </div>
-                        <h3 className="font-bold text-slate-900">Severity Breakdown</h3>
-                    </div>
+                <div className="card-solid animate-fade-in-up">
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-5" style={{ color: 'var(--text-muted)' }}>
+                        Berdasarkan Severity
+                    </p>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-100">
-                            <div className="flex items-center gap-3">
-                                <AlertTriangle size={18} className="text-red-500" />
-                                <span className="text-slate-700 font-medium">High (Accident)</span>
-                            </div>
-                            <span className="text-2xl font-bold text-red-600">{stats?.severity.high || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
-                            <div className="flex items-center gap-3">
-                                <AlertCircle size={18} className="text-amber-500" />
-                                <span className="text-slate-700 font-medium">Medium (Incident)</span>
-                            </div>
-                            <span className="text-2xl font-bold text-amber-600">{stats?.severity.medium || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <div className="flex items-center gap-3">
-                                <Shield size={18} className="text-emerald-500" />
-                                <span className="text-slate-700 font-medium">Low (Hazard)</span>
-                            </div>
-                            <span className="text-2xl font-bold text-emerald-600">{stats?.severity.low || 0}</span>
-                        </div>
+                        {[
+                            { label: 'High (Accident)', value: stats?.severity.high || 0, color: 'oklch(0.55 0.20 25)', icon: AlertTriangle },
+                            { label: 'Medium (Incident)', value: stats?.severity.medium || 0, color: 'oklch(0.65 0.18 75)', icon: AlertCircle },
+                            { label: 'Low (Hazard)', value: stats?.severity.low || 0, color: 'oklch(0.55 0.15 160)', icon: Shield },
+                        ].map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <div key={item.label} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div 
+                                            className="p-2 rounded-lg"
+                                            style={{ background: `${item.color} / 0.12)`.replace(')', '') }}
+                                        >
+                                            <Icon size={16} style={{ color: item.color }} />
+                                        </div>
+                                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+                                    </div>
+                                    <span className="text-xl font-bold" style={{ color: item.color }}>
+                                        {item.value}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Trend Cards */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-blue-100 rounded-xl">
-                            <Activity size={20} className="text-blue-600" />
-                        </div>
-                        <h3 className="font-bold text-slate-900">Tren Laporan</h3>
-                    </div>
+                {/* Activity Trends */}
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '80ms' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-5" style={{ color: 'var(--text-muted)' }}>
+                        Aktivitas
+                    </p>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <Zap size={18} className="text-amber-500" />
-                                <span className="text-slate-600">Hari Ini</span>
+                        {[
+                            { label: 'Hari Ini', value: stats?.trends.today },
+                            { label: 'Minggu Ini', value: stats?.trends.thisWeek },
+                            { label: 'Bulan Ini', value: stats?.trends.thisMonth },
+                        ].map((item) => (
+                            <div key={item.label} className="flex items-center justify-between">
+                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+                                <span className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{item.value}</span>
                             </div>
-                            <span className="text-2xl font-bold text-slate-900">{stats?.trends.today}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <Calendar size={18} className="text-blue-500" />
-                                <span className="text-slate-600">Minggu Ini</span>
-                            </div>
-                            <span className="text-2xl font-bold text-slate-900">{stats?.trends.thisWeek}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <BarChart3 size={18} className="text-emerald-500" />
-                                <span className="text-slate-600">Bulan Ini</span>
-                            </div>
-                            <span className="text-2xl font-bold text-slate-900">{stats?.trends.thisMonth}</span>
-                        </div>
+                        ))}
                     </div>
                 </div>
 
                 {/* Top Locations */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-rose-100 rounded-xl">
-                            <MapPin size={20} className="text-rose-600" />
-                        </div>
-                        <h3 className="font-bold text-slate-900">Lokasi Terbanyak</h3>
-                    </div>
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-5" style={{ color: 'var(--text-muted)' }}>
+                        Lokasi Terbanyak
+                    </p>
                     <div className="space-y-4">
                         {stats?.topLocations.length === 0 ? (
-                            <p className="text-slate-400 text-center py-8">Belum ada data</p>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Belum ada data</p>
                         ) : (
-                            stats?.topLocations.map((loc, idx) => (
+                            stats?.topLocations.slice(0, 4).map((loc, idx) => (
                                 <div key={idx}>
-                                    <div className="flex justify-between text-sm mb-2">
-                                        <span className="text-slate-600 truncate max-w-[150px]">{loc.location}</span>
-                                        <span className="font-semibold text-slate-900">{loc.count}</span>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm truncate max-w-[140px]" style={{ color: 'var(--text-secondary)' }}>
+                                            {loc.location}
+                                        </span>
+                                        <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                                            {loc.count}
+                                        </span>
                                     </div>
-                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-4)' }}>
                                         <div
-                                            className="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full transition-all duration-500"
-                                            style={{ width: `${(loc.count / maxLocationCount) * 100}%` }}
+                                            className="h-full rounded-full transition-all duration-500"
+                                            style={{ 
+                                                width: `${(loc.count / maxLocation) * 100}%`,
+                                                background: 'linear-gradient(90deg, var(--brand-gradient-start), var(--brand-gradient-end))'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -287,96 +343,107 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-cyan-100 rounded-xl">
-                            <FileText size={20} className="text-cyan-600" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Laporan Terbaru</h3>
-                            <p className="text-sm text-slate-500">5 laporan terakhir yang masuk</p>
-                        </div>
+            {/* Recent Reports */}
+            <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
+                <div 
+                    className="flex items-center justify-between"
+                    style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}
+                >
+                    <div>
+                        <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Laporan Terbaru</h3>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>5 laporan terakhir</p>
                     </div>
-                    <Link
-                        href="/dashboard/admin/reports"
-                        className="inline-flex items-center gap-2 text-blue-600 font-medium text-sm hover:text-blue-700"
-                    >
+                    <Link href="/dashboard/admin/reports" className="btn-secondary" style={{ padding: 'var(--space-sm) var(--space-md)' }}>
                         Lihat Semua
-                        <ArrowRight size={16} />
+                        <ArrowRight size={14} />
                     </Link>
                 </div>
-                <div className="divide-y divide-slate-100">
-                    {stats?.recentReports.length === 0 ? (
-                        <div className="p-12 text-center text-slate-400">
-                            Belum ada laporan
-                        </div>
-                    ) : (
-                        stats?.recentReports.map((report) => {
-                            const SeverityIcon = severityConfig[report.severity as keyof typeof severityConfig]?.icon || Shield;
-                            return (
-                                <div key={report.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${severityConfig[report.severity as keyof typeof severityConfig]?.color || 'bg-slate-100 text-slate-600'}`}>
-                                            <SeverityIcon size={20} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-slate-900 truncate">{report.title}</p>
-                                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                                {report.stations && (
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin size={12} />
-                                                        {report.stations.code}
-                                                    </span>
-                                                )}
-                                                <span className="flex items-center gap-1">
-                                                    <UserCheck size={12} />
-                                                    {report.users?.full_name}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-2 h-2 rounded-full ${statusConfig[report.status as keyof typeof statusConfig]?.color}`} />
-                                            <span className="text-xs text-slate-400">
-                                                {new Date(report.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+
+                {stats?.recentReports.length === 0 ? (
+                    <div className="py-16 text-center">
+                        <FileText size={40} style={{ color: 'var(--text-muted)' }} className="mx-auto mb-4 opacity-50" />
+                        <p style={{ color: 'var(--text-muted)' }}>Belum ada laporan</p>
+                    </div>
+                ) : (
+                    <div>
+                        {stats?.recentReports.map((report, idx) => (
+                            <div 
+                                key={report.id}
+                                className="flex items-center gap-4 transition-colors hover:bg-[var(--surface-3)]"
+                                style={{ 
+                                    padding: 'var(--space-lg) var(--space-xl)',
+                                    borderBottom: idx < (stats?.recentReports.length || 0) - 1 ? '1px solid var(--surface-4)' : 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <div 
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ 
+                                        background: report.severity === 'high' ? 'oklch(0.55 0.20 25)' :
+                                                   report.severity === 'medium' ? 'oklch(0.65 0.18 75)' :
+                                                   'oklch(0.55 0.15 160)'
+                                    }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                        {report.title}
+                                    </p>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        {report.stations && (
+                                            <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                                                <MapPin size={12} />
+                                                {report.stations.code}
                                             </span>
-                                        </div>
+                                        )}
+                                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                            {report.users?.full_name}
+                                        </span>
                                     </div>
                                 </div>
-                            );
-                        })
-                    )}
-                </div>
+                                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    {new Date(report.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bento-grid bento-2">
                 <Link
                     href="/dashboard/admin/reports"
-                    className="flex items-center gap-4 p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl text-white hover:shadow-lg hover:shadow-blue-500/25 transition-all group"
+                    className="card-solid flex items-center gap-4 group animate-fade-in-up"
                 >
-                    <div className="p-3 bg-white/20 rounded-xl">
-                        <Eye size={24} />
+                    <div 
+                        className="p-4 rounded-xl transition-all group-hover:scale-105"
+                        style={{ background: 'oklch(0.65 0.18 160 / 0.1)' }}
+                    >
+                        <FileText size={24} style={{ color: 'var(--brand-primary)' }} />
                     </div>
                     <div className="flex-1">
-                        <h4 className="font-bold">Kelola Laporan</h4>
-                        <p className="text-blue-100 text-sm">Tinjau dan proses semua laporan</p>
+                        <p className="font-bold" style={{ color: 'var(--text-primary)' }}>Kelola Laporan</p>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Tinjau dan proses insiden</p>
                     </div>
-                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" style={{ color: 'var(--text-muted)' }} />
                 </Link>
+
                 <Link
                     href="/dashboard/admin/users"
-                    className="flex items-center gap-4 p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all group"
+                    className="card-solid flex items-center gap-4 group animate-fade-in-up"
+                    style={{ animationDelay: '80ms' }}
                 >
-                    <div className="p-3 bg-slate-100 rounded-xl group-hover:bg-slate-200 transition-colors">
-                        <Users size={24} className="text-slate-600" />
+                    <div 
+                        className="p-4 rounded-xl transition-all group-hover:scale-105"
+                        style={{ background: 'oklch(0.60 0.15 250 / 0.1)' }}
+                    >
+                        <Users size={24} style={{ color: 'oklch(0.55 0.15 250)' }} />
                     </div>
                     <div className="flex-1">
-                        <h4 className="font-bold text-slate-900">Kelola User</h4>
-                        <p className="text-slate-500 text-sm">Manajemen pengguna sistem</p>
+                        <p className="font-bold" style={{ color: 'var(--text-primary)' }}>Kelola Pengguna</p>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Akses & persetujuan pengguna</p>
                     </div>
-                    <ArrowRight size={20} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" style={{ color: 'var(--text-muted)' }} />
                 </Link>
             </div>
         </div>

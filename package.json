@@ -12,6 +12,8 @@
     "@supabase/supabase-js": "^2.87.1",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "exifreader": "^4.33.1",
+    "framer-motion": "^12.23.26",
     "jose": "^6.1.3",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
