@@ -7,7 +7,7 @@ I am submitting a codebase (or specific files) that requires a complete refactor
 Transform the code into a production-grade, highly scalable, and maintainable Next.js application using the latest App Router patterns.
 
 ---
-
+--------
 ## 1. Architectural Standards & Project Structure
 * **Architecture Pattern:** Use a **Feature-Based (Vertical Slicing)** architecture. Do not group files by type (e.g., `hooks`, `components`). Group them by feature domain.
     * *Example:* `src/features/auth/components`, `src/features/auth/hooks`, `src/features/auth/actions`.
