@@ -48,9 +48,9 @@ export default function LoginPage() {
                 OSC_LEAD: '/dashboard/osc',
                 PARTNER_ADMIN: '/dashboard/partner',
                 BRANCH_USER: '/dashboard/employee',
-                OT_ADMIN: '/dashboard/os',
-                OP_ADMIN: '/dashboard/os',
-                UQ_ADMIN: '/dashboard/os',
+                OT_ADMIN: '/dashboard/ot',
+                OP_ADMIN: '/dashboard/op',
+                UQ_ADMIN: '/dashboard/uq',
             };
             
             const normalizedRole = data.role ? String(data.role).trim().toUpperCase() : '';

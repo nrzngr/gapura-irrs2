@@ -57,6 +57,33 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             ]
         }
     ],
+    'OT': [
+        {
+            title: 'Divisi Teknik',
+            items: [
+                { href: '/dashboard/ot', label: 'Dashboard OT', icon: LayoutDashboard },
+                { href: '/dashboard/ot/reports', label: 'Laporan OT', icon: ClipboardList },
+            ]
+        }
+    ],
+    'OP': [
+        {
+            title: 'Divisi Operasi',
+            items: [
+                { href: '/dashboard/op', label: 'Dashboard OP', icon: LayoutDashboard },
+                { href: '/dashboard/op/reports', label: 'Laporan OP', icon: ClipboardList },
+            ]
+        }
+    ],
+    'UQ': [
+        {
+            title: 'Divisi Quality',
+            items: [
+                { href: '/dashboard/uq', label: 'Dashboard UQ', icon: LayoutDashboard },
+                { href: '/dashboard/uq/reports', label: 'Laporan UQ', icon: ClipboardList },
+            ]
+        }
+    ],
     'OSC': [
         {
             title: 'Command Center',
@@ -82,7 +109,10 @@ const GET_LINKS_KEY = (role: string): string => {
     const r = role.toUpperCase();
     if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
     if (r === 'OSC_LEAD') return 'OSC';
-    if (['OS_ADMIN', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'].includes(r)) return 'OS';
+    if (r === 'OS_ADMIN') return 'OS';
+    if (r === 'OT_ADMIN') return 'OT';
+    if (r === 'OP_ADMIN') return 'OP';
+    if (r === 'UQ_ADMIN') return 'UQ';
     if (r === 'PARTNER_ADMIN') return 'PARTNER';
     return 'EMPLOYEE';
 };
