@@ -112,14 +112,6 @@ export default function OSCDashboard() {
         { name: 'Urgent', value: 5, fill: '#7c2d12' },
     ], []);
 
-    const resolutionTimeData = useMemo(() => [
-        { range: '< 1 jam', count: 25 },
-        { range: '1-4 jam', count: 40 },
-        { range: '4-24 jam', count: 20 },
-        { range: '1-3 hari', count: 10 },
-        { range: '> 3 hari', count: 5 },
-    ], []);
-
     // Export Functions
     const exportToExcel = async () => {
         setExporting('excel');
@@ -415,8 +407,6 @@ export default function OSCDashboard() {
     };
 
     const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-    const avgResolutionTime = '2.4 jam';
-    const slaCompliance = 94;
 
     // Loading state
     if (loading) {
@@ -527,13 +517,11 @@ export default function OSCDashboard() {
             )}
 
             {/* Summary Stats - Enhanced */}
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                 <StatCard title="Total Laporan" value={analytics?.summary.totalReports || 0} icon={FileText} color="blue" />
                 <StatCard title="Diselesaikan" value={analytics?.summary.resolvedReports || 0} icon={CheckCircle2} color="green" trend="+12%" />
                 <StatCard title="Menunggu" value={analytics?.summary.pendingReports || 0} icon={Clock} color="amber" />
                 <StatCard title="High Severity" value={analytics?.summary.highSeverity || 0} icon={AlertTriangle} color="red" />
-                <StatCard title="Resolusi" value={`${analytics?.summary.avgResolutionRate || 0}%`} icon={Zap} color="purple" />
-                <StatCard title="SLA Compliance" value={`${slaCompliance}%`} icon={Shield} color="emerald" />
             </div>
 
             {/* Export Actions */}
@@ -649,8 +637,8 @@ export default function OSCDashboard() {
                 </div>
             </div>
 
-            {/* Charts Row 2 - Weekly + Resolution Time + Division */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Charts Row 2 - Weekly + Division */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Weekly Activity */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
                     <div className="flex items-center justify-between mb-6">
@@ -674,40 +662,7 @@ export default function OSCDashboard() {
                     </div>
                 </div>
 
-                {/* Resolution Time Distribution */}
-                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Waktu Resolusi</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Distribusi durasi penyelesaian</p>
-                        </div>
-                        <Timer size={20} className="text-[var(--text-muted)]" />
-                    </div>
-                    <div className="space-y-3">
-                        {resolutionTimeData.map((item, idx) => {
-                            const maxCount = Math.max(...resolutionTimeData.map(i => i.count));
-                            const percentage = Math.round((item.count / maxCount) * 100);
-                            return (
-                                <div key={item.range}>
-                                    <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-[var(--text-secondary)]">{item.range}</span>
-                                        <span className="font-bold text-[var(--text-primary)]">{item.count}%</span>
-                                    </div>
-                                    <div className="h-2 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full transition-all duration-700"
-                                            style={{ width: `${percentage}%`, background: COLORS[idx % COLORS.length] }}
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-[var(--surface-4)] flex items-center justify-between">
-                        <span className="text-xs text-[var(--text-muted)]">Rata-rata resolusi:</span>
-                        <span className="text-sm font-bold text-[var(--brand-primary)]">{avgResolutionTime}</span>
-                    </div>
-                </div>
+
 
                 {/* Division Distribution */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
@@ -813,44 +768,9 @@ export default function OSCDashboard() {
                 </div>
             </div>
 
-            {/* Charts Row 4 - SLA + Top Reporters + Status Flow */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* SLA Compliance Gauge */}
-                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '850ms' }}>
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">SLA Compliance</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Target: 95%</p>
-                        </div>
-                        <Gauge size={20} className="text-[var(--text-muted)]" />
-                    </div>
-                    <div className="flex flex-col items-center justify-center py-6">
-                        <div className="relative w-40 h-40">
-                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                                <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-4)" strokeWidth="12" />
-                                <circle 
-                                    cx="60" cy="60" r="50" fill="none" 
-                                    stroke={slaCompliance >= 95 ? '#10b981' : slaCompliance >= 80 ? '#f59e0b' : '#ef4444'}
-                                    strokeWidth="12" 
-                                    strokeLinecap="round"
-                                    strokeDasharray={`${(slaCompliance / 100) * 314} 314`}
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-3xl font-bold" style={{ color: slaCompliance >= 95 ? '#10b981' : slaCompliance >= 80 ? '#f59e0b' : '#ef4444' }}>
-                                    {slaCompliance}%
-                                </span>
-                                <span className="text-xs text-[var(--text-muted)]">Tercapai</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-between text-xs mt-2">
-                        <span className="text-[var(--text-muted)]">Breach: {analytics?.summary?.slaBreachCount || 3}</span>
-                        <span className={slaCompliance >= 95 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                            {slaCompliance >= 95 ? '✓ On Target' : '⚠ Below Target'}
-                        </span>
-                    </div>
-                </div>
+            {/* Charts Row 4 - Top Reporters + Status Flow */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
 
                 {/* Top Reporters */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '900ms' }}>

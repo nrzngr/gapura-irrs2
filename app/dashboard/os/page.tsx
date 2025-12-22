@@ -149,11 +149,10 @@ export default function OSDashboard() {
                 </div>
 
                 {/* Mini Stats Row */}
-                <div className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/20">
+                <div className="relative z-10 grid grid-cols-2 lg:grid-cols-3 gap-4 mt-8 pt-6 border-t border-white/20">
                     <MiniStat icon={Globe} label="Total Laporan" value={totalCount} />
                     <MiniStat icon={Clock} label="Menunggu" value={pendingCount} highlight />
                     <MiniStat icon={CheckCircle2} label="Selesai" value={resolvedCount} />
-                    <MiniStat icon={Zap} label="Efisiensi" value={`${analytics?.summary.avgResolutionRate || 0}%`} />
                 </div>
             </header>
 

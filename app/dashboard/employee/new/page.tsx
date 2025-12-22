@@ -11,39 +11,70 @@ import { WizardStep } from '@/components/ui/WizardStep';
 import { supabase } from '@/lib/supabase';
 import { IRREGULARITY_CATEGORIES, AREA_TYPES, routeReportToDivision } from '@/lib/constants/irregularity-types';
 import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-status';
+import { AIRLINES } from '@/lib/constants/airlines';
 
-// Icon mapping for categories
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-    Wrench,
-    Package,
-    AlertTriangle,
-    MessageSquare,
+const REPORT_CATEGORIES = [
+    { id: 'Irregularity', label: 'Irregularity' },
+    { id: 'Complaint', label: 'Complaint' },
+    { id: 'Compliment', label: 'Compliment' },
+];
+
+const AREA_OPTIONS = [
+    { id: 'TERMINAL', label: 'Terminal Area' },
+    { id: 'APRON', label: 'Apron Area' },
+    { id: 'GENERAL', label: 'General' },
+];
+
+const AREA_CATEGORIES: Record<string, string[]> = {
+    'TERMINAL': [
+        'Passenger, Baggage & Document Profiling',
+        'Boarding Management',
+        'Baggage/Special/Irregularities Handling',
+        'Accuracy & Completeness of Service',
+        'Procedure Competencies',
+        'Cleanliness Table',
+        'Avoids taking initiative to help',
+        'Lack communication skills',
+        'Other'
+    ],
+    'APRON': [
+        'Preparation Before ETA',
+        'Flight Document Handling',
+        'The Availability of GSE',
+        'Accurancy & Completeness of Service (Apron)',
+        'Qualified Competencies (Apron)',
+        'Procedure Competencies',
+        'Cleanliness of GSE',
+        'Prompt Service and Certainty',
+        'Specific Needs of Customers',
+        'Other'
+    ],
+    'GENERAL': ['Other']
 };
 
 type FormData = {
-    // Step 1: Context
+    // Step 1: Detail Report
     incident_date: string;
-    incident_time: string;
-    area: 'APRON' | 'TERMINAL' | 'GENERAL' | '';
-    specific_location: string;
-    
-    // Step 2: Subject
-    is_flight_related: boolean;
+    airline: string;
     flight_number: string;
-    aircraft_reg: string;
-    is_gse_related: boolean;
-    gse_number: string;
-    gse_name: string;
-    
-    // Step 3: The Case
-    main_category: string;
-    sub_category: string;
-    title: string;
-    description: string;
-    immediate_action: string;
-    priority: ReportPriority;
-    
-    // Step 4: Evidence
+    station_id: string; // Branch
+    route: string;
+    main_category: string; // Irregularity/Complaint/Compliment
+
+    // Step 2: Area
+    area: string;
+
+    // Step 3: Area Category
+    area_category: string;
+
+    // Step 4: Report Details
+    description: string; // "Report"
+    root_cause: string;
+    action_taken: string;
+    severity: ReportPriority; // Replacing SLA
+
+    // Step 5: Evidence
+    reporter_name: string;
     evidence_urls: string[];
     evidence_meta?: {
         url: string;
@@ -80,24 +111,21 @@ export default function NewReportWizard() {
 
     const [formData, setFormData] = useState<FormData>({
         incident_date: new Date().toISOString().split('T')[0],
-        incident_time: new Date().toTimeString().slice(0, 5),
-        area: '',
-        specific_location: '',
-        
-        is_flight_related: false,
+        airline: '',
         flight_number: '',
-        aircraft_reg: '',
-        is_gse_related: false,
-        gse_number: '',
-        gse_name: '',
+        station_id: '',
+        route: '',
+        main_category: 'Irregularity', // Default
         
-        main_category: '',
-        sub_category: '',
-        title: '',
+        area: '',
+        area_category: '',
+        
         description: '',
-        immediate_action: '',
-        priority: 'medium',
+        root_cause: '',
+        action_taken: '',
+        severity: 'medium',
         
+        reporter_name: '',
         evidence_urls: [],
         evidence_meta: [],
     });
@@ -255,21 +283,21 @@ export default function NewReportWizard() {
         }));
     };
 
-    const nextStep = () => setStep(prev => Math.min(prev + 1, 4));
+    const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
     const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
     const isStepValid = (): boolean => {
         switch (step) {
             case 1:
-                return !!(selectedStationId && formData.incident_date && formData.incident_time && formData.area && formData.specific_location);
+                return !!(formData.incident_date && formData.airline && formData.flight_number && selectedStationId && formData.route && formData.main_category);
             case 2:
-                if (formData.is_flight_related && !formData.flight_number) return false;
-                if (formData.is_gse_related && !formData.gse_number) return false;
-                return true;
+                return !!formData.area;
             case 3:
-                return !!(formData.main_category && formData.sub_category && formData.title && formData.description.length >= 20);
+                return !!formData.area_category;
             case 4:
-                return formData.evidence_urls.length >= 1;
+                return !!(formData.description && formData.root_cause && formData.action_taken);
+            case 5:
+                return !!(formData.reporter_name && formData.evidence_urls.length > 0);
             default:
                 return false;
         }
@@ -286,7 +314,8 @@ export default function NewReportWizard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
-                    station_id: selectedStationId, // Include selected station
+                    title: `${formData.airline} ${formData.flight_number} - ${formData.main_category}`, // Auto-generate title
+                    station_id: selectedStationId,
                 }),
             });
 
@@ -306,7 +335,7 @@ export default function NewReportWizard() {
         }
     };
 
-    const selectedCategory = IRREGULARITY_CATEGORIES.find(c => c.id === formData.main_category);
+    const selectedCategory = IRREGULARITY_CATEGORIES.find(c => c.id === 'IRREGULARITY'); // Dummy default to allow build
 
     if (success) {
         return (
@@ -333,14 +362,14 @@ export default function NewReportWizard() {
             <div className="text-center space-y-2 animate-fade-in-up px-4">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Buat Laporan Irregularity</h1>
                 <p className="text-base md:text-lg" style={{ color: 'var(--text-secondary)' }}>
-                    Langkah {step} dari 4
+                    Langkah {step} dari 5
                 </p>
             </div>
 
             {/* Progress Bar */}
             <div className="px-4">
                 <div className="flex items-center gap-2 max-w-md mx-auto">
-                    {[1, 2, 3, 4].map((s) => (
+                    {[1, 2, 3, 4, 5].map((s) => (
                         <div key={s} className="flex-1 flex items-center">
                             <div 
                                 className={`h-2 flex-1 rounded-full transition-all ${s <= step ? 'bg-emerald-500' : 'bg-slate-200'}`}
@@ -349,9 +378,10 @@ export default function NewReportWizard() {
                     ))}
                 </div>
                 <div className="flex justify-between max-w-md mx-auto mt-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                    <span>Konteks</span>
-                    <span>Objek</span>
-                    <span>Masalah</span>
+                    <span>Detail</span>
+                    <span>Area</span>
+                    <span>Kategori</span>
+                    <span>Isi</span>
                     <span>Bukti</span>
                 </div>
             </div>
@@ -364,346 +394,243 @@ export default function NewReportWizard() {
             )}
 
             <form onSubmit={handleSubmit} className="min-h-[400px]">
-                {/* Step 1: Context */}
+                {/* Step 1: Detail Report */}
                 <WizardStep isActive={step === 1}>
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
-                            <h2 className="text-2xl font-bold">Konteks Kejadian</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Kapan dan di mana kejadian terjadi?</p>
+                            <h2 className="text-2xl font-bold">Detail Report</h2>
+                            <p style={{ color: 'var(--text-secondary)' }}>Lengkapi informasi dasar penerbangan</p>
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                        {/* Station Selection */}
+                            {/* Date of Event */}
                             <div className="space-y-2">
-                                <label className="label">Station / Bandara</label>
+                                <label className="label flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    1. Date of Event <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    required
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="input-field"
+                                    value={formData.incident_date}
+                                    onChange={e => setFormData({ ...formData, incident_date: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Airlines */}
+                            <div className="space-y-2">
+                                <label className="label">2. Airlines <span className="text-red-500">*</span></label>
+                                <select
+                                    required
+                                    className="input-field"
+                                    value={formData.airline}
+                                    onChange={e => setFormData({ ...formData, airline: e.target.value })}
+                                >
+                                    <option value="">Select Airline...</option>
+                                    {AIRLINES.map((airline) => (
+                                        <option key={airline.code} value={airline.name}>
+                                            {airline.name} ({airline.code})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Flight Number */}
+                            <div className="space-y-2">
+                                <label className="label">3. Flight Number <span className="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="input-field uppercase"
+                                    placeholder="e.g. CZ-123"
+                                    value={formData.flight_number}
+                                    onChange={e => setFormData({ ...formData, flight_number: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Branch */}
+                            <div className="space-y-2">
+                                <label className="label">4. Branch (cth: CGK, UPG, DPS) <span className="text-red-500">*</span></label>
                                 <select
                                     required
                                     className="input-field"
                                     value={selectedStationId}
                                     onChange={e => setSelectedStationId(e.target.value)}
                                 >
-                                    <option value="">Pilih station...</option>
+                                    <option value="">Select Branch...</option>
                                     {stations.map((station) => (
                                         <option key={station.id} value={station.id}>
                                             {station.code} - {station.name}
                                         </option>
                                     ))}
                                 </select>
-                                {userStation && selectedStationId === userStation.id && (
-                                    <p className="text-xs flex items-center gap-1" style={{ color: 'oklch(0.55 0.18 145)' }}>
-                                        <CheckCircle className="w-3 h-3" /> Station utama Anda
-                                    </p>
-                                )}
-                                {userStation && selectedStationId !== userStation.id && selectedStationId && (
-                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                        Anda memilih station berbeda dari station utama ({userStation.code})
-                                    </p>
-                                )}
                             </div>
 
-                            {/* Date & Time */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="label flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        Tanggal Kejadian
-                                    </label>
-                                    <input
-                                        type="date"
-                                        required
-                                        max={new Date().toISOString().split('T')[0]}
-                                        className="input-field"
-                                        value={formData.incident_date}
-                                        onChange={e => setFormData({ ...formData, incident_date: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="label flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        Waktu Kejadian
-                                    </label>
-                                    <input
-                                        type="time"
-                                        required
-                                        className="input-field"
-                                        value={formData.incident_time}
-                                        onChange={e => setFormData({ ...formData, incident_time: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Area Selection */}
-                            <div className="space-y-4">
-                                <label className="label">Area Utama</label>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {AREA_TYPES.map((area) => {
-                                        const Icon = area.icon === 'Plane' ? Plane : area.icon === 'Building2' ? Building2 : MapPin;
-                                        const isSelected = formData.area === area.id;
-                                        return (
-                                            <button
-                                                key={area.id}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, area: area.id })}
-                                                className={`relative p-6 rounded-2xl border-2 transition-all text-left ${
-                                                    isSelected 
-                                                        ? 'border-emerald-500 bg-emerald-50' 
-                                                        : 'border-transparent bg-slate-50 hover:bg-slate-100'
-                                                }`}
-                                            >
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-                                                    isSelected ? 'bg-emerald-500 text-white' : 'bg-white'
-                                                }`}>
-                                                    <Icon size={24} />
-                                                </div>
-                                                <h4 className="font-bold text-lg">{area.label}</h4>
-                                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{area.description}</p>
-                                                {isSelected && (
-                                                    <div className="absolute top-4 right-4">
-                                                        <CheckCircle className="w-6 h-6 text-emerald-500" />
-                                                    </div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Specific Location */}
+                            {/* Route */}
                             <div className="space-y-2">
-                                <label className="label">Lokasi Spesifik</label>
+                                <label className="label">5. Route <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     required
-                                    className="input-field"
-                                    placeholder="Contoh: Parking Stand R45 / Gate 3 / Gudang Cargo A"
-                                    value={formData.specific_location}
-                                    onChange={e => setFormData({ ...formData, specific_location: e.target.value })}
+                                    className="input-field uppercase"
+                                    placeholder="e.g. NRT-CGK"
+                                    value={formData.route}
+                                    onChange={e => setFormData({ ...formData, route: e.target.value })}
                                 />
+                            </div>
+
+                             {/* Report Category */}
+                             <div className="space-y-2">
+                                <label className="label">6. Report Category <span className="text-red-500">*</span></label>
+                                <div className="flex flex-col gap-3">
+                                    {REPORT_CATEGORIES.map((cat) => (
+                                        <button
+                                            key={cat.id}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, main_category: cat.id })}
+                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-black/5 transition-colors text-left"
+                                        >
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.main_category === cat.id ? 'border-emerald-500' : 'border-gray-400'}`}>
+                                                {formData.main_category === cat.id && (
+                                                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                                                )}
+                                            </div>
+                                            <span>{cat.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </WizardStep>
 
-                {/* Step 2: Subject */}
+                {/* Step 2: Area */}
                 <WizardStep isActive={step === 2}>
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
-                            <h2 className="text-2xl font-bold">Objek Terdampak</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Apa yang terkena masalah?</p>
+                            <h2 className="text-2xl font-bold">Section</h2>
+                            <p style={{ color: 'var(--text-secondary)' }}>Choose the area of the incident</p>
                         </div>
 
-                        <div className="card-solid p-6 md:p-8 space-y-8" style={{ background: 'var(--surface-2)' }}>
-                            {/* Flight Related Toggle */}
+                        <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
                             <div className="space-y-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ 
-                                        ...formData, 
-                                        is_flight_related: !formData.is_flight_related,
-                                        is_gse_related: false 
-                                    })}
-                                    className={`w-full p-6 rounded-2xl border-2 transition-all text-left flex items-center justify-between ${
-                                        formData.is_flight_related 
-                                            ? 'border-blue-500 bg-blue-50' 
-                                            : 'border-slate-200 hover:border-slate-300'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                            formData.is_flight_related ? 'bg-blue-500 text-white' : 'bg-slate-100'
-                                        }`}>
-                                            <Plane size={24} />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-lg">Terkait Penerbangan?</h4>
-                                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                Kejadian melibatkan pesawat atau penerbangan tertentu
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {formData.is_flight_related ? (
-                                        <ToggleRight className="w-8 h-8 text-blue-500" />
-                                    ) : (
-                                        <ToggleLeft className="w-8 h-8 text-slate-400" />
-                                    )}
-                                </button>
-
-                                {formData.is_flight_related && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-4 animate-fade-in-up">
-                                        <div className="space-y-2">
-                                            <label className="label">Nomor Penerbangan</label>
-                                            <input
-                                                type="text"
-                                                className="input-field uppercase font-mono"
-                                                placeholder="GA-404"
-                                                value={formData.flight_number}
-                                                onChange={e => setFormData({ ...formData, flight_number: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="label">Registrasi Pesawat (Opsional)</label>
-                                            <input
-                                                type="text"
-                                                className="input-field uppercase font-mono"
-                                                placeholder="PK-GIA"
-                                                value={formData.aircraft_reg}
-                                                onChange={e => setFormData({ ...formData, aircraft_reg: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* GSE Related Toggle (only if not flight related) */}
-                            {!formData.is_flight_related && (
-                                <div className="space-y-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, is_gse_related: !formData.is_gse_related })}
-                                        className={`w-full p-6 rounded-2xl border-2 transition-all text-left flex items-center justify-between ${
-                                            formData.is_gse_related 
-                                                ? 'border-amber-500 bg-amber-50' 
-                                                : 'border-slate-200 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                                formData.is_gse_related ? 'bg-amber-500 text-white' : 'bg-slate-100'
-                                            }`}>
-                                                <Wrench size={24} />
+                                <label className="label">7. Area <span className="text-red-500">*</span></label>
+                                <div className="flex flex-col gap-3">
+                                    {AREA_OPTIONS.map((area) => (
+                                        <button
+                                            key={area.id}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, area: area.id, area_category: '' })}
+                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-black/5 transition-colors text-left"
+                                        >
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.area === area.id ? 'border-emerald-500' : 'border-gray-400'}`}>
+                                                {formData.area === area.id && (
+                                                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                                                )}
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-lg">Terkait Alat / GSE?</h4>
-                                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                                    Kejadian melibatkan kendaraan atau peralatan GSE
-                                                </p>
-                                            </div>
-                                        </div>
-                                        {formData.is_gse_related ? (
-                                            <ToggleRight className="w-8 h-8 text-amber-500" />
-                                        ) : (
-                                            <ToggleLeft className="w-8 h-8 text-slate-400" />
-                                        )}
-                                    </button>
-
-                                    {formData.is_gse_related && (
-                                        <div className="pl-4 animate-fade-in-up space-y-4">
-                                            <div className="space-y-2">
-                                                <label className="label">Nama Alat / Jenis GSE</label>
-                                                <input
-                                                    type="text"
-                                                    className="input-field"
-                                                    placeholder="Contoh: Belt Loader, Pushback Tractor, High Lift Loader"
-                                                    value={formData.gse_name}
-                                                    onChange={e => setFormData({ ...formData, gse_name: e.target.value })}
-                                                />
-                                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Wajib diisi jika lupa nomor aset</p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="label">Nomor Aset / BTT (Opsional)</label>
-                                                <input
-                                                    type="text"
-                                                    className="input-field uppercase font-mono"
-                                                    placeholder="BTT-01 atau No. Asset"
-                                                    value={formData.gse_number}
-                                                    onChange={e => setFormData({ ...formData, gse_number: e.target.value })}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
+                                            <span>{area.label}</span>
+                                        </button>
+                                    ))}
                                 </div>
-                            )}
-
-                            {!formData.is_flight_related && !formData.is_gse_related && (
-                                <p className="text-center py-4" style={{ color: 'var(--text-muted)' }}>
-                                    Jika tidak terkait penerbangan atau GSE, lanjutkan ke langkah berikutnya
-                                </p>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </WizardStep>
 
-                {/* Step 3: The Case */}
+                {/* Step 3: Area Category */}
                 <WizardStep isActive={step === 3}>
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
-                            <h2 className="text-2xl font-bold">Detail Masalah</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Masalahnya apa? (Krusial untuk Routing)</p>
+                            <h2 className="text-2xl font-bold">{AREA_OPTIONS.find(a => a.id === formData.area)?.label}</h2>
+                            <p style={{ color: 'var(--text-secondary)' }}>Specify the category for {AREA_OPTIONS.find(a => a.id === formData.area)?.label}</p>
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                            {/* Main Category */}
                             <div className="space-y-4">
-                                <label className="label">Kategori Masalah</label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {IRREGULARITY_CATEGORIES.map((cat) => {
-                                        const Icon = CATEGORY_ICONS[cat.icon] || AlertTriangle;
-                                        const isSelected = formData.main_category === cat.id;
-                                        return (
-                                            <button
-                                                key={cat.id}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, main_category: cat.id, sub_category: '' })}
-                                                className={`p-4 rounded-xl border-2 transition-all text-left flex items-center gap-3 ${
-                                                    isSelected ? 'border-current' : 'border-transparent'
-                                                }`}
-                                                style={{
-                                                    background: isSelected ? cat.bgColor : 'var(--surface-3)',
-                                                    color: isSelected ? cat.color : 'var(--text-primary)',
-                                                    borderColor: isSelected ? cat.color : 'transparent',
-                                                }}
-                                            >
-                                                <div 
-                                                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                                                    style={{ 
-                                                        background: isSelected ? cat.color : cat.bgColor,
-                                                        color: isSelected ? 'white' : cat.color,
-                                                    }}
-                                                >
-                                                    <Icon size={20} />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-sm">{cat.label}</h4>
-                                                    <p className="text-xs opacity-80">→ {cat.targetDivision}</p>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
+                                <label className="label">8. {AREA_OPTIONS.find(a => a.id === formData.area)?.label} Category <span className="text-red-500">*</span></label>
+                                <div className="flex flex-col gap-3">
+                                    {AREA_CATEGORIES[formData.area]?.map((cat, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, area_category: cat })}
+                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-black/5 transition-colors text-left"
+                                        >
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.area_category === cat ? 'border-emerald-500' : 'border-gray-400'}`}>
+                                                {formData.area_category === cat && (
+                                                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                                                )}
+                                            </div>
+                                            <span>{cat}</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </WizardStep>
 
-                            {/* Sub Category */}
-                            {selectedCategory && (
-                                <div className="space-y-2 animate-fade-in-up">
-                                    <label className="label">Jenis Masalah Spesifik</label>
-                                    <select
-                                        required
-                                        className="input-field"
-                                        value={formData.sub_category}
-                                        onChange={e => setFormData({ ...formData, sub_category: e.target.value })}
-                                    >
-                                        <option value="">Pilih masalah spesifik...</option>
-                                        {selectedCategory.problems.map((problem) => (
-                                            <option key={problem} value={problem}>{problem}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                {/* Step 4: Report Details */}
+                <WizardStep isActive={step === 4}>
+                    <div className="max-w-3xl mx-auto space-y-8">
+                        <div className="text-center space-y-2">
+                            <h2 className="text-2xl font-bold">Irregularity / Complaint</h2>
+                            <p style={{ color: 'var(--text-secondary)' }}>Fill in the details</p>
+                        </div>
 
-                            {/* Priority Selector */}
+                        <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
+                            {/* Report / Description */}
                             <div className="space-y-2">
+                                <label className="label">9. Report <span className="text-red-500">*</span></label>
+                                <textarea
+                                    required
+                                    className="input-field min-h-[100px] resize-y"
+                                    placeholder="Enter your answer"
+                                    value={formData.description}
+                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Root Cause */}
+                            <div className="space-y-2">
+                                <label className="label">10. Root Cause <span className="text-red-500">*</span></label>
+                                <textarea
+                                    required
+                                    className="input-field min-h-[100px] resize-y"
+                                    placeholder="Enter your answer"
+                                    value={formData.root_cause}
+                                    onChange={e => setFormData({ ...formData, root_cause: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Action Taken */}
+                            <div className="space-y-2">
+                                <label className="label">11. Action Taken <span className="text-red-500">*</span></label>
+                                <textarea
+                                    required
+                                    className="input-field min-h-[100px] resize-y"
+                                    placeholder="Enter your answer"
+                                    value={formData.action_taken}
+                                    onChange={e => setFormData({ ...formData, action_taken: e.target.value })}
+                                />
+                            </div>
+
+                             {/* Severity */}
+                             <div className="space-y-2">
                                 <label className="label flex items-center gap-2">
-                                    <Gauge className="w-4 h-4" />
-                                    Tingkat Urgensi (SLA)
+                                    <AlertTriangle className="w-4 h-4" />
+                                    Severity
                                 </label>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {(Object.entries(PRIORITY_CONFIG) as [ReportPriority, typeof PRIORITY_CONFIG[ReportPriority]][]).map(([key, config]) => {
-                                        const isSelected = formData.priority === key;
+                                        const isSelected = formData.severity === key;
                                         return (
                                             <button
                                                 key={key}
                                                 type="button"
-                                                onClick={() => setFormData({ ...formData, priority: key })}
+                                                onClick={() => setFormData({ ...formData, severity: key })}
                                                 className={`p-3 rounded-xl border-2 transition-all text-center ${
                                                     isSelected ? 'border-current' : 'border-transparent'
                                                 }`}
@@ -714,79 +641,41 @@ export default function NewReportWizard() {
                                                 }}
                                             >
                                                 <span className="font-bold text-sm block">{config.label}</span>
-                                                <span className="text-xs opacity-70">
-                                                    {config.slaHours >= 24 
-                                                        ? `${config.slaHours / 24}d SLA`
-                                                        : `${config.slaHours}h SLA`
-                                                    }
-                                                </span>
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    Menentukan batas waktu penyelesaian. Pilih "Kritis" untuk kejadian darurat.
-                                </p>
-                            </div>
-
-                            {/* Title */}
-                            <div className="space-y-2">
-                                <label className="label">Judul Laporan</label>
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={100}
-                                    className="input-field"
-                                    placeholder="Ringkasan singkat masalah..."
-                                    value={formData.title}
-                                    onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                />
-                                <p className="text-xs text-right" style={{ color: 'var(--text-muted)' }}>
-                                    {formData.title.length}/100
-                                </p>
-                            </div>
-
-                            {/* Description */}
-                            <div className="space-y-2">
-                                <label className="label">Kronologis Kejadian (5W + 1H)</label>
-                                <textarea
-                                    required
-                                    className="input-field min-h-[150px] resize-y"
-                                    placeholder="Jelaskan apa yang terjadi, siapa yang terlibat, bagaimana kejadiannya..."
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                />
-                                <p className={`text-xs ${formData.description.length < 20 ? 'text-red-500' : ''}`} style={{ color: formData.description.length >= 20 ? 'var(--text-muted)' : undefined }}>
-                                    Minimal 20 karakter ({formData.description.length} tertulis)
-                                </p>
-                            </div>
-
-                            {/* Immediate Action */}
-                            <div className="space-y-2">
-                                <label className="label">Tindakan Awal (Opsional)</label>
-                                <textarea
-                                    className="input-field min-h-[100px] resize-y"
-                                    placeholder="Apa yang sudah dilakukan saat itu? (Misal: Lapor ke teknisi, ganti BTT cadangan, dll)"
-                                    value={formData.immediate_action}
-                                    onChange={e => setFormData({ ...formData, immediate_action: e.target.value })}
-                                />
                             </div>
                         </div>
                     </div>
                 </WizardStep>
 
-                {/* Step 4: Evidence */}
-                <WizardStep isActive={step === 4}>
+                {/* Step 5: Evidence */}
+                <WizardStep isActive={step === 5}>
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
-                            <h2 className="text-2xl font-bold">Bukti & Validasi</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Upload foto bukti kejadian</p>
+                            <h2 className="text-2xl font-bold">Evidence</h2>
+                            <p style={{ color: 'var(--text-secondary)' }}>Upload proof</p>
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
+                            {/* Report By */}
+                            <div className="space-y-2">
+                                <label className="label">12. Report By <span className="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="input-field"
+                                    placeholder="Enter your answer"
+                                    value={formData.reporter_name}
+                                    onChange={e => setFormData({ ...formData, reporter_name: e.target.value })}
+                                />
+                            </div>
+
                             {/* Photo Upload */}
                             <div className="space-y-4">
-                                <label className="label">Foto Bukti (Wajib minimal 1, maksimal 3)</label>
+                                <label className="label">13. Upload Irregularity Photo <span className="text-red-500">*</span></label>
+
                                 
                                 {/* Image Previews */}
                                 {imagePreviews.length > 0 && (
@@ -837,44 +726,6 @@ export default function NewReportWizard() {
                                 )}
                             </div>
 
-                            {/* Summary Review */}
-                            <div className="border-t pt-6 mt-6">
-                                <h3 className="font-bold text-lg mb-4">Ringkasan Laporan</h3>
-                                <div className="space-y-3 text-sm">
-                                    <div className="flex justify-between">
-                                        <span style={{ color: 'var(--text-muted)' }}>Station</span>
-                                        <span className="font-medium">{userStation?.code || '-'}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span style={{ color: 'var(--text-muted)' }}>Tanggal & Waktu</span>
-                                        <span className="font-medium">{formData.incident_date} {formData.incident_time}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span style={{ color: 'var(--text-muted)' }}>Area</span>
-                                        <span className="font-medium">{formData.area} - {formData.specific_location}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span style={{ color: 'var(--text-muted)' }}>Kategori</span>
-                                        <span className="font-medium">{selectedCategory?.label || '-'}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span style={{ color: 'var(--text-muted)' }}>Masalah</span>
-                                        <span className="font-medium">{formData.sub_category || '-'}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span style={{ color: 'var(--text-muted)' }}>Routing ke</span>
-                                        <span 
-                                            className="font-bold px-2 py-0.5 rounded" 
-                                            style={{ 
-                                                background: selectedCategory?.bgColor,
-                                                color: selectedCategory?.color 
-                                            }}
-                                        >
-                                            {selectedCategory?.targetDivision || 'OS'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </WizardStep>
@@ -889,7 +740,7 @@ export default function NewReportWizard() {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     
-                    {step < 4 ? (
+                    {step < 5 ? (
                         <button
                             type="button"
                             onClick={nextStep}

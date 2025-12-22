@@ -171,7 +171,8 @@ export async function POST(request: Request, { params }: RouteParams) {
                 users:user_id (
                     id,
                     full_name,
-                    role
+                    role,
+                    division
                 )
             `)
             .single();

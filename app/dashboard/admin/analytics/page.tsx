@@ -276,161 +276,141 @@ export default function AnalyticsDashboard() {
                 </div>
             )}
 
-            {/* KPI Cards — Bento Grid */}
-            <div className="bento-grid bento-3">
-                {/* Hero: Resolution Rate */}
-                <div 
-                    className="card-solid bento-span-2 row-span-2 animate-fade-in-up"
-                    style={{ 
-                        background: 'linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end))',
-                        boxShadow: 'var(--shadow-brand)'
-                    }}
-                >
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm font-medium uppercase tracking-wider text-white/70">Resolution Rate</p>
-                            <p className="mt-3 font-bold text-white" style={{ fontSize: 'clamp(4rem, 10vw, 6rem)', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                                {filteredData.summary.avgResolutionRate}%
-                            </p>
-                            <p className="mt-4 text-sm text-white/80">
-                                {filteredData.summary.resolvedReports} dari {filteredData.summary.totalReports} laporan terselesaikan
-                            </p>
+            {/* KPI Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* Total Reports */}
+                <div className="card-solid animate-fade-in-up">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-[var(--surface-3)]">
+                            <Activity size={18} className="text-[var(--text-secondary)]" />
                         </div>
-                        <div className="p-4 rounded-2xl bg-white/15">
-                            <Target size={32} className="text-white" />
-                        </div>
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">Total Laporan</span>
                     </div>
+                    <p className="text-3xl font-bold text-[var(--text-primary)]">{filteredData.summary.totalReports}</p>
                 </div>
 
-                {/* Total */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '50ms' }}>
-                    <Activity size={22} style={{ color: 'var(--accent-primary)' }} />
-                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.totalReports}</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Total Laporan</p>
-                </div>
-
-                {/* Resolved */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                    <CheckCircle2 size={22} style={{ color: 'var(--status-success)' }} />
-                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.resolvedReports}</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Selesai</p>
+                 {/* Resolved */}
+                 <div className="card-solid animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-emerald-500/10">
+                            <CheckCircle2 size={18} className="text-emerald-600" />
+                        </div>
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">Selesai</span>
+                    </div>
+                    <p className="text-3xl font-bold text-[var(--text-primary)]">{filteredData.summary.resolvedReports}</p>
                 </div>
 
                 {/* Pending */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '150ms' }}>
-                    <Clock size={22} style={{ color: 'var(--status-warning)' }} />
-                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.pendingReports}</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Menunggu</p>
+                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-amber-500/10">
+                            <Clock size={18} className="text-amber-600" />
+                        </div>
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">Pending</span>
+                    </div>
+                    <p className="text-3xl font-bold text-[var(--text-primary)]">{filteredData.summary.pendingReports}</p>
                 </div>
 
-                {/* High Priority */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                    <AlertTriangle size={22} style={{ color: 'var(--status-error)' }} />
-                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{filteredData.summary.highSeverity}</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>High Priority</p>
-                </div>
-
-                {/* Stations */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '250ms' }}>
-                    <Building2 size={22} style={{ color: 'var(--accent-primary)' }} />
-                    <p className="text-3xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>{data.summary.stationCount}</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Stations</p>
+                 {/* High Priority */}
+                 <div className="card-solid animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-rose-500/10">
+                            <AlertTriangle size={18} className="text-rose-600" />
+                        </div>
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">High Priority</span>
+                    </div>
+                    <p className="text-3xl font-bold text-[var(--text-primary)]">{filteredData.summary.highSeverity}</p>
                 </div>
             </div>
 
-            {/* Division Performance Charts (New Section) */}
-            <div className="bento-grid bento-2">
-                 <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
-                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
-                            <Layers size={20} style={{ color: 'var(--accent-primary)' }} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Peforma Divisi</h3>
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Total laporan per divisi</p>
-                        </div>
+            {/* Main Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Division Performance (Horizontal Bar) */}
+                <div className="card-solid animate-fade-in-up flex flex-col h-[400px]">
+                    <div className="mb-6">
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">Performa Divisi</h3>
+                        <p className="text-sm text-[var(--text-secondary)]">Volume laporan per divisi</p>
                     </div>
-                    <div style={{ padding: 'var(--space-lg)' }}>
-                        <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={data.divisionData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
-                                <XAxis dataKey="division" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
-                                <Bar dataKey="total" name="Total Laporan" fill={CHART_COLORS.purple} radius={[4, 4, 0, 0]} />
+                    <div className="flex-1 w-full min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart layout="vertical" data={data.divisionData} margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--surface-4)" />
+                                <XAxis type="number" hide />
+                                <YAxis 
+                                    dataKey="division" 
+                                    type="category" 
+                                    width={100}
+                                    tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                />
+                                <Tooltip 
+                                    cursor={{ fill: 'var(--surface-2)' }}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                                />
+                                <Bar dataKey="total" name="Total" fill={CHART_COLORS.secondary} radius={[0, 4, 4, 0]} barSize={24} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                 <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div className="flex items-center gap-3" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
-                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
-                            <Target size={20} style={{ color: 'var(--accent-primary)' }} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Resolution Rate Divisi</h3>
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Tingkat penyelesaian %</p>
-                        </div>
+                {/* Resolution Rate (Donut Chart) */}
+                <div className="card-solid animate-fade-in-up flex flex-col h-[400px]">
+                    <div className="mb-6">
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">Tingkat Penyelesaian</h3>
+                        <p className="text-sm text-[var(--text-secondary)]">Rata-rata resolution rate</p>
                     </div>
-                    <div style={{ padding: 'var(--space-lg)' }}>
-                        <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={data.divisionData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
-                                <XAxis dataKey="division" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
-                                <Bar dataKey="resolutionRate" name="Resolution %" fill={CHART_COLORS.cyan} radius={[4, 4, 0, 0]} />
-                            </BarChart>
+                    <div className="flex-1 w-full min-h-0 relative flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={[
+                                        { name: 'Resolved', value: filteredData.summary.avgResolutionRate, fill: CHART_COLORS.success },
+                                        { name: 'Gap', value: 100 - filteredData.summary.avgResolutionRate, fill: 'var(--surface-3)' }
+                                    ]}
+                                    startAngle={90}
+                                    endAngle={-270}
+                                    innerRadius={80}
+                                    outerRadius={110}
+                                    paddingAngle={2}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                </Pie>
+                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                            </PieChart>
                         </ResponsiveContainer>
+                        {/* Center Text */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span className="text-4xl font-bold text-[var(--text-primary)]">{filteredData.summary.avgResolutionRate}%</span>
+                            <span className="text-xs text-[var(--text-secondary)] font-medium uppercase tracking-wide mt-1">Selesai</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Station Performance Chart */}
-            <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden' }}>
-                <div className="flex items-center justify-between" style={{ padding: 'var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.55 0.12 250 / 0.15)' }}>
-                            <Building2 size={20} style={{ color: 'oklch(0.50 0.12 250)' }} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Performa Per Station</h3>
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Jumlah irregularity per cabang</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => setActiveChart('bar')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeChart === 'bar' ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: 'var(--space-sm) var(--space-md)' }}>
-                            Status
-                        </button>
-                        <button onClick={() => setActiveChart('stacked')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeChart === 'stacked' ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: 'var(--space-sm) var(--space-md)' }}>
-                            Severity
-                        </button>
+            {/* Station Performance (Stacked Bar) */}
+            <div className="card-solid animate-fade-in-up mb-8">
+                 <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">Performa Station & Severity</h3>
+                        <p className="text-sm text-[var(--text-secondary)]">Distribusi prioritas masalah per lokasi</p>
                     </div>
                 </div>
-                <div style={{ padding: 'var(--space-lg)' }}>
-                    <ResponsiveContainer width="100%" height={320}>
-                        {activeChart === 'bar' ? (
-                            <BarChart data={filteredData.stationData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
-                                <XAxis dataKey="station" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
-                                <Bar dataKey="total" name="Total" fill={CHART_COLORS.secondary} radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="resolved" name="Selesai" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="pending" name="Pending" fill={CHART_COLORS.warning} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        ) : (
-                            <BarChart data={filteredData.stationData} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" vertical={false} />
-                                <XAxis dataKey="station" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--surface-4)', boxShadow: 'var(--shadow-md)' }} />
-                                <Bar dataKey="high" name="High" stackId="severity" fill={CHART_COLORS.danger} />
-                                <Bar dataKey="medium" name="Medium" stackId="severity" fill={CHART_COLORS.warning} />
-                                <Bar dataKey="low" name="Low" stackId="severity" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        )}
+                <div className="h-[350px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={filteredData.stationData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" />
+                            <XAxis dataKey="station" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                            <Tooltip 
+                                cursor={{ fill: 'var(--surface-2)' }}
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                            />
+                            <Bar dataKey="high" name="High Priority" stackId="a" fill={CHART_COLORS.danger} barSize={40} />
+                            <Bar dataKey="medium" name="Medium Priority" stackId="a" fill={CHART_COLORS.warning} barSize={40} />
+                            <Bar dataKey="low" name="Low Priority" stackId="a" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} barSize={40} />
+                        </BarChart>
                     </ResponsiveContainer>
                 </div>
             </div>

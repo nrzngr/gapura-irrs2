@@ -69,7 +69,8 @@ export async function GET(
                 users:user_id (
                     id,
                     full_name,
-                    role
+                    role,
+                    division
                 )
             `)
             .eq('report_id', id)

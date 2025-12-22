@@ -152,5 +152,6 @@ export interface Comment {
         email?: string;
         avatar_url?: string;
         role?: string;
+        division?: string;
     };
 }

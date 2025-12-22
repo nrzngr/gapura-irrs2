@@ -79,7 +79,14 @@ export async function POST(request: Request) {
             immediate_action,
             priority,
             is_flight_related,
-            is_gse_related
+            is_gse_related,
+            // New Screenshot Fields
+            airline,
+            route,
+            root_cause,
+            action_taken,
+            reporter_name,
+            area_category
         } = body;
 
         if (!title || !description) {
@@ -122,7 +129,15 @@ export async function POST(request: Request) {
                 immediate_action: immediate_action || null,
                 priority: priority || 'medium', // Default to medium if not provided
                 is_flight_related: is_flight_related || false,
-                is_gse_related: is_gse_related || false
+                is_gse_related: is_gse_related || false,
+                // Insert New Fields
+                airline: airline || null,
+                route: route || null,
+                root_cause: root_cause || null,
+                action_taken: action_taken || null,
+                reporter_name: reporter_name || null,
+                area_category: area_category || null,
+                category: main_category || null // Map main_category to legacy category column if needed, or keep separate
             });
 
         if (insertError) {

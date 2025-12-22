@@ -101,7 +101,7 @@ export default function OSReportDetailPage() {
         <div className="min-h-screen bg-[var(--surface-1)]">
             {/* Header / Nav */}
             <div className="bg-white border-b border-[var(--surface-4)] sticky top-0 z-30">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center gap-4">
                         <button 
                             onClick={() => router.push('/dashboard/os/reports')}
@@ -116,7 +116,7 @@ export default function OSReportDetailPage() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-80px)]">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-80px)]">
                  <ReportDetailView 
                     report={report} 
                     onUpdateStatus={handleStatusUpdate}

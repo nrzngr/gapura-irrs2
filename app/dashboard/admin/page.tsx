@@ -123,134 +123,45 @@ export default function AdminDashboard() {
                 </div>
             )}
 
-            {/* Bento Grid — Primary Metrics */}
-            <div className="bento-grid bento-4">
-                {/* Resolution Rate — Hero Card */}
-                <div 
-                    className="card-solid bento-span-2 animate-fade-in-up"
-                    style={{ 
-                        background: 'linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end))',
-                        boxShadow: 'var(--shadow-brand)'
-                    }}
-                >
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-sm font-medium uppercase tracking-wider text-white/80">
-                                Tingkat Resolusi
-                            </p>
-                            <p 
-                                className="mt-2 font-bold text-white"
-                                style={{ fontSize: 'clamp(3rem, 8vw, 5rem)', lineHeight: 1, letterSpacing: '-0.03em' }}
-                            >
-                                {stats?.overview.resolutionRate}%
-                            </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/20">
-                            <TrendingUp size={28} className="text-white" />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-4">
-                        <Zap size={16} className="text-white/80" />
-                        <span className="text-sm font-medium text-white/90">Sesuai target operasional</span>
-                    </div>
-                </div>
-
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Total Reports */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '80ms' }}>
+                <div className="card-solid animate-fade-in-up flex flex-col justify-between h-full">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                                Total Laporan
-                            </p>
-                            <p 
-                                className="mt-2 font-bold"
-                                style={{ fontSize: 'var(--text-4xl)', color: 'var(--text-primary)' }}
-                            >
+                            <p className="text-sm font-medium text-[var(--text-secondary)]">Total Laporan</p>
+                            <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">
                                 {stats?.overview.totalReports}
                             </p>
-                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                                Sepanjang waktu
-                            </p>
                         </div>
-                        <div className="p-3 rounded-xl" style={{ background: 'var(--surface-3)' }}>
-                            <FileText size={22} style={{ color: 'var(--brand-primary)' }} />
+                        <div className="p-2.5 rounded-lg bg-[var(--surface-3)]">
+                            <FileText size={20} className="text-[var(--brand-primary)]" />
                         </div>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                        <span className="font-medium text-[var(--brand-primary)]">Sepanjang waktu</span>
                     </div>
                 </div>
 
-                {/* Pending */}
-                <div className="card-solid animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+                {/* Pending Reports */}
+                <div className="card-solid animate-fade-in-up flex flex-col justify-between h-full" style={{ animationDelay: '100ms' }}>
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                                Menunggu Review
-                            </p>
-                            <p 
-                                className="mt-2 font-bold"
-                                style={{ fontSize: 'var(--text-4xl)', color: 'oklch(0.60 0.18 75)' }}
-                            >
+                            <p className="text-sm font-medium text-[var(--text-secondary)]">Menunggu Review</p>
+                            <p className="mt-2 text-3xl font-bold text-amber-600">
                                 {stats?.overview.pendingReports}
                             </p>
-                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                                Perlu tindakan
-                            </p>
                         </div>
-                        <div className="p-3 rounded-xl" style={{ background: 'oklch(0.75 0.16 75 / 0.15)' }}>
-                            <AlertCircle size={22} style={{ color: 'oklch(0.60 0.18 75)' }} />
+                        <div className="p-2.5 rounded-lg bg-amber-500/10">
+                            <AlertCircle size={20} className="text-amber-600" />
                         </div>
                     </div>
-                </div>
-
-                {/* SLA Breach Counter */}
-                <div 
-                    className="card-solid animate-fade-in-up" 
-                    style={{ 
-                        animationDelay: '240ms',
-                        background: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
-                            ? 'oklch(0.55 0.22 25 / 0.06)' 
-                            : undefined,
-                        border: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
-                            ? '1px solid oklch(0.55 0.22 25 / 0.15)' 
-                            : undefined
-                    }}
-                >
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                                SLA Breach
-                            </p>
-                            <p 
-                                className="mt-2 font-bold"
-                                style={{ 
-                                    fontSize: 'var(--text-4xl)', 
-                                    color: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
-                                        ? 'oklch(0.55 0.20 25)' 
-                                        : 'var(--text-primary)' 
-                                }}
-                            >
-                                {stats?.overview.slaBreachCount || 0}
-                            </p>
-                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                                Melewati deadline
-                            </p>
-                        </div>
-                        <div 
-                            className="p-3 rounded-xl" 
-                            style={{ 
-                                background: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
-                                    ? 'oklch(0.55 0.22 25 / 0.12)' 
-                                    : 'var(--surface-3)' 
-                            }}
-                        >
-                            <Clock 
-                                size={22} 
-                                style={{ 
-                                    color: stats?.overview.slaBreachCount && stats.overview.slaBreachCount > 0 
-                                        ? 'oklch(0.55 0.20 25)' 
-                                        : 'var(--text-muted)' 
-                                }} 
-                            />
-                        </div>
+                    <div className="mt-4 text-xs text-[var(--text-secondary)]">
+                        {stats?.overview.pendingReports && stats.overview.pendingReports > 0 ? (
+                            <span className="text-amber-600 font-medium">Perlu tindakan segera</span>
+                        ) : (
+                            <span className="text-emerald-600 font-medium">Semua terkendali</span>
+                        )}
                     </div>
                 </div>
             </div>
