@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { type Report } from '@/types';
 import { ReportDetailView } from './ReportDetailView';
@@ -14,20 +16,53 @@ interface ReportDetailModalProps {
     userRole?: string;
 }
 
-export function ReportDetailModal({ isOpen, onClose, report, onUpdateStatus, userRole = 'PARTNER_ADMIN' }: ReportDetailModalProps) {
-    if (!isOpen || !report) return null;
+export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUpdateStatus, userRole = 'PARTNER_ADMIN' }: ReportDetailModalProps) {
+    const [fullReport, setFullReport] = useState<Report | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    const severityKey = report.severity || report.priority || 'medium';
-    // const severityCfg = SEVERITY_CONFIG[severityKey as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.medium;
-    // Actually ReportDetailView handles its own viewing. 
-    // We can just render ReportDetailView inside a modal wrapper.
-    // But ReportDetailView might expect to fill the container.
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
 
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    // Reset when modal closes or report changes
+    useEffect(() => {
+        if (!isOpen || !initialReport) {
+            setFullReport(null);
+            return;
+        }
+
+        const fetchFullDetail = async () => {
+            setLoadingDetail(true);
+            try {
+                const res = await fetch(`/api/reports/${initialReport.id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setFullReport(data);
+                } else {
+                     setFullReport(initialReport);
+                }
+            } catch (error) {
+                console.error("Failed to fetch full report detail", error);
+                setFullReport(initialReport);
+            } finally {
+                setLoadingDetail(false);
+            }
+        };
+
+        fetchFullDetail();
+    }, [isOpen, initialReport]);
+
+    if (!isOpen || !initialReport || !mounted) return null;
+
+    const displayReport = fullReport || initialReport;
+
+    return createPortal(
+        <div className="fixed top-0 left-0 w-screen h-[100dvh] z-[9999] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div 
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={onClose}
             />
 
@@ -44,18 +79,30 @@ export function ReportDetailModal({ isOpen, onClose, report, onUpdateStatus, use
                         <X size={20} className="text-gray-600" />
                     </button>
                     
-                    {/* Render ReportDetailView */}
-                    <div className="flex-1 overflow-auto bg-gray-50/50">
+                    <div className="flex-1 overflow-auto bg-gray-50/50 relative">
+                        {loadingDetail && (
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gray-100 overflow-hidden z-50">
+                                <div className="h-full bg-emerald-500 animate-progress-indeterminate origin-left" />
+                            </div>
+                        )}
                         <ReportDetailView 
-                            report={report} 
+                            report={displayReport} 
                             onUpdateStatus={onUpdateStatus}
                             isModal={true}
                             userRole={userRole}
+                             onRefresh={() => {
+                                 if (initialReport?.id) {
+                                     fetch(`/api/reports/${initialReport.id}`)
+                                        .then(res => res.json())
+                                        .then(data => setFullReport(data));
+                                 }
+                             }}
                         />
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 

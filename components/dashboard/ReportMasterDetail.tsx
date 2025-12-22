@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Filter, MapPin, AlertCircle } from 'lucide-react';
 import { ReportDetailView } from './ReportDetailView';
@@ -25,6 +25,48 @@ export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, on
     // Derived state
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState<ReportStatus | 'ALL'>('ALL');
+    
+    // Local state for full report details (to get comments etc)
+    const [fullReport, setFullReport] = useState<Report | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
+
+    // Fetch full detail when ID changes
+    useEffect(() => {
+        if (!selectedId) {
+            setFullReport(null);
+            return;
+        }
+
+        const fetchFullDetail = async () => {
+            setLoadingDetail(true);
+            try {
+                const res = await fetch(`/api/reports/${selectedId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setFullReport(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch full report detail", error);
+            } finally {
+                setLoadingDetail(false);
+            }
+        };
+
+        fetchFullDetail();
+    }, [selectedId]);
+
+    // Handle refresh from the detail view (e.g. after posting comment)
+    const handleDetailRefresh = () => {
+        // Refresh the single report
+        if (selectedId) {
+            fetch(`/api/reports/${selectedId}`)
+                .then(res => res.json())
+                .then(data => setFullReport(data))
+                .catch(err => console.error(err));
+        }
+        // Also refresh the master list if provided
+        if (onRefresh) onRefresh();
+    };
 
     // Filter reports
     const filteredReports = reports.filter(r => {
@@ -34,7 +76,9 @@ export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, on
         return matchesSearch && matchesFilter;
     });
 
-    const selectedReport = reports.find(r => r.id === selectedId) || null;
+    // Use fullReport if available and matches ID, otherwise fallback to list data (incomplete)
+    const listReport = reports.find(r => r.id === selectedId) || null;
+    const displayReport = (fullReport && fullReport.id === selectedId) ? fullReport : listReport;
 
     const handleSelectReport = (id: string) => {
         const params = new URLSearchParams(searchParams);
@@ -184,11 +228,19 @@ export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, on
             </div>
 
             {/* Detail Column (Right) */}
-            <div className="flex-1 rounded-2xl overflow-hidden border border-white/20 bg-white/40 backdrop-blur-xl shadow-xl h-full">
+            <div className="flex-1 rounded-2xl overflow-hidden border border-white/20 bg-white/40 backdrop-blur-xl shadow-xl h-full relative">
+                {loadingDetail && (
+                    <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                         <div className="flex flex-col items-center gap-3">
+                            <div className="animate-spin w-8 h-8 border-3 border-[var(--brand-primary)] border-t-transparent rounded-full" />
+                            <p className="text-xs font-bold text-[var(--brand-primary)] animate-pulse">Memuat detail...</p>
+                         </div>
+                    </div>
+                )}
                 <ReportDetailView 
-                    report={selectedReport} 
+                    report={displayReport} 
                     onUpdateStatus={onStatusUpdate}
-                    onRefresh={onRefresh}
+                    onRefresh={handleDetailRefresh}
                     isModal={false}
                     userRole={userRole}
                 />

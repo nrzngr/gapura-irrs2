@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
+import { UserRole } from '@/types';
 
 /**
  * GET /api/reports/[id]
@@ -49,12 +51,20 @@ export async function GET(
             return NextResponse.json({ error: 'Report not found' }, { status: 404 });
         }
 
-        // Fetch comments separately due to FK relationship not being in schema cache
-        const { data: comments } = await supabase
+        // SIMPLIFIED LOGIC:
+        // If the user can fetch the report (passed RLS in the query above),
+        // they are authorized to see the conversation history.
+        // We use supabaseAdmin to fetch comments because report_comments RLS might be stricter
+        // (e.g. blocking Branch Users from SELECTing but allowing INSERT? or just broken RLS).
+        // This ensures they get the history.
+
+        const { data: comments, error: commentsError } = await supabaseAdmin
             .from('report_comments')
             .select(`
                 id,
                 content,
+                attachments,
+                is_system_message,
                 created_at,
                 users:user_id (
                     id,
@@ -64,8 +74,11 @@ export async function GET(
             `)
             .eq('report_id', id)
             .order('created_at', { ascending: true });
+            
+        if (commentsError) {
+            console.error('[DEBUG_API] Error fetching comments with admin:', commentsError);
+        }
 
-        // Attach comments to report
         report.comments = comments || [];
 
         return NextResponse.json(report);

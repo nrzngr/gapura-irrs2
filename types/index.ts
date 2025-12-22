@@ -124,6 +124,18 @@ export interface Report {
     
     // Frontend-specific props that might be added
     comments?: Comment[];
+    
+    // Legacy / Alternative fields from API
+    category?: string;
+    root_cause?: string;
+    action_taken?: string;
+    airline?: string;
+    route?: string;
+    area?: string;
+    area_category?: string;
+    branch?: string;
+    reporter_name?: string;
+    event_date?: string;
 }
 
 export interface Comment {

@@ -5,7 +5,7 @@ import {
     MapPin, User, Calendar, Plane, Image as ImageIcon,
     Shield, CheckCircle2, Clock,
     Loader2, Wrench, X, Upload, MessageSquare, AlertCircle, XCircle,
-    ChevronDown, Send, ArrowRight, Edit3, Save
+    ChevronDown, Send, ArrowRight, Edit3, Save, Search
 } from 'lucide-react';
 import { STATUS_CONFIG, getAllowedTransitions, type ReportStatus, SEVERITY_CONFIG } from '@/lib/constants/report-status';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,33 @@ export function ReportDetailView({
     divisionColor = '#10b981',
     currentUserId
 }: ReportDetailViewProps) {
+    // User State
+    const [user, setUser] = useState<{id: string; role: string} | null>(null);
+
+    useEffect(() => {
+        // Fetch current user session
+        // Fetch current user session from our custom auth API
+        const fetchUser = async () => {
+            if (currentUserId) {
+                 // If passed as prop, use it (though role might be needed too)
+                 setUser({ id: currentUserId, role: 'unknown' });
+            } else {
+                 try {
+                     const res = await fetch('/api/auth/session');
+                     if (res.ok) {
+                         const data = await res.json();
+                         if (data.user) {
+                             setUser(data.user);
+                         }
+                     }
+                 } catch (e) {
+                     console.error("Failed to fetch session", e);
+                 }
+            }
+        };
+        fetchUser();
+    }, [currentUserId]);
+
     const [actionLoading, setActionLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showReturnForm, setShowReturnForm] = useState(false);
@@ -380,6 +407,44 @@ export function ReportDetailView({
                                 </p>
                             </div>
                         )}
+
+                        {/* Investigation & Analysis (Root Cause, Action Taken, Notes) */}
+                        {(report.root_cause || report.action_taken || report.investigator_notes || report.manager_notes) && (
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-gray-100 pb-2">
+                                    <Search size={12} />
+                                    Analisis & Tindakan Lanjut
+                                </h3>
+                                
+                                {report.root_cause && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Akar Masalah (Root Cause)</p>
+                                        <p className="text-sm text-gray-700 leading-relaxed">{report.root_cause}</p>
+                                    </div>
+                                )}
+
+                                {report.action_taken && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Tindakan Perbaikan (Corrective Action)</p>
+                                        <p className="text-sm text-gray-700 leading-relaxed">{report.action_taken}</p>
+                                    </div>
+                                )}
+
+                                {report.investigator_notes && (
+                                    <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
+                                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Catatan Investigator</p>
+                                        <p className="text-sm text-blue-900 leading-relaxed italic">"{report.investigator_notes}"</p>
+                                    </div>
+                                )}
+
+                                {report.manager_notes && (
+                                    <div className="bg-purple-50/50 p-3 rounded-xl border border-purple-100/50">
+                                        <p className="text-[10px] font-bold text-purple-600 uppercase mb-1">Catatan Manager</p>
+                                        <p className="text-sm text-purple-900 leading-relaxed italic">"{report.manager_notes}"</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         
                         {/* Reporter Info Card */}
                          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
@@ -417,7 +482,7 @@ export function ReportDetailView({
                             <div className="space-y-3">
                                 <div>
                                     <p className="text-[10px] uppercase text-gray-400 font-bold mb-1">Main Category</p>
-                                    <p className="text-sm font-bold text-gray-900">{report.main_category || '-'}</p>
+                                    <p className="text-sm font-bold text-gray-900">{report.main_category || report.category || '-'}</p>
                                 </div>
                                 <div className="h-px bg-gray-50" />
                                 <div>
@@ -443,10 +508,10 @@ export function ReportDetailView({
                             
                             <div className="space-y-3">
                                 {/* Flight Info */}
-                                <div className={cn("p-3 rounded-xl border transition-colors", report.is_flight_related ? "bg-blue-50/50 border-blue-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
+                                <div className={cn("p-3 rounded-xl border transition-colors", (report.is_flight_related || report.flight_number || report.aircraft_reg) ? "bg-blue-50/50 border-blue-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Plane size={14} className={report.is_flight_related ? "text-blue-500" : "text-gray-400"} />
-                                        <span className={cn("text-xs font-bold", report.is_flight_related ? "text-blue-700" : "text-gray-500")}>Flight Info</span>
+                                        <Plane size={14} className={(report.is_flight_related || report.flight_number || report.aircraft_reg) ? "text-blue-500" : "text-gray-400"} />
+                                        <span className={cn("text-xs font-bold", (report.is_flight_related || report.flight_number || report.aircraft_reg) ? "text-blue-700" : "text-gray-500")}>Flight Info</span>
                                     </div>
                                     <div className="flex justify-between items-center pl-6">
                                         <div>
@@ -461,10 +526,10 @@ export function ReportDetailView({
                                 </div>
 
                                 {/* GSE Info */}
-                                <div className={cn("p-3 rounded-xl border transition-colors", report.is_gse_related ? "bg-amber-50/50 border-amber-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
+                                <div className={cn("p-3 rounded-xl border transition-colors", (report.is_gse_related || report.gse_number) ? "bg-amber-50/50 border-amber-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Wrench size={14} className={report.is_gse_related ? "text-amber-500" : "text-gray-400"} />
-                                        <span className={cn("text-xs font-bold", report.is_gse_related ? "text-amber-700" : "text-gray-500")}>GSE Info</span>
+                                        <Wrench size={14} className={(report.is_gse_related || report.gse_number) ? "text-amber-500" : "text-gray-400"} />
+                                        <span className={cn("text-xs font-bold", (report.is_gse_related || report.gse_number) ? "text-amber-700" : "text-gray-500")}>GSE Info</span>
                                     </div>
                                     <div className="pl-6">
                                         <p className="text-[10px] text-gray-400">GSE Number</p>
@@ -482,7 +547,7 @@ export function ReportDetailView({
                                         {report.specific_location || report.location || '-'}
                                         <br/>
                                         <span className="text-[10px] text-gray-400 mt-1 block">
-                                            {report.incident_date} • {report.incident_time}
+                                            {report.incident_date || '-'} • {report.incident_time || '-'}
                                         </span>
                                     </p>
                                 </div>
@@ -594,7 +659,10 @@ export function ReportDetailView({
                     </div>
 
                     {report.comments?.map((comment) => {
-                        const isMe = currentUserId && comment.users?.id === currentUserId;
+                        // Debug log for comparison
+                        // console.log(`[Item Check] Comment User: ${comment.users?.id} vs Current Check: ${currentUserId || user?.id}`);
+                        
+                        const isMe = (currentUserId && comment.users?.id === currentUserId) || (user && comment.users?.id === user.id);
                         const isSystem = comment.is_system_message;
                         
                         if (isSystem) {

@@ -68,7 +68,18 @@ export async function POST(request: Request) {
             gse_number,
             evidence_url,
             evidence_urls,
-            evidence_meta
+            evidence_meta,
+            // New fields
+            incident_date,
+            incident_time,
+            area,
+            specific_location,
+            main_category,
+            sub_category,
+            immediate_action,
+            priority,
+            is_flight_related,
+            is_gse_related
         } = body;
 
         if (!title || !description) {
@@ -101,6 +112,17 @@ export async function POST(request: Request) {
                 evidence_urls: evidence_urls || (evidence_url ? [evidence_url] : []) || [],
                 evidence_meta: evidence_meta || null,
                 status: REPORT_STATUS.OPEN,
+                // Insert new fields
+                incident_date: incident_date || null,
+                incident_time: incident_time || null,
+                area: area || null,
+                specific_location: specific_location || null,
+                main_category: main_category || null,
+                sub_category: sub_category || null,
+                immediate_action: immediate_action || null,
+                priority: priority || 'medium', // Default to medium if not provided
+                is_flight_related: is_flight_related || false,
+                is_gse_related: is_gse_related || false
             });
 
         if (insertError) {
