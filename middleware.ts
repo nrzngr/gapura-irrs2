@@ -5,7 +5,7 @@ import { verifySession } from '@/lib/auth-utils';
 const ROLE_DASHBOARDS: Record<string, string> = {
     SUPER_ADMIN: '/dashboard/admin',
     OS_ADMIN: '/dashboard/os',
-    OSC_LEAD: '/dashboard/osc',
+    ANALYST: '/dashboard/analyst',
     PARTNER_ADMIN: '/dashboard/partner',
     BRANCH_USER: '/dashboard/employee',
     // Fallback for others to partner or employee as appropriate
@@ -46,14 +46,14 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
 
-        // OSC Dashboard (OSC_LEAD)
-        if (path.startsWith('/dashboard/osc') && role !== 'OSC_LEAD') {
+        // Analyst Dashboard (ANALYST)
+        if (path.startsWith('/dashboard/analyst') && role !== 'ANALYST') {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
 
-        // OS Dashboard (OS_ADMIN) - MUST be checked AFTER OSC or explicitly exclude OSC
-        // Fix: Ensure we don't accidentally match /dashboard/osc
-        if (path.startsWith('/dashboard/os') && !path.startsWith('/dashboard/osc')) {
+        // OS Dashboard (OS_ADMIN) - MUST be checked AFTER analyst or explicitly exclude analyst
+        // Fix: Ensure we don't accidentally match /dashboard/analyst
+        if (path.startsWith('/dashboard/os') && !path.startsWith('/dashboard/analyst')) {
              if (!['OS_ADMIN', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'].includes(role)) {
                   return NextResponse.redirect(new URL('/dashboard/employee', request.url));
              }

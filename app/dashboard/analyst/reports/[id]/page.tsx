@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { Report, User } from '@/types';
 import { ReportDetailView } from '@/components/dashboard/ReportDetailView';
 
-export default function OSCReportDetailPage() {
+export default function AnalystReportDetailPage() {
     const params = useParams();
     const router = useRouter();
     const reportId = params.id as string;
@@ -72,7 +72,7 @@ export default function OSCReportDetailPage() {
             const body: Record<string, any> = { reportId: id, status, notes };
             if (evidenceUrl) body.resolution_evidence_url = evidenceUrl;
             
-            // OSC Lead uses same endpoint as Admin for status updates
+            // Analyst uses same endpoint as Admin for status updates
             const res = await fetch('/api/admin/reports', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -117,35 +117,17 @@ export default function OSCReportDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[var(--surface-1)]">
-            {/* Header / Nav */}
-            <div className="bg-white border-b border-[var(--surface-4)] sticky top-0 z-30">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => router.push('/dashboard/osc/reports')}
-                            className="p-2 -ml-2 rounded-full hover:bg-[var(--surface-2)] transition-colors"
-                        >
-                            <ArrowLeft size={20} className="text-[var(--text-secondary)]" />
-                        </button>
-                        <h1 className="text-xl font-bold text-[var(--text-primary)]">
-                            Detail Laporan
-                        </h1>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-80px)]">
-                 <ReportDetailView 
-                    report={report} 
-                    onUpdateStatus={handleStatusUpdate}
-                    onRefresh={fetchReport}
-                    userRole={user?.role || 'OSC_LEAD'}
-                    isModal={false}
-                    divisionColor="#10b981"
-                    currentUserId={user?.id}
-                />
-            </div>
+        <div className="h-screen bg-[var(--surface-1)] overflow-hidden">
+            <ReportDetailView 
+                report={report} 
+                onUpdateStatus={handleStatusUpdate}
+                onRefresh={fetchReport}
+                onClose={() => router.push('/dashboard/analyst/reports')}
+                userRole={user?.role || 'ANALYST'}
+                isModal={false}
+                divisionColor="#10b981"
+                currentUserId={user?.id}
+            />
         </div>
     );
 }

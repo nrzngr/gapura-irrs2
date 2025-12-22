@@ -1,4 +1,4 @@
-export type UserRole = 'SUPER_ADMIN' | 'OS_ADMIN' | 'OSC_LEAD' | 'PARTNER_ADMIN' | 'BRANCH_USER' | 'OT_ADMIN' | 'OP_ADMIN' | 'UQ_ADMIN';
+export type UserRole = 'SUPER_ADMIN' | 'OS_ADMIN' | 'ANALYST' | 'PARTNER_ADMIN' | 'BRANCH_USER' | 'OT_ADMIN' | 'OP_ADMIN' | 'UQ_ADMIN';
 
 export type ReportStatus = 'OPEN' | 'ACKNOWLEDGED' | 'ON_PROGRESS' | 'WAITING_VALIDATION' | 'CLOSED' | 'RETURNED' | 'REJECTED';
 

@@ -91,32 +91,17 @@ export default function UQReportDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[var(--surface-1)]">
-            <div className="border-b border-[var(--surface-4)] sticky top-0 z-30" style={{ background: `linear-gradient(135deg, ${DIVISION.color}, ${DIVISION.color}dd)` }}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => router.push('/dashboard/uq/reports')} className="p-2 -ml-2 rounded-full hover:bg-white/20 transition-colors">
-                            <ArrowLeft size={20} className="text-white" />
-                        </button>
-                        <div className="flex items-center gap-2">
-                            <Shield size={20} className="text-white" />
-                            <h1 className="text-xl font-bold text-white">Detail Laporan - Divisi {DIVISION.code}</h1>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-80px)]">
-                <ReportDetailView 
-                    report={report} 
-                    onUpdateStatus={handleStatusUpdate}
-                    onRefresh={fetchReport}
-                    userRole={user?.role || 'UQ_ADMIN'}
-                    isModal={false}
-                    divisionColor={DIVISION.color}
-                    currentUserId={user?.id}
-                />
-            </div>
+        <div className="h-screen bg-[var(--surface-1)] overflow-hidden">
+            <ReportDetailView 
+                report={report} 
+                onUpdateStatus={handleStatusUpdate}
+                onRefresh={fetchReport}
+                onClose={() => router.push('/dashboard/uq/reports')}
+                userRole={user?.role || 'UQ_ADMIN'}
+                isModal={false}
+                divisionColor={DIVISION.color}
+                currentUserId={user?.id}
+            />
         </div>
     );
 }

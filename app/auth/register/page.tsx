@@ -300,7 +300,7 @@ export default function RegisterPage() {
                                                     {/* Dynamic Position Filtering Logic */}
                                                     {(() => {
                                                         const isCentral = formData.station_id === 'GPS' || stations.find(s => s.id === formData.station_id && s.code === 'GPS');
-                                                        const centralRoles = ['Super Admin', 'Analyst', 'OS', 'OSF', 'OSL', 'OSC', 'DIVISI OT', 'DIVISI OP', 'DIVISI UQ'];
+                                                        const centralRoles = ['Super Admin', 'Analyst', 'OS', 'OSF', 'OSL', 'DIVISI OT', 'DIVISI OP', 'DIVISI UQ'];
                                                         
                                                         return positions
                                                             .filter(p => {

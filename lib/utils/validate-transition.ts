@@ -18,7 +18,7 @@ const TRANSITION_RULES: Record<ReportStatus, Partial<Record<UserRole, ReportStat
     },
     WAITING_VALIDATION: {
         OS_ADMIN: ['CLOSED', 'RETURNED'],
-        OSC_LEAD: ['CLOSED', 'RETURNED'],
+        ANALYST: ['CLOSED', 'RETURNED'],
         SUPER_ADMIN: ['CLOSED', 'RETURNED'],
     },
     RETURNED: {

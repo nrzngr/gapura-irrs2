@@ -98,34 +98,16 @@ export default function OSReportDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[var(--surface-1)]">
-            {/* Header / Nav */}
-            <div className="bg-white border-b border-[var(--surface-4)] sticky top-0 z-30">
-                <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => router.push('/dashboard/os/reports')}
-                            className="p-2 -ml-2 rounded-full hover:bg-[var(--surface-2)] transition-colors"
-                        >
-                            <ArrowLeft size={20} className="text-[var(--text-secondary)]" />
-                        </button>
-                        <h1 className="text-xl font-bold text-[var(--text-primary)]">
-                            Detail Laporan
-                        </h1>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-80px)]">
-                 <ReportDetailView 
-                    report={report} 
-                    onUpdateStatus={handleStatusUpdate}
-                    onRefresh={fetchReport}
-                    userRole={user?.role || 'OS_ADMIN'}
-                    isModal={false}
-                    currentUserId={user?.id}
-                />
-            </div>
+        <div className="h-[calc(100vh-4rem)] md:h-screen bg-[var(--surface-1)] overflow-hidden -mx-4 -mb-6 md:-mx-8 md:-mb-8 -mt-16 md:-mt-8" style={{ width: 'calc(100% + 2rem)', maxWidth: 'none' }}>
+            <ReportDetailView 
+                report={report} 
+                onUpdateStatus={handleStatusUpdate}
+                onRefresh={fetchReport}
+                onClose={() => router.push('/dashboard/os/reports')}
+                userRole={user?.role || 'OS_ADMIN'}
+                isModal={false}
+                currentUserId={user?.id}
+            />
         </div>
     );
 }

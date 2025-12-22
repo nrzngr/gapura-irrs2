@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  MapPin,
   User,
-  Plane,
   Image as ImageIcon,
   CheckCircle2,
-  Clock,
   Loader2,
-  Wrench,
   X,
   Upload,
   AlertCircle,
@@ -19,7 +15,14 @@ import {
   RotateCcw,
   FileText,
   ChevronLeft,
-  Send,
+  ChevronRight,
+  Plane,
+  MapPin,
+  Calendar,
+  Clock,
+  Building2,
+  Tag,
+  MessageSquare,
 } from "lucide-react";
 import {
   STATUS_CONFIG,
@@ -31,21 +34,88 @@ import { type Report } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { supabase } from "@/lib/supabase";
 
-// Severity UI Config
-const UI_SEVERITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  urgent: { label: "URGENT", color: "text-red-600", bg: "bg-red-100" },
-  high: { label: "HIGH", color: "text-orange-600", bg: "bg-orange-100" },
-  medium: { label: "MEDIUM", color: "text-amber-600", bg: "bg-amber-100" },
-  low: { label: "LOW", color: "text-emerald-600", bg: "bg-emerald-100" },
+/* ============================================
+   DESIGN TOKENS — PRISM v3 Compliant
+   ============================================ */
+
+const SEVERITY_BADGES: Record<string, { label: string; classes: string }> = {
+  urgent: { label: "URGENT", classes: "bg-red-100 text-red-700 ring-red-200" },
+  high: { label: "HIGH", classes: "bg-orange-100 text-orange-700 ring-orange-200" },
+  medium: { label: "MEDIUM", classes: "bg-amber-100 text-amber-700 ring-amber-200" },
+  low: { label: "LOW", classes: "bg-emerald-100 text-emerald-700 ring-emerald-200" },
 };
 
-// Area ID to Label mapping
 const AREA_LABELS: Record<string, string> = {
   TERMINAL: "Terminal Area",
   APRON: "Apron Area",
   GENERAL: "General",
 };
 
+/* ============================================
+   COMPONENT: DataField (Definition List Item)
+   ============================================ */
+function DataField({ 
+  label, 
+  value, 
+  icon: Icon,
+  span = 1 
+}: { 
+  label: string; 
+  value: React.ReactNode; 
+  icon?: React.ElementType;
+  span?: 1 | 2;
+}) {
+  const isEmpty = !value || value === "" || value === "-" || value === "—";
+  return (
+    <div className={cn("group", span === 2 && "col-span-2")}>
+      <dt className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+        {Icon && <Icon size={12} strokeWidth={2} className="opacity-60" />}
+        {label}
+      </dt>
+      <dd className={cn(
+        "text-[15px] leading-snug",
+        isEmpty ? "text-gray-300 italic" : "text-[var(--text-primary)] font-medium"
+      )}>
+        {isEmpty ? "Tidak ditentukan" : value}
+      </dd>
+    </div>
+  );
+}
+
+/* ============================================
+   COMPONENT: SectionCard
+   ============================================ */
+function SectionCard({ 
+  title, 
+  children, 
+  className,
+  headerAction
+}: { 
+  title?: string; 
+  children: React.ReactNode; 
+  className?: string;
+  headerAction?: React.ReactNode;
+}) {
+  return (
+    <section className={cn(
+      "bg-[var(--surface-2)] rounded-2xl border border-gray-200/80 shadow-[var(--shadow-sm)]",
+      "transition-shadow duration-200 hover:shadow-[var(--shadow-md)]",
+      className
+    )}>
+      {title && (
+        <header className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+          <h3 className="text-[13px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{title}</h3>
+          {headerAction}
+        </header>
+      )}
+      <div className="p-5">{children}</div>
+    </section>
+  );
+}
+
+/* ============================================
+   PROPS INTERFACE
+   ============================================ */
 interface ReportDetailViewProps {
   report: Report | null;
   onUpdateStatus?: (reportId: string, status: string, notes?: string, evidenceUrl?: string) => Promise<void>;
@@ -57,17 +127,9 @@ interface ReportDetailViewProps {
   currentUserId?: string;
 }
 
-// Compact Section Label
-function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 block mb-0.5">{children}</span>;
-}
-
-// Value Display
-function Value({ children, empty = "Tidak ditentukan" }: { children: React.ReactNode; empty?: string }) {
-  const isEmpty = !children || children === "" || children === "-" || children === "—";
-  return <span className={cn("text-sm", isEmpty ? "text-gray-300 italic" : "font-medium text-gray-900")}>{isEmpty ? empty : children}</span>;
-}
-
+/* ============================================
+   MAIN COMPONENT: ReportDetailView
+   ============================================ */
 export function ReportDetailView({
   report,
   onUpdateStatus,
@@ -78,11 +140,12 @@ export function ReportDetailView({
   divisionColor = "#10b981",
   currentUserId,
 }: ReportDetailViewProps) {
+  // State
   const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [showReturnForm, setShowReturnForm] = useState(false);
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [showCloseForm, setShowCloseForm] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
   const [returnNotes, setReturnNotes] = useState("");
   const [rejectNotes, setRejectNotes] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
@@ -91,8 +154,10 @@ export function ReportDetailView({
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", flight_number: "", aircraft_reg: "", location: "" });
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [headerShadow, setHeaderShadow] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Sync edit form with report
   useEffect(() => {
     if (report) {
       setEditForm({
@@ -105,6 +170,7 @@ export function ReportDetailView({
     }
   }, [report]);
 
+  // Realtime subscription
   useEffect(() => {
     if (!report?.id) return;
     const channel = supabase
@@ -114,14 +180,20 @@ export function ReportDetailView({
     return () => { supabase.removeChannel(channel); };
   }, [report?.id, onRefresh]);
 
+  // Scroll shadow detection
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setHeaderShadow(e.currentTarget.scrollTop > 8);
+  }, []);
+
+  // Handlers
   const handleUpdateStatus = async (status: string, notes?: string, evidenceUrl?: string) => {
     if (!onUpdateStatus || !report) return;
     setActionLoading(true);
     try {
       await onUpdateStatus(report.id, status, notes, evidenceUrl);
-      setShowReturnForm(false);
-      setShowRejectForm(false);
-      setShowCloseForm(false);
+      setShowReturnModal(false);
+      setShowRejectModal(false);
+      setShowCloseModal(false);
       setReturnNotes("");
       setRejectNotes("");
       setCloseNotes("");
@@ -188,26 +260,31 @@ export function ReportDetailView({
     finally { setUploading(false); }
   };
 
+  // Empty State
   if (!report) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-        <FileText size={32} strokeWidth={1} className="opacity-30" />
-        <p className="text-xs">Pilih laporan untuk melihat detail</p>
+      <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] gap-3 p-8">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center">
+          <FileText size={28} strokeWidth={1.5} />
+        </div>
+        <p className="text-sm">Pilih laporan untuk melihat detail</p>
       </div>
     );
   }
 
   // Derived values
-  const severityKey = report.severity || report.priority || "medium";
-  const severityUI = UI_SEVERITY_CONFIG[severityKey.toLowerCase()] || UI_SEVERITY_CONFIG.medium;
+  const severityKey = (report.severity || report.priority || "medium").toLowerCase();
+  const severityBadge = SEVERITY_BADGES[severityKey] || SEVERITY_BADGES.medium;
+  const statusConfig = STATUS_CONFIG[report.status as ReportStatus];
   const evidenceList = report.evidence_urls?.length ? report.evidence_urls : report.evidence_url ? [report.evidence_url] : [];
   const allEvidence = [...evidenceList, ...(report.partner_evidence_urls || [])];
   const nextActions = getAllowedTransitions(report.status, userRole);
   const primaryAction = nextActions[0] || null;
-  const canEdit = ["SUPER_ADMIN", "OS_ADMIN", "OSC_LEAD"].includes(userRole);
+  const canEdit = ["SUPER_ADMIN", "OS_ADMIN", "ANALYST"].includes(userRole);
   const isProcessing = report.status === "ON_PROGRESS";
   const isPartner = userRole === "PARTNER_ADMIN";
   const hasEvidence = allEvidence.length > 0;
+  const isClosed = report.status === "CLOSED" || report.status === "REJECTED";
 
   let actionLabel = "Update Status";
   if (primaryAction === "ACKNOWLEDGED") actionLabel = "Terima Tugas";
@@ -216,317 +293,354 @@ export function ReportDetailView({
   else if (primaryAction === "CLOSED") actionLabel = "Validasi & Tutup";
 
   return (
-    <div className="h-full flex flex-col bg-gray-50/50 relative">
+    <div className="h-full flex flex-col bg-[var(--surface-1)] p-4 gap-4 overflow-hidden">
       {/* =============================================
-          HEADER BAR — Breadcrumb + Actions
+          HEADER CARD
           ============================================= */}
-      <header className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-3 shrink-0 shadow-sm z-10">
-        {onClose && (
-          <button onClick={onClose} className="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-            <ChevronLeft size={18} />
-          </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide">Semua Laporan &gt; Detail</p>
-          <h1 className="text-base font-bold text-gray-900 truncate leading-tight">#{report.id.slice(0, 8).toUpperCase()}</h1>
-        </div>
-        {/* Status Badges — Right aligned */}
-        <div className="flex items-center gap-2">
-          <div className={cn("px-2 py-1 rounded-md text-[10px] font-bold uppercase", severityUI.bg, severityUI.color)}>
-            {severityUI.label}
-          </div>
-          <div className={cn(
-            "px-2 py-1 rounded-md text-[10px] font-bold uppercase",
-            (STATUS_CONFIG[report.status as ReportStatus]?.textClass || "text-gray-600").replace("text-", "bg-").replace("600", "100").replace("700", "100"),
-            STATUS_CONFIG[report.status as ReportStatus]?.textClass || "text-gray-600",
-          )}>
-            {STATUS_CONFIG[report.status as ReportStatus]?.label || report.status}
-          </div>
-          {canEdit && (
-            <button onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)} className={cn("p-1.5 rounded-lg transition-colors", isEditing ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100 text-gray-400")}>
-              {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
+      <header className="shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* Progress Indicator */}
+        <div className="h-1 w-full bg-gradient-to-r from-[var(--brand-primary)] via-emerald-400 to-teal-500" />
+        
+        <div className="px-5 py-3 flex items-center gap-4">
+          {/* Back Button */}
+          {onClose && (
+            <button 
+              onClick={onClose} 
+              className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+              aria-label="Kembali"
+            >
+              <ChevronLeft size={20} />
             </button>
           )}
-          {isEditing && <button onClick={() => setIsEditing(false)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400"><X size={16} /></button>}
+
+          {/* Title */}
+          <div className="flex-1 min-w-0">
+            {isEditing ? (
+              <input
+                value={editForm.title}
+                onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
+                className="w-full text-base font-semibold text-gray-900 border-b-2 border-[var(--brand-primary)] focus:outline-none bg-transparent"
+                placeholder="Judul laporan..."
+              />
+            ) : (
+              <h1 className="text-base font-semibold text-gray-900 truncate">
+                {report.title || `${report.airline || ""} ${report.flight_number || ""}`.trim() || "Laporan"}
+              </h1>
+            )}
+            <p className="text-xs text-gray-400 truncate">
+              {report.main_category || report.category || "Irregularity"} • #{report.id.slice(0, 8).toUpperCase()}
+            </p>
+          </div>
+
+          {/* Badges */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={cn(
+              "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide",
+              severityBadge.classes
+            )}>
+              {severityBadge.label}
+            </span>
+            <span className={cn(
+              "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide",
+              statusConfig?.bgClass || "bg-gray-100",
+              statusConfig?.textClass || "text-gray-600"
+            )}>
+              {statusConfig?.label || report.status}
+            </span>
+          </div>
+
+          {/* Edit Actions */}
+          {canEdit && !isClosed && (
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)} 
+                className={cn(
+                  "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                  isEditing 
+                    ? "bg-[var(--brand-primary)] text-white" 
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-500"
+                )}
+                aria-label={isEditing ? "Simpan" : "Edit"}
+              >
+                {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
+              </button>
+              {isEditing && (
+                <button 
+                  onClick={() => setIsEditing(false)} 
+                  className="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-colors"
+                  aria-label="Batal"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
       {/* =============================================
-          MAIN CONTENT — 70:30 Split Layout
+          MAIN CONTENT CARD
           ============================================= */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* LEFT COLUMN — Main Content (70%) */}
-        <div className="flex-1 overflow-y-auto" ref={scrollRef}>
-          <div className="p-5 space-y-5">
+      <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-0">
+          
+          {/* LEFT COLUMN — Report Detail (8 cols) */}
+          <main 
+            className="lg:col-span-8 overflow-y-auto scroll-smooth border-r border-gray-100" 
+            ref={scrollRef}
+            onScroll={handleScroll}
+          >
+            <div className="p-6 space-y-5">
 
-            {/* HEADER CARD */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              {/* Title Row */}
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex-1 min-w-0">
-                  {isEditing ? (
-                    <input
-                      value={editForm.title}
-                      onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
-                      className="w-full text-xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none bg-transparent pb-1"
-                    />
-                  ) : (
-                    <h2 className="text-xl font-bold text-gray-900 leading-tight">{report.title}</h2>
-                  )}
-                  <p className="text-sm text-gray-500 mt-1">{report.airline || ""} {report.airline && "•"} {report.main_category || report.category || "Irregularity"}</p>
-                </div>
-              </div>
-
-              {/* Reporter Compact */}
-              <div className="flex items-center gap-3 py-3 px-4 bg-gray-50 rounded-lg mb-4">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm">
-                  {report.users?.full_name?.charAt(0) || report.reporter_name?.charAt(0) || <User size={14} />}
+              {/* REPORTER */}
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
+                  {report.users?.full_name?.charAt(0) || report.reporter_name?.charAt(0) || <User size={18} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{report.users?.full_name || report.reporter_name || "Anonymous"}</p>
-                  <p className="text-xs text-gray-500">{report.users?.email || "Pelapor"}</p>
+                  <p className="font-medium text-gray-900">
+                    {report.users?.full_name || report.reporter_name || "Anonymous"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {report.users?.email || "Pelapor"}
+                  </p>
                 </div>
-                <span className="px-2 py-1 rounded-md bg-gray-200 text-[10px] font-bold text-gray-600 uppercase">
+                <span className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[10px] font-bold text-gray-500 uppercase">
                   {report.users?.role?.replace("_ADMIN", "").replace("_", " ") || "EMPLOYEE"}
                 </span>
               </div>
 
-              {/* Info Grid — 3 Columns, Compact */}
-              <div className="grid grid-cols-3 gap-4 pb-4 border-b border-gray-100">
-                <div>
-                  <Label>Flight</Label>
-                  <Value>{report.flight_number}{report.aircraft_reg && ` (${report.aircraft_reg})`}</Value>
-                </div>
-                <div>
-                  <Label>Route</Label>
-                  <Value>{report.route}</Value>
-                </div>
-                <div>
-                  <Label>Airline</Label>
-                  <Value>{report.airline}</Value>
-                </div>
-              </div>
+              {/* RINGKASAN — Summary Grid */}
+              <SectionCard title="Ringkasan">
+                <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                  <DataField label="Flight" value={`${report.flight_number || ""}${report.aircraft_reg ? ` (${report.aircraft_reg})` : ""}`} icon={Plane} />
+                  <DataField label="Route" value={report.route} icon={MapPin} />
+                  <DataField label="Airline" value={report.airline} icon={Building2} />
+                  <DataField label="Area" value={AREA_LABELS[report.area || ""] || report.area} icon={Tag} />
+                  <DataField label="Area Category" value={report.area_category || report.sub_category} />
+                  <DataField label="Target Divisi" value={report.target_division} />
+                  <DataField label="Station" value={`${report.stations?.code || report.branch || ""}${report.stations?.name ? ` - ${report.stations.name}` : ""}`} icon={Building2} />
+                  <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} />
+                  <DataField label="Tanggal Kejadian" value={report.incident_date || report.event_date || new Date(report.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} icon={Calendar} />
+                </dl>
+              </SectionCard>
 
-              <div className="grid grid-cols-3 gap-4 py-4 border-b border-gray-100">
-                <div>
-                  <Label>Area</Label>
-                  <Value>{AREA_LABELS[report.area || ""] || report.area}</Value>
-                </div>
-                <div>
-                  <Label>Area Category</Label>
-                  <Value>{report.area_category || report.sub_category}</Value>
-                </div>
-                <div>
-                  <Label>Target Divisi</Label>
-                  <Value>{report.target_division}</Value>
-                </div>
-              </div>
+              {/* DESKRIPSI MASALAH */}
+              <SectionCard title="Deskripsi Masalah">
+                {isEditing ? (
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                    className="w-full text-[15px] bg-gray-50 border border-gray-200 rounded-xl p-4 focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none resize-none transition-all"
+                    rows={5}
+                    placeholder="Deskripsikan masalah secara detail..."
+                  />
+                ) : (
+                  <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+                    {report.description || <span className="text-gray-300 italic">Tidak ada deskripsi</span>}
+                  </p>
+                )}
+              </SectionCard>
 
-              <div className="grid grid-cols-3 gap-4 pt-4">
-                <div>
-                  <Label>Station</Label>
-                  <Value>{report.stations?.code || report.branch}{report.stations?.name && ` - ${report.stations.name}`}</Value>
-                </div>
-                <div>
-                  <Label>Lokasi Detail</Label>
-                  <Value>{report.specific_location || report.location}</Value>
-                </div>
-                <div>
-                  <Label>Tanggal Kejadian</Label>
-                  <Value>{report.incident_date || report.event_date || new Date(report.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</Value>
-                </div>
-              </div>
-            </div>
-
-            {/* DESCRIPTION CARD */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <Label>Deskripsi Masalah</Label>
-              {isEditing ? (
-                <textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full mt-2 text-sm bg-gray-50 border border-gray-200 rounded-lg p-3 focus:border-blue-300 outline-none resize-none"
-                  rows={4}
-                />
-              ) : (
-                <p className="mt-2 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{report.description || <span className="text-gray-300 italic">Tidak ada deskripsi</span>}</p>
+              {/* AKAR MASALAH & TINDAKAN */}
+              {(report.root_cause || report.action_taken || report.immediate_action) && (
+                <SectionCard title="Analisis & Tindakan">
+                  <div className="space-y-5">
+                    {report.immediate_action && (
+                      <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Tindakan Pencegahan</p>
+                        <p className="text-[15px] text-emerald-800">{report.immediate_action}</p>
+                      </div>
+                    )}
+                    {report.root_cause && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Akar Masalah</p>
+                        <p className="text-[15px] text-[var(--text-secondary)]">{report.root_cause}</p>
+                      </div>
+                    )}
+                    {report.action_taken && (
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Tindakan Perbaikan</p>
+                        <p className="text-[15px] text-[var(--text-secondary)]">{report.action_taken}</p>
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
               )}
-            </div>
 
-            {/* ROOT CAUSE & ACTION */}
-            {(report.root_cause || report.action_taken || report.immediate_action) && (
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
-                {report.immediate_action && (
-                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                    <Label>Tindakan Pencegahan</Label>
-                    <p className="text-sm text-emerald-800 mt-1">{report.immediate_action}</p>
-                  </div>
-                )}
-                {report.root_cause && (
-                  <div>
-                    <Label>Akar Masalah</Label>
-                    <p className="text-sm text-gray-700 mt-1">{report.root_cause}</p>
-                  </div>
-                )}
-                {report.action_taken && (
-                  <div>
-                    <Label>Tindakan Perbaikan</Label>
-                    <p className="text-sm text-gray-700 mt-1">{report.action_taken}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* EVIDENCE GALLERY — Thumbnail Grid */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <Label>Bukti Foto ({allEvidence.length})</Label>
-                {isProcessing && isPartner && (
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer text-xs font-medium text-gray-600 transition-colors">
-                    {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+              {/* LAMPIRAN — Evidence Gallery */}
+              <SectionCard 
+                title={`Lampiran (${allEvidence.length})`}
+                headerAction={isProcessing && isPartner && (
+                  <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer text-xs font-semibold text-gray-600 transition-colors">
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                     <span>Upload</span>
                     <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
                   </label>
                 )}
-              </div>
-
-              {allEvidence.length > 0 ? (
-                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
-                  {allEvidence.map((url, i) => {
-                    const isPartnerEvidence = report.partner_evidence_urls?.includes(url);
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => setLightboxUrl(url)}
-                        className={cn(
-                          "aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer hover:ring-2 hover:ring-offset-1 transition-all relative group",
-                          isPartnerEvidence ? "ring-2 ring-emerald-400" : "hover:ring-blue-400"
-                        )}
-                      >
-                        <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                        {isPartnerEvidence && (
-                          <span className="absolute bottom-1 right-1 bg-emerald-500 text-white text-[8px] font-bold px-1 rounded">✓</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-gray-300">
-                  <ImageIcon size={24} strokeWidth={1} />
-                  <p className="text-xs mt-2">Tidak ada bukti foto</p>
-                </div>
-              )}
+              >
+                {allEvidence.length > 0 ? (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {allEvidence.map((url, i) => {
+                      const isPartnerEvidence = report.partner_evidence_urls?.includes(url);
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setLightboxUrl(url)}
+                          className={cn(
+                            "aspect-square rounded-xl overflow-hidden bg-gray-100 relative group",
+                            "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--brand-primary)]",
+                            "hover:ring-2 hover:ring-offset-1 transition-all",
+                            isPartnerEvidence ? "ring-2 ring-emerald-400" : "hover:ring-blue-400"
+                          )}
+                        >
+                          <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          {isPartnerEvidence && (
+                            <span className="absolute bottom-1.5 right-1.5 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm">
+                              Partner
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-300">
+                    <ImageIcon size={32} strokeWidth={1.5} />
+                    <p className="text-sm mt-3">Tidak ada lampiran</p>
+                  </div>
+                )}
+              </SectionCard>
             </div>
+          </main>
 
-            {/* Spacer for scroll */}
-            <div className="h-4" />
-          </div>
-        </div>
+          {/* RIGHT COLUMN — Tindak Lanjut (4 cols) */}
+          <aside className="lg:col-span-4 border-l border-gray-200 bg-gray-50/50 flex flex-col overflow-hidden">
+            {/* Aside Header */}
+            <header className="px-5 py-4 border-b border-gray-200 bg-white shrink-0">
+              <h2 className="text-[15px] font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <MessageSquare size={18} className="text-[var(--brand-primary)]" />
+                Tindak Lanjut
+              </h2>
+              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                {report.comments?.length || 0} aktivitas tercatat
+              </p>
+            </header>
 
-        {/* RIGHT COLUMN — Action Sidebar (30%), Sticky */}
-        <div className="w-[320px] min-w-[280px] border-l border-gray-200 bg-white flex flex-col shrink-0">
-          {/* Tab Header */}
-          <div className="px-4 py-3 border-b border-gray-100 shrink-0">
-            <h3 className="text-sm font-bold text-gray-900">Tindak Lanjut</h3>
-            <p className="text-[10px] text-gray-400 mt-0.5">{report.comments?.length || 0} aktivitas tercatat</p>
-          </div>
-
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Quick Action Card */}
-            {onUpdateStatus && report.status !== "CLOSED" && report.status !== "REJECTED" && primaryAction && !isEditing && (
-              <div className="bg-gray-900 text-white p-4 rounded-xl shadow-lg">
-                <p className="text-[10px] uppercase text-gray-400 mb-2 tracking-wide">Status Selanjutnya</p>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold">{actionLabel}</span>
-                  {isProcessing && isPartner && !hasEvidence ? (
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1"><AlertCircle size={10} />Upload bukti dulu</span>
-                  ) : (
-                    <button
-                      onClick={() => primaryAction === "CLOSED" ? setShowCloseForm(true) : handleUpdateStatus(primaryAction)}
-                      disabled={actionLoading}
-                      className="px-4 py-2 bg-white text-gray-900 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-gray-100 transition-colors shadow-sm"
-                    >
-                      {actionLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                      {actionLabel}
-                    </button>
-                  )}
-                </div>
-                {/* Secondary Actions */}
-                {(nextActions.includes("RETURNED") || nextActions.includes("REJECTED")) && (
-                  <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700">
-                    {nextActions.includes("RETURNED") && (
-                      <button onClick={() => setShowReturnForm(true)} className="flex-1 py-2 text-xs font-medium text-orange-400 hover:bg-white/10 rounded-lg flex items-center justify-center gap-1 transition-colors">
-                        <RotateCcw size={12} /> Kembalikan
-                      </button>
-                    )}
-                    {nextActions.includes("REJECTED") && (
-                      <button onClick={() => setShowRejectForm(true)} className="flex-1 py-2 text-xs font-medium text-red-400 hover:bg-white/10 rounded-lg flex items-center justify-center gap-1 transition-colors">
-                        <XCircle size={12} /> Tolak
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              
+              {/* Quick Action Card */}
+              {onUpdateStatus && !isClosed && primaryAction && !isEditing && (
+                <div className="bg-gray-900 text-white p-5 rounded-2xl shadow-xl">
+                  <p className="text-[10px] uppercase text-gray-400 tracking-wider mb-3">Status Selanjutnya</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold">{actionLabel}</span>
+                    {isProcessing && isPartner && !hasEvidence ? (
+                      <span className="text-[11px] text-amber-400 flex items-center gap-1">
+                        <AlertCircle size={12} />Upload bukti dulu
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => primaryAction === "CLOSED" ? setShowCloseModal(true) : handleUpdateStatus(primaryAction)}
+                        disabled={actionLoading}
+                        className="px-4 py-2.5 bg-white text-gray-900 rounded-xl text-[13px] font-bold flex items-center gap-2 hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
+                      >
+                        {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                        {actionLabel}
                       </button>
                     )}
                   </div>
-                )}
+                  {/* Secondary Actions */}
+                  {(nextActions.includes("RETURNED") || nextActions.includes("REJECTED")) && (
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-700">
+                      {nextActions.includes("RETURNED") && (
+                        <button 
+                          onClick={() => setShowReturnModal(true)} 
+                          className="flex-1 py-2.5 text-[12px] font-semibold text-orange-400 hover:bg-white/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <RotateCcw size={14} /> Kembalikan
+                        </button>
+                      )}
+                      {nextActions.includes("REJECTED") && (
+                        <button 
+                          onClick={() => setShowRejectModal(true)} 
+                          className="flex-1 py-2.5 text-[12px] font-semibold text-red-400 hover:bg-white/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <XCircle size={14} /> Tolak
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Comment Input */}
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                <CommentInput reportId={report.id} onSuccess={onRefresh} placeholder="Tambahkan tindak lanjut..." />
               </div>
-            )}
 
-            {/* Comment Input Card */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <p className="text-[10px] uppercase text-gray-400 mb-3 tracking-wide font-medium">Tambah Tindak Lanjut</p>
-              <CommentInput reportId={report.id} onSuccess={onRefresh} />
-            </div>
-
-            {/* Activity Log */}
-            <div>
-              <p className="text-[10px] uppercase text-gray-400 mb-3 tracking-wide font-medium">Riwayat Aktivitas</p>
-              {report.comments && report.comments.length > 0 ? (
-                <div className="space-y-3">
-                  {report.comments.slice().reverse().map((comment) => {
-                    if (comment.is_system_message) {
-                      return (
-                        <div key={comment.id} className="flex items-start gap-2 text-[11px] text-gray-400 italic">
-                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-1.5 shrink-0" />
-                          <div>
-                            <span>{comment.content}</span>
-                            <span className="ml-2 text-[10px] text-gray-300">{new Date(comment.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
+              {/* Activity Feed */}
+              <div>
+                <p className="text-[11px] uppercase text-[var(--text-muted)] tracking-wider font-semibold mb-4">Riwayat Aktivitas</p>
+                {report.comments && report.comments.length > 0 ? (
+                  <div className="space-y-3">
+                    {report.comments.slice().reverse().map((comment) => {
+                      if (comment.is_system_message) {
+                        return (
+                          <div key={comment.id} className="flex items-start gap-2.5 text-[12px] text-[var(--text-muted)] italic">
+                            <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 shrink-0" />
+                            <div className="flex-1">
+                              <span>{comment.content}</span>
+                              <span className="ml-2 text-[11px] opacity-60">
+                                {new Date(comment.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
                           </div>
+                        );
+                      }
+                      return (
+                        <div key={comment.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                          <div className="flex items-center gap-2.5 mb-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-500">
+                              {comment.users?.full_name?.charAt(0) || "?"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[13px] font-semibold text-[var(--text-primary)]">{comment.users?.full_name}</span>
+                              <span className="text-[11px] text-[var(--text-muted)] ml-2">
+                                {new Date(comment.created_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{comment.content}</p>
+                          {comment.attachments && comment.attachments.length > 0 && (
+                            <div className="flex gap-2 mt-3">
+                              {comment.attachments.slice(0, 3).map((url, idx) => (
+                                <button 
+                                  key={idx} 
+                                  className="w-14 h-14 rounded-lg overflow-hidden border border-gray-200 hover:ring-2 hover:ring-blue-400 transition-all" 
+                                  onClick={() => setLightboxUrl(url)}
+                                >
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                              {comment.attachments.length > 3 && (
+                                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center text-[11px] text-gray-500 font-medium">
+                                  +{comment.attachments.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
-                    }
-                    return (
-                      <div key={comment.id} className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
-                            {comment.users?.full_name?.charAt(0) || "?"}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-xs font-semibold text-gray-900">{comment.users?.full_name}</span>
-                            <span className="text-[10px] text-gray-400 ml-2">{new Date(comment.created_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-700 leading-relaxed">{comment.content}</p>
-                        {comment.attachments && comment.attachments.length > 0 && (
-                          <div className="flex gap-1.5 mt-2">
-                            {comment.attachments.slice(0, 3).map((url, idx) => (
-                              <div key={idx} className="w-12 h-12 rounded overflow-hidden border border-gray-200 cursor-pointer" onClick={() => setLightboxUrl(url)}>
-                                <img src={url} alt="" className="w-full h-full object-cover" />
-                              </div>
-                            ))}
-                            {comment.attachments.length > 3 && (
-                              <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-medium">+{comment.attachments.length - 3}</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400 italic text-center py-6">Belum ada aktivitas</p>
-              )}
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-[var(--text-muted)] italic text-center py-8">Belum ada aktivitas</p>
+                )}
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
 
@@ -534,75 +648,153 @@ export function ReportDetailView({
           LIGHTBOX
           ============================================= */}
       {lightboxUrl && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
-          <button className="absolute top-4 right-4 p-2 text-white/80 hover:text-white"><X size={24} /></button>
-          <img src={lightboxUrl} alt="Evidence" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+        <div 
+          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-fade-in-up" 
+          onClick={() => setLightboxUrl(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Gambar bukti"
+        >
+          <button className="absolute top-4 right-4 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors" aria-label="Tutup">
+            <X size={24} />
+          </button>
+          <img src={lightboxUrl} alt="Evidence" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" />
         </div>
       )}
 
       {/* =============================================
           MODALS
           ============================================= */}
-      {showReturnForm && (
-        <div className="absolute inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-900">Kembalikan Laporan</h3>
-              <button onClick={() => setShowReturnForm(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+      {/* Return Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Kembalikan Laporan</h3>
+              <button onClick={() => setShowReturnModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-            <textarea value={returnNotes} onChange={(e) => setReturnNotes(e.target.value)} className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-orange-500/20 outline-none bg-gray-50 mb-4 resize-none" rows={3} placeholder="Alasan pengembalian..." autoFocus />
-            <button onClick={() => handleUpdateStatus("RETURNED", returnNotes)} disabled={actionLoading} className="w-full py-3 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-colors text-sm flex items-center justify-center gap-2">
-              {actionLoading ? <Loader2 size={14} className="animate-spin" /> : "Konfirmasi Pengembalian"}
+            <textarea 
+              value={returnNotes} 
+              onChange={(e) => setReturnNotes(e.target.value)} 
+              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 outline-none bg-gray-50 mb-5 resize-none" 
+              rows={4} 
+              placeholder="Jelaskan alasan pengembalian..." 
+              autoFocus 
+            />
+            <button 
+              onClick={() => handleUpdateStatus("RETURNED", returnNotes)} 
+              disabled={actionLoading} 
+              className="w-full py-3.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2"
+            >
+              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : "Konfirmasi Pengembalian"}
             </button>
           </div>
         </div>
       )}
 
-      {showRejectForm && (
-        <div className="absolute inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-900">Tolak Laporan</h3>
-              <button onClick={() => setShowRejectForm(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Tolak Laporan</h3>
+              <button onClick={() => setShowRejectModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-            <div className="bg-red-50 text-red-700 p-3 rounded-xl text-xs mb-4 flex items-center gap-2"><AlertCircle size={14} />Penolakan ini bersifat permanen.</div>
-            <textarea value={rejectNotes} onChange={(e) => setRejectNotes(e.target.value)} className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-red-500/20 outline-none bg-gray-50 mb-4 resize-none" rows={3} placeholder="Alasan penolakan..." autoFocus />
-            <button onClick={() => handleUpdateStatus("REJECTED", rejectNotes)} disabled={actionLoading} className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors text-sm flex items-center justify-center gap-2">
-              {actionLoading ? <Loader2 size={14} className="animate-spin" /> : "Tolak Permanen"}
+            <div className="bg-red-50 text-red-700 p-4 rounded-xl text-[13px] mb-5 flex items-center gap-3 border border-red-100">
+              <AlertCircle size={18} className="shrink-0" />
+              <span>Penolakan ini bersifat permanen dan tidak dapat dibatalkan.</span>
+            </div>
+            <textarea 
+              value={rejectNotes} 
+              onChange={(e) => setRejectNotes(e.target.value)} 
+              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-red-500/20 focus:border-red-400 outline-none bg-gray-50 mb-5 resize-none" 
+              rows={4} 
+              placeholder="Jelaskan alasan penolakan..." 
+              autoFocus 
+            />
+            <button 
+              onClick={() => handleUpdateStatus("REJECTED", rejectNotes)} 
+              disabled={actionLoading} 
+              className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2"
+            >
+              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : "Tolak Permanen"}
             </button>
           </div>
         </div>
       )}
 
-      {showCloseForm && (
-        <div className="absolute inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-900">Selesaikan Laporan</h3>
-              <button onClick={() => setShowCloseForm(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+      {/* Close Modal */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Selesaikan Laporan</h3>
+              <button onClick={() => setShowCloseModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-            <div className="mb-4 p-4 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><Upload size={14} className="text-emerald-600" />Foto Bukti Penyelesaian <span className="text-red-500">*</span></p>
+            
+            {/* Evidence Upload */}
+            <div className="mb-5 p-5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
+              <p className="text-[14px] font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                <Upload size={16} className="text-emerald-600" />
+                Foto Bukti Penyelesaian
+                <span className="text-red-500">*</span>
+              </p>
               {closeEvidencePreview ? (
-                <div className="relative">
-                  <img src={closeEvidencePreview} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
-                  <button onClick={() => { setCloseEvidenceUrl(""); setCloseEvidencePreview(""); }} className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"><X size={12} /></button>
+                <div className="relative rounded-xl overflow-hidden">
+                  <img src={closeEvidencePreview} alt="Preview" className="w-full h-40 object-cover" />
+                  <button 
+                    onClick={() => { setCloseEvidenceUrl(""); setCloseEvidencePreview(""); }} 
+                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center h-24 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors">
+                <label className="flex flex-col items-center justify-center h-32 cursor-pointer hover:bg-gray-100 rounded-xl transition-colors border border-gray-200">
                   <input type="file" accept="image/*" onChange={handleCloseEvidenceUpload} className="hidden" disabled={uploading} />
-                  {uploading ? <Loader2 size={20} className="animate-spin text-gray-400" /> : <><Upload size={20} className="text-gray-400 mb-1" /><span className="text-xs text-gray-500">Klik untuk upload</span></>}
+                  {uploading ? (
+                    <Loader2 size={24} className="animate-spin text-gray-400" />
+                  ) : (
+                    <>
+                      <Upload size={24} className="text-gray-400 mb-2" />
+                      <span className="text-[13px] text-gray-500">Klik atau drag untuk upload</span>
+                      <span className="text-[11px] text-gray-400 mt-1">PNG, JPG hingga 10MB</span>
+                    </>
+                  )}
                 </label>
               )}
             </div>
-            <textarea value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} className="w-full p-3 rounded-xl border border-gray-200 text-sm outline-none bg-gray-50 mb-4 resize-none" rows={2} placeholder="Catatan penyelesaian (opsional)..." />
+
+            <textarea 
+              value={closeNotes} 
+              onChange={(e) => setCloseNotes(e.target.value)} 
+              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] outline-none bg-gray-50 mb-5 resize-none" 
+              rows={3} 
+              placeholder="Catatan penyelesaian (opsional)..." 
+            />
+
             <div className="flex gap-3">
-              <button onClick={() => setShowCloseForm(false)} className="flex-1 py-3 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-sm">Batal</button>
-              <button onClick={() => handleUpdateStatus("CLOSED", closeNotes, closeEvidenceUrl)} disabled={!closeEvidenceUrl || actionLoading} className="flex-1 py-3 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-colors" style={{ background: closeEvidenceUrl ? divisionColor : "#9ca3af" }}>
-                {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}Selesaikan
+              <button 
+                onClick={() => setShowCloseModal(false)} 
+                className="flex-1 py-3.5 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-[15px]"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={() => handleUpdateStatus("CLOSED", closeNotes, closeEvidenceUrl)} 
+                disabled={!closeEvidenceUrl || actionLoading} 
+                className="flex-1 py-3.5 text-white font-bold rounded-xl text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+                style={{ background: closeEvidenceUrl ? divisionColor : "#9ca3af" }}
+              >
+                {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                Selesaikan
               </button>
             </div>
-            {!closeEvidenceUrl && <p className="text-xs text-red-500 text-center mt-3 flex items-center justify-center gap-1"><AlertCircle size={12} />Upload foto bukti wajib diisi</p>}
+            {!closeEvidenceUrl && (
+              <p className="text-[12px] text-red-500 text-center mt-4 flex items-center justify-center gap-1.5">
+                <AlertCircle size={14} />Upload foto bukti wajib diisi
+              </p>
+            )}
           </div>
         </div>
       )}

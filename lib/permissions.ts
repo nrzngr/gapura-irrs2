@@ -14,16 +14,16 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
     OP_ADMIN: 2,
     UQ_ADMIN: 2,
     PARTNER_ADMIN: 2,
-    OSC_LEAD: 3,
+    ANALYST: 3,
     SUPER_ADMIN: 4,
 };
 
 /**
  * Check if user can export data (Excel/PDF)
- * OS_ADMIN (Central Analyst), OSC_LEAD, and SUPER_ADMIN per requirements
+ * OS_ADMIN (Central Analyst), ANALYST, and SUPER_ADMIN per requirements
  */
 export const canExportData = (role: UserRole): boolean =>
-    role === 'OS_ADMIN' || role === 'OSC_LEAD' || role === 'SUPER_ADMIN';
+    role === 'OS_ADMIN' || role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
  * Check if user can access admin dashboard
@@ -34,10 +34,10 @@ export const canAccessAdminDashboard = (role: UserRole): boolean =>
 
 /**
  * Check if user can execute/update report status
- * OT_ADMIN, OP_ADMIN, UQ_ADMIN, OSC_LEAD, SUPER_ADMIN
+ * OT_ADMIN, OP_ADMIN, UQ_ADMIN, ANALYST, SUPER_ADMIN
  */
 export const canExecuteReport = (role: UserRole): boolean =>
-    role === 'OT_ADMIN' || role === 'OP_ADMIN' || role === 'UQ_ADMIN' || role === 'OSC_LEAD' || role === 'SUPER_ADMIN';
+    role === 'OT_ADMIN' || role === 'OP_ADMIN' || role === 'UQ_ADMIN' || role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
  * Check if user can manage users (approve/reject/edit)
@@ -62,10 +62,10 @@ export const canViewAuditLogs = (role: UserRole): boolean =>
 
 /**
  * Check if user can create reports
- * BRANCH_USER (station-scoped), OSC_LEAD (HQ reports), SUPER_ADMIN
+ * BRANCH_USER (station-scoped), ANALYST (HQ reports), SUPER_ADMIN
  */
 export const canCreateReport = (role: UserRole): boolean =>
-    role === 'BRANCH_USER' || role === 'OSC_LEAD' || role === 'SUPER_ADMIN' || role === 'OS_ADMIN';
+    role === 'BRANCH_USER' || role === 'ANALYST' || role === 'SUPER_ADMIN' || role === 'OS_ADMIN';
 
 /**
  * Check if user has global data access (all stations)
@@ -104,7 +104,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
     OT_ADMIN: 'OT Admin',
     OP_ADMIN: 'OP Admin',
     UQ_ADMIN: 'UQ Admin',
-    OSC_LEAD: 'OSC Lead',
+    ANALYST: 'Analyst',
     SUPER_ADMIN: 'Super Admin',
     PARTNER_ADMIN: 'Partner Admin',
 };
@@ -118,7 +118,7 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
     OT_ADMIN: 'Eksekutor divisi OT. Dapat mengubah status laporan divisi OT.',
     OP_ADMIN: 'Eksekutor divisi OP. Dapat mengubah status laporan divisi OP.',
     UQ_ADMIN: 'Eksekutor divisi UQ. Dapat mengubah status laporan divisi UQ.',
-    OSC_LEAD: 'Kepala divisi. Akses global + export data.',
+    ANALYST: 'Kepala divisi. Akses global + export data.',
     SUPER_ADMIN: 'Full access. Kelola user dan master data.',
     PARTNER_ADMIN: 'Akses terbatas partner. Dashboard monitoring partner.',
 };

@@ -32,7 +32,7 @@ const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof 
     BRANCH_USER: { label: 'Petugas Cabang', color: 'bg-slate-100 text-slate-700', icon: User },
     OS_ADMIN: { label: 'OS Admin', color: 'bg-blue-100 text-blue-700', icon: Eye },
     PARTNER_ADMIN: { label: 'Partner Admin', color: 'bg-cyan-100 text-cyan-700', icon: Wrench },
-    OSC_LEAD: { label: 'OSC Lead', color: 'bg-indigo-100 text-indigo-700', icon: Star },
+    ANALYST: { label: 'Analyst', color: 'bg-indigo-100 text-indigo-700', icon: Star },
     SUPER_ADMIN: { label: 'Super Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
     OT_ADMIN: { label: 'Teknik Admin', color: 'bg-orange-100 text-orange-700', icon: Wrench },
     OP_ADMIN: { label: 'Operasi Admin', color: 'bg-teal-100 text-teal-700', icon: User },
@@ -287,7 +287,7 @@ export default function AdminUsersPage() {
                                         <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold ${user.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-purple-500 to-violet-600' : user.role === 'OSC_LEAD' ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-blue-500 to-cyan-500'}`}>
+                                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold ${user.role === 'SUPER_ADMIN' ? 'bg-gradient-to-br from-purple-500 to-violet-600' : user.role === 'ANALYST' ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-blue-500 to-cyan-500'}`}>
                                                         {user.full_name?.charAt(0).toUpperCase() || 'U'}
                                                     </div>
                                                     <div>

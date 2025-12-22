@@ -11,7 +11,7 @@ interface RouteParams {
 // Helper to check if user has access to the report's comments
 async function canAccessReportComments(reportId: string, userId: string, role: UserRole): Promise<boolean> {
     // 1. High-level admins always have access
-    const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'OS_ADMIN', 'OSC_LEAD', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
+    const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'OS_ADMIN', 'ANALYST', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
     if (GLOBAL_ACCESS_ROLES.includes(role)) {
         return true;
     }
@@ -134,7 +134,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         }
 
         // Check Permissions
-        const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'OS_ADMIN', 'OSC_LEAD', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
+        const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'OS_ADMIN', 'ANALYST', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
         let hasAccess = false;
         
         if (GLOBAL_ACCESS_ROLES.includes(payload.role as UserRole)) {

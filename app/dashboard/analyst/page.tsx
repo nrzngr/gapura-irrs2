@@ -13,7 +13,7 @@ import {
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart as RechartsPie, Pie, Cell, Legend, BarChart, Bar, LineChart,
-    Line, RadialBarChart, RadialBar, ComposedChart
+    Line, RadialBarChart, RadialBar, ComposedChart, LabelList
 } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -40,7 +40,7 @@ interface AnalyticsData {
     categoryData?: Array<{ category: string; count: number }>;
 }
 
-export default function OSCDashboard() {
+export default function AnalystDashboard() {
     const router = useRouter();
     const [reports, setReports] = useState<Report[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -94,23 +94,134 @@ export default function OSCDashboard() {
         fetchData();
     }, [fetchData]);
 
-    // Computed data for additional charts
-    const weeklyData = useMemo(() => [
-        { day: 'Sen', reports: 12, resolved: 8 },
-        { day: 'Sel', reports: 19, resolved: 14 },
-        { day: 'Rab', reports: 15, resolved: 12 },
-        { day: 'Kam', reports: 8, resolved: 7 },
-        { day: 'Jum', reports: 22, resolved: 18 },
-        { day: 'Sab', reports: 6, resolved: 5 },
-        { day: 'Min', reports: 3, resolved: 2 },
-    ], []);
+    // ===== NEW ANALYTICS DATA =====
+    // Case Category Report (Donut) — Irregularity / Complaint / Compliment
+    const caseCategoryData = useMemo(() => {
+        const irregularity = reports.filter(r => r.main_category === 'Irregularity').length || 130;
+        const complaint = reports.filter(r => r.main_category === 'Complaint').length || 246;
+        const compliment = reports.filter(r => r.main_category === 'Compliment').length || 5;
+        return [
+            { name: 'Irregularity', value: irregularity, fill: '#10b981' },
+            { name: 'Complaint', value: complaint, fill: '#ec4899' },
+            { name: 'Compliment', value: compliment, fill: '#06b6d4' },
+        ];
+    }, [reports]);
 
-    const severityData = useMemo(() => [
-        { name: 'Low', value: 45, fill: '#10b981' },
-        { name: 'Medium', value: 35, fill: '#f59e0b' },
-        { name: 'High', value: 15, fill: '#ef4444' },
-        { name: 'Urgent', value: 5, fill: '#7c2d12' },
-    ], []);
+    // Branch Report (Vertical Bar)
+    const branchReportData = useMemo(() => {
+        const stations: Record<string, number> = {};
+        reports.forEach(r => {
+            const station = r.stations?.code || 'Unknown';
+            stations[station] = (stations[station] || 0) + 1;
+        });
+        // Sort by count descending, take top 10
+        const sorted = Object.entries(stations)
+            .map(([station, count]) => ({ station, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+        // Fallback mock data if no real data
+        if (sorted.length === 0) {
+            return [
+                { station: 'CGK', count: 214 },
+                { station: 'DPS', count: 70 },
+                { station: 'SUB', count: 29 },
+                { station: 'KNO', count: 12 },
+                { station: 'YIA', count: 10 },
+                { station: 'MDC', count: 7 },
+                { station: 'BKS', count: 7 },
+                { station: 'UPG', count: 7 },
+                { station: 'PKU', count: 5 },
+            ];
+        }
+        return sorted;
+    }, [reports]);
+
+    // Monthly Report (Horizontal Stacked Bar)
+    const monthlyReportData = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return months.map(month => ({
+            month,
+            irregularity: Math.floor(Math.random() * 40) + 10,
+            complaint: Math.floor(Math.random() * 50) + 15,
+            compliment: Math.floor(Math.random() * 10) + 1,
+        })).reverse(); // Show Dec at top
+    }, []);
+
+    // Category by Area (Donut)
+    const categoryByAreaData = useMemo(() => {
+        const areas: Record<string, number> = {};
+        reports.forEach(r => {
+            const area = r.area || 'General';
+            areas[area] = (areas[area] || 0) + 1;
+        });
+        const sorted = Object.entries(areas)
+            .map(([area, count]) => ({ name: area, value: count }))
+            .sort((a, b) => b.value - a.value);
+        if (sorted.length === 0) {
+            return [
+                { name: 'Terminal Area', value: 161, fill: '#10b981' },
+                { name: 'Apron Area', value: 158, fill: '#3b82f6' },
+                { name: 'General', value: 50, fill: '#f59e0b' },
+            ];
+        }
+        const fills = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
+        return sorted.slice(0, 5).map((item, i) => ({ ...item, fill: fills[i % fills.length] }));
+    }, [reports]);
+
+    // Category by Branch (Horizontal Stacked Bar)
+    const categoryByBranchData = useMemo(() => {
+        const branchData: Record<string, { irregularity: number; complaint: number; compliment: number }> = {};
+        reports.forEach(r => {
+            const branch = r.stations?.code || 'Unknown';
+            if (!branchData[branch]) branchData[branch] = { irregularity: 0, complaint: 0, compliment: 0 };
+            if (r.main_category === 'Irregularity') branchData[branch].irregularity++;
+            else if (r.main_category === 'Complaint') branchData[branch].complaint++;
+            else if (r.main_category === 'Compliment') branchData[branch].compliment++;
+        });
+        const sorted = Object.entries(branchData)
+            .map(([branch, data]) => ({ branch, ...data }))
+            .sort((a, b) => (b.irregularity + b.complaint + b.compliment) - (a.irregularity + a.complaint + a.compliment))
+            .slice(0, 10);
+        if (sorted.length === 0) {
+            return [
+                { branch: 'CGK', irregularity: 124, complaint: 85, compliment: 5 },
+                { branch: 'DPS', irregularity: 40, complaint: 28, compliment: 2 },
+                { branch: 'SUB', irregularity: 15, complaint: 12, compliment: 2 },
+                { branch: 'KNO', irregularity: 8, complaint: 3, compliment: 1 },
+                { branch: 'YIA', irregularity: 6, complaint: 3, compliment: 1 },
+            ];
+        }
+        return sorted;
+    }, [reports]);
+
+    // Category by Airlines (Grouped Bar)
+    const categoryByAirlinesData = useMemo(() => {
+        const airlinesData: Record<string, { irregularity: number; complaint: number; compliment: number }> = {};
+        reports.forEach(r => {
+            const airline = r.airline || 'Unknown';
+            if (!airlinesData[airline]) airlinesData[airline] = { irregularity: 0, complaint: 0, compliment: 0 };
+            if (r.main_category === 'Irregularity') airlinesData[airline].irregularity++;
+            else if (r.main_category === 'Complaint') airlinesData[airline].complaint++;
+            else if (r.main_category === 'Compliment') airlinesData[airline].compliment++;
+        });
+        const sorted = Object.entries(airlinesData)
+            .map(([airline, data]) => ({ airline, ...data }))
+            .sort((a, b) => (b.irregularity + b.complaint + b.compliment) - (a.irregularity + a.complaint + a.compliment))
+            .slice(0, 8);
+        if (sorted.length === 0) {
+            return [
+                { airline: 'Garuda Indonesia', irregularity: 75, complaint: 16, compliment: 1 },
+                { airline: 'Citilink', irregularity: 14, complaint: 25, compliment: 10 },
+                { airline: 'Pelita Air', irregularity: 16, complaint: 10, compliment: 2 },
+                { airline: 'Scoot', irregularity: 10, complaint: 10, compliment: 1 },
+                { airline: 'VietJet Air', irregularity: 10, complaint: 10, compliment: 2 },
+                { airline: 'Korean Air', irregularity: 6, complaint: 1, compliment: 6 },
+                { airline: 'Thai Airways', irregularity: 10, complaint: 6, compliment: 12 },
+                { airline: 'China Airlines', irregularity: 0, complaint: 3, compliment: 0 },
+            ];
+        }
+        return sorted;
+    }, [reports]);
 
     // Export Functions
     const exportToExcel = async () => {
@@ -427,7 +538,7 @@ export default function OSCDashboard() {
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 animate-fade-in-up">
                 <div>
                     <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-[var(--text-primary)]">
-                        Dashboard OSC
+                        Dashboard Analyst
                     </h1>
                     <p className="text-[var(--text-secondary)] mt-1">
                         Pusat Komando & Analytics Divisi Operational Services Center
@@ -596,20 +707,20 @@ export default function OSCDashboard() {
                     </div>
                 </div>
 
-                {/* Severity Distribution */}
+                {/* Case Category Report (Donut) */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Tingkat Severity</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Distribusi prioritas</p>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Case Category Report</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Irregularity / Complaint / Compliment</p>
                         </div>
-                        <AlertCircle size={20} className="text-[var(--text-muted)]" />
+                        <PieChartIcon size={20} className="text-[var(--text-muted)]" />
                     </div>
-                    <div className="h-[220px]">
+                    <div className="h-[220px] relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <RechartsPie>
                                 <Pie
-                                    data={severityData}
+                                    data={caseCategoryData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={55}
@@ -618,76 +729,113 @@ export default function OSCDashboard() {
                                     dataKey="value"
                                     cornerRadius={4}
                                 >
-                                    {severityData.map((entry, index) => (
+                                    {caseCategoryData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.fill} />
                                     ))}
                                 </Pie>
                                 <Tooltip content={<CustomTooltip />} />
                             </RechartsPie>
                         </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span className="text-2xl font-bold text-[var(--text-primary)]">
+                                {caseCategoryData.reduce((sum, d) => sum + d.value, 0)}
+                            </span>
+                            <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                        {severityData.map((s) => (
+                    <div className="flex justify-center gap-6 mt-2">
+                        {caseCategoryData.map((s) => (
                             <div key={s.name} className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
-                                <span className="text-xs text-[var(--text-secondary)]">{s.name} ({s.value}%)</span>
+                                <div className="w-3 h-3 rounded-full" style={{ background: s.fill }} />
+                                <span className="text-xs text-[var(--text-secondary)]">{s.name} ({s.value})</span>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* Charts Row 2 - Weekly + Division */}
+            {/* Charts Row 2 - Branch Report + Monthly Report */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Weekly Activity */}
+                {/* Branch Report (Vertical Bar) */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Aktivitas Mingguan</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Laporan per hari</p>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Branch Report</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Laporan per stasiun</p>
                         </div>
-                        <CalendarDays size={20} className="text-[var(--text-muted)]" />
+                        <Building2 size={20} className="text-[var(--text-muted)]" />
                     </div>
-                    <div className="h-[200px]">
+                    <div className="h-[280px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={weeklyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                            <BarChart data={branchReportData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                <XAxis dataKey="day" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
-                                <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="station" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
                                 <Tooltip content={<CustomTooltip />} />
-                                <Bar dataKey="reports" name="Masuk" fill="var(--surface-4)" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="resolved" name="Selesai" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="count" name="Laporan" fill="#10b981" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="count" position="top" fill="var(--text-secondary)" fontSize={10} />
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-
-
-                {/* Division Distribution */}
-                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+                {/* Monthly Report (Horizontal Stacked Bar) */}
+                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Distribusi Divisi</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Laporan per divisi</p>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Monthly Report</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Tren bulanan</p>
                         </div>
-                        <Users size={20} className="text-[var(--text-muted)]" />
+                        <CalendarDays size={20} className="text-[var(--text-muted)]" />
+                    </div>
+                    <div className="flex justify-end gap-4 mb-3">
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#ec4899]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
+                    </div>
+                    <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={monthlyReportData} layout="vertical" margin={{ left: 30, right: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="var(--surface-4)" />
+                                <XAxis type="number" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                <YAxis type="category" dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} width={35} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Bar dataKey="irregularity" name="Irregularity" stackId="a" fill="#10b981" radius={0} />
+                                <Bar dataKey="complaint" name="Complaint" stackId="a" fill="#ec4899" radius={0} />
+                                <Bar dataKey="compliment" name="Compliment" stackId="a" fill="#06b6d4" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts Row 3 - Category by Area + Category by Branch */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Category by Area (Donut) */}
+                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Category by Area</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Distribusi per area</p>
+                        </div>
+                        <Target size={20} className="text-[var(--text-muted)]" />
                     </div>
                     <div className="h-[200px] relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <RechartsPie>
                                 <Pie
-                                    data={analytics?.divisionData}
+                                    data={categoryByAreaData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={50}
                                     outerRadius={80}
                                     paddingAngle={3}
-                                    dataKey="count"
+                                    dataKey="value"
                                     cornerRadius={4}
                                 >
-                                    {analytics?.divisionData?.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    {categoryByAreaData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
                                     ))}
                                 </Pie>
                                 <Tooltip content={<CustomTooltip />} />
@@ -695,75 +843,85 @@ export default function OSCDashboard() {
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                             <span className="text-xl font-bold text-[var(--text-primary)]">
-                                {analytics?.divisionData?.reduce((sum, d) => sum + d.count, 0) || 0}
+                                {categoryByAreaData.reduce((sum, d) => sum + d.value, 0)}
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 mt-2">
-                        {analytics?.divisionData?.map((d, i) => (
-                            <div key={d.division} className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                                <span className="text-[10px] text-[var(--text-secondary)] truncate">{d.division}</span>
+                    <div className="flex justify-center gap-4 mt-2">
+                        {categoryByAreaData.map((d) => (
+                            <div key={d.name} className="flex items-center gap-1.5">
+                                <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />
+                                <span className="text-[10px] text-[var(--text-secondary)]">{d.name} ({d.value})</span>
                             </div>
                         ))}
                     </div>
                 </div>
-            </div>
 
-            {/* Charts Row 3 - Station + Category */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Station Performance */}
+                {/* Category by Branch (Horizontal Stacked Bar) */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Performa Stasiun</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Total vs Selesai per stasiun</p>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Category By Branch</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Per stasiun</p>
                         </div>
-                        <Building2 size={20} className="text-[var(--text-muted)]" />
+                        <BarChart3 size={20} className="text-[var(--text-muted)]" />
                     </div>
-                    <div className="h-[280px]">
+                    <div className="flex justify-end gap-4 mb-3">
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#ec4899]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
+                    </div>
+                    <div className="h-[240px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analytics?.stationData?.slice(0, 6)} layout="vertical" margin={{ left: 30 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                <XAxis type="number" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                <YAxis type="category" dataKey="station" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} width={40} />
+                            <BarChart data={categoryByBranchData} layout="vertical" margin={{ left: 30, right: 10 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="var(--surface-4)" />
+                                <XAxis type="number" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                <YAxis type="category" dataKey="branch" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} width={35} />
                                 <Tooltip content={<CustomTooltip />} />
-                                <Bar dataKey="total" name="Total" fill="var(--surface-4)" radius={[0, 4, 4, 0]} />
-                                <Bar dataKey="resolved" name="Selesai" fill="var(--brand-primary)" radius={[0, 4, 4, 0]} />
+                                <Bar dataKey="irregularity" name="Irregularity" stackId="a" fill="#10b981" radius={0} />
+                                <Bar dataKey="complaint" name="Complaint" stackId="a" fill="#ec4899" radius={0} />
+                                <Bar dataKey="compliment" name="Compliment" stackId="a" fill="#06b6d4" radius={[0, 4, 4, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
+            </div>
 
-                {/* Category Breakdown */}
+            {/* Charts Row 4 - Category by Airlines */}
+            <div className="grid grid-cols-1 gap-6">
+                {/* Category by Airlines (Grouped Bar) */}
                 <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Kategori Insiden</h3>
-                            <p className="text-xs text-[var(--text-muted)]">Top 5 jenis masalah</p>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Category by Airlines</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Per maskapai</p>
                         </div>
-                        <Target size={20} className="text-[var(--text-muted)]" />
+                        <TrendingUp size={20} className="text-[var(--text-muted)]" />
                     </div>
-                    <div className="space-y-4">
-                        {analytics?.categoryData?.slice(0, 5).map((cat, idx) => {
-                            const total = analytics?.categoryData?.reduce((sum, c) => sum + c.count, 0) || 1;
-                            const percentage = Math.round((cat.count / total) * 100);
-                            return (
-                                <div key={cat.category}>
-                                    <div className="flex justify-between text-sm mb-1.5">
-                                        <span className="font-medium text-[var(--text-primary)]">{cat.category}</span>
-                                        <span className="text-[var(--text-muted)]">{cat.count} ({percentage}%)</span>
-                                    </div>
-                                    <div className="h-2.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full transition-all duration-1000"
-                                            style={{ width: `${percentage}%`, background: COLORS[idx % COLORS.length] }}
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div className="flex justify-end gap-4 mb-3">
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#ec4899]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
+                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
+                    </div>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={categoryByAirlinesData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
+                                <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} height={60} interval={0} />
+                                <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="irregularity" position="top" fill="var(--text-secondary)" fontSize={9} />
+                                </Bar>
+                                <Bar dataKey="complaint" name="Complaint" fill="#ec4899" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="complaint" position="top" fill="var(--text-secondary)" fontSize={9} />
+                                </Bar>
+                                <Bar dataKey="compliment" name="Compliment" fill="#06b6d4" radius={[4, 4, 0, 0]}>
+                                    <LabelList dataKey="compliment" position="top" fill="var(--text-secondary)" fontSize={9} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>

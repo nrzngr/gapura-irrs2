@@ -34,10 +34,10 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
                     { href: '/dashboard/os', icon: LayoutDashboard, label: 'Monitor' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
                 ];
-            case 'OSC_LEAD':
+            case 'ANALYST':
                 return [
-                    { href: '/dashboard/osc', icon: LayoutDashboard, label: 'Home' },
-                    { href: '/dashboard/osc/analytics', icon: BarChart3, label: 'Analitik' },
+                    { href: '/dashboard/analyst', icon: LayoutDashboard, label: 'Home' },
+                    { href: '/dashboard/analyst/analytics', icon: BarChart3, label: 'Analitik' },
                     { href: '/dashboard/employee/new', icon: PlusCircle, label: 'Buat', isPrimary: true },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
                 ];

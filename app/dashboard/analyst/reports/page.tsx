@@ -10,7 +10,7 @@ import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/re
 import { Report } from '@/types';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 
-export default function OSCReportsPage() {
+export default function AnalystReportsPage() {
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [stationFilter, setStationFilter] = useState('all');
@@ -100,7 +100,7 @@ export default function OSCReportsPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
                 <div>
                     <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Kelola Laporan</h1>
-                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Monitoring dan validasi laporan Divisi OSC</p>
+                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Monitoring dan validasi laporan Divisi Analyst</p>
                 </div>
                 <button onClick={fetchReports} className="btn-secondary self-start">
                     <RefreshCw size={16} />

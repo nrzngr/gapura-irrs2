@@ -232,7 +232,7 @@ export function getAllowedTransitions(
     userRole: string
 ): ReportStatus[] {
     const isPartner = userRole === 'PARTNER_ADMIN';
-    const isOSAdmin = userRole === 'OS_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'OSC_LEAD';
+    const isOSAdmin = userRole === 'OS_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'ANALYST';
     const isDivisionAdmin = userRole === 'OT_ADMIN' || userRole === 'OP_ADMIN' || userRole === 'UQ_ADMIN';
 
     switch (currentStatus) {
@@ -284,7 +284,7 @@ export function canPerformAction(
     userDivision?: string
 ): boolean {
     const isPartner = userRole === 'PARTNER_ADMIN';
-    const isOSAdmin = userRole === 'OS_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'OSC_LEAD';
+    const isOSAdmin = userRole === 'OS_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'ANALYST';
     const isDivisionAdmin = userRole === 'OT_ADMIN' || userRole === 'OP_ADMIN' || userRole === 'UQ_ADMIN';
     const isBranchUser = userRole === 'BRANCH_USER';
 

@@ -4,10 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { 
     Send, 
     Paperclip, 
-    Image as ImageIcon, 
     X, 
     Loader2, 
-    AlertCircle,
     Plus 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,11 +15,16 @@ interface CommentInputProps {
     reportId: string;
     onSuccess?: () => void;
     placeholder?: string;
+    compact?: boolean;
 }
 
-export function CommentInput({ reportId, onSuccess, placeholder = "Ketik pesan..." }: CommentInputProps) {
+export function CommentInput({ 
+    reportId, 
+    onSuccess, 
+    placeholder = "Ketik pesan...",
+    compact = false 
+}: CommentInputProps) {
     const [content, setContent] = useState('');
-    const [isClarification, setIsClarification] = useState(false);
     const [sending, setSending] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [attachments, setAttachments] = useState<string[]>([]);
@@ -43,9 +46,8 @@ export function CommentInput({ reportId, onSuccess, placeholder = "Ketik pesan..
         try {
             const uploadedUrls: string[] = [];
             
-            // Parallel uploads
             await Promise.all(Array.from(files).map(async (file) => {
-                if (file.size > 5 * 1024 * 1024) return; // Skip > 5MB
+                if (file.size > 5 * 1024 * 1024) return;
 
                 const fileExt = file.name.split('.').pop();
                 const fileName = `comment-${reportId}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -54,10 +56,7 @@ export function CommentInput({ reportId, onSuccess, placeholder = "Ketik pesan..
                     .from('evidence')
                     .upload(fileName, file);
 
-                if (uploadError) {
-                    console.error('Upload error:', uploadError);
-                    return;
-                }
+                if (uploadError) return;
 
                 const { data: { publicUrl } } = supabase.storage
                     .from('evidence')
@@ -84,25 +83,19 @@ export function CommentInput({ reportId, onSuccess, placeholder = "Ketik pesan..
 
         setSending(true);
         try {
-            const finalContent = isClarification 
-                ? `KLARIFIKASI: ${content}` 
-                : content;
-
             const res = await fetch(`/api/reports/${reportId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    content: finalContent,
-                    attachments: attachments 
+                    content,
+                    attachments 
                 })
             });
 
             if (res.ok) {
                 setContent('');
                 setAttachments([]);
-                setIsClarification(false);
                 if (onSuccess) onSuccess();
-                // Reset height
                 if (textareaRef.current) textareaRef.current.style.height = 'auto';
             }
         } catch (err) {
@@ -119,107 +112,73 @@ export function CommentInput({ reportId, onSuccess, placeholder = "Ketik pesan..
         }
     };
 
+    const canSubmit = content.trim() || attachments.length > 0;
+
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-50">
-                <div className="bg-gray-100 p-1.5 rounded-lg">
-                    <Send size={16} className="text-gray-500" />
+        <div className="space-y-3">
+            {/* Textarea */}
+            <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onKeyDown={handleKeyDown} 
+                placeholder={placeholder}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none transition-all resize-none"
+                rows={3}
+            />
+            
+            {/* Attachments Preview */}
+            {attachments.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                    {attachments.map((url, i) => (
+                        <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                            <img src={url} alt="Preview" className="w-full h-full object-cover" />
+                            <button
+                                type="button"
+                                onClick={() => removeAttachment(i)}
+                                className="absolute top-0.5 right-0.5 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors"
+                            >
+                                <X size={10} />
+                            </button>
+                        </div>
+                    ))}
                 </div>
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Tambah Tindak Lanjut</h3>
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left: Description Input */}
-                <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Deskripsi / Tindakan</label>
-                    <textarea
-                        ref={textareaRef}
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        onKeyDown={handleKeyDown} 
-                        placeholder="Deskripsikan tindakan yang dilakukan..."
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]/50 outline-none transition-all resize-none min-h-[120px]"
-                        rows={5}
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+                {/* Upload Button */}
+                <label className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer transition-colors text-sm text-gray-600",
+                    uploading && "opacity-50 pointer-events-none"
+                )}>
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                    <span className="text-xs font-medium">Lampiran</span>
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        className="hidden" 
+                        onChange={handleFileUpload} 
+                        disabled={uploading}
                     />
-                </div>
+                </label>
 
-                {/* Right: Evidence Upload */}
-                <div className="space-y-2 border-t md:border-t-0 md:border-l border-gray-100 md:pl-6 pt-4 md:pt-0 flex flex-col">
-                     <div className="flex justify-between items-center">
-                        <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Bukti / Lampiran</label>
-                        <span className="text-[10px] text-gray-400">{attachments.length} file attached</span>
-                     </div>
-                    
-                    <div className="flex-1 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 p-2">
-                        {attachments.length > 0 ? (
-                            <div className="grid grid-cols-3 gap-2">
-                                {attachments.map((url, i) => (
-                                    <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
-                                        <img src={url} alt="Preview" className="w-full h-full object-cover" />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeAttachment(i)}
-                                            className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-red-500 text-white rounded-full transition-colors backdrop-blur-sm"
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-                                <label className={cn(
-                                    "aspect-square rounded-lg border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-white transition-colors",
-                                    uploading && "opacity-50 pointer-events-none"
-                                )}>
-                                    {uploading ? <Loader2 size={16} className="animate-spin text-gray-400" /> : <Plus size={16} className="text-gray-400" />}
-                                    <span className="text-[9px] text-gray-400 font-medium">Add</span>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        multiple 
-                                        className="hidden" 
-                                        onChange={handleFileUpload} 
-                                        disabled={uploading}
-                                    />
-                                </label>
-                            </div>
-                        ) : (
-                            <label className={cn(
-                                "h-full w-full flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white transition-colors rounded-lg",
-                                uploading && "opacity-50 pointer-events-none"
-                            )}>
-                                <div className="p-3 bg-white rounded-full shadow-sm">
-                                    {uploading ? <Loader2 size={20} className="animate-spin text-[var(--brand-primary)]" /> : <Paperclip size={20} className="text-[var(--brand-primary)]" />}
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-xs font-bold text-gray-700">Upload Evidence</p>
-                                    <p className="text-[10px] text-gray-400">Click or drag images here</p>
-                                </div>
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    multiple 
-                                    className="hidden" 
-                                    onChange={handleFileUpload} 
-                                    disabled={uploading}
-                                />
-                            </label>
-                        )}
-                    </div>
-                </div>
-            </div>
+                <div className="flex-1" />
 
-            <div className="flex justify-end pt-2 border-t border-gray-50">
+                {/* Submit Button */}
                 <button
                     onClick={() => handleSubmit()}
-                    disabled={(!content.trim() && attachments.length === 0) || sending}
+                    disabled={!canSubmit || sending}
                     className={cn(
-                        "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-sm",
-                        (!content.trim() && attachments.length === 0) || sending
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-[var(--brand-primary)] hover:brightness-110 shadow-[var(--brand-primary)]/30"
+                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                        canSubmit && !sending
+                            ? "bg-[var(--brand-primary)] text-white hover:brightness-110 shadow-sm"
+                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
                     )}
                 >
-                    {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                    Submit Update
+                    {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    <span>Kirim</span>
                 </button>
             </div>
         </div>

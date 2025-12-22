@@ -8,7 +8,7 @@ import { Mail, Lock, ArrowRight, Loader2, Sparkles, Shield } from 'lucide-react'
 
 const demoCredentials = [
     { role: 'Super Admin', email: 'admin@gapura.demo', division: 'ALL', color: '#8b5cf6', description: 'Full access' },
-    { role: 'Kepala OSC', email: 'supervisor@gapura.demo', division: 'OS', color: '#3b82f6', description: 'Create + Export' },
+    { role: 'Analyst', email: 'supervisor@gapura.demo', division: 'OS', color: '#3b82f6', description: 'Create + Export' },
     { role: 'Divisi OS', email: 'manager@gapura.demo', division: 'OS', color: '#10b981', description: 'Monitoring' },
     { role: 'Divisi OT', email: 'partner.ot@gapura.demo', division: 'OT', color: '#f59e0b', description: 'ACC & Evidence' },
     { role: 'Divisi OP', email: 'partner.op@gapura.demo', division: 'OP', color: '#06b6d4', description: 'ACC & Evidence' },
@@ -45,7 +45,7 @@ export default function LoginPage() {
             const roleRedirects: Record<string, string> = {
                 SUPER_ADMIN: '/dashboard/admin',
                 OS_ADMIN: '/dashboard/os',
-                OSC_LEAD: '/dashboard/osc',
+                ANALYST: '/dashboard/analyst',
                 PARTNER_ADMIN: '/dashboard/partner',
                 BRANCH_USER: '/dashboard/employee',
                 OT_ADMIN: '/dashboard/ot',

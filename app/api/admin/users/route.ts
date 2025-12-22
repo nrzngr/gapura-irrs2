@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
         }
 
         if (role) {
-            const validRoles = ['SUPER_ADMIN', 'OS_ADMIN', 'OSC_LEAD', 'PARTNER_ADMIN', 'BRANCH_USER', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
+            const validRoles = ['SUPER_ADMIN', 'OS_ADMIN', 'ANALYST', 'PARTNER_ADMIN', 'BRANCH_USER', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
             if (!validRoles.includes(role)) {
                 return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
             }

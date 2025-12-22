@@ -84,12 +84,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             ]
         }
     ],
-    'OSC': [
+    'ANALYST': [
         {
             title: 'Command Center',
             items: [
-                { href: '/dashboard/osc', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/osc/reports', label: 'Laporan', icon: ClipboardList },
+                { href: '/dashboard/analyst', label: 'Dashboard', icon: LayoutDashboard },
+                { href: '/dashboard/analyst/reports', label: 'Laporan', icon: ClipboardList },
             ]
         }
     ],
@@ -108,7 +108,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
 const GET_LINKS_KEY = (role: string): string => {
     const r = role.toUpperCase();
     if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
-    if (r === 'OSC_LEAD') return 'OSC';
+    if (r === 'ANALYST') return 'ANALYST';
     if (r === 'OS_ADMIN') return 'OS';
     if (r === 'OT_ADMIN') return 'OT';
     if (r === 'OP_ADMIN') return 'OP';

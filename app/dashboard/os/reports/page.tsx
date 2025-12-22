@@ -51,7 +51,7 @@ export default function OSReportsPage() {
     useEffect(() => { fetchStations(); }, []);
 
     // OS Admin is generally Read-Only for reports status, unless specified otherwise.
-    // Assuming identical to OSC Lead/Admin but maybe without "Validate" buttons if strict.
+    // Assuming identical to Analyst/Admin but maybe without "Validate" buttons if strict.
     // For now, I will keep it read-only mostly, or just view.
     // User requested "menu semua laporan bisa di akses".
 
