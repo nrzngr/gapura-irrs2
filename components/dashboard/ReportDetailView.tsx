@@ -224,11 +224,15 @@ export function ReportDetailView({
     const nextActions = getAllowedTransitions(report.status, userRole);
     const primaryAction = nextActions.length > 0 ? nextActions[0] : null; // Strictly take the first one for linear flow
     
+    // Check if user is a division admin
+    const isDivisionAdmin = ['OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'].includes(userRole);
+    
     // Determine labels for Primary Action
     let actionLabel = "Update Status";
     if (primaryAction === 'ACKNOWLEDGED') actionLabel = "Terima Tugas";
     else if (primaryAction === 'ON_PROGRESS') actionLabel = "Mulai Kerjakan";
     else if (primaryAction === 'WAITING_VALIDATION') actionLabel = "Selesai & Lapor";
+    else if (primaryAction === 'CLOSED' && isDivisionAdmin && report.status === 'ON_PROGRESS') actionLabel = "Selesaikan & Tutup";
     else if (primaryAction === 'CLOSED') actionLabel = "Validasi & Tutup";
 
     const isProcessing = report.status === 'ON_PROGRESS';

@@ -225,6 +225,7 @@ export function getSlaStatus(slaDeadline: Date | string | null): {
 
 /**
  * Get allowed status transitions based on current status and user role
+ * Division admins (OT, OP, UQ) can close reports directly with evidence upload
  */
 export function getAllowedTransitions(
     currentStatus: ReportStatus,
@@ -232,27 +233,34 @@ export function getAllowedTransitions(
 ): ReportStatus[] {
     const isPartner = userRole === 'PARTNER_ADMIN';
     const isOSAdmin = userRole === 'OS_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'OSC_LEAD';
+    const isDivisionAdmin = userRole === 'OT_ADMIN' || userRole === 'OP_ADMIN' || userRole === 'UQ_ADMIN';
 
     switch (currentStatus) {
         case 'OPEN':
-            // Only Partner can ACK
-            return isPartner ? ['ACKNOWLEDGED'] : [];
+            // Partner or Division Admin can ACK
+            if (isPartner || isDivisionAdmin) return ['ACKNOWLEDGED'];
+            return [];
 
         case 'ACKNOWLEDGED':
-            // Partner can start work
-            return isPartner ? ['ON_PROGRESS'] : [];
+            // Partner or Division Admin can start work
+            if (isPartner || isDivisionAdmin) return ['ON_PROGRESS'];
+            return [];
 
         case 'ON_PROGRESS':
-            // Partner can submit evidence
-            return isPartner ? ['WAITING_VALIDATION'] : [];
+            // Partner submits for validation, Division Admin can close directly (with evidence at UI level)
+            if (isDivisionAdmin) return ['CLOSED', 'WAITING_VALIDATION'];
+            if (isPartner) return ['WAITING_VALIDATION'];
+            return [];
 
         case 'WAITING_VALIDATION':
-            // OS Admin can approve or return
-            return isOSAdmin ? ['CLOSED', 'RETURNED'] : [];
+            // OS Admin or Division Admin can approve or return
+            if (isOSAdmin || isDivisionAdmin) return ['CLOSED', 'RETURNED'];
+            return [];
 
         case 'RETURNED':
-            // Partner can resubmit
-            return isPartner ? ['ON_PROGRESS'] : [];
+            // Partner or Division Admin can resubmit
+            if (isPartner || isDivisionAdmin) return ['ON_PROGRESS'];
+            return [];
 
         case 'CLOSED':
             // Final state, no transitions
@@ -265,9 +273,10 @@ export function getAllowedTransitions(
 
 /**
  * Check if user can perform specific action on report
+ * Division admins (OT, OP, UQ) have extended permissions to handle reports directly
  */
 export function canPerformAction(
-    action: 'acknowledge' | 'start' | 'submit_evidence' | 'validate' | 'return' | 'comment',
+    action: 'acknowledge' | 'start' | 'submit_evidence' | 'validate' | 'return' | 'comment' | 'close',
     currentStatus: ReportStatus,
     userRole: string,
     targetDivision?: string,
@@ -275,6 +284,7 @@ export function canPerformAction(
 ): boolean {
     const isPartner = userRole === 'PARTNER_ADMIN';
     const isOSAdmin = userRole === 'OS_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'OSC_LEAD';
+    const isDivisionAdmin = userRole === 'OT_ADMIN' || userRole === 'OP_ADMIN' || userRole === 'UQ_ADMIN';
     const isBranchUser = userRole === 'BRANCH_USER';
 
     // Division check for Partner - must match target division
@@ -283,24 +293,32 @@ export function canPerformAction(
 
     switch (action) {
         case 'acknowledge':
-            return isPartner && isDivisionMatch && currentStatus === 'OPEN';
+            return (isPartner && isDivisionMatch && currentStatus === 'OPEN') ||
+                   (isDivisionAdmin && currentStatus === 'OPEN');
 
         case 'start':
-            return isPartner && isDivisionMatch && currentStatus === 'ACKNOWLEDGED';
+            return (isPartner && isDivisionMatch && currentStatus === 'ACKNOWLEDGED') ||
+                   (isDivisionAdmin && currentStatus === 'ACKNOWLEDGED');
 
         case 'submit_evidence':
-            return isPartner && isDivisionMatch && 
-                (currentStatus === 'ON_PROGRESS' || currentStatus === 'RETURNED');
+            return (isPartner && isDivisionMatch && (currentStatus === 'ON_PROGRESS' || currentStatus === 'RETURNED')) ||
+                   (isDivisionAdmin && (currentStatus === 'ON_PROGRESS' || currentStatus === 'RETURNED'));
 
         case 'validate':
-            return isOSAdmin && currentStatus === 'WAITING_VALIDATION';
+            return (isOSAdmin && currentStatus === 'WAITING_VALIDATION') ||
+                   (isDivisionAdmin && currentStatus === 'WAITING_VALIDATION');
 
         case 'return':
-            return isOSAdmin && currentStatus === 'WAITING_VALIDATION';
+            return (isOSAdmin && currentStatus === 'WAITING_VALIDATION') ||
+                   (isDivisionAdmin && currentStatus === 'WAITING_VALIDATION');
+
+        case 'close':
+            // Division admin can close directly from ON_PROGRESS (requires evidence at UI level)
+            return isDivisionAdmin && (currentStatus === 'ON_PROGRESS' || currentStatus === 'WAITING_VALIDATION');
 
         case 'comment':
             // All can comment except when closed
-            return (isPartner || isOSAdmin || isBranchUser) && currentStatus !== 'CLOSED';
+            return (isPartner || isOSAdmin || isDivisionAdmin || isBranchUser) && currentStatus !== 'CLOSED';
 
         default:
             return false;
