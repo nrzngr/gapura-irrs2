@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
+import { REPORT_STATUS } from '@/lib/constants/report-status';
 
 // GET reports for an employee
 export async function GET(request: Request) {
@@ -66,6 +67,8 @@ export async function POST(request: Request) {
             aircraft_reg,
             gse_number,
             evidence_url,
+            evidence_urls,
+            evidence_meta
         } = body;
 
         if (!title || !description) {
@@ -94,8 +97,10 @@ export async function POST(request: Request) {
                 flight_number: flight_number || null,
                 aircraft_reg: aircraft_reg || null,
                 gse_number: gse_number || null,
-                evidence_url: evidence_url || null,
-                status: 'pending',
+                evidence_url: evidence_url || (evidence_urls && evidence_urls.length > 0 ? evidence_urls[0] : null),
+                evidence_urls: evidence_urls || (evidence_url ? [evidence_url] : []) || [],
+                evidence_meta: evidence_meta || null,
+                status: REPORT_STATUS.OPEN,
             });
 
         if (insertError) {

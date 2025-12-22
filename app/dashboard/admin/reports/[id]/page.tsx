@@ -25,22 +25,6 @@ export default function ReportDetailPage() {
     useEffect(() => {
         fetchUser();
         fetchReport();
-        // Subscribe to realtime updates for comments
-        const channel = supabase
-            .channel(`report-${reportId}`)
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'comments', 
-                filter: `report_id=eq.${reportId}` 
-            }, () => {
-                fetchReport(); // Refresh full data to get updated comments
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
     }, [reportId]);
 
     const fetchUser = async () => {

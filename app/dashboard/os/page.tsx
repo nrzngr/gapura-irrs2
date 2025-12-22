@@ -130,13 +130,22 @@ export default function OSDashboard() {
                         </p>
                     </div>
 
-                    <button 
-                        onClick={fetchData}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white/20 hover:bg-white/30 text-white border border-white/30"
-                    >
-                        <RefreshCw size={16} />
-                        Refresh Data
-                    </button>
+                    <div className="flex gap-3">
+                        <Link 
+                            href="/dashboard/os/analytics"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-emerald-700/50 hover:bg-emerald-700/70 text-white border border-white/20"
+                        >
+                            <TrendingUp size={16} />
+                            Full Analytics
+                        </Link>
+                        <button 
+                            onClick={fetchData}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                        >
+                            <RefreshCw size={16} />
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
                 {/* Mini Stats Row */}

@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { STATUS_CONFIG, canPerformAction, type ReportStatus } from '@/lib/constants/report-status';
 
+import { supabase } from '@/lib/supabase';
+
 interface Report {
     id: string;
     title: string;
@@ -74,6 +76,26 @@ export default function EmployeeReportDetailPage() {
     useEffect(() => {
         fetchReport();
         fetchUser();
+
+        const channel = supabase
+            .channel(`report-comments-${reportId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'report_comments',
+                    filter: `report_id=eq.${reportId}`,
+                },
+                () => {
+                     fetchReport();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [reportId]);
 
     useEffect(() => {

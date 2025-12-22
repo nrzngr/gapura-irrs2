@@ -248,13 +248,14 @@ export function getAllowedTransitions(
 
         case 'ON_PROGRESS':
             // Partner submits for validation, Division Admin can close directly (with evidence at UI level)
-            if (isDivisionAdmin) return ['CLOSED', 'WAITING_VALIDATION'];
+            if (isDivisionAdmin) return ['CLOSED', 'WAITING_VALIDATION', 'REJECTED'];
+            if (isOSAdmin) return ['REJECTED']; // OS Admin can force reject if needed
             if (isPartner) return ['WAITING_VALIDATION'];
             return [];
 
         case 'WAITING_VALIDATION':
-            // OS Admin or Division Admin can approve or return
-            if (isOSAdmin || isDivisionAdmin) return ['CLOSED', 'RETURNED'];
+            // OS Admin or Division Admin can approve or return or reject
+            if (isOSAdmin || isDivisionAdmin) return ['CLOSED', 'RETURNED', 'REJECTED'];
             return [];
 
         case 'RETURNED':

@@ -49,7 +49,7 @@ export async function PATCH(request: Request) {
         const { reportId, status, notes, resolution_evidence_url } = body;
 
         // Valid statuses from the workflow
-        const validStatuses = ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS', 'WAITING_VALIDATION', 'CLOSED', 'RETURNED', 'pending', 'reviewed', 'resolved'];
+        const validStatuses = ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS', 'WAITING_VALIDATION', 'CLOSED', 'RETURNED', 'REJECTED', 'pending', 'reviewed', 'resolved'];
 
         if (!reportId || !validStatuses.includes(status)) {
             return NextResponse.json({ error: 'Data tidak valid' }, { status: 400 });

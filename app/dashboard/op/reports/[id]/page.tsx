@@ -23,17 +23,6 @@ export default function OPReportDetailPage() {
     useEffect(() => {
         fetchUser();
         fetchReport();
-        const channel = supabase
-            .channel(`report-${reportId}`)
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'comments', 
-                filter: `report_id=eq.${reportId}` 
-            }, () => fetchReport())
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
     }, [reportId]);
 
     const fetchUser = async () => {

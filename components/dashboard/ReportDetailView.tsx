@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { type Report } from '@/types';
 import { CommentInput } from '@/components/dashboard/reports/CommentInput';
 import { supabase } from '@/lib/supabase';
+import { RotateCcw } from 'lucide-react';
 
 // Fix Severity Colors (Semantic)
 const UI_SEVERITY_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -44,8 +45,10 @@ export function ReportDetailView({
     const [actionLoading, setActionLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showReturnForm, setShowReturnForm] = useState(false);
+    const [showRejectForm, setShowRejectForm] = useState(false);
     const [showCloseForm, setShowCloseForm] = useState(false);
     const [returnNotes, setReturnNotes] = useState('');
+    const [rejectNotes, setRejectNotes] = useState('');
     const [closeNotes, setCloseNotes] = useState('');
     const [closeEvidenceUrl, setCloseEvidenceUrl] = useState('');
     const [closeEvidencePreview, setCloseEvidencePreview] = useState('');
@@ -113,8 +116,11 @@ export function ReportDetailView({
         try {
             await onUpdateStatus(report.id, status, notes, evidenceUrl);
             setShowReturnForm(false);
+            setShowRejectForm(false);
             setShowCloseForm(false);
             setReturnNotes('');
+            setRejectNotes('');
+            setCloseNotes('');
             setCloseNotes('');
             setCloseEvidenceUrl('');
             setCloseEvidencePreview('');
@@ -330,118 +336,254 @@ export function ReportDetailView({
                 
                 {/* Info Grid - Bento Style */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Main Description Card */}
-                    <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative group">
-                        <div className="flex justify-between items-start mb-2">
-                             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                <MessageSquare size={12} />
-                                Detail Masalah
-                            </h3>
-                            {canEdit && (
-                                <button 
-                                    onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)}
-                                    className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-[var(--brand-primary)] transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                    {isEditing ? 'Simpan' : <Edit3 size={14} />}
-                                </button>
+                    
+                    {/* 1. Main Context: Description & Immediate Action (2 Columns) */}
+                    <div className="md:col-span-2 space-y-4">
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative group">
+                            <div className="flex justify-between items-start mb-3">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <MessageSquare size={12} />
+                                    Detail Masalah & Kronologis
+                                </h3>
+                                {canEdit && (
+                                    <button 
+                                        onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)}
+                                        className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-[var(--brand-primary)] transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                        {isEditing ? 'Simpan' : <Edit3 size={14} />}
+                                    </button>
+                                )}
+                            </div>
+
+                            {isEditing ? (
+                                <textarea 
+                                    value={editForm.description}
+                                    onChange={(e) => setEditForm(prev => ({...prev, description: e.target.value}))}
+                                    className="w-full text-base text-gray-800 leading-relaxed min-h-[120px] bg-gray-50 border border-transparent focus:border-blue-100 focus:bg-white rounded-xl p-3 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                />
+                            ) : (
+                                <p className="text-base text-gray-700 leading-relaxed whitespace-pre-wrap font-medium">
+                                    {report.description}
+                                </p>
                             )}
                         </div>
 
-                        {isEditing ? (
-                            <textarea 
-                                value={editForm.description}
-                                onChange={(e) => setEditForm(prev => ({...prev, description: e.target.value}))}
-                                className="w-full text-base text-gray-800 leading-relaxed min-h-[120px] bg-gray-50 border border-transparent focus:border-blue-100 focus:bg-white rounded-xl p-3 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                            />
-                        ) : (
-                            <p className="text-base text-gray-700 leading-relaxed whitespace-pre-wrap font-medium">
-                                {report.description}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Flight & Location Stats Card */}
-                    <div className="md:col-span-1 space-y-4">
-                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-full">
-                            <div>
-                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                    <Plane size={12} />
-                                    Konteks Penerbangan
+                        {/* Immediate Action if available */}
+                        {report.immediate_action && (
+                            <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100/50">
+                                <h3 className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                    <CheckCircle2 size={12} />
+                                    Tindakan Pencegahan Awal
                                 </h3>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center p-2 rounded-lg bg-gray-50/50 border border-gray-100">
-                                        <span className="text-xs text-gray-500 font-medium">Flight No.</span>
-                                        {isEditing ? (
-                                            <input 
-                                                value={editForm.flight_number}
-                                                onChange={(e) => setEditForm(prev => ({...prev, flight_number: e.target.value}))}
-                                                className="w-20 text-xs font-bold text-right bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none"
-                                            />
-                                        ) : (
-                                            <span className="font-mono font-bold text-sm text-gray-900">{report.flight_number || '-'}</span>
-                                        )}
-                                    </div>
-                                    <div className="flex justify-between items-center p-2 rounded-lg bg-gray-50/50 border border-gray-100">
-                                        <span className="text-xs text-gray-500 font-medium">Aircraft</span>
-                                        {isEditing ? (
-                                            <input 
-                                                value={editForm.aircraft_reg}
-                                                onChange={(e) => setEditForm(prev => ({...prev, aircraft_reg: e.target.value}))}
-                                                className="w-20 text-xs font-bold text-right bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none"
-                                            />
-                                        ) : (
-                                            <span className="font-mono font-bold text-sm text-gray-900">{report.aircraft_reg || '-'}</span>
-                                        )}
-                                    </div>
+                                <p className="text-sm text-emerald-900 leading-relaxed">
+                                    {report.immediate_action}
+                                </p>
+                            </div>
+                        )}
+                        
+                        {/* Reporter Info Card */}
+                         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
+                                    {report.users?.full_name?.charAt(0) || <User size={18} />}
                                 </div>
+                                <div>
+                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-0.5">Pelapor</p>
+                                    <p className="text-sm font-bold text-gray-900">{report.users?.full_name || 'Anonymous'}</p>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                        {report.users?.email} 
+                                        {report.users?.nik && <span className="text-gray-300">•</span>}
+                                        {report.users?.nik && <span>NIK: {report.users.nik}</span>}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wide">
+                                    {report.users?.role || 'EMPLOYEE'}
+                                </span>
                             </div>
                         </div>
                     </div>
+
+                    {/* 2. Side Context: Metadata & Categorization (1 Column) */}
+                    <div className="md:col-span-1 space-y-4">
+                        
+                        {/* Categorization Card */}
+                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                                <Shield size={12} />
+                                Klasifikasi
+                            </h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-[10px] uppercase text-gray-400 font-bold mb-1">Main Category</p>
+                                    <p className="text-sm font-bold text-gray-900">{report.main_category || '-'}</p>
+                                </div>
+                                <div className="h-px bg-gray-50" />
+                                <div>
+                                    <p className="text-[10px] uppercase text-gray-400 font-bold mb-1">Sub Category</p>
+                                    <p className="text-sm font-medium text-gray-700">{report.sub_category || '-'}</p>
+                                </div>
+                                <div className="h-px bg-gray-50" />
+                                <div>
+                                    <p className="text-[10px] uppercase text-gray-400 font-bold mb-1">Target Division</p>
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 text-gray-700 text-xs font-bold">
+                                        {report.target_division || 'GENERAL'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Operational Context Card (Flight/GSE/Location) */}
+                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                                <Plane size={12} />
+                                Konteks Operasional
+                            </h3>
+                            
+                            <div className="space-y-3">
+                                {/* Flight Info */}
+                                <div className={cn("p-3 rounded-xl border transition-colors", report.is_flight_related ? "bg-blue-50/50 border-blue-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Plane size={14} className={report.is_flight_related ? "text-blue-500" : "text-gray-400"} />
+                                        <span className={cn("text-xs font-bold", report.is_flight_related ? "text-blue-700" : "text-gray-500")}>Flight Info</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pl-6">
+                                        <div>
+                                            <p className="text-[10px] text-gray-400">Flight No</p>
+                                            <p className="text-xs font-bold text-gray-900">{report.flight_number || '-'}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-gray-400">Reg</p>
+                                            <p className="text-xs font-bold text-gray-900">{report.aircraft_reg || '-'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* GSE Info */}
+                                <div className={cn("p-3 rounded-xl border transition-colors", report.is_gse_related ? "bg-amber-50/50 border-amber-100" : "bg-gray-50/50 border-gray-100 opacity-60")}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Wrench size={14} className={report.is_gse_related ? "text-amber-500" : "text-gray-400"} />
+                                        <span className={cn("text-xs font-bold", report.is_gse_related ? "text-amber-700" : "text-gray-500")}>GSE Info</span>
+                                    </div>
+                                    <div className="pl-6">
+                                        <p className="text-[10px] text-gray-400">GSE Number</p>
+                                        <p className="text-xs font-bold text-gray-900">{report.gse_number || '-'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Detailed Location */}
+                                <div className="p-3 rounded-xl border border-gray-100 bg-gray-50/50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <MapPin size={14} className="text-gray-500" />
+                                        <span className="text-xs font-bold text-gray-700">Lokasi Detail</span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 pl-6 leading-relaxed">
+                                        {report.specific_location || report.location || '-'}
+                                        <br/>
+                                        <span className="text-[10px] text-gray-400 mt-1 block">
+                                            {report.incident_date} • {report.incident_time}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
-                {/* Evidence Gallery */}
-                <div>
-                     <div className="flex justify-between items-end mb-3">
-                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                            <ImageIcon size={12} />
-                            Bukti & Dokumentasi
-                        </h3>
-                    </div>
-                    
-                    {evidenceList.length > 0 ? (
-                        <div className="grid grid-cols-4 gap-3">
-                            {evidenceList.map((url, i) => (
-                                <div key={i} className="aspect-[4/3] rounded-xl overflow-hidden border border-gray-200 relative group bg-white shadow-sm hover:shadow-md transition-all cursor-zoom-in" onClick={() => window.open(url, '_blank')}>
-                                    <img src={url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                                </div>
-                            ))}
-                            {/* Upload Placeholders for Partner when Processing */}
-                            {isProcessing && isPartner && (
-                                <label className="aspect-[4/3] rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 transition-all cursor-pointer group">
-                                    {uploading ? <Loader2 size={18} className="animate-spin text-[var(--brand-primary)]"/> : <Upload size={18} className="group-hover:scale-110 transition-transform" />}
-                                    <span className="text-[9px] font-bold uppercase tracking-wide">Upload</span>
-                                    <input type="file" multiple className="hidden" onChange={handleImageUpload} disabled={uploading}/>
-                                </label>
-                            )}
+                {/* 3. Partner Response & Validation Section (If available) */}
+                {(report.partner_response_notes || report.validation_notes || (report.status === 'CLOSED' || report.status === 'REJECTED')) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Partner Response */}
+                        <div className={cn("p-5 rounded-2xl border bg-white shadow-sm", report.partner_response_notes ? "border-purple-100" : "border-gray-100")}>
+                             <h3 className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <CheckCircle2 size={12} />
+                                Tanggapan Divisi {report.target_division}
+                            </h3>
+                            <p className="text-sm text-gray-700 leading-relaxed italic">
+                                "{report.partner_response_notes || 'Belum ada catatan tanggapan.'}"
+                            </p>
                         </div>
-                    ) : (
-                         <div className={cn(
-                             "py-8 rounded-2xl border border-dashed flex flex-col items-center justify-center text-center transition-all",
-                             isProcessing && isPartner ? "border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/5" : "border-gray-200 bg-white"
-                         )}>
-                             <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mb-3 text-gray-300">
-                                 <ImageIcon size={20} />
+
+                        {/* Validation Notes */}
+                        <div className={cn("p-5 rounded-2xl border bg-white shadow-sm", report.validation_notes ? "border-blue-100" : "border-gray-100")}>
+                             <h3 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <Shield size={12} />
+                                Catatan Validasi OS
+                            </h3>
+                            <p className="text-sm text-gray-700 leading-relaxed italic">
+                                "{report.validation_notes || 'Belum ada catatan validasi.'}"
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Evidence Gallery */}
+                <div className="space-y-6">
+                    
+                    {/* 1. Reporter Evidence */}
+                    <div>
+                         <div className="flex justify-between items-end mb-3">
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <ImageIcon size={12} />
+                                Bukti Pelapor
+                            </h3>
+                        </div>
+                        
+                        {evidenceList.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {evidenceList.map((url, i) => (
+                                    <div key={i} className="aspect-[4/3] rounded-xl overflow-hidden border border-gray-200 relative group bg-white shadow-sm hover:shadow-md transition-all cursor-zoom-in" onClick={() => window.open(url, '_blank')}>
+                                        <img src={url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                        <span className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">Bukti #{i+1}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                             <div className={cn(
+                                 "py-8 rounded-2xl border border-dashed flex flex-col items-center justify-center text-center transition-all border-gray-200 bg-white"
+                             )}>
+                                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mb-3 text-gray-300">
+                                     <ImageIcon size={20} />
+                                 </div>
+                                 <p className="text-xs text-gray-500 font-medium">Belum ada bukti foto dari pelapor.</p>
                              </div>
-                             <p className="text-xs text-gray-500 font-medium">Belum ada bukti foto dilampirkan.</p>
-                             {(isProcessing && isPartner || isEditing) && (
-                                 <label className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm">
-                                     <Upload size={12} /> Upload Bukti
-                                     <input type="file" multiple className="hidden" onChange={handleImageUpload} disabled={uploading}/>
-                                 </label>
-                             )}
-                         </div>
-                    )}
+                        )}
+                    </div>
+
+                    {/* 2. Partner Evidence (Resolution) */}
+                    {(report.partner_evidence_urls && report.partner_evidence_urls.length > 0) || (isProcessing && isPartner) ? (
+                        <div>
+                             <div className="flex justify-between items-end mb-3">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <CheckCircle2 size={12} className="text-emerald-500" />
+                                    Bukti Penyelesaian (Partner)
+                                </h3>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {report.partner_evidence_urls?.map((url, i) => (
+                                    <div key={i} className="aspect-[4/3] rounded-xl overflow-hidden border-2 border-emerald-100 relative group bg-white shadow-sm hover:shadow-md transition-all cursor-zoom-in" onClick={() => window.open(url, '_blank')}>
+                                        <img src={url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                        <span className="absolute top-2 right-2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Resolved</span>
+                                    </div>
+                                ))}
+
+                                {/* Upload Placeholders for Partner when Processing */}
+                                {isProcessing && isPartner && (
+                                    <label className="aspect-[4/3] rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 transition-all cursor-pointer group">
+                                        {uploading ? <Loader2 size={18} className="animate-spin text-[var(--brand-primary)]"/> : <Upload size={18} className="group-hover:scale-110 transition-transform" />}
+                                        <span className="text-[9px] font-bold uppercase tracking-wide">Upload Bukti</span>
+                                        <input type="file" multiple className="hidden" onChange={handleImageUpload} disabled={uploading}/>
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+
                 </div>
 
                 {/* Discussion Timeline */}
@@ -555,13 +697,21 @@ export function ReportDetailView({
                                         {actionLoading ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle2 size={16} />}
                                         {actionLabel}
                                     </button>
-                                    
-                                    {/* Secondary Actions (Like Return) */}
+                                    {/* Secondary Actions (Like Return or Reject) */}
                                     {nextActions.includes('RETURNED') && (
                                         <button 
                                             onClick={() => setShowReturnForm(true)}
-                                            className="h-9 w-9 flex items-center justify-center text-red-400 hover:text-red-300 transition-colors ml-1"
-                                            title="Kembalikan"
+                                            className="h-9 w-9 flex items-center justify-center text-orange-400 hover:text-orange-300 transition-colors ml-1"
+                                            title="Kembalikan (Perlu Revisi)"
+                                        >
+                                            <RotateCcw size={18} />
+                                        </button>
+                                    )}
+                                    {nextActions.includes('REJECTED') && (
+                                        <button 
+                                            onClick={() => setShowRejectForm(true)}
+                                            className="h-9 w-9 flex items-center justify-center text-red-500 hover:text-red-400 transition-colors ml-1"
+                                            title="Tolak Laporan"
                                         >
                                             <XCircle size={18} />
                                         </button>
@@ -597,6 +747,37 @@ export function ReportDetailView({
                          <div className="flex gap-3">
                             <button onClick={() => handleUpdateStatus('RETURNED', returnNotes)} className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2">
                                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : "Konfirmasi Pengembalian"}
+                            </button>
+                         </div>
+                    </div>
+                </div>
+            )}
+
+             {/* Reject Form Modal Overlay */}
+             {showRejectForm && (
+                <div className="absolute inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 animate-scale-in border border-white/20">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Tolak Laporan</h3>
+                            <button onClick={() => setShowRejectForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="bg-red-50 text-red-800 p-3 rounded-xl text-xs mb-4 flex items-center gap-2">
+                            <AlertCircle size={16} />
+                            Penolakan ini bersifat permanen.
+                        </div>
+                        <textarea 
+                             value={rejectNotes}
+                             onChange={(e) => setRejectNotes(e.target.value)}
+                             className="w-full p-4 rounded-2xl border border-gray-200 text-sm focus:ring-2 focus:ring-red-500/20 outline-none bg-gray-50 mb-4 resize-none transition-all focus:bg-white"
+                             rows={4}
+                             placeholder="Alasan penolakan..."
+                             autoFocus
+                         />
+                         <div className="flex gap-3">
+                            <button onClick={() => handleUpdateStatus('REJECTED', rejectNotes)} className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2">
+                                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : "Tolak Permanen"}
                             </button>
                          </div>
                     </div>
