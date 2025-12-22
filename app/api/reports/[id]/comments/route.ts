@@ -53,7 +53,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         }
 
         // Authorization Check
-        const hasAccess = await canAccessReportComments(reportId, payload.id, payload.role as UserRole);
+        const hasAccess = await canAccessReportComments(reportId, payload.id as string, payload.role as UserRole);
         if (!hasAccess) {
              return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
