@@ -46,15 +46,38 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { reportId, status } = body;
+        const { reportId, status, notes, resolution_evidence_url } = body;
 
-        if (!reportId || !['pending', 'reviewed', 'resolved'].includes(status)) {
+        // Valid statuses from the workflow
+        const validStatuses = ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS', 'WAITING_VALIDATION', 'CLOSED', 'RETURNED', 'pending', 'reviewed', 'resolved'];
+
+        if (!reportId || !validStatuses.includes(status)) {
             return NextResponse.json({ error: 'Data tidak valid' }, { status: 400 });
+        }
+
+        const updateData: Record<string, any> = { 
+            status, 
+            updated_at: new Date().toISOString() 
+        };
+
+        // Add notes if provided
+        if (notes) {
+            updateData.resolution_notes = notes;
+        }
+
+        // Add resolution evidence URL if provided (required for CLOSED status)
+        if (resolution_evidence_url) {
+            updateData.resolution_evidence_url = resolution_evidence_url;
+        }
+
+        // If closing, set resolved_at timestamp
+        if (status === 'CLOSED') {
+            updateData.resolved_at = new Date().toISOString();
         }
 
         const { error } = await supabase
             .from('reports')
-            .update({ status, updated_at: new Date().toISOString() })
+            .update(updateData)
             .eq('id', reportId);
 
         if (error) throw error;

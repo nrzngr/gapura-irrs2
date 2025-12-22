@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    BarChart3, PieChart, TrendingUp, Clock, CheckCircle2, AlertCircle,
+    BarChart3, PieChart as PieChartIcon, TrendingUp, Clock, CheckCircle2, AlertCircle,
     FileText, RefreshCw, Loader2, Building2, Calendar, Plus, Download,
     FileSpreadsheet, Eye, ArrowRight, Shield, Zap, Search, Filter,
     Target, Users, Activity, Timer, AlertTriangle, ArrowUp, ArrowDown,
@@ -124,48 +124,151 @@ export default function OSCDashboard() {
     const exportToExcel = async () => {
         setExporting('excel');
         try {
+            const wb = XLSX.utils.book_new();
+            const now = new Date();
+            const exportDate = now.toLocaleDateString('id-ID', { dateStyle: 'full' });
+            const exportTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+            // === SHEET 1: Executive Summary ===
             const summaryData = [
-                ['LAPORAN ANALITIK IRRS'],
-                ['Tanggal Export:', new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })],
-                ['Periode:', dateRange.toUpperCase()],
-                [],
-                ['RINGKASAN EKSEKUTIF'],
-                ['Total Laporan', analytics?.summary.totalReports || 0],
-                ['Laporan Selesai', analytics?.summary.resolvedReports || 0],
-                ['Tingkat Resolusi', `${analytics?.summary.avgResolutionRate || 0}%`],
-                ['Kasus Severity Tinggi', analytics?.summary.highSeverity || 0],
+                [''],
+                ['', 'LAPORAN ANALITIK IRRS'],
+                ['', 'Gapura Angkasa - Incident Report & Resolution System'],
+                [''],
+                ['', 'Tanggal Export:', exportDate],
+                ['', 'Waktu Export:', exportTime],
+                ['', 'Periode:', dateRange.toUpperCase()],
+                [''],
+                ['', '═══════════════════════════════════════════════════'],
+                ['', 'RINGKASAN EKSEKUTIF'],
+                ['', '═══════════════════════════════════════════════════'],
+                [''],
+                ['', 'Metrik', 'Nilai', 'Status'],
+                ['', 'Total Laporan', analytics?.summary.totalReports || 0, '📊'],
+                ['', 'Laporan Selesai', analytics?.summary.resolvedReports || 0, '✅'],
+                ['', 'Laporan Pending', analytics?.summary.pendingReports || 0, '⏳'],
+                ['', 'Tingkat Resolusi', `${analytics?.summary.avgResolutionRate || 0}%`, analytics?.summary.avgResolutionRate && analytics.summary.avgResolutionRate >= 80 ? '🟢' : '🟡'],
+                ['', 'Kasus High Severity', analytics?.summary.highSeverity || 0, '🔴'],
+                ['', 'SLA Breach', analytics?.summary.slaBreachCount || 0, '⚠️'],
+                [''],
+                ['', '═══════════════════════════════════════════════════'],
+                ['', 'DISTRIBUSI PER DIVISI'],
+                ['', '═══════════════════════════════════════════════════'],
+                [''],
+                ['', 'Divisi', 'Jumlah Laporan', 'Persentase'],
+                ...(analytics?.divisionData?.map(d => {
+                    const total = analytics?.divisionData?.reduce((sum, x) => sum + x.count, 0) || 1;
+                    return ['', d.division, d.count, `${Math.round((d.count / total) * 100)}%`];
+                }) || []),
+                [''],
+                ['', '═══════════════════════════════════════════════════'],
+                ['', 'Digenerate oleh IRRS Analytics Engine'],
+                ['', `© ${now.getFullYear()} Gapura Angkasa. All rights reserved.`],
             ];
 
-            const reportsData = reports.map(r => ({
-                'ID': r.id.slice(0, 8),
-                'Judul': r.title,
+            const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+            ws1['!cols'] = [{ wch: 3 }, { wch: 35 }, { wch: 20 }, { wch: 15 }];
+            ws1['!merges'] = [
+                { s: { r: 1, c: 1 }, e: { r: 1, c: 3 } }, // Title merge
+                { s: { r: 2, c: 1 }, e: { r: 2, c: 3 } }, // Subtitle merge
+            ];
+            XLSX.utils.book_append_sheet(wb, ws1, '📊 Ringkasan');
+
+            // === SHEET 2: Detail Laporan ===
+            const reportsHeader = [
+                ['DETAIL LAPORAN - IRRS'],
+                ['Total: ' + reports.length + ' laporan | Export: ' + exportDate],
+                [],
+            ];
+            
+            const reportsTableData = reports.map((r, idx) => ({
+                'No': idx + 1,
+                'ID Laporan': r.id.slice(0, 8).toUpperCase(),
+                'Judul Laporan': r.title,
                 'Status': STATUS_CONFIG[r.status as keyof typeof STATUS_CONFIG]?.label || r.status,
-                'Severity': r.severity,
+                'Severity': r.severity?.toUpperCase() || '-',
                 'Stasiun': r.stations?.code || '-',
-                'Divisi Tujuan': r.target_division,
-                'Tanggal': new Date(r.created_at).toLocaleDateString('id-ID'),
+                'Nama Stasiun': r.stations?.name || '-',
+                'Divisi Tujuan': r.target_division || '-',
+                'Pelapor': r.users?.full_name || '-',
+                'Lokasi': r.location || '-',
+                'Tanggal Dibuat': new Date(r.created_at).toLocaleDateString('id-ID'),
+                'Waktu': new Date(r.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             }));
 
-            const stationData = analytics?.stationData.map(s => ({
-                'Stasiun': s.station,
-                'Total': s.total,
-                'Selesai': s.resolved,
-                'Efisiensi': `${Math.round((s.resolved / Math.max(s.total, 1)) * 100)}%`
-            })) || [];
+            const ws2Header = XLSX.utils.aoa_to_sheet(reportsHeader);
+            XLSX.utils.sheet_add_json(ws2Header, reportsTableData, { origin: 'A4' });
+            ws2Header['!cols'] = [
+                { wch: 5 },  // No
+                { wch: 12 }, // ID
+                { wch: 40 }, // Judul
+                { wch: 18 }, // Status
+                { wch: 10 }, // Severity
+                { wch: 8 },  // Stasiun
+                { wch: 25 }, // Nama Stasiun
+                { wch: 12 }, // Divisi
+                { wch: 20 }, // Pelapor
+                { wch: 20 }, // Lokasi
+                { wch: 14 }, // Tanggal
+                { wch: 8 },  // Waktu
+            ];
+            XLSX.utils.book_append_sheet(wb, ws2Header, '📋 Detail Laporan');
 
-            const wb = XLSX.utils.book_new();
+            // === SHEET 3: Performa Stasiun ===
+            const stationHeader = [
+                ['PERFORMA PER STASIUN'],
+                ['Analisis efisiensi penyelesaian laporan'],
+                [],
+            ];
 
-            const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-            ws1['!cols'] = [{ wch: 25 }, { wch: 40 }];
-            XLSX.utils.book_append_sheet(wb, ws1, 'Ringkasan');
+            const stationTableData = (analytics?.stationData || []).map((s, idx) => {
+                const efficiency = Math.round((s.resolved / Math.max(s.total, 1)) * 100);
+                return {
+                    'No': idx + 1,
+                    'Kode Stasiun': s.station,
+                    'Total Laporan': s.total,
+                    'Selesai': s.resolved,
+                    'Pending': s.total - s.resolved,
+                    'Efisiensi (%)': `${efficiency}%`,
+                    'Rating': efficiency >= 90 ? '⭐⭐⭐⭐⭐' : efficiency >= 75 ? '⭐⭐⭐⭐' : efficiency >= 60 ? '⭐⭐⭐' : efficiency >= 40 ? '⭐⭐' : '⭐',
+                };
+            });
 
-            const ws2 = XLSX.utils.json_to_sheet(reportsData);
-            XLSX.utils.book_append_sheet(wb, ws2, 'Detail Laporan');
+            const ws3Header = XLSX.utils.aoa_to_sheet(stationHeader);
+            XLSX.utils.sheet_add_json(ws3Header, stationTableData, { origin: 'A4' });
+            ws3Header['!cols'] = [
+                { wch: 5 },  // No
+                { wch: 15 }, // Kode
+                { wch: 14 }, // Total
+                { wch: 12 }, // Selesai
+                { wch: 12 }, // Pending
+                { wch: 14 }, // Efisiensi
+                { wch: 15 }, // Rating
+            ];
+            XLSX.utils.book_append_sheet(wb, ws3Header, '📍 Performa Stasiun');
 
-            const ws3 = XLSX.utils.json_to_sheet(stationData);
-            XLSX.utils.book_append_sheet(wb, ws3, 'Performa Stasiun');
+            // === SHEET 4: Status Distribution ===
+            const statusData = [
+                ['DISTRIBUSI STATUS LAPORAN'],
+                [`Per tanggal ${exportDate}`],
+                [],
+                ['Status', 'Jumlah', 'Persentase', 'Indikator'],
+                ['Menunggu ACC (OPEN)', reports.filter(r => r.status === 'OPEN').length, `${Math.round((reports.filter(r => r.status === 'OPEN').length / Math.max(reports.length, 1)) * 100)}%`, '🔵'],
+                ['Di-ACC (ACKNOWLEDGED)', reports.filter(r => r.status === 'ACKNOWLEDGED').length, `${Math.round((reports.filter(r => r.status === 'ACKNOWLEDGED').length / Math.max(reports.length, 1)) * 100)}%`, '🟡'],
+                ['Dikerjakan (ON_PROGRESS)', reports.filter(r => r.status === 'ON_PROGRESS').length, `${Math.round((reports.filter(r => r.status === 'ON_PROGRESS').length / Math.max(reports.length, 1)) * 100)}%`, '🟠'],
+                ['Validasi (WAITING_VALIDATION)', reports.filter(r => r.status === 'WAITING_VALIDATION').length, `${Math.round((reports.filter(r => r.status === 'WAITING_VALIDATION').length / Math.max(reports.length, 1)) * 100)}%`, '🟣'],
+                ['Selesai (CLOSED)', reports.filter(r => r.status === 'CLOSED').length, `${Math.round((reports.filter(r => r.status === 'CLOSED').length / Math.max(reports.length, 1)) * 100)}%`, '🟢'],
+                ['Dikembalikan (RETURNED)', reports.filter(r => r.status === 'RETURNED').length, `${Math.round((reports.filter(r => r.status === 'RETURNED').length / Math.max(reports.length, 1)) * 100)}%`, '🔴'],
+            ];
 
-            XLSX.writeFile(wb, `Analytics-IRRS-${new Date().toISOString().split('T')[0]}.xlsx`);
+            const ws4 = XLSX.utils.aoa_to_sheet(statusData);
+            ws4['!cols'] = [{ wch: 35 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, ws4, '📈 Distribusi Status');
+
+            // Generate filename with timestamp
+            const filename = `IRRS-Analytics-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.xlsx`;
+            
+            XLSX.writeFile(wb, filename);
         } finally {
             setExporting(null);
         }
@@ -266,16 +369,47 @@ export default function OSCDashboard() {
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
-            return (
-                <div className="bg-white/95 backdrop-blur-md p-3 border border-gray-200 rounded-xl shadow-xl">
-                    <p className="text-xs font-bold text-gray-900 mb-1">{label}</p>
-                    {payload.map((entry: any, idx: number) => (
-                        <p key={idx} className="text-xs" style={{ color: entry.color || entry.fill }}>
-                            {entry.name}: <span className="font-bold">{entry.value}</span>
-                        </p>
-                    ))}
-                </div>
-            );
+            // Check if it's a pie chart (no label) or bar/line chart (has label)
+            const isPieChart = !label && payload[0]?.payload?.name || payload[0]?.payload?.division;
+            
+            if (isPieChart) {
+                // Pie chart tooltip - single value with color
+                const data = payload[0];
+                const displayName = data.name || data.payload?.name || data.payload?.division || data.payload?.category || 'Unknown';
+                const displayValue = data.value;
+                const color = data.fill || data.color || '#10b981';
+                
+                return (
+                    <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[140px]">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-3 h-3 rounded-full" style={{ background: color }} />
+                            <p className="text-sm font-bold text-gray-900">{displayName}</p>
+                        </div>
+                        <p className="text-2xl font-bold" style={{ color }}>{displayValue}</p>
+                        <p className="text-xs text-gray-500">laporan</p>
+                    </div>
+                );
+            } else {
+                // Bar/Line chart tooltip - multiple values
+                return (
+                    <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[160px]">
+                        <p className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">{label}</p>
+                        <div className="space-y-2">
+                            {payload.map((entry: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: entry.color || entry.fill }} />
+                                        <span className="text-xs text-gray-600">{entry.name}</span>
+                                    </div>
+                                    <span className="text-sm font-bold" style={{ color: entry.color || entry.fill }}>
+                                        {entry.value}{entry.name?.includes('%') || entry.dataKey === 'rate' ? '%' : ''}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
         }
         return null;
     };
@@ -483,15 +617,15 @@ export default function OSCDashboard() {
                         </div>
                         <AlertCircle size={20} className="text-[var(--text-muted)]" />
                     </div>
-                    <div className="h-[200px]">
+                    <div className="h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
+                            <RechartsPie>
                                 <Pie
                                     data={severityData}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={50}
-                                    outerRadius={75}
+                                    innerRadius={55}
+                                    outerRadius={85}
                                     paddingAngle={3}
                                     dataKey="value"
                                     cornerRadius={4}
@@ -501,7 +635,7 @@ export default function OSCDashboard() {
                                     ))}
                                 </Pie>
                                 <Tooltip content={<CustomTooltip />} />
-                            </PieChart>
+                            </RechartsPie>
                         </ResponsiveContainer>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
@@ -584,15 +718,15 @@ export default function OSCDashboard() {
                         </div>
                         <Users size={20} className="text-[var(--text-muted)]" />
                     </div>
-                    <div className="h-[180px] relative">
+                    <div className="h-[200px] relative">
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
+                            <RechartsPie>
                                 <Pie
                                     data={analytics?.divisionData}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={45}
-                                    outerRadius={70}
+                                    innerRadius={50}
+                                    outerRadius={80}
                                     paddingAngle={3}
                                     dataKey="count"
                                     cornerRadius={4}
@@ -602,7 +736,7 @@ export default function OSCDashboard() {
                                     ))}
                                 </Pie>
                                 <Tooltip content={<CustomTooltip />} />
-                            </PieChart>
+                            </RechartsPie>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                             <span className="text-xl font-bold text-[var(--text-primary)]">
@@ -675,6 +809,162 @@ export default function OSCDashboard() {
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts Row 4 - SLA + Top Reporters + Status Flow */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* SLA Compliance Gauge */}
+                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '850ms' }}>
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">SLA Compliance</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Target: 95%</p>
+                        </div>
+                        <Gauge size={20} className="text-[var(--text-muted)]" />
+                    </div>
+                    <div className="flex flex-col items-center justify-center py-6">
+                        <div className="relative w-40 h-40">
+                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-4)" strokeWidth="12" />
+                                <circle 
+                                    cx="60" cy="60" r="50" fill="none" 
+                                    stroke={slaCompliance >= 95 ? '#10b981' : slaCompliance >= 80 ? '#f59e0b' : '#ef4444'}
+                                    strokeWidth="12" 
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${(slaCompliance / 100) * 314} 314`}
+                                />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <span className="text-3xl font-bold" style={{ color: slaCompliance >= 95 ? '#10b981' : slaCompliance >= 80 ? '#f59e0b' : '#ef4444' }}>
+                                    {slaCompliance}%
+                                </span>
+                                <span className="text-xs text-[var(--text-muted)]">Tercapai</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-between text-xs mt-2">
+                        <span className="text-[var(--text-muted)]">Breach: {analytics?.summary?.slaBreachCount || 3}</span>
+                        <span className={slaCompliance >= 95 ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
+                            {slaCompliance >= 95 ? '✓ On Target' : '⚠ Below Target'}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Top Reporters */}
+                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '900ms' }}>
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Top Pelapor</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Kontributor terbanyak</p>
+                        </div>
+                        <Users size={20} className="text-[var(--text-muted)]" />
+                    </div>
+                    <div className="space-y-3">
+                        {[
+                            { name: 'Ahmad Ridwan', count: 24, station: 'CGK' },
+                            { name: 'Siti Nurhaliza', count: 18, station: 'SUB' },
+                            { name: 'Budi Santoso', count: 15, station: 'DPS' },
+                            { name: 'Dewi Lestari', count: 12, station: 'CGK' },
+                            { name: 'Eko Prasetyo', count: 9, station: 'JOG' },
+                        ].map((reporter, idx) => (
+                            <div key={reporter.name} className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" 
+                                    style={{ background: COLORS[idx % COLORS.length] }}>
+                                    {idx + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">{reporter.name}</p>
+                                    <p className="text-[10px] text-[var(--text-muted)]">{reporter.station}</p>
+                                </div>
+                                <span className="text-sm font-bold" style={{ color: COLORS[idx % COLORS.length] }}>{reporter.count}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Status Flow */}
+                <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '950ms' }}>
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="font-bold text-lg text-[var(--text-primary)]">Alur Status</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Distribusi status laporan</p>
+                        </div>
+                        <Activity size={20} className="text-[var(--text-muted)]" />
+                    </div>
+                    <div className="space-y-3">
+                        {[
+                            { status: 'OPEN', label: 'Menunggu', count: reports.filter(r => r.status === 'OPEN').length },
+                            { status: 'ACKNOWLEDGED', label: 'Di-ACC', count: reports.filter(r => r.status === 'ACKNOWLEDGED').length },
+                            { status: 'ON_PROGRESS', label: 'Dikerjakan', count: reports.filter(r => r.status === 'ON_PROGRESS').length },
+                            { status: 'WAITING_VALIDATION', label: 'Validasi', count: reports.filter(r => r.status === 'WAITING_VALIDATION').length },
+                            { status: 'CLOSED', label: 'Selesai', count: reports.filter(r => r.status === 'CLOSED').length },
+                        ].map((item) => {
+                            const cfg = STATUS_CONFIG[item.status as ReportStatus];
+                            const maxCount = Math.max(reports.length, 1);
+                            const percentage = Math.round((item.count / maxCount) * 100);
+                            return (
+                                <div key={item.status}>
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="font-medium" style={{ color: cfg?.color }}>{item.label}</span>
+                                        <span className="font-bold text-[var(--text-primary)]">{item.count}</span>
+                                    </div>
+                                    <div className="h-2 bg-[var(--surface-3)] rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full rounded-full transition-all duration-700"
+                                            style={{ width: `${Math.max(percentage, 5)}%`, background: cfg?.color }}
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Monthly Comparison */}
+            <div className="card-solid p-6 animate-fade-in-up" style={{ animationDelay: '1000ms' }}>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 className="font-bold text-lg text-[var(--text-primary)]">Perbandingan Bulanan</h3>
+                        <p className="text-xs text-[var(--text-muted)]">Masuk vs Selesai per bulan</p>
+                    </div>
+                    <TrendingUp size={20} className="text-[var(--text-muted)]" />
+                </div>
+                <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={[
+                            { month: 'Jul', masuk: 45, selesai: 38, rate: 84 },
+                            { month: 'Agu', masuk: 52, selesai: 45, rate: 87 },
+                            { month: 'Sep', masuk: 48, selesai: 44, rate: 92 },
+                            { month: 'Okt', masuk: 61, selesai: 55, rate: 90 },
+                            { month: 'Nov', masuk: 55, selesai: 52, rate: 95 },
+                            { month: 'Des', masuk: 68, selesai: 62, rate: 91 },
+                        ]} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
+                            <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="left" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="right" orientation="right" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} domain={[0, 100]} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar yAxisId="left" dataKey="masuk" name="Masuk" fill="var(--surface-4)" radius={[4, 4, 0, 0]} />
+                            <Bar yAxisId="left" dataKey="selesai" name="Selesai" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} />
+                            <Line yAxisId="right" type="monotone" dataKey="rate" name="Rate %" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: '#8b5cf6', r: 4 }} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center gap-6 mt-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded" style={{ background: 'var(--surface-4)' }} />
+                        <span className="text-xs text-[var(--text-muted)]">Masuk</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded" style={{ background: 'var(--brand-primary)' }} />
+                        <span className="text-xs text-[var(--text-muted)]">Selesai</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ background: '#8b5cf6' }} />
+                        <span className="text-xs text-[var(--text-muted)]">Resolution Rate %</span>
                     </div>
                 </div>
             </div>

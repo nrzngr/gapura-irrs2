@@ -165,7 +165,7 @@ export default function OTReportsPage() {
                                             key={report.id}
                                             className="cursor-pointer transition-colors"
                                             style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${severity.color}` }}
-                                            onClick={() => setSelectedReport(report)}
+                                            onClick={() => router.push(`/dashboard/ot/reports/${report.id}`)}
                                             onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                         >

@@ -141,6 +141,7 @@ export default function ReportDetailPage() {
                     onRefresh={fetchReport}
                     userRole={user?.role || 'OS_ADMIN'}
                     isModal={false}
+                    currentUserId={user?.id}
                 />
             </div>
         </div>

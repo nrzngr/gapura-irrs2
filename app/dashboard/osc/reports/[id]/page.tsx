@@ -66,14 +66,17 @@ export default function OSCReportDetailPage() {
         }
     };
 
-    const handleStatusUpdate = async (id: string, status: string, notes?: string) => {
+    const handleStatusUpdate = async (id: string, status: string, notes?: string, evidenceUrl?: string) => {
         setActionLoading(true);
         try {
+            const body: Record<string, any> = { reportId: id, status, notes };
+            if (evidenceUrl) body.resolution_evidence_url = evidenceUrl;
+            
             // OSC Lead uses same endpoint as Admin for status updates
             const res = await fetch('/api/admin/reports', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reportId: id, status, notes }),
+                body: JSON.stringify(body),
             });
 
             if (res.ok) {
@@ -139,6 +142,8 @@ export default function OSCReportDetailPage() {
                     onRefresh={fetchReport}
                     userRole={user?.role || 'OSC_LEAD'}
                     isModal={false}
+                    divisionColor="#10b981"
+                    currentUserId={user?.id}
                 />
             </div>
         </div>

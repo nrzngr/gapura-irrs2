@@ -323,25 +323,68 @@ export default function EmployeeReportDetailPage() {
                         </div>
                     )}
 
-                    {report.comments?.map((comment) => (
-                        <div key={comment.id} className={`flex gap-3 ${comment.is_system_message ? 'opacity-70' : ''}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                                comment.is_system_message ? 'bg-slate-100' : 'bg-emerald-100'
-                            }`}>
-                                <User className={`w-4 h-4 ${comment.is_system_message ? 'text-slate-500' : 'text-emerald-600'}`} />
+                    {report.comments?.map((comment) => {
+                        const isMe = user && comment.users?.id === user.id;
+                        const isSystem = comment.is_system_message;
+                        
+                        if (isSystem) {
+                            return (
+                                <div key={comment.id} className="flex justify-center my-2">
+                                    <div className="bg-slate-100 rounded-full px-3 py-1 text-xs text-slate-500">
+                                        {comment.content}
+                                    </div>
+                                </div>
+                            );
+                        }
+                        
+                        // Own message - right aligned with emerald color
+                        if (isMe) {
+                            return (
+                                <div key={comment.id} className="flex gap-3 justify-end">
+                                    <div className="flex-1 max-w-[80%] space-y-1">
+                                        <div className="flex items-baseline justify-end gap-2">
+                                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                                {new Date(comment.created_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}
+                                            </span>
+                                            <span className="text-xs font-bold text-emerald-600">Anda</span>
+                                        </div>
+                                        <div className="bg-emerald-500 text-white p-3 rounded-2xl rounded-tr-none text-sm leading-relaxed">
+                                            {comment.content}
+                                            {comment.attachments?.map((url, idx) => (
+                                                <img key={idx} src={url} className="mt-2 rounded-lg max-h-32" />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 text-white text-xs font-bold">
+                                        {comment.users?.full_name?.charAt(0)}
+                                    </div>
+                                </div>
+                            );
+                        }
+                        
+                        // Other's message - left aligned
+                        return (
+                            <div key={comment.id} className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600 text-xs font-bold">
+                                    {comment.users?.full_name?.charAt(0)}
+                                </div>
+                                <div className="flex-1 max-w-[80%] space-y-1">
+                                    <div className="flex items-baseline justify-between">
+                                        <span className="text-xs font-bold">{comment.users?.full_name}</span>
+                                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                            {new Date(comment.created_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}
+                                        </span>
+                                    </div>
+                                    <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none text-sm leading-relaxed">
+                                        {comment.content}
+                                        {comment.attachments?.map((url, idx) => (
+                                            <img key={idx} src={url} className="mt-2 rounded-lg max-h-32 border" />
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <p className="text-sm">
-                                    <span className="font-medium">{comment.users?.full_name}</span>
-                                    {' '}
-                                    <span style={{ color: 'var(--text-secondary)' }}>{comment.content}</span>
-                                </p>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    {new Date(comment.created_at).toLocaleString('id-ID')}
-                                </p>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                     <div ref={commentsEndRef} />
                 </div>
 

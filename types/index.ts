@@ -135,8 +135,10 @@ export interface Comment {
     is_system_message?: boolean;
     attachments?: string[];
     users?: {
+        id: string;
         full_name: string;
         email?: string;
         avatar_url?: string;
+        role?: string;
     };
 }

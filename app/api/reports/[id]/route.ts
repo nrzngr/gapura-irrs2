@@ -3,6 +3,78 @@ import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 
+/**
+ * GET /api/reports/[id]
+ * Fetch a single report by ID with all related data
+ * Complexity: Time O(1) | Space O(1)
+ */
+export async function GET(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const cookieStore = await cookies();
+        const token = cookieStore.get('session')?.value;
+
+        if (!token) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const payload = await verifySession(token);
+        if (!payload) {
+            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        }
+
+        const { data: report, error } = await supabase
+            .from('reports')
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    full_name,
+                    email
+                ),
+                stations:station_id (
+                    id,
+                    code,
+                    name
+                )
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Error fetching report:', error);
+            return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+        }
+
+        // Fetch comments separately due to FK relationship not being in schema cache
+        const { data: comments } = await supabase
+            .from('report_comments')
+            .select(`
+                id,
+                content,
+                created_at,
+                users:user_id (
+                    id,
+                    full_name,
+                    role
+                )
+            `)
+            .eq('report_id', id)
+            .order('created_at', { ascending: true });
+
+        // Attach comments to report
+        report.comments = comments || [];
+
+        return NextResponse.json(report);
+    } catch (error) {
+        console.error('Error in GET /api/reports/[id]:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}
+
 export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ id: string }> }

@@ -89,7 +89,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Command Center',
             items: [
                 { href: '/dashboard/osc', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/osc/reports', label: 'Validasi', icon: ClipboardList },
+                { href: '/dashboard/osc/reports', label: 'Laporan', icon: ClipboardList },
             ]
         }
     ],

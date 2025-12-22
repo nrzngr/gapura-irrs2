@@ -310,6 +310,13 @@
     outline: none;
   }
   
+  /* Hide native select dropdown arrow when using custom icon */
+  select.input-field {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+  }
+  
   .label {
     display: block;
     font-size: var(--text-xs);

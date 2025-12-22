@@ -23,11 +23,13 @@ const UI_SEVERITY_CONFIG: Record<string, { label: string; color: string; bg: str
 
 interface ReportDetailViewProps {
     report: Report | null;
-    onUpdateStatus?: (reportId: string, status: string, notes?: string) => Promise<void>;
+    onUpdateStatus?: (reportId: string, status: string, notes?: string, evidenceUrl?: string) => Promise<void>;
     onRefresh?: () => void;
     onClose?: () => void;
     isModal?: boolean;
     userRole?: string;
+    divisionColor?: string;
+    currentUserId?: string;
 }
 
 export function ReportDetailView({ 
@@ -35,12 +37,18 @@ export function ReportDetailView({
     onUpdateStatus, 
     onRefresh,
     isModal = false, 
-    userRole = 'PARTNER_ADMIN' 
+    userRole = 'PARTNER_ADMIN',
+    divisionColor = '#10b981',
+    currentUserId
 }: ReportDetailViewProps) {
     const [actionLoading, setActionLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showReturnForm, setShowReturnForm] = useState(false);
+    const [showCloseForm, setShowCloseForm] = useState(false);
     const [returnNotes, setReturnNotes] = useState('');
+    const [closeNotes, setCloseNotes] = useState('');
+    const [closeEvidenceUrl, setCloseEvidenceUrl] = useState('');
+    const [closeEvidencePreview, setCloseEvidencePreview] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Editing State
@@ -99,15 +107,43 @@ export function ReportDetailView({
         }
     }, [report?.comments]);
 
-    const handleUpdateStatus = async (status: string, notes?: string) => {
+    const handleUpdateStatus = async (status: string, notes?: string, evidenceUrl?: string) => {
         if (!onUpdateStatus || !report) return;
         setActionLoading(true);
         try {
-            await onUpdateStatus(report.id, status, notes);
+            await onUpdateStatus(report.id, status, notes, evidenceUrl);
             setShowReturnForm(false);
+            setShowCloseForm(false);
             setReturnNotes('');
+            setCloseNotes('');
+            setCloseEvidenceUrl('');
+            setCloseEvidencePreview('');
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const handleCloseEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setUploading(true);
+        try {
+            const fileName = `resolution-${report?.id}-${Date.now()}.${file.name.split('.').pop()}`;
+            const { data, error } = await supabase.storage
+                .from('evidence')
+                .upload(fileName, file, { upsert: true });
+            
+            if (error) throw error;
+            
+            const { data: urlData } = supabase.storage.from('evidence').getPublicUrl(data.path);
+            setCloseEvidenceUrl(urlData.publicUrl);
+            setCloseEvidencePreview(URL.createObjectURL(file));
+        } catch (err) {
+            console.error('Upload error:', err);
+            alert('Gagal upload foto evidence');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -412,7 +448,7 @@ export function ReportDetailView({
                     </div>
 
                     {report.comments?.map((comment) => {
-                        const isMe = false; // TODO: Compare with current user ID if available
+                        const isMe = currentUserId && comment.users?.id === currentUserId;
                         const isSystem = comment.is_system_message;
                         
                         if (isSystem) {
@@ -426,12 +462,42 @@ export function ReportDetailView({
                            );
                         }
                         
+                        // Own message - right aligned with contrasting color
+                        if (isMe) {
+                            return (
+                                <div key={comment.id} className="flex gap-3 justify-end">
+                                    <div className="flex-1 max-w-[85%] space-y-1">
+                                        <div className="flex items-baseline justify-end gap-2">
+                                            <span className="text-[10px] text-gray-400">{new Date(comment.created_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</span>
+                                            <span className="text-xs font-bold" style={{ color: divisionColor }}>Anda</span>
+                                        </div>
+                                        <div 
+                                            className="p-3 rounded-2xl rounded-tr-none text-sm text-white shadow-sm leading-relaxed"
+                                            style={{ background: divisionColor }}
+                                        >
+                                            {comment.content}
+                                            {comment.attachments?.map((url, idx) => (
+                                                <img key={idx} src={url} className="mt-2 rounded-lg max-h-40 border border-white/20" />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div 
+                                        className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 select-none"
+                                        style={{ background: divisionColor }}
+                                    >
+                                        {comment.users?.full_name?.charAt(0)}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        // Other's message - left aligned
                         return (
                             <div key={comment.id} className="flex gap-3">
                                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 flex items-center justify-center text-[10px] font-bold text-gray-600 shrink-0 select-none">
                                     {comment.users?.full_name?.charAt(0)}
                                 </div>
-                                <div className="flex-1 space-y-1">
+                                <div className="flex-1 max-w-[85%] space-y-1">
                                     <div className="flex items-baseline justify-between">
                                         <span className="text-xs font-bold text-gray-900">{comment.users?.full_name}</span>
                                         <span className="text-[10px] text-gray-400">{new Date(comment.created_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</span>
@@ -471,7 +537,14 @@ export function ReportDetailView({
                              ) : (
                                 <div className="flex bg-white/10 rounded-full p-0.5">
                                     <button 
-                                        onClick={() => handleUpdateStatus(primaryAction)}
+                                        onClick={() => {
+                                            // If next action is CLOSED, show close form with evidence upload
+                                            if (primaryAction === 'CLOSED') {
+                                                setShowCloseForm(true);
+                                            } else {
+                                                handleUpdateStatus(primaryAction);
+                                            }
+                                        }}
                                         disabled={actionLoading}
                                         className="h-9 px-5 bg-white text-black hover:bg-gray-200 active:scale-95 transition-all rounded-full text-xs font-bold flex items-center gap-2 shadow-sm"
                                     >
@@ -522,6 +595,97 @@ export function ReportDetailView({
                                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : "Konfirmasi Pengembalian"}
                             </button>
                          </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Close Form Modal with Evidence Upload */}
+            {showCloseForm && (
+                <div className="absolute inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 animate-scale-in border border-white/20">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Selesaikan Laporan</h3>
+                            <button onClick={() => setShowCloseForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="mb-4 p-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50">
+                            <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <Upload size={16} className="text-emerald-600" />
+                                Foto Bukti Penyelesaian <span className="text-red-500">*</span>
+                            </p>
+                            
+                            {closeEvidencePreview ? (
+                                <div className="relative">
+                                    <img 
+                                        src={closeEvidencePreview} 
+                                        alt="Evidence preview" 
+                                        className="w-full h-48 object-cover rounded-xl"
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            setCloseEvidenceUrl('');
+                                            setCloseEvidencePreview('');
+                                        }}
+                                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center h-32 cursor-pointer hover:bg-gray-100 rounded-xl transition-colors">
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handleCloseEvidenceUpload}
+                                        className="hidden"
+                                        disabled={uploading}
+                                    />
+                                    {uploading ? (
+                                        <Loader2 size={24} className="animate-spin text-gray-400" />
+                                    ) : (
+                                        <>
+                                            <Upload size={24} className="text-gray-400 mb-2" />
+                                            <span className="text-sm text-gray-500">Klik untuk upload foto</span>
+                                        </>
+                                    )}
+                                </label>
+                            )}
+                        </div>
+
+                        <textarea 
+                             value={closeNotes}
+                             onChange={(e) => setCloseNotes(e.target.value)}
+                             className="w-full p-4 rounded-2xl border border-gray-200 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none bg-gray-50 mb-4 resize-none transition-all focus:bg-white"
+                             rows={3}
+                             placeholder="Catatan penyelesaian (opsional)..."
+                         />
+                         
+                         <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowCloseForm(false)} 
+                                className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                onClick={() => handleUpdateStatus('CLOSED', closeNotes, closeEvidenceUrl)} 
+                                disabled={!closeEvidenceUrl || actionLoading}
+                                className="flex-1 py-3 text-white font-bold rounded-xl transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                style={{ background: closeEvidenceUrl ? divisionColor : '#9ca3af' }}
+                            >
+                                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                Selesaikan
+                            </button>
+                         </div>
+                         
+                         {!closeEvidenceUrl && (
+                            <p className="text-xs text-red-500 text-center mt-3 flex items-center justify-center gap-1">
+                                <AlertCircle size={12} />
+                                Upload foto bukti penyelesaian wajib diisi
+                            </p>
+                         )}
                     </div>
                 </div>
             )}

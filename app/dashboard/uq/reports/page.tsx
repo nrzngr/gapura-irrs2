@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     FileText, Search, Filter, ChevronDown, RefreshCw, Eye, X,
     MapPin, AlertTriangle, Shield,
@@ -12,6 +13,7 @@ import { Report } from '@/types';
 const DIVISION = { code: 'UQ', name: 'Quality (Safety)', color: '#ec4899' };
 
 export default function UQReportsPage() {
+    const router = useRouter();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -98,7 +100,7 @@ export default function UQReportsPage() {
                                     const stat = STATUS_CONFIG[r.status as ReportStatus] || STATUS_CONFIG.OPEN;
                                     const StatIcon = stat.icon;
                                     return (
-                                        <tr key={r.id} className="cursor-pointer transition-colors" style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${sev.color}` }} onClick={() => setSelectedReport(r)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                        <tr key={r.id} className="cursor-pointer transition-colors" style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${sev.color}` }} onClick={() => router.push(`/dashboard/uq/reports/${r.id}`)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                                             <td className="py-4 px-5"><p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{r.title}</p>{r.location && <p className="text-xs flex items-center gap-1 mt-1" style={{ color: 'var(--text-muted)' }}><MapPin size={10} /> {r.location}</p>}</td>
                                             <td className="py-4 px-4"><p className="font-medium" style={{ color: 'var(--text-primary)' }}>{r.users?.full_name || '-'}</p></td>
                                             <td className="py-4 px-4 text-center"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: stat.bgColor, color: stat.color }}><StatIcon size={12} /> {stat.label}</span></td>

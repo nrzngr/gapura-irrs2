@@ -62,7 +62,9 @@ export default function NewReportWizard() {
     const [uploading, setUploading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
-    const [userStation, setUserStation] = useState<{ code: string; name: string } | null>(null);
+    const [userStation, setUserStation] = useState<{ id: string; code: string; name: string } | null>(null);
+    const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
+    const [selectedStationId, setSelectedStationId] = useState<string>('');
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     
     // ExifReader State
@@ -100,22 +102,31 @@ export default function NewReportWizard() {
         evidence_meta: [],
     });
 
-    // Fetch user's station on mount
+    // Fetch user's station and all stations on mount
     useEffect(() => {
-        const fetchUserStation = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch('/api/auth/me');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.station) {
-                        setUserStation(data.station);
+                // Fetch all stations
+                const stationsRes = await fetch('/api/master-data?type=stations');
+                const stationsData = await stationsRes.json();
+                if (Array.isArray(stationsData)) {
+                    setStations(stationsData);
+                }
+
+                // Fetch user's station as default
+                const userRes = await fetch('/api/auth/me');
+                if (userRes.ok) {
+                    const userData = await userRes.json();
+                    if (userData.station) {
+                        setUserStation(userData.station);
+                        setSelectedStationId(userData.station.id); // Set default to user's station
                     }
                 }
             } catch (err) {
-                console.error('Failed to fetch user station:', err);
+                console.error('Failed to fetch data:', err);
             }
         };
-        fetchUserStation();
+        fetchData();
     }, []);
 
     // Hide mobile bottom navigation on this page
@@ -250,7 +261,7 @@ export default function NewReportWizard() {
     const isStepValid = (): boolean => {
         switch (step) {
             case 1:
-                return !!(formData.incident_date && formData.incident_time && formData.area && formData.specific_location);
+                return !!(selectedStationId && formData.incident_date && formData.incident_time && formData.area && formData.specific_location);
             case 2:
                 if (formData.is_flight_related && !formData.flight_number) return false;
                 if (formData.is_gse_related && !formData.gse_number) return false;
@@ -273,7 +284,10 @@ export default function NewReportWizard() {
             const res = await fetch('/api/reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    station_id: selectedStationId, // Include selected station
+                }),
             });
 
             if (!res.ok) {
@@ -359,21 +373,32 @@ export default function NewReportWizard() {
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                            {/* Station (Locked) */}
+                        {/* Station Selection */}
                             <div className="space-y-2">
-                                <label className="label">Station (Lokasi Anda)</label>
-                                <div 
-                                    className="input-field flex items-center gap-3 cursor-not-allowed opacity-80"
-                                    style={{ background: 'var(--surface-3)' }}
+                                <label className="label">Station / Bandara</label>
+                                <select
+                                    required
+                                    className="input-field"
+                                    value={selectedStationId}
+                                    onChange={e => setSelectedStationId(e.target.value)}
                                 >
-                                    <Building2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
-                                    <span className="font-semibold">
-                                        {userStation ? `${userStation.code} - ${userStation.name}` : 'Memuat...'}
-                                    </span>
-                                </div>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                    Station diambil dari profil Anda untuk keamanan
-                                </p>
+                                    <option value="">Pilih station...</option>
+                                    {stations.map((station) => (
+                                        <option key={station.id} value={station.id}>
+                                            {station.code} - {station.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {userStation && selectedStationId === userStation.id && (
+                                    <p className="text-xs flex items-center gap-1" style={{ color: 'oklch(0.55 0.18 145)' }}>
+                                        <CheckCircle className="w-3 h-3" /> Station utama Anda
+                                    </p>
+                                )}
+                                {userStation && selectedStationId !== userStation.id && selectedStationId && (
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                        Anda memilih station berbeda dari station utama ({userStation.code})
+                                    </p>
+                                )}
                             </div>
 
                             {/* Date & Time */}
