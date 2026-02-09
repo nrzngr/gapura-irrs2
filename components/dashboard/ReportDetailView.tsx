@@ -9,7 +9,6 @@ import {
   X,
   Upload,
   AlertCircle,
-  XCircle,
   Edit3,
   Save,
   RotateCcw,
@@ -143,12 +142,10 @@ export function ReportDetailView({
   // State
   const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [returnNotes, setReturnNotes] = useState("");
-  const [rejectNotes, setRejectNotes] = useState("");
+  const [showReopenModal, setShowReopenModal] = useState(false);
   const [closeNotes, setCloseNotes] = useState("");
+  const [reopenNotes, setReopenNotes] = useState("");
   const [closeEvidenceUrl, setCloseEvidenceUrl] = useState("");
   const [closeEvidencePreview, setCloseEvidencePreview] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -191,12 +188,10 @@ export function ReportDetailView({
     setActionLoading(true);
     try {
       await onUpdateStatus(report.id, status, notes, evidenceUrl);
-      setShowReturnModal(false);
-      setShowRejectModal(false);
       setShowCloseModal(false);
-      setReturnNotes("");
-      setRejectNotes("");
+      setShowReopenModal(false);
       setCloseNotes("");
+      setReopenNotes("");
       setCloseEvidenceUrl("");
       setCloseEvidencePreview("");
     } finally { setActionLoading(false); }
@@ -280,17 +275,14 @@ export function ReportDetailView({
   const allEvidence = [...evidenceList, ...(report.partner_evidence_urls || [])];
   const nextActions = getAllowedTransitions(report.status, userRole);
   const primaryAction = nextActions[0] || null;
-  const canEdit = ["SUPER_ADMIN", "OS_ADMIN", "ANALYST"].includes(userRole);
-  const isProcessing = report.status === "ON_PROGRESS";
-  const isPartner = userRole === "PARTNER_ADMIN";
+  const canEdit = ["SUPER_ADMIN", "DIVISI_OS", "ANALYST"].includes(userRole);
   const hasEvidence = allEvidence.length > 0;
-  const isClosed = report.status === "CLOSED" || report.status === "REJECTED";
+  const isClosed = report.status === "SELESAI";
 
   let actionLabel = "Update Status";
-  if (primaryAction === "ACKNOWLEDGED") actionLabel = "Terima Tugas";
-  else if (primaryAction === "ON_PROGRESS") actionLabel = "Mulai Kerjakan";
-  else if (primaryAction === "WAITING_VALIDATION") actionLabel = "Selesai & Lapor";
-  else if (primaryAction === "CLOSED") actionLabel = "Validasi & Tutup";
+  if (primaryAction === "SUDAH_DIVERIFIKASI") actionLabel = "Verifikasi Laporan";
+  else if (primaryAction === "SELESAI") actionLabel = "Selesaikan Kasus";
+  else if (primaryAction === "MENUNGGU_FEEDBACK") actionLabel = "Buka Kembali";
 
   return (
     <div className="h-full flex flex-col bg-[var(--surface-1)] p-4 gap-4 overflow-hidden">
@@ -471,7 +463,7 @@ export function ReportDetailView({
               {/* LAMPIRAN — Evidence Gallery */}
               <SectionCard 
                 title={`Lampiran (${allEvidence.length})`}
-                headerAction={isProcessing && isPartner && (
+                headerAction={!isClosed && (
                   <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer text-xs font-semibold text-gray-600 transition-colors">
                     {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                     <span>Upload</span>
@@ -531,47 +523,24 @@ export function ReportDetailView({
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               
               {/* Quick Action Card */}
-              {onUpdateStatus && !isClosed && primaryAction && !isEditing && (
+              {onUpdateStatus && primaryAction && !isEditing && (
                 <div className="bg-gray-900 text-white p-5 rounded-2xl shadow-xl">
                   <p className="text-[10px] uppercase text-gray-400 tracking-wider mb-3">Status Selanjutnya</p>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-semibold">{actionLabel}</span>
-                    {isProcessing && isPartner && !hasEvidence ? (
-                      <span className="text-[11px] text-amber-400 flex items-center gap-1">
-                        <AlertCircle size={12} />Upload bukti dulu
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => primaryAction === "CLOSED" ? setShowCloseModal(true) : handleUpdateStatus(primaryAction)}
-                        disabled={actionLoading}
-                        className="px-4 py-2.5 bg-white text-gray-900 rounded-xl text-[13px] font-bold flex items-center gap-2 hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
-                      >
-                        {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                        {actionLabel}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        if (primaryAction === "SELESAI") setShowCloseModal(true);
+                        else if (primaryAction === "MENUNGGU_FEEDBACK") setShowReopenModal(true);
+                        else handleUpdateStatus(primaryAction);
+                      }}
+                      disabled={actionLoading}
+                      className="px-4 py-2.5 bg-white text-gray-900 rounded-xl text-[13px] font-bold flex items-center gap-2 hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
+                    >
+                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                      {actionLabel}
+                    </button>
                   </div>
-                  {/* Secondary Actions */}
-                  {(nextActions.includes("RETURNED") || nextActions.includes("REJECTED")) && (
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-700">
-                      {nextActions.includes("RETURNED") && (
-                        <button 
-                          onClick={() => setShowReturnModal(true)} 
-                          className="flex-1 py-2.5 text-[12px] font-semibold text-orange-400 hover:bg-white/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-                        >
-                          <RotateCcw size={14} /> Kembalikan
-                        </button>
-                      )}
-                      {nextActions.includes("REJECTED") && (
-                        <button 
-                          onClick={() => setShowRejectModal(true)} 
-                          className="flex-1 py-2.5 text-[12px] font-semibold text-red-400 hover:bg-white/10 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-                        >
-                          <XCircle size={14} /> Tolak
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -665,60 +634,42 @@ export function ReportDetailView({
       {/* =============================================
           MODALS
           ============================================= */}
-      {/* Return Modal */}
-      {showReturnModal && (
+      {/* Reopen Modal */}
+      {showReopenModal && (
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-[var(--text-primary)]">Kembalikan Laporan</h3>
-              <button onClick={() => setShowReturnModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Buka Kembali Laporan</h3>
+              <button onClick={() => setShowReopenModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-            <textarea 
-              value={returnNotes} 
-              onChange={(e) => setReturnNotes(e.target.value)} 
-              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 outline-none bg-gray-50 mb-5 resize-none" 
-              rows={4} 
-              placeholder="Jelaskan alasan pengembalian..." 
-              autoFocus 
-            />
-            <button 
-              onClick={() => handleUpdateStatus("RETURNED", returnNotes)} 
-              disabled={actionLoading} 
-              className="w-full py-3.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2"
-            >
-              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : "Konfirmasi Pengembalian"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-[var(--text-primary)]">Tolak Laporan</h3>
-              <button onClick={() => setShowRejectModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
-            </div>
-            <div className="bg-red-50 text-red-700 p-4 rounded-xl text-[13px] mb-5 flex items-center gap-3 border border-red-100">
+            <div className="bg-amber-50 text-amber-700 p-4 rounded-xl text-[13px] mb-5 flex items-center gap-3 border border-amber-100">
               <AlertCircle size={18} className="shrink-0" />
-              <span>Penolakan ini bersifat permanen dan tidak dapat dibatalkan.</span>
+              <span>Kasus akan dibuka kembali dan status berubah ke Menunggu Feedback. Semua catatan dan komentar sebelumnya tetap tersimpan.</span>
             </div>
-            <textarea 
-              value={rejectNotes} 
-              onChange={(e) => setRejectNotes(e.target.value)} 
-              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-red-500/20 focus:border-red-400 outline-none bg-gray-50 mb-5 resize-none" 
-              rows={4} 
-              placeholder="Jelaskan alasan penolakan..." 
-              autoFocus 
+            <textarea
+              value={reopenNotes}
+              onChange={(e) => setReopenNotes(e.target.value)}
+              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none bg-gray-50 mb-5 resize-none"
+              rows={4}
+              placeholder="Jelaskan alasan pembukaan kembali..."
+              autoFocus
             />
-            <button 
-              onClick={() => handleUpdateStatus("REJECTED", rejectNotes)} 
-              disabled={actionLoading} 
-              className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2"
-            >
-              {actionLoading ? <Loader2 size={18} className="animate-spin" /> : "Tolak Permanen"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowReopenModal(false)}
+                className="flex-1 py-3.5 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-[15px]"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleUpdateStatus("MENUNGGU_FEEDBACK", reopenNotes)}
+                disabled={actionLoading}
+                className="flex-1 py-3.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2"
+              >
+                {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={16} />}
+                Buka Kembali
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -781,7 +732,7 @@ export function ReportDetailView({
                 Batal
               </button>
               <button 
-                onClick={() => handleUpdateStatus("CLOSED", closeNotes, closeEvidenceUrl)} 
+                onClick={() => handleUpdateStatus("SELESAI", closeNotes, closeEvidenceUrl)}
                 disabled={!closeEvidenceUrl || actionLoading} 
                 className="flex-1 py-3.5 text-white font-bold rounded-xl text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
                 style={{ background: closeEvidenceUrl ? divisionColor : "#9ca3af" }}

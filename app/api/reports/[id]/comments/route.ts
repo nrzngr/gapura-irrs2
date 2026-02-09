@@ -11,13 +11,13 @@ interface RouteParams {
 // Helper to check if user has access to the report's comments
 async function canAccessReportComments(reportId: string, userId: string, role: UserRole): Promise<boolean> {
     // 1. High-level admins always have access
-    const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'OS_ADMIN', 'ANALYST', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
+    const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'DIVISI_OS', 'ANALYST', 'DIVISI_OT', 'DIVISI_OP', 'DIVISI_UQ'];
     if (GLOBAL_ACCESS_ROLES.includes(role)) {
         return true;
     }
 
     // 2. Branch users / Partners can only access their own reports
-    if (role === 'BRANCH_USER' || role === 'PARTNER_ADMIN') {
+    if (role === 'CABANG') {
         const { data: report, error } = await supabaseAdmin
             .from('reports')
             .select('user_id')
@@ -134,12 +134,12 @@ export async function POST(request: Request, { params }: RouteParams) {
         }
 
         // Check Permissions
-        const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'OS_ADMIN', 'ANALYST', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'];
+        const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'DIVISI_OS', 'ANALYST', 'DIVISI_OT', 'DIVISI_OP', 'DIVISI_UQ'];
         let hasAccess = false;
         
         if (GLOBAL_ACCESS_ROLES.includes(payload.role as UserRole)) {
             hasAccess = true;
-        } else if ((payload.role === 'BRANCH_USER' || payload.role === 'PARTNER_ADMIN') && report.user_id === payload.id) {
+        } else if (payload.role === 'CABANG' && report.user_id === payload.id) {
             hasAccess = true;
         }
 

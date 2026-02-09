@@ -44,13 +44,12 @@ export default function LoginPage() {
             // Redirect based on role
             const roleRedirects: Record<string, string> = {
                 SUPER_ADMIN: '/dashboard/admin',
-                OS_ADMIN: '/dashboard/os',
+                DIVISI_OS: '/dashboard/os',
+                DIVISI_OT: '/dashboard/ot',
+                DIVISI_OP: '/dashboard/op',
+                DIVISI_UQ: '/dashboard/uq',
                 ANALYST: '/dashboard/analyst',
-                PARTNER_ADMIN: '/dashboard/partner',
-                BRANCH_USER: '/dashboard/employee',
-                OT_ADMIN: '/dashboard/ot',
-                OP_ADMIN: '/dashboard/op',
-                UQ_ADMIN: '/dashboard/uq',
+                CABANG: '/dashboard/employee',
             };
             
             const normalizedRole = data.role ? String(data.role).trim().toUpperCase() : '';

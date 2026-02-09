@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, PlusCircle, BarChart3, User } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 
@@ -16,20 +16,20 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
     // Define navigation items based on role
     const getNavItems = () => {
         switch (role) {
-            case 'BRANCH_USER':
+            case 'CABANG':
                 return [
                     { href: '/dashboard/employee', icon: LayoutDashboard, label: 'Home' },
                     { href: '/dashboard/employee/reports', icon: FileText, label: 'Laporan' },
                     { href: '/dashboard/employee/new', icon: PlusCircle, label: 'Buat', isPrimary: true },
                 ];
-            case 'OT_ADMIN':
-            case 'OP_ADMIN':
-            case 'UQ_ADMIN':
+            case 'DIVISI_OT':
+            case 'DIVISI_OP':
+            case 'DIVISI_UQ':
                 return [
                     { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Home' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
                 ];
-            case 'OS_ADMIN':
+            case 'DIVISI_OS':
                 return [
                     { href: '/dashboard/os', icon: LayoutDashboard, label: 'Monitor' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
@@ -37,14 +37,12 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
             case 'ANALYST':
                 return [
                     { href: '/dashboard/analyst', icon: LayoutDashboard, label: 'Home' },
-                    { href: '/dashboard/analyst/analytics', icon: BarChart3, label: 'Analitik' },
                     { href: '/dashboard/employee/new', icon: PlusCircle, label: 'Buat', isPrimary: true },
-                    { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
+                    { href: '/dashboard/analyst/reports', icon: FileText, label: 'Laporan' },
                 ];
             case 'SUPER_ADMIN':
                 return [
                     { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Home' },
-                    { href: '/dashboard/admin/analytics', icon: BarChart3, label: 'Analitik' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
                 ];
             default:

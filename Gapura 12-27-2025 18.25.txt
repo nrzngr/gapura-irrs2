@@ -1,0 +1,438 @@
+ 
+
+Speaker 1 00:06 
+Aku mau ini jangan disingkat gini tujuh puluh tujuh days, tiga puluh days eeeh, tujuh days, tiga puluh days.
+
+
+Speaker 1 00:27 
+Enggak enggak enggak enggak.Tujuh jangan disingkat tujuh days, tujuh days, tiga puluh days, tiga bulan, satu tahun.
+
+Speaker 2 00:38 
+Jangan disingkat ya?
+
+Speaker 1 00:39 
+Yok, jangan. Jadi tujuh tujuh hari terakhir, maksudnya tujuh hari, tujuh hari terakhir terus tiga puluh, dalam tiga puluh hari sama tiga bulan.
+
+Perbandingan antar tiga bulan jadi tiga bulan ke belakang maksudnya tiga bulan ke belakang sama satu tahun. Eh sama eh... Enggak, sorry tujuh days, tiga tiga puluh hari, tiga bulan sama enam bulan itu aja. Tiga bulan ke belakang sama enam bulan ke belakang. 
+
+Speaker 2 01:32 
+Oke.
+
+Speaker 1 01:33 
+Yang satu tahun enggak usah.
+
+Speaker 2 01:35 
+Oke.Terus kalau pengen- 
+
+Speaker 1 01:40 
+Terus ini ilangin tiga laporan menunggu validasi itu ilangin.
+
+Speaker 2 01:43 
+Oke oke.
+
+Speaker 1 01:44 
+Tiga laporan menunggu validasi ilangin.
+
+Speaker 2 01:46 
+Oke oke.
+
+Speaker 1 01:47 
+Langsung aja total total laporan, total laporan. Ini total laporannya bergantung jadi di atas ini tuh ada tanggal.
+
+Kalau bisa di sini tuh eeeh, tujuh days, tiga puluh days yang tadi ya, tujuh days, tiga puluh days, tiga bulan ke belakang, enam bulan ke belakang terus ada tanggal pemilihan dari kitanya yang bisa masukin tanggal yang bentuknya kayak... 
+
+Speaker 2 02:09 
+customlah 
+
+Speaker 1 02:09 
+kayak custom iya custom.Udah itu aja, terus ini ini buat dashboard apa nih?
+
+Speaker 2 02:15 
+Analis.
+
+Speaker 1 02:17 
+Enggak aku ngomongin dashboard, dashboard keseluruhan.
+
+Speaker 2 02:20 
+Dashboard keseluruhan divisiin?
+
+Speaker 1 02:22 
+Heeh.Termasuk dashboard, pokoknya termasuk dashboard cabang sama dasbor OS.Itu aja, kalau di PC lain jangan lihat dashboard.Inget ya.
+
+Speaker 2 02:33 
+Dashboard cabang, dashboard OS?
+
+Speaker 1 02:35 
+Iya di PC lain jangan ada, jangan ada dashboard chartnya.Ada chart gini.
+
+Speaker 2 02:41 
+Gini doang lah.
+
+Speaker 1 02:44 
+Ada chart, nanti aja dah eeeh, kalau di PC lain chart, chartnya nanti.Pokoknya ini aku lagi ngomongin tampilan eh tadi yang mana kok gini sih.
+
+Speaker 2 02:55 
+Ini tampilan OS, ini tampilan analis.
+
+Speaker 1 03:01 
+Kok beda sih analis sama OS?
+
+Speaker 2 03:04 
+Emang beda.Kata kamu kan sebelumnya kan analis kan OSC Elite, kata kamu OSC Elite tampilannya simple aja eeh, menunya simple, dashboard tapi langsung semua muncul.
+
+Speaker 1 03:15 
+Iya iya iya, aku nggak ngomongin analis, aku mau tampilan OS, OS dan di PC OS.Di PC OS, aku mau ngomongin di PC OS.
+
+Speaker 2 03:23 
+Pencet, masuk, masuk, masuk dulu.
+
+Speaker 1 03:30 
+Aku capek, aku nggak mau ngomongin kerja.Bisa nggak nanti?
+
+Speaker 2 03:36 
+Bisa.
+
+Speaker 1 03:38 
+Ini dashboard, dashboard monitoring, dashboard oh iya dashboard monitoring.Heeh.Keren banget ada giniannya.
+
+Speaker 2 03:53 
+Iya dong.Itu apaan ya?Tombol full analytics saya lupa.
+
+Speaker 1 03:58 
+Ini ini jangan.Nggak usah, nggak usah ada full analytics gini.Jadiin satu.
+
+Speaker 2 04:04 
+Jadiin satu oke.
+
+Speaker 1 04:05 
+Iya, ini direkam kan? Jadiin satu, jangan ada full click. Jadi jangan ada masukmasuk layarlayar gitu jangan pusing. Dikeluarin semua aja, jadi satu halaman.
+
+Nah ini hilangin full analytics jadiin satu halaman. Ya refresh bolehlah. 
+
+Speaker 2 04:21 
+Tapi yang ini nih yang laporan ini kan kalau pengen masuk ke yang tampilan chat chat chat itu kan.
+
+Speaker 1 04:29 
+Iya itu beda, bedabeda itu beda.
+
+Speaker 2 04:31 
+Harus diklik lihat detail dulu?Apa sekali klik ini langsung tik, langsung masuk?
+
+Speaker 1 04:36 
+Langsung masuk, langsung keluar gini, langsung keluar yang tadi itu loh yang langsung...
+
+Speaker 2 04:40 
+Pencet?
+
+Speaker 1 04:41 
+Heeh yang langsung...Langsung bisa ngasih feedback di sini juga.Tadi tampilan kan enggak gini deh perasaan.
+
+Speaker 2 04:49 
+Lu mau pencet lihat detail dulu?
+
+Speaker 1 04:51 
+Lihat detail.Enggak langsung aja, langsung aja masuk lihat detail.
+
+Speaker 2 04:55 
+Oke oke.Nah ini kan di PC OS kan tadi kan sebelumnya kan bisa nentuin ini case sudah selesai atau belum?Bisa nutup case kan?
+
+Speaker 1 05:05 
+Iya.
+
+Speaker 2 05:05 
+Nah berarti itu pencet dulu, validasi udah nutup.
+
+Speaker 1 05:09 
+Yang kayak gini kan cuman aku.
+
+Speaker 2 05:11 
+Divisi OS apa analis?
+
+Speaker 1 05:13 
+Analis.
+
+Speaker 2 05:13 
+Analys doang?
+
+Speaker 1 05:14 
+Heeh ini udah selesai gitu tutup, itu aku yang nentuin.
+
+Speaker 2 05:17 
+Perlu tombol kembalikan dan tolak gak?
+
+Speaker 1 05:20 
+Tolak apa maksudnya?
+
+Speaker 2 05:22 
+Kembalikan ya?
+
+Speaker 1 05:23 
+Gak usah, gak usah, gak usah.
+
+Speaker 2 05:26 
+Berarti kalau ga pencet- 
+
+Speaker 1 05:27 
+Kalau misalnya kepencet aduh kepencet udah ditutup ya tinggal diubah, diubah jangan ditolak, eh jangan diselesaikan gitu diulang apa ya maksudnya misal ini kan case sebenarnya belum selesai aku kepencet udah close casenya, aku mau batalin gitu tapi batalinnya jangan jangan jadi jangan jadi dari nol maksudnya kayak cuman kebalik ngerti gak sih maksudnya? 
+
+Speaker 2 05:51 
+Ngerti ngerti 
+
+Speaker 1 05:53 
+Tapi eeeh, feedback-feedback dari cabangnya jangan dihilangin.Jangan lupa untuk like, koment, dan subscribe ya
+
+Speaker 2 06:04 
+Sekarang lihat laporan irek floor-nya.
+
+Speaker 1 06:08 
+Ntar dulu, kok udah langsung ke laporan irek, laporan irek sih?
+
+Speaker 2 06:11 
+Biar cepat selesai.
+
+Speaker 1 06:12 
+Ini dashboard-nya dulu, aku kan mau ngasih tahu chart mana aja.Ini tampilan dashboard, ini aku ngomong tampilan dashboard semuanya.
+
+Speaker 2 06:18 
+Iya, iya, iya.
+
+Speaker 1 06:19 
+Ya.Cabang dan OS.Ya ini dashboard monitoring, ini hilangin full analytics hilangin jadiin satu.Ini total laporan, total laporan.
+
+Speaker 2 06:32 
+Semua laporan yang masuk ke semua divisi?
+
+Speaker 1 06:34 
+Heeh, heeh, total laporan, total laporan.Uhhh, ini tiga belas menunggu apa ya?
+
+Speaker 2 06:40 
+Belum direspon.
+
+Speaker 1 06:43 
+Tiga belas, tiga belas belum, belum memberikan feedback. Gitu aja.
+
+Ini selesai, ya udah nih tiga, tiga gini, tiga gini. Terus tadi inget kan di sini tambahin apa yang aku bilang? Day, di atasnya day, day, day gitu sama-- nah jadi pas pertama kali masuk, ini tuh nampilin secara keseluruhan. Tapi kalau misalnya di sini dimasukin custom waktunya, ini berubah lagi semuanya. Ngerti nggak? Ngerti kan? Nah oke, ini, ini hilangin, ini hilangin. Langsung aja klik disini kalau bisa nih kan lihat semua. Ini dikliknya di sini. Ini klik, klik menunggunya langsung di sini nih, langsung di sini aja, langsung di sini klik, tutup. Klik ini kan lihat semua, ini diklik sini aja, jadi ini dihilangin, tampilan ini hilangin. Nah ini sesuaiin sama judul dashboard Lookers aku. Kayak trend apa tuh monthly report gitu loh, volume per bulan, nah kayak gini. Terus ini uhmm ya ini ada status, status casenya itu berarti cuma tiga ya, inget ya cuma tiga ya. Ini kebanyakan pusing, cuma tiga. Berarti close, sudah diverifikasi, close, sudah diverifikasi. 
+
+Speaker 2 08:03 
+Menunggu feedback.
+
+Speaker 1 08:04 
+Menunggu feedback.Udah gitu aja.Nah terus ini di sini, nah ini chart-chart ini masukmasukin nih.Ini, ini apa ya?Ini enggak usah nih.Ini hilangin.
+
+Speaker 2 08:14 
+Laporan terbaru enggak usah?
+
+Speaker 1 08:15 
+Laporan terbaru di paling bawah aja. Paling bawah, di paling bawah, di paling bawah.
+
+Laporan-lapor-- bacanya jangan laporan terbaru, laporan hari ini. Laporan yang masuk hari ini. Ya, ini paling bawah. Nah, ini chart yang melihat detail mana? Nah, full analytics ini masukin ke satu aja, jangan, jangan
+
+Speaker 2 08:34 
+Masukin ke dashboard ini?
+
+Speaker 1 08:35 
+Iya masukin ke dashboard itu, soalnya-- masukin, ini total reports ini bentuknya tadi ya. Ini, ini hapus, ini pending apa, ini enggak penting. Ini high level gini enggak usah. Jadi tampilan dasbornya tuh kayak Lookers gitu, Pi.
+
+Jadi kayak ada, ada optional uh, filter by cabang, filter by airlines, filter by maskapai, filter by kategori, sama filter by uh, ini high, high, high, apa kategori high medium kayak gitugitu, filter by itu ya. Nanti aku, aku kirimin deh itunya dashboardnya. Nah ini uh, monthly trend, iya kan ini ada ya. Ini ada, nah ini accident types. Ini enggak, ini enggak usah. Ini tuh masuknya tuh ke ini, division performance. Enggak, enggak, ini enggak ini, ini hapus, ini hapus, ini hapus. Bukan kayak gini
+
+Speaker 2 09:33 
+Ini ini masih lagi, masih kayak placeholder.
+
+Speaker 1 09:37 
+Oh iya heeh.Ini, ini boleh kayak gini ya, bentuk chartnya boleh begini tapi, tapi diganti maksud tampilannya sesuai dengan Lookers aku.Sama ini...
+
+Speaker 2 09:47 
+Itu enggak tahu placeholder?
+
+Speaker 1 09:49 
+Needs action, needs action.
+
+Speaker 2 09:51 
+Needs action itu maksudnya dari sekian banyak laporan yang baru ke solve atau diselesaikan baru dikit persentasenya.Kayaknya kan dari empat belas yang baru selesainya baru tiga doang.
+
+Speaker 1 10:11 
+Ini boleh kayak gini ya. Ini boleh kayak gini, tapi sebagai, sebagai ini aja kayak CGK.
+
+Kayak CGK, aku enaknya sih gini ya, enaknya tuh lagi ngomong begini tuh kamu langsung ngoding, terus kamu lihatin ke aku gitu. Lama ya? 
+
+Speaker 2 10:28 
+Lama.
+
+Speaker 1 10:30 
+Ini yang station performance ini lebih ke-- ini enggak usah nih, ini untuk sementara hilangin dulu dah. Tapi suatu saat ini bakal, bakal dibutuhin sih. Tapi enggak sekarang.
+
+Ini hilangin dulu. Ini semua hilangin. Ini hilangin ya. Hilangin, inget chartnya sesuai dengan dashboard aku saat ini. Chartnya sesuai dengan dashboard, udah. Terus semua laporan, oke. Nah ini kan ada dua menu ya. Nah ini menu ini... Nah menu ini juga sama nih nanti kategorinya, kategorinya by, iya by brand. Statusnya, heeh. Ya iya ini termasuk
+
+Speaker 2 11:21 
+Itu hapus?
+
+Speaker 1 11:23 
+Ini-- ya ini, ini enggak usah nih hapus nih.
+
+Speaker 2 11:27 
+Oke.
+
+Speaker 1 11:28 
+Ini hapus, hapus dulu.
+
+Speaker 2 11:30 
+Filter semua divisi hapus.
+
+Speaker 1 11:34 
+Tapi perlu juga sih.
+
+Speaker 2 11:36 
+Soalnya kan inti kan semua divisi bisa masuk, bisa lihat semua laporan ya berarti enggak kan, enggak kefilter.
+
+Speaker 1 11:44 
+Maksudnya?
+
+Speaker 2 11:45 
+Enggak kefilter kayak uh, cabang isi regularity kasusnya ini, ini, ini. Berarti otomatis sistemnya otomatis nge-routing laporan itu cuma bisa dilihat sama divisi yang ses-- bertanggung jawab sama kasus itu.
+
+Nah divisi yang enggak, yang enggak ada hubungannya sama kasus itu enggak bisa lihat. 
+
+Speaker 1 12:06 
+Nah itu harus aku pertanyain juga karena kemarin OP ngomong ini kan ada yang casenya internal betul-betul. Apalagi kan kalau gimana kalau case yang masuk itu ternyata itu internalnya OS gitu loh, berarti kan semua divisi enggak boleh lihat. 
+
+Speaker 2 12:24 
+Berarti mau diruting aja? Diruting tuh apa?
+
+Misal ada kasus tertentu nih, kayak misal kalau OT kan berhubungan sama teknis terus ada laporan masuk berhubungan sama teknis pesawat atau teknis peralatan, berarti otomatis laporan direksi itu cuma bisa dilihat di daftar laporannya divisi PT divisi OS yang enggak ada hubungannya sama teknis enggak lihat
+
+Speaker 1 12:53 
+bagusnya gitu ya tapi entar pusing siapa yang milah ini masuk ke divisi mana divisi mana siapa yang milah otomatis 
+
+Speaker 2 13:00 
+by system 
+
+Speaker 1 13:01 
+enggak bisa karena kadang cabang tuh kadang cabang tuh kadang enggak ngerti ini tuh masuk kategorinya apa 
+
+Speaker 2 13:09 
+sebelumnya kan pernah ya sebelumnya sebelum direvisi ya ada empat pilihan tuh kategori subkategori kategori itu kan operasional, teknis, servis, sama kualitas UKIR apa enggak tuh lupa itu kategorinya pencet cabang pencet itu kategorinya pencet nanti muncul subkategori yang berhubungan sama devisi tersebut tutut tutut nah itu baru kerutin ke devisi tersebut
+
+Speaker 1 13:41 
+itu siapa yang desain yang kayak gitu?
+
+Speaker 2 13:43 
+Aku kata kamu suruh revisi sesuai sama laporan irek yang itu iya waktu yang sebelumnya kan enggak kayak gitu 
+
+Speaker 1 13:51 
+Iya udah sesuai dengan Irek aja jangan diubahubah sistem upload Ireknya jangan diubah Nah ini nanti total laporan, ya ini pokoknya ntar dashboardnya samain kayak gini maksudnya tampilan atasnya ini tampilan atasnya ini itu samain kayak ini kayak yang dashboard ininya aja nih biru biru ini aja nih samain bedanya kan ini bawahnya cat kalau ini bawahnya ginian ngertikan
+
+Speaker 2 14:49 
+terus sama filter masih dia 
+
+Speaker 1 14:51 
+filternya samain filter deh paling bedanya tuh disini ya samain filternya samain filternya samain aja biar enggak pusing soalnya.
+
+Speaker 2 14:59 
+Dan lebih simpel ini ya?
+
+Speaker 1 15:01 
+Enggak, pusing.
+
+Jadi orang tuh jadi mikir gitu, kalo-kalo-kalo jadi gini loh, orang nor orang awam ngeliat ini kan udah, oh ini, ntar kan mereka hafal kan, pertama kali mereka hafal, oh ini tuh total laporan, ini tuh menunggu, terus kalo misalnya pas di menu kedua ini berubah lagi bagian atas, dia mikir lagi nih apa ya maksudnya gitu loh jadi biar sama bumber la ya? 
+
+Speaker 2 15:30 
+Bumber Iya, bumber tuh kayak 
+
+Speaker 1 15:32 
+gitu. Bumbu. Jadi ini filternya samain nanti. Nah bedanya adalah Pokoknya aku maunya yang warna hijau gini ya. Atasnya tuh warna hijau gini. Pokoknya yang udah aku bilang kan tadi harus ada apa aja.
+
+Nah, ini ilangin. Nah bedanya di sini kan sampai batas ini kan sampai batas ini kan ini chart semua. Kalau yang di detail laporan, ini ganti detail laporan. Ini dashboard, ini detail laporan. Di sini detail laporan Iya ini daftar laporan. Di sini detail laporan, nih atasnya berarti detail laporan. Ini daftar laporan. Nah ini hijau sama aja, pokoknya sama aja, samain aja kayak dashboard hijau hijaunya, bedanya disini tuh
+
+Speaker 2 16:11 
+Dua ini tuh dipertanian apa ngapus?Mana?Cari laporan sama filterfilter ini nih semuanya.
+
+Speaker 1 16:17 
+Cari laporan termasuk. Adain adain. Disini juga adain. Kayak GA, GA anu. Kan nanti kan kayak kita kan nanti nyari email case GA anu ada enggak? Case GA anu, case GA anu. Ya. Misal GA122. Tapi bisa nyari, oh ada Bu. Gitu.
+
+Ngerti, nggak? Sama kayak aku nyari di Excel. Adain, adain, adain. Berarti di sini juga adain ya
+
+Speaker 2 16:45 
+Di sini?
+
+Speaker 1 16:47 
+Eh, di sini enggak. Di sini enggak. Di sini enggak ada berarti ya.
+
+Di detail laporan. Tapi ini filter-filternya ada. Berarti ini di bawah ya. Ini di sini. Udah nah ini tinggal diklik Nah aku mau ketika ini diklik. Langsung ke menu yang itu. Tapi bisa nggak menu yang itunya ngebayang begini aja gitu. Kan ini lihat detail gini kan, lihat detail gini. Nah tampilan ini semua, tampilan ini, itu dibentuknya bayang. Dialog kayak gitu loh. Heeh heeh. Pop up kayak gini aja gitu, tuh. Nah jadi pas ketika diklik silang, dia misalnya nih, ini kan nyampe sini ya, nyampe bawah sini. Misalnya diklik nih, diklik, nah pop up, nah pas disilang, udah tetap di sini gitu Kadang kan ketika disilang, balik lagi ke atas gitu. Kan pusing gitu. Nah ini aja gini, jadi ketika diklik, ini pop up nya sampai sini nih, langsung muncul semuanya. Jadi nggak ada lihat detail, nggak ada. Ini dijadiin melayang. Oke? Udah gini Udah oke sih. Nah, ntar evidence nya ntar, nah kok keren juga. Eh keren anjayNah nanti kamu kalau di Android samain kayak ini ya, samain, samain aja kayak, kayak, maksudnya kayak, kayak yang pada umumnya gimana sih. 
+
+Speaker 3 18:20 
+Kayak aplikasi HP?
+
+Speaker 1 18:21 
+Heeh, heeh, heeh, gitu. Jangan, jangan aneh-aneh biar orang tuh udah familiar. Udah sih, keunggulannya apa?
+
+Keunggulannya bisa cetak ireng di cabang. Udah. Nah terus, aku sebagai analis itu bisa narik, bisa narik. 
+
+Speaker 3 18:36 
+Narik apa?
+
+Speaker 1 18:37 
+Bisa narik excel, sama kayak tampilan excel yang dari link, link Microsoft kan itu kan link Microsoft Outlook dan lewat cabang kan ngisi lewat link, cabang kan ngisi lewat link. Nah, uh, ketika cabang ngisi lewat link, kan itu langsung masuk ke excel.
+
+Nah di sini juga kalau bisa aku bisa narik excel. 
+
+Speaker 3 19:01 
+Kayak analis tadi export ke excel?
+
+Speaker 1 19:03 
+Heeh, itu narik itu jadi bisa, bisa, bisa dari Februari.
+
+Speaker 3 19:09 
+Gini deh berarti ketika analis- -analis pencet tombol export excel nanti muncul pop up mau rentang tanggal berapa 
+
+Speaker 1 19:16 
+Jangan export dah aku pusing export import, download coba 
+
+Speaker 3 19:20 
+Boomer! 
+
+Speaker 1 19:22 
+Download aja download, download, download excel.Kalau, kalau, kalau import berarti upload excel gitu ya.Download dan upload, oke?Kalau pdf, aku analis pdf buat apa?
+
+Speaker 3 19:36 
+Ya siapa tau butuh.
+
+Speaker 1 19:44 
+Ini ya, apa ini.Ya ini boleh nih.Ini boleh deh ini boleh.Kalau bisa powerpoint mas kalian .Boleh pow-- bisa 
+
+Speaker 3 19:57 
+Enggak, powerpoint mah enggak bisa.
+
+Speaker 1 20:02 
+Powerpoint langsung, langsung itu langsung ke bentuk chart 
+
+Speaker 3 20:05 
+Gak bisaaa.Eh tapi excelnya kayak gini nih.
+
+Speaker 1 20:09 
+Ih jelek anjir.Itu apa itu ya Rega?
+
+Speaker 3 20:12 
+Ini laporan analitik.Hmm, coba, coba, coba.Udah 
+
+Speaker 1 20:23 
+Iya export pdfnya boleh.
+
+Speaker 3 20:25 
+Hmmm.
+
+Speaker 1 20:27 
+Coba export pdfnya kalau bisa dikasih, dikasih stempel nanti.Udah deh gini aja.Udah ngerti ya?
+
+Speaker 3 20:39 
+Ngerti.
+
+Speaker 1 20:39 
+Nih kamu, kamu kalau ma-- kamu mending masuk ke ini aja, kamu masuk, masuk ke Gmail aku aja. Masuk ke Gmail project melisa. Jadi kamu bisa lihat dashboardnya nggak perlu aku kirim ke kamu.
+
+Karena takutnya di, takutnya ditracking lagi-lagi tiba-tiba ada audit ditracking aja. Ketahuan anjir ada akun lain. 
+
+Speaker 3 20:57 
+Ya udah.
+
+Speaker 1 20:58 
+Masuk aja ke akun project melisa.Udah dah, udah selesai.

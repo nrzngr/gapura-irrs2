@@ -1,34 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, Mail, Lock, UserPlus, Loader2, CheckCircle, Phone, Building2, Users, Briefcase, CreditCard, Info, Shield } from 'lucide-react';
+import { User, Mail, Lock, UserPlus, Loader2, CheckCircle, Phone, Building2, Users, Briefcase, CreditCard, Info, Shield, Eye, EyeOff, Layers } from 'lucide-react';
+import type { DivisionType } from '@/types';
 
 interface Station { id: string; code: string; name: string; }
 interface Unit { id: string; name: string; }
 interface Position { id: string; name: string; }
+
+const DIVISION_OPTIONS: { value: DivisionType; label: string }[] = [
+    { value: 'OS', label: 'Operational Services (OS)' },
+    { value: 'OT', label: 'Teknik / GSE (OT)' },
+    { value: 'OP', label: 'Operasi (OP)' },
+    { value: 'UQ', label: 'Quality (UQ)' },
+    { value: 'GENERAL', label: 'Umum / Lainnya' },
+];
 
 export default function RegisterPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
+        confirmPassword: '',
         full_name: '',
         nik: '',
         phone: '',
         station_id: '',
         unit_id: '',
         position_id: '',
+        division: 'GENERAL' as DivisionType,
     });
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const [stations, setStations] = useState<Station[]>([]);
     const [units, setUnits] = useState<Unit[]>([]);
     const [positions, setPositions] = useState<Position[]>([]);
+
+    // Check if selected station is GPS (Gapura Pusat)
+    const isGPS = useMemo(() => {
+        if (formData.station_id === 'GPS') return true;
+        const station = stations.find(s => s.id === formData.station_id);
+        return station?.code === 'GPS';
+    }, [formData.station_id, stations]);
 
     useEffect(() => {
         const fetchMasterData = async () => {
@@ -44,17 +64,114 @@ export default function RegisterPage() {
         fetchMasterData();
     }, []);
 
+    // Filter positions based on station selection
+    const filteredPositions = useMemo(() => {
+        const centralRoles = ['Super Admin', 'Analyst', 'OS', 'OSF', 'OSL', 'DIVISI OT', 'DIVISI OP', 'DIVISI UQ'];
+        return positions.filter(p => {
+            const isCentralRole = centralRoles.some(r => p.name.toUpperCase().includes(r.toUpperCase()));
+            return isGPS ? isCentralRole : !isCentralRole;
+        });
+    }, [positions, isGPS]);
+
+    // Filter stations to exclude GPS for branch registration
+    const filteredStations = useMemo(() => {
+        // Show GPS option at the top, then other stations
+        const gps = stations.find(s => s.code === 'GPS');
+        const others = stations.filter(s => s.code !== 'GPS');
+        return gps ? [gps, ...others] : others;
+    }, [stations]);
+
+    const validateField = (name: string, value: string): string => {
+        switch (name) {
+            case 'nik':
+                if (!/^[A-Z0-9]{5,10}$/i.test(value) && value.length > 0) {
+                    return 'NIK harus 5-10 karakter (huruf/angka)';
+                }
+                break;
+            case 'phone':
+                if (!/^08\d{8,11}$/.test(value) && value.length > 0) {
+                    return 'Format: 08xxxxxxxxxx (10-13 digit)';
+                }
+                break;
+            case 'email':
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length > 0) {
+                    return 'Format email tidak valid';
+                }
+                break;
+            case 'password':
+                if (value.length > 0 && value.length < 6) {
+                    return 'Minimal 6 karakter';
+                }
+                break;
+            case 'confirmPassword':
+                if (value !== formData.password && value.length > 0) {
+                    return 'Password tidak cocok';
+                }
+                break;
+        }
+        return '';
+    };
+
+    const handleChange = (name: string, value: string) => {
+        // Transform NIK to uppercase
+        if (name === 'nik') value = value.toUpperCase();
+        
+        setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Validate on change
+        const error = validateField(name, value);
+        setFieldErrors(prev => ({ ...prev, [name]: error }));
+        
+        // Reset position when station changes
+        if (name === 'station_id') {
+            setFormData(prev => ({ ...prev, station_id: value, position_id: '', division: 'GENERAL' }));
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setSuccess('');
+
+        // Validate all fields
+        const errors: Record<string, string> = {};
+        Object.entries(formData).forEach(([key, value]) => {
+            if (key !== 'confirmPassword' && key !== 'division') {
+                const err = validateField(key, value);
+                if (err) errors[key] = err;
+            }
+        });
+
+        // Password confirmation check
+        if (formData.password !== formData.confirmPassword) {
+            errors.confirmPassword = 'Password tidak cocok';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            setError('Periksa kembali data yang diisi');
+            return;
+        }
+
         setLoading(true);
 
         try {
+            const payload = {
+                email: formData.email,
+                password: formData.password,
+                full_name: formData.full_name,
+                nik: formData.nik,
+                phone: formData.phone,
+                station_id: formData.station_id,
+                unit_id: formData.unit_id,
+                position_id: formData.position_id,
+                division: isGPS ? formData.division : undefined,
+            };
+
             const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             const data = await res.json();
@@ -76,6 +193,7 @@ export default function RegisterPage() {
     };
 
     const inputStyle = "w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white";
+    const inputErrorStyle = "w-full pl-12 pr-4 py-3.5 rounded-xl border border-red-300 bg-red-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white";
     const selectStyle = "w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white appearance-none cursor-pointer";
     const labelStyle = "block text-sm font-medium text-gray-700 mb-2";
 
@@ -86,7 +204,6 @@ export default function RegisterPage() {
                 className="hidden lg:flex lg:w-5/12 flex-col justify-between p-12 relative"
                 style={{ background: 'linear-gradient(145deg, #059669, #10b981, #34d399)' }}
             >
-                {/* Decorative Pattern */}
                 <div className="absolute inset-0 opacity-10">
                     <div 
                         className="absolute inset-0"
@@ -125,7 +242,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="relative z-10 text-white/60 text-sm">
-                    © 2025 Gapura Angkasa. All rights reserved.
+                    © 2025 PT Gapura Angkasa. All rights reserved.
                 </div>
             </div>
 
@@ -183,23 +300,25 @@ export default function RegisterPage() {
                                                 className={inputStyle}
                                                 placeholder="Nama lengkap"
                                                 value={formData.full_name}
-                                                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                                onChange={(e) => handleChange('full_name', e.target.value)}
                                             />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className={labelStyle}>NIK</label>
+                                        <label className={labelStyle}>NIK (Nomor Induk Karyawan)</label>
                                         <div className="relative">
                                             <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                             <input
                                                 type="text"
                                                 required
-                                                className={inputStyle}
-                                                placeholder="Nomor Induk Karyawan"
+                                                maxLength={10}
+                                                className={fieldErrors.nik ? inputErrorStyle : inputStyle}
+                                                placeholder="Contoh: GA12345"
                                                 value={formData.nik}
-                                                onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+                                                onChange={(e) => handleChange('nik', e.target.value)}
                                             />
                                         </div>
+                                        {fieldErrors.nik && <p className="text-xs text-red-500 mt-1">{fieldErrors.nik}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -215,12 +334,13 @@ export default function RegisterPage() {
                                             <input
                                                 type="email"
                                                 required
-                                                className={inputStyle}
+                                                className={fieldErrors.email ? inputErrorStyle : inputStyle}
                                                 placeholder="email@gapura.co.id"
                                                 value={formData.email}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                onChange={(e) => handleChange('email', e.target.value)}
                                             />
                                         </div>
+                                        {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
                                     </div>
                                     <div>
                                         <label className={labelStyle}>No. WhatsApp</label>
@@ -229,12 +349,14 @@ export default function RegisterPage() {
                                             <input
                                                 type="tel"
                                                 required
-                                                className={inputStyle}
+                                                maxLength={13}
+                                                className={fieldErrors.phone ? inputErrorStyle : inputStyle}
                                                 placeholder="08xxxxxxxxxx"
                                                 value={formData.phone}
-                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, ''))}
                                             />
                                         </div>
+                                        {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -251,42 +373,65 @@ export default function RegisterPage() {
                                                 required
                                                 className={selectStyle}
                                                 value={formData.station_id}
-                                                onChange={(e) => {
-                                                   const newStationId = e.target.value;
-                                                   setFormData({ 
-                                                       ...formData, 
-                                                       station_id: newStationId,
-                                                       position_id: '' // Reset position on station change
-                                                   });
-                                                }}
+                                                onChange={(e) => handleChange('station_id', e.target.value)}
                                             >
                                                 <option value="">Pilih Station</option>
-                                                <option value="GPS">GPS - Gapura Pusat</option>
-                                                {stations.filter(s => s.code !== 'GPS').map((s) => (
-                                                    <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
+                                                {filteredStations.map((s) => (
+                                                    <option key={s.id} value={s.id}>
+                                                        {s.code} - {s.name}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
+                                        {isGPS && (
+                                            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                                <Info size={12} />
+                                                Kantor Pusat - Pilih divisi di bawah
+                                            </p>
+                                        )}
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className={labelStyle}>Unit / Divisi</label>
+
+                                    {/* Division - Only shown for GPS (Gapura Pusat) */}
+                                    {isGPS && (
+                                        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <label className={labelStyle}>Divisi</label>
                                             <div className="relative">
-                                                <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                                 <select
                                                     required
                                                     className={selectStyle}
-                                                    value={formData.unit_id}
-                                                    onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                                                    value={formData.division}
+                                                    onChange={(e) => handleChange('division', e.target.value)}
                                                 >
-                                                    <option value="">Pilih Unit</option>
-                                                    {units.map((u) => (
-                                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                                    {DIVISION_OPTIONS.map((d) => (
+                                                        <option key={d.value} value={d.value}>{d.label}</option>
                                                     ))}
                                                 </select>
                                             </div>
                                         </div>
-                                        <div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {!isGPS && (
+                                            <div>
+                                                <label className={labelStyle}>Unit Kerja</label>
+                                                <div className="relative">
+                                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                    <select
+                                                        required={!isGPS}
+                                                        className={selectStyle}
+                                                        value={formData.unit_id}
+                                                        onChange={(e) => handleChange('unit_id', e.target.value)}
+                                                    >
+                                                        <option value="">Pilih Unit</option>
+                                                        {units.map((u) => (
+                                                            <option key={u.id} value={u.id}>{u.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className={isGPS ? "col-span-2" : ""}>
                                             <label className={labelStyle}>Jabatan</label>
                                             <div className="relative">
                                                 <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -294,25 +439,18 @@ export default function RegisterPage() {
                                                     required
                                                     className={selectStyle}
                                                     value={formData.position_id}
-                                                    onChange={(e) => setFormData({ ...formData, position_id: e.target.value })}
+                                                    onChange={(e) => handleChange('position_id', e.target.value)}
+                                                    disabled={!formData.station_id}
                                                 >
                                                     <option value="">Pilih Jabatan</option>
-                                                    {/* Dynamic Position Filtering Logic */}
-                                                    {(() => {
-                                                        const isCentral = formData.station_id === 'GPS' || stations.find(s => s.id === formData.station_id && s.code === 'GPS');
-                                                        const centralRoles = ['Super Admin', 'Analyst', 'OS', 'OSF', 'OSL', 'DIVISI OT', 'DIVISI OP', 'DIVISI UQ'];
-                                                        
-                                                        return positions
-                                                            .filter(p => {
-                                                                const isCentralRole = centralRoles.some(r => p.name.includes(r));
-                                                                return isCentral ? isCentralRole : !isCentralRole;
-                                                            })
-                                                            .map((p) => (
-                                                                <option key={p.id} value={p.id}>{p.name}</option>
-                                                            ));
-                                                    })()}
+                                                    {filteredPositions.map((p) => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
                                                 </select>
                                             </div>
+                                            {!formData.station_id && (
+                                                <p className="text-xs text-gray-400 mt-1">Pilih station terlebih dahulu</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -321,18 +459,43 @@ export default function RegisterPage() {
                             {/* Section: Security */}
                             <div>
                                 <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Keamanan</p>
-                                <div>
-                                    <label className={labelStyle}>Password</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <input
-                                            type="password"
-                                            required
-                                            className={inputStyle}
-                                            placeholder="Minimal 6 karakter"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelStyle}>Password</label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <input
+                                                type={showPassword ? 'text' : 'password'}
+                                                required
+                                                className={fieldErrors.password ? inputErrorStyle : inputStyle}
+                                                placeholder="Minimal 6 karakter"
+                                                value={formData.password}
+                                                onChange={(e) => handleChange('password', e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                        {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
+                                    </div>
+                                    <div>
+                                        <label className={labelStyle}>Konfirmasi Password</label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <input
+                                                type={showPassword ? 'text' : 'password'}
+                                                required
+                                                className={fieldErrors.confirmPassword ? inputErrorStyle : inputStyle}
+                                                placeholder="Ulangi password"
+                                                value={formData.confirmPassword}
+                                                onChange={(e) => handleChange('confirmPassword', e.target.value)}
+                                            />
+                                        </div>
+                                        {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -382,7 +545,7 @@ export default function RegisterPage() {
 
                     {/* Mobile Footer */}
                     <p className="lg:hidden text-center text-xs text-gray-400 mt-6">
-                        © 2025 Gapura Angkasa. All rights reserved.
+                        © 2025 PT Gapura Angkasa. All rights reserved.
                     </p>
                 </div>
             </div>

@@ -8,36 +8,49 @@ import { UserRole, DivisionType } from '@/types';
  * Role hierarchy level (higher = more access)
  */
 const ROLE_HIERARCHY: Record<UserRole, number> = {
-    BRANCH_USER: 1,
-    OS_ADMIN: 2,
-    OT_ADMIN: 2,
-    OP_ADMIN: 2,
-    UQ_ADMIN: 2,
-    PARTNER_ADMIN: 2,
+    CABANG: 1,
+    DIVISI_OS: 2,
+    DIVISI_OT: 2,
+    DIVISI_OP: 2,
+    DIVISI_UQ: 2,
     ANALYST: 3,
     SUPER_ADMIN: 4,
 };
 
 /**
  * Check if user can export data (Excel/PDF)
- * OS_ADMIN (Central Analyst), ANALYST, and SUPER_ADMIN per requirements
+ * DIVISI_OS, ANALYST, and SUPER_ADMIN per requirements
  */
 export const canExportData = (role: UserRole): boolean =>
-    role === 'OS_ADMIN' || role === 'ANALYST' || role === 'SUPER_ADMIN';
+    role === 'DIVISI_OS' || role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
  * Check if user can access admin dashboard
- * All except BRANCH_USER
+ * All except CABANG
  */
 export const canAccessAdminDashboard = (role: UserRole): boolean =>
     ROLE_HIERARCHY[role] >= 2;
 
 /**
  * Check if user can execute/update report status
- * OT_ADMIN, OP_ADMIN, UQ_ADMIN, ANALYST, SUPER_ADMIN
+ * Only ANALYST and SUPER_ADMIN can change statuses
  */
 export const canExecuteReport = (role: UserRole): boolean =>
-    role === 'OT_ADMIN' || role === 'OP_ADMIN' || role === 'UQ_ADMIN' || role === 'ANALYST' || role === 'SUPER_ADMIN';
+    role === 'ANALYST' || role === 'SUPER_ADMIN';
+
+/**
+ * Check if user can close a case (mark as SELESAI)
+ * Only ANALYST and SUPER_ADMIN
+ */
+export const canCloseCase = (role: UserRole): boolean =>
+    role === 'ANALYST' || role === 'SUPER_ADMIN';
+
+/**
+ * Check if user can reopen a case (SELESAI → MENUNGGU_FEEDBACK)
+ * Only ANALYST and SUPER_ADMIN
+ */
+export const canReopenCase = (role: UserRole): boolean =>
+    role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
  * Check if user can manage users (approve/reject/edit)
@@ -62,14 +75,14 @@ export const canViewAuditLogs = (role: UserRole): boolean =>
 
 /**
  * Check if user can create reports
- * BRANCH_USER (station-scoped), ANALYST (HQ reports), SUPER_ADMIN
+ * CABANG (station-scoped), ANALYST (HQ reports), SUPER_ADMIN
  */
 export const canCreateReport = (role: UserRole): boolean =>
-    role === 'BRANCH_USER' || role === 'ANALYST' || role === 'SUPER_ADMIN' || role === 'OS_ADMIN';
+    role === 'CABANG' || role === 'ANALYST' || role === 'SUPER_ADMIN' || role === 'DIVISI_OS';
 
 /**
  * Check if user has global data access (all stations)
- * All except BRANCH_USER
+ * All except CABANG
  */
 export const hasGlobalAccess = (role: UserRole): boolean =>
     ROLE_HIERARCHY[role] >= 2;
@@ -78,7 +91,7 @@ export const hasGlobalAccess = (role: UserRole): boolean =>
  * Get the redirect path after login based on role
  */
 export const getLoginRedirectPath = (role: UserRole): string => {
-    if (role === 'BRANCH_USER') {
+    if (role === 'CABANG') {
         return '/dashboard/employee';
     }
     return '/dashboard/admin';
@@ -99,26 +112,24 @@ export const DIVISION_LABELS: Record<DivisionType, string> = {
  * Role labels for UI display
  */
 export const ROLE_LABELS: Record<UserRole, string> = {
-    BRANCH_USER: 'Petugas Cabang',
-    OS_ADMIN: 'OS Admin',
-    OT_ADMIN: 'OT Admin',
-    OP_ADMIN: 'OP Admin',
-    UQ_ADMIN: 'UQ Admin',
+    CABANG: 'Cabang',
+    DIVISI_OS: 'Divisi OS',
+    DIVISI_OT: 'Divisi OT',
+    DIVISI_OP: 'Divisi OP',
+    DIVISI_UQ: 'Divisi UQ',
     ANALYST: 'Analyst',
     SUPER_ADMIN: 'Super Admin',
-    PARTNER_ADMIN: 'Partner Admin',
 };
 
 /**
  * Role descriptions for tooltips/help text
  */
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-    BRANCH_USER: 'Akses terbatas pada station sendiri. Dapat membuat laporan.',
-    OS_ADMIN: 'Central Analyst. Full superview, export data, monitoring global.',
-    OT_ADMIN: 'Eksekutor divisi OT. Dapat mengubah status laporan divisi OT.',
-    OP_ADMIN: 'Eksekutor divisi OP. Dapat mengubah status laporan divisi OP.',
-    UQ_ADMIN: 'Eksekutor divisi UQ. Dapat mengubah status laporan divisi UQ.',
+    CABANG: 'Akses terbatas pada station sendiri. Dapat membuat laporan.',
+    DIVISI_OS: 'Divisi Operational Services. Full superview, export data, monitoring global.',
+    DIVISI_OT: 'Divisi Teknik. Eksekutor laporan terkait GSE dan peralatan.',
+    DIVISI_OP: 'Divisi Operasi. Eksekutor laporan terkait operasional.',
+    DIVISI_UQ: 'Divisi Quality. Eksekutor laporan terkait safety dan quality.',
     ANALYST: 'Kepala divisi. Akses global + export data.',
     SUPER_ADMIN: 'Full access. Kelola user dan master data.',
-    PARTNER_ADMIN: 'Akses terbatas partner. Dashboard monitoring partner.',
 };

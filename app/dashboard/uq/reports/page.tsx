@@ -41,7 +41,7 @@ export default function UQReportsPage() {
         return matchesSearch && matchesSeverity && matchesStatus;
     });
 
-    const stats = { total: reports.length, high: reports.filter(r => r.severity === 'high').length, pending: reports.filter(r => ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS'].includes(r.status)).length, resolved: reports.filter(r => r.status === 'CLOSED').length };
+    const stats = { total: reports.length, high: reports.filter(r => r.severity === 'high').length, pending: reports.filter(r => ['MENUNGGU_FEEDBACK', 'SUDAH_DIVERIFIKASI'].includes(r.status)).length, resolved: reports.filter(r => r.status === 'SELESAI').length };
 
     return (
         <div className="space-y-8 stagger-children pb-24">
@@ -70,7 +70,7 @@ export default function UQReportsPage() {
                     <input type="text" placeholder="Cari laporan..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field" style={{ paddingLeft: 'calc(var(--space-lg) + 1.5rem)' }} />
                 </div>
                 <div className="flex flex-wrap gap-3">
-                    <FilterSelect value={filter} onChange={setFilter} icon={Filter} options={[{ value: 'all', label: 'Semua Status' }, { value: 'OPEN', label: 'Open' }, { value: 'ON_PROGRESS', label: 'Progress' }, { value: 'CLOSED', label: 'Closed' }]} />
+                    <FilterSelect value={filter} onChange={setFilter} icon={Filter} options={[{ value: 'all', label: 'Semua Status' }, { value: 'MENUNGGU_FEEDBACK', label: 'Menunggu Feedback' }, { value: 'SUDAH_DIVERIFIKASI', label: 'Diverifikasi' }, { value: 'SELESAI', label: 'Selesai' }]} />
                     <FilterSelect value={severityFilter} onChange={setSeverityFilter} icon={AlertTriangle} options={[{ value: 'all', label: 'Semua' }, { value: 'high', label: '🔴 High' }, { value: 'medium', label: '🟡 Medium' }, { value: 'low', label: '🟢 Low' }]} />
                 </div>
             </div>
@@ -97,7 +97,7 @@ export default function UQReportsPage() {
                             <tbody>
                                 {filteredReports.map((r) => {
                                     const sev = SEVERITY_CONFIG[r.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-                                    const stat = STATUS_CONFIG[r.status as ReportStatus] || STATUS_CONFIG.OPEN;
+                                    const stat = STATUS_CONFIG[r.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
                                     const StatIcon = stat.icon;
                                     return (
                                         <tr key={r.id} className="cursor-pointer transition-colors" style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${sev.color}` }} onClick={() => router.push(`/dashboard/uq/reports/${r.id}`)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
@@ -128,7 +128,7 @@ function FilterSelect({ value, onChange, icon: Icon, options }: { value: string;
 }
 
 function QuickModal({ report, onClose, color, path }: { report: Report; onClose: () => void; color: string; path: string }) {
-    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
+    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
     const StatusIcon = status.icon;
     return (<><div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm" onClick={onClose} /><div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none"><div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-scale-in pointer-events-auto"><div className="p-6 text-white" style={{ background: color }}><button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-xl"><X size={20} /></button><h2 className="text-xl font-bold">{report.title}</h2></div><div className="p-6 space-y-4 overflow-y-auto max-h-[50vh]"><span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: status.bgColor, color: status.color }}><StatusIcon size={16} /> {status.label}</span><p className="text-gray-700">{report.description}</p></div><div className="p-5 flex justify-end gap-3 bg-gray-50 border-t"><button onClick={onClose} className="px-6 py-2.5 rounded-xl text-gray-600 font-semibold hover:bg-gray-100">Tutup</button><button onClick={() => window.location.href = path} className="px-6 py-2.5 rounded-xl text-white font-semibold flex items-center gap-2" style={{ background: color }}><Eye size={18} /> Detail</button></div></div></div></>);
 }

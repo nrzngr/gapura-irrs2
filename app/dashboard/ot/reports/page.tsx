@@ -55,8 +55,8 @@ export default function OTReportsPage() {
     const stats = {
         total: reports.length,
         high: reports.filter(r => r.severity === 'high').length,
-        pending: reports.filter(r => ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS'].includes(r.status)).length,
-        resolved: reports.filter(r => r.status === 'CLOSED').length,
+        pending: reports.filter(r => ['MENUNGGU_FEEDBACK', 'SUDAH_DIVERIFIKASI'].includes(r.status)).length,
+        resolved: reports.filter(r => r.status === 'SELESAI').length,
     };
 
     return (
@@ -103,11 +103,9 @@ export default function OTReportsPage() {
                 <div className="flex flex-wrap gap-3">
                     <FilterSelect value={filter} onChange={setFilter} icon={Filter} options={[
                         { value: 'all', label: 'Semua Status' },
-                        { value: 'OPEN', label: 'Menunggu ACC' },
-                        { value: 'ACKNOWLEDGED', label: 'Di-ACC' },
-                        { value: 'ON_PROGRESS', label: 'Dikerjakan' },
-                        { value: 'WAITING_VALIDATION', label: 'Menunggu Validasi' },
-                        { value: 'CLOSED', label: 'Selesai' },
+                        { value: 'MENUNGGU_FEEDBACK', label: 'Menunggu Feedback' },
+                        { value: 'SUDAH_DIVERIFIKASI', label: 'Sudah Diverifikasi' },
+                        { value: 'SELESAI', label: 'Selesai' },
                     ]} />
                     <FilterSelect value={severityFilter} onChange={setSeverityFilter} icon={AlertTriangle} options={[
                         { value: 'all', label: 'Semua Severity' },
@@ -156,7 +154,7 @@ export default function OTReportsPage() {
                             <tbody>
                                 {filteredReports.map((report) => {
                                     const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-                                    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
+                                    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
                                     const SevIcon = severity.icon;
                                     const StatIcon = status.icon;
 
@@ -253,7 +251,7 @@ function FilterSelect({ value, onChange, icon: Icon, options }: { value: string;
 
 function QuickViewModal({ report, onClose, divisionColor, detailPath }: { report: Report; onClose: () => void; divisionColor: string; detailPath: string }) {
     const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
+    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
     const StatusIcon = status.icon;
 
     return (

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, BarChart3, ChevronRight, Hash, FolderOpen, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, LifeBuoy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,13 +28,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Overview',
             items: [
                 { href: '/dashboard/admin', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/admin/analytics', label: 'Analytics', icon: BarChart3 },
             ]
         },
         {
             title: 'Management',
             items: [
-                { href: '/dashboard/admin/reports', label: 'Reports', icon: ClipboardList, count: 12 },
+                { href: '/dashboard/admin/reports', label: 'Reports', icon: ClipboardList },
                 { href: '/dashboard/admin/users', label: 'Users', icon: Users },
             ]
         }
@@ -109,11 +108,10 @@ const GET_LINKS_KEY = (role: string): string => {
     const r = role.toUpperCase();
     if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
     if (r === 'ANALYST') return 'ANALYST';
-    if (r === 'OS_ADMIN') return 'OS';
-    if (r === 'OT_ADMIN') return 'OT';
-    if (r === 'OP_ADMIN') return 'OP';
-    if (r === 'UQ_ADMIN') return 'UQ';
-    if (r === 'PARTNER_ADMIN') return 'PARTNER';
+    if (r === 'DIVISI_OS') return 'OS';
+    if (r === 'DIVISI_OT') return 'OT';
+    if (r === 'DIVISI_OP') return 'OP';
+    if (r === 'DIVISI_UQ') return 'UQ';
     return 'EMPLOYEE';
 };
 

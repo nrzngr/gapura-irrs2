@@ -8,6 +8,7 @@ interface StatsCardProps {
     description?: string;
     color?: 'blue' | 'green' | 'orange' | 'red' | 'purple';
     accent?: boolean;
+    onClick?: () => void;
 }
 
 // Clean, professional color config
@@ -43,20 +44,23 @@ const colorConfig = {
  * StatsCard — Clean enterprise stats card.
  * Complexity: Time O(1) | Space O(1)
  */
-export default function StatsCard({ 
-    label, 
-    value, 
-    icon: Icon, 
-    description, 
+export default function StatsCard({
+    label,
+    value,
+    icon: Icon,
+    description,
     color = 'blue',
-    accent = false 
+    accent = false,
+    onClick,
 }: StatsCardProps) {
     const colors = colorConfig[color];
+    const Wrapper = onClick ? 'button' : 'div';
+    const clickProps = onClick ? { onClick, type: 'button' as const } : {};
 
     // Accent variant (filled background)
     if (accent) {
         return (
-            <div className="bg-blue-600 rounded-xl p-5 text-white shadow-lg shadow-blue-600/20">
+            <Wrapper {...clickProps} className={cn("bg-blue-600 rounded-xl p-5 text-white shadow-lg shadow-blue-600/20 text-left w-full", onClick && "cursor-pointer hover:bg-blue-700 transition-colors")}>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-blue-100 text-sm font-medium">{label}</p>
@@ -69,13 +73,13 @@ export default function StatsCard({
                         <Icon size={24} />
                     </div>
                 </div>
-            </div>
+            </Wrapper>
         );
     }
 
     // Default white card
     return (
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <Wrapper {...clickProps} className={cn("bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow text-left w-full", onClick && "cursor-pointer")}>
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-slate-500 text-sm font-medium">{label}</p>
@@ -90,6 +94,6 @@ export default function StatsCard({
                     <Icon size={24} className={colors.iconColor} />
                 </div>
             </div>
-        </div>
+        </Wrapper>
     );
 }

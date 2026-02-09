@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
     Clock, CheckCircle2, FileText, RefreshCw, Loader2,
     Plane, ClipboardList
@@ -12,6 +10,7 @@ import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status'
 import { NoiseTexture } from '@/components/ui/NoiseTexture';
 import { cn } from '@/lib/utils';
 import { Report } from '@/types';
+import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 
 // Division Configuration
 const DIVISION_CONFIG = {
@@ -24,8 +23,8 @@ const DIVISION_CONFIG = {
 };
 
 export default function OPDashboard() {
-    const router = useRouter();
     const [reports, setReports] = useState<Report[]>([]);
+    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -54,8 +53,8 @@ export default function OPDashboard() {
         fetchData();
     }, [fetchData]);
 
-    const pendingCount = reports.filter(r => !['CLOSED', 'REJECTED'].includes(r.status)).length;
-    const resolvedCount = reports.filter(r => r.status === 'CLOSED').length;
+    const pendingCount = reports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length;
+    const resolvedCount = reports.filter(r => r.status === 'SELESAI').length;
     const totalCount = reports.length;
 
     if (loading) {
@@ -134,7 +133,7 @@ export default function OPDashboard() {
                                 <tr><td colSpan={5} className="p-8 text-center text-[var(--text-muted)]">Tidak ada laporan untuk divisi {DIVISION_CONFIG.name}</td></tr>
                             ) : (
                                 reports.map((r) => (
-                                    <tr key={r.id} className="border-b border-[var(--surface-4)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/op/reports/${r.id}`)}>
+                                    <tr key={r.id} className="border-b border-[var(--surface-4)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer" onClick={() => setSelectedReport(r)}>
                                         <td className="p-4 font-mono text-sm">{r.id.slice(0, 8)}</td>
                                         <td className="p-4 text-sm font-medium text-[var(--text-primary)] max-w-[300px] truncate">{r.title}</td>
                                         <td className="p-4">
@@ -151,6 +150,12 @@ export default function OPDashboard() {
                     </table>
                 </div>
             </div>
+
+            <ReportDetailModal
+                isOpen={!!selectedReport}
+                onClose={() => setSelectedReport(null)}
+                report={selectedReport}
+            />
         </div>
     );
 }

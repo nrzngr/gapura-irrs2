@@ -9,14 +9,16 @@ import { cn } from '@/lib/utils';
 import { SEVERITY_CONFIG } from '@/lib/constants/report-status'; // Keep if needed for header, but ReportDetailView handles most.
 
 interface ReportDetailModalProps {
-    isOpen: boolean;
+    isOpen?: boolean;
     onClose: () => void;
     report: Report | null;
     onUpdateStatus?: (reportId: string, status: string) => Promise<void>;
+    onStatusChange?: () => Promise<void> | void;
     userRole?: string;
 }
 
-export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUpdateStatus, userRole = 'PARTNER_ADMIN' }: ReportDetailModalProps) {
+export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUpdateStatus, onStatusChange, userRole = 'PARTNER_ADMIN' }: ReportDetailModalProps) {
+    const effectiveIsOpen = isOpen ?? !!initialReport;
     const [fullReport, setFullReport] = useState<Report | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -28,7 +30,7 @@ export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUp
 
     // Reset when modal closes or report changes
     useEffect(() => {
-        if (!isOpen || !initialReport) {
+        if (!effectiveIsOpen || !initialReport) {
             setFullReport(null);
             return;
         }
@@ -52,9 +54,9 @@ export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUp
         };
 
         fetchFullDetail();
-    }, [isOpen, initialReport]);
+    }, [effectiveIsOpen, initialReport]);
 
-    if (!isOpen || !initialReport || !mounted) return null;
+    if (!effectiveIsOpen || !initialReport || !mounted) return null;
 
     const displayReport = fullReport || initialReport;
 

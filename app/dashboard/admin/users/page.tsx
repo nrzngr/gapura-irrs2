@@ -29,14 +29,13 @@ const statusConfig = {
 };
 
 const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof User }> = {
-    BRANCH_USER: { label: 'Petugas Cabang', color: 'bg-slate-100 text-slate-700', icon: User },
-    OS_ADMIN: { label: 'OS Admin', color: 'bg-blue-100 text-blue-700', icon: Eye },
-    PARTNER_ADMIN: { label: 'Partner Admin', color: 'bg-cyan-100 text-cyan-700', icon: Wrench },
+    CABANG: { label: 'Cabang', color: 'bg-slate-100 text-slate-700', icon: User },
+    DIVISI_OS: { label: 'Divisi OS', color: 'bg-blue-100 text-blue-700', icon: Eye },
+    DIVISI_OT: { label: 'Divisi OT', color: 'bg-orange-100 text-orange-700', icon: Wrench },
+    DIVISI_OP: { label: 'Divisi OP', color: 'bg-teal-100 text-teal-700', icon: User },
+    DIVISI_UQ: { label: 'Divisi UQ', color: 'bg-pink-100 text-pink-700', icon: Shield },
     ANALYST: { label: 'Analyst', color: 'bg-indigo-100 text-indigo-700', icon: Star },
     SUPER_ADMIN: { label: 'Super Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
-    OT_ADMIN: { label: 'Teknik Admin', color: 'bg-orange-100 text-orange-700', icon: Wrench },
-    OP_ADMIN: { label: 'Operasi Admin', color: 'bg-teal-100 text-teal-700', icon: User },
-    UQ_ADMIN: { label: 'Quality Admin', color: 'bg-pink-100 text-pink-700', icon: Shield },
 };
 
 const divisionConfig: Record<DivisionType, string> = {

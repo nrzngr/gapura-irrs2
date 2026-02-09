@@ -118,7 +118,7 @@ export async function POST(request: Request) {
                 evidence_url: evidence_url || (evidence_urls && evidence_urls.length > 0 ? evidence_urls[0] : null),
                 evidence_urls: evidence_urls || (evidence_url ? [evidence_url] : []) || [],
                 evidence_meta: evidence_meta || null,
-                status: REPORT_STATUS.OPEN,
+                status: REPORT_STATUS.MENUNGGU_FEEDBACK,
                 // Insert new fields
                 incident_date: incident_date || null,
                 incident_time: incident_time || null,

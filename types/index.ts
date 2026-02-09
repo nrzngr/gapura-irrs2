@@ -1,6 +1,6 @@
-export type UserRole = 'SUPER_ADMIN' | 'OS_ADMIN' | 'ANALYST' | 'PARTNER_ADMIN' | 'BRANCH_USER' | 'OT_ADMIN' | 'OP_ADMIN' | 'UQ_ADMIN';
+export type UserRole = 'SUPER_ADMIN' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'ANALYST' | 'CABANG';
 
-export type ReportStatus = 'OPEN' | 'ACKNOWLEDGED' | 'ON_PROGRESS' | 'WAITING_VALIDATION' | 'CLOSED' | 'RETURNED' | 'REJECTED';
+export type ReportStatus = 'MENUNGGU_FEEDBACK' | 'SUDAH_DIVERIFIKASI' | 'SELESAI';
 
 export type ReportPriority = 'low' | 'medium' | 'high' | 'urgent';
 

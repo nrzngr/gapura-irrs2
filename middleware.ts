@@ -4,14 +4,12 @@ import { verifySession } from '@/lib/auth-utils';
 
 const ROLE_DASHBOARDS: Record<string, string> = {
     SUPER_ADMIN: '/dashboard/admin',
-    OS_ADMIN: '/dashboard/os',
+    DIVISI_OS: '/dashboard/os',
+    DIVISI_OT: '/dashboard/ot',
+    DIVISI_OP: '/dashboard/op',
+    DIVISI_UQ: '/dashboard/uq',
     ANALYST: '/dashboard/analyst',
-    PARTNER_ADMIN: '/dashboard/partner',
-    BRANCH_USER: '/dashboard/employee',
-    // Fallback for others to partner or employee as appropriate
-    OT_ADMIN: '/dashboard/os',
-    OP_ADMIN: '/dashboard/os',
-    UQ_ADMIN: '/dashboard/os',
+    CABANG: '/dashboard/employee',
 };
 
 export async function middleware(request: NextRequest) {
@@ -51,12 +49,20 @@ export async function middleware(request: NextRequest) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
 
-        // OS Dashboard (OS_ADMIN) - MUST be checked AFTER analyst or explicitly exclude analyst
-        // Fix: Ensure we don't accidentally match /dashboard/analyst
+        // Division Dashboards (OS, OT, OP, UQ)
         if (path.startsWith('/dashboard/os') && !path.startsWith('/dashboard/analyst')) {
-             if (!['OS_ADMIN', 'OT_ADMIN', 'OP_ADMIN', 'UQ_ADMIN'].includes(role)) {
+             if (!['DIVISI_OS', 'DIVISI_OT', 'DIVISI_OP', 'DIVISI_UQ'].includes(role)) {
                   return NextResponse.redirect(new URL('/dashboard/employee', request.url));
              }
+        }
+        if (path.startsWith('/dashboard/ot') && role !== 'DIVISI_OT') {
+             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
+        }
+        if (path.startsWith('/dashboard/op') && role !== 'DIVISI_OP') {
+             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
+        }
+        if (path.startsWith('/dashboard/uq') && role !== 'DIVISI_UQ') {
+             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
     }
 

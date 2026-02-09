@@ -43,7 +43,7 @@ export default function EmployeeReportsPage() {
             loading={loading}
             // Employee usually can't update status directly from here unless permitted
             // Keeping it undefined implies read-only status in the view
-            userRole="BRANCH_USER"
+            userRole="CABANG"
         />
     );
 }

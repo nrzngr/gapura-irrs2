@@ -63,8 +63,8 @@ export default function EmployeeDashboard() {
     // Derived Stats
     const stats = {
         total: reports.length,
-        inProgress: reports.filter(r => ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS'].includes(r.status)).length,
-        resolved: reports.filter(r => ['CLOSED'].includes(r.status)).length,
+        inProgress: reports.filter(r => ['MENUNGGU_FEEDBACK', 'SUDAH_DIVERIFIKASI'].includes(r.status)).length,
+        resolved: reports.filter(r => r.status === 'SELESAI').length,
     };
 
     return (
@@ -215,7 +215,7 @@ export default function EmployeeDashboard() {
                                     </tr>
                                 ) : (
                                     reports.map((report, idx) => {
-                                        const statusConfig = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
+                                        const statusConfig = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
                                         const severityKey = report.severity || 'medium';
                                         const priorityColor = severityKey === 'urgent' ? 'text-red-600 bg-red-50 border-red-100' : 
                                                             severityKey === 'high' ? 'text-orange-600 bg-orange-50 border-orange-100' : 
