@@ -86,7 +86,17 @@ export async function POST(request: Request) {
             root_cause,
             action_taken,
             reporter_name,
-            area_category
+            area_category,
+            // CSV-aligned fields
+            station_code,
+            hub,
+            airline_type,
+            report_content,
+            reporting_branch,
+            week_in_month,
+            reporter_email,
+            form_submitted_at,
+            form_completed_at,
         } = body;
 
         if (!title || !description) {
@@ -137,7 +147,17 @@ export async function POST(request: Request) {
                 action_taken: action_taken || null,
                 reporter_name: reporter_name || null,
                 area_category: area_category || null,
-                category: main_category || null // Map main_category to legacy category column if needed, or keep separate
+                category: main_category || null,
+                // CSV-aligned fields
+                station_code: station_code || null,
+                hub: hub || null,
+                airline_type: airline_type || null,
+                report_content: report_content || description || null,
+                reporting_branch: reporting_branch || null,
+                week_in_month: week_in_month || null,
+                reporter_email: reporter_email || null,
+                form_submitted_at: form_submitted_at || null,
+                form_completed_at: form_completed_at || null,
             });
 
         if (insertError) {

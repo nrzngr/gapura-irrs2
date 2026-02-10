@@ -52,6 +52,27 @@ const AREA_CATEGORIES: Record<string, string[]> = {
     'GENERAL': ['Other']
 };
 
+// Airlines considered local (Indonesian carriers)
+const LOKAL_AIRLINE_CODES = ['GA', 'QG', 'JT', 'ID', 'IW', 'IU', 'QZ', 'SJ', 'IN', 'IP', '8B', 'SI', 'IL'];
+
+function getAirlineType(airlineName: string): 'Lokal' | 'MPA' {
+    const airline = AIRLINES.find(a => a.name === airlineName);
+    if (!airline) return 'MPA';
+    return LOKAL_AIRLINE_CODES.includes(airline.code) ? 'Lokal' : 'MPA';
+}
+
+function getHubForStation(stationCode: string): string {
+    if (['CGK', 'SUB', 'DPS'].includes(stationCode)) return stationCode;
+    if (['UPG', 'MDC', 'BPN'].includes(stationCode)) return 'UPG';
+    if (['KNO', 'PDG', 'PKU', 'BTH', 'PLM'].includes(stationCode)) return 'KNO';
+    return 'CGK';
+}
+
+function getWeekInMonth(date: Date): number {
+    const day = date.getDate();
+    return Math.ceil(day / 7);
+}
+
 type FormData = {
     // Step 1: Detail Report
     incident_date: string;
@@ -309,13 +330,29 @@ export default function NewReportWizard() {
         setError('');
 
         try {
+            // Derive auto-populated fields
+            const selectedStation = stations.find(s => s.id === selectedStationId);
+            const stationCode = selectedStation?.code || '';
+            const eventDate = new Date(formData.incident_date);
+
             const res = await fetch('/api/reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
-                    title: `${formData.airline} ${formData.flight_number} - ${formData.main_category}`, // Auto-generate title
+                    title: `${formData.airline} ${formData.flight_number} - ${formData.main_category}`,
                     station_id: selectedStationId,
+                    sub_category: formData.area_category,
+                    // New CSV-aligned fields
+                    station_code: stationCode,
+                    hub: getHubForStation(stationCode),
+                    airline_type: getAirlineType(formData.airline),
+                    report_content: formData.description,
+                    reporting_branch: stationCode,
+                    week_in_month: getWeekInMonth(eventDate),
+                    reporter_email: undefined,
+                    form_submitted_at: new Date().toISOString(),
+                    form_completed_at: new Date().toISOString(),
                 }),
             });
 

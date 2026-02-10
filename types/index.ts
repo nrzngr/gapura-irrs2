@@ -136,6 +136,19 @@ export interface Report {
     branch?: string;
     reporter_name?: string;
     event_date?: string;
+    station_code?: string;
+
+    // CSV-aligned fields
+    csv_id?: number;
+    hub?: string;
+    airline_type?: 'Lokal' | 'MPA';
+    report_content?: string;
+    kps_remarks?: string;
+    reporting_branch?: string;
+    week_in_month?: number;
+    reporter_email?: string;
+    form_submitted_at?: string;
+    form_completed_at?: string;
 }
 
 export interface Comment {

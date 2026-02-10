@@ -15,9 +15,7 @@ import {
     PieChart as RechartsPie, Pie, Cell, Legend, BarChart, Bar, LineChart,
     Line, RadialBarChart, RadialBar, ComposedChart, LabelList
 } from 'recharts';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// xlsx, jspdf, jspdf-autotable are loaded dynamically on export click to reduce initial bundle
 
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
 import { type Report } from '@/types';
@@ -51,6 +49,7 @@ export default function AnalystDashboard() {
     const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
     const [dateRange, setDateRange] = useState<'all' | 'week' | 'month'>('all');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+    const [customDashboards, setCustomDashboards] = useState<{ id: string; name: string; description: string | null; slug: string; created_at: string }[]>([]);
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -80,6 +79,10 @@ export default function AnalystDashboard() {
 
     useEffect(() => {
         fetchData();
+        fetch('/api/dashboards')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data?.dashboards) setCustomDashboards(data.dashboards); })
+            .catch(() => {});
     }, [fetchData]);
 
     const filteredReports = useMemo(() => {
@@ -189,6 +192,7 @@ export default function AnalystDashboard() {
     const exportToExcel = async () => {
         setExporting('excel');
         try {
+            const XLSX = await import('xlsx');
             const wb = XLSX.utils.book_new();
             const now = new Date();
             const exportDate = now.toLocaleDateString('id-ID', { dateStyle: 'full' });
@@ -319,6 +323,8 @@ export default function AnalystDashboard() {
     const exportToPDF = async () => {
         setExporting('pdf');
         try {
+            const { default: jsPDF } = await import('jspdf');
+            const { default: autoTable } = await import('jspdf-autotable');
             const doc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -1126,6 +1132,47 @@ export default function AnalystDashboard() {
                     </div>
                 </div>
             </PresentationSlide>
+
+            {/* Custom Dashboards */}
+            {customDashboards.length > 0 && (
+                <PresentationSlide
+                    title="Custom Dashboard"
+                    subtitle="Dashboard kustom yang dibuat oleh Analyst"
+                    icon={BarChart3}
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {customDashboards.map(d => (
+                            <a
+                                key={d.id}
+                                href={`/embed/custom/${d.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="card-solid p-4 hover:bg-[var(--surface-2)] transition-colors group"
+                            >
+                                <div className="flex items-start justify-between mb-2">
+                                    <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand-primary)] transition-colors">
+                                        {d.name}
+                                    </h4>
+                                    <Eye size={14} className="text-[var(--text-muted)] shrink-0 mt-0.5" />
+                                </div>
+                                {d.description && (
+                                    <p className="text-xs text-[var(--text-muted)] line-clamp-2 mb-2">{d.description}</p>
+                                )}
+                                <p className="text-[10px] text-[var(--text-muted)]">
+                                    {new Date(d.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                            </a>
+                        ))}
+                        <Link
+                            href="/dashboard/analyst/builder"
+                            className="card-solid p-4 border-dashed flex flex-col items-center justify-center gap-2 hover:bg-[var(--surface-2)] transition-colors min-h-[100px]"
+                        >
+                            <Plus size={20} className="text-[var(--text-muted)]" />
+                            <span className="text-xs font-medium text-[var(--text-muted)]">Buat Dashboard Baru</span>
+                        </Link>
+                    </div>
+                </PresentationSlide>
+            )}
 
             {/* Report Detail Modal */}
             <ReportDetailModal

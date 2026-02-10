@@ -89,6 +89,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             items: [
                 { href: '/dashboard/analyst', label: 'Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/analyst/reports', label: 'Laporan', icon: ClipboardList },
+                { href: '/dashboard/analyst/builder', label: 'Explore & Build', icon: Hash },
             ]
         }
     ],

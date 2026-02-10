@@ -50,7 +50,12 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
         }
 
-        return NextResponse.json(data || []);
+        return NextResponse.json(data || [], {
+            headers: {
+                'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+                'CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+            },
+        });
     } catch (error) {
         console.error('Error fetching master data:', error);
         return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });

@@ -17,7 +17,11 @@ export async function middleware(request: NextRequest) {
     const session = request.cookies.get('session')?.value;
 
     // Paths that don't require auth
-    const isPublicPath = path.startsWith('/auth') || path === '/';
+    // /embed/* routes are public for PowerPoint hyperlink integration
+    const isPublicPath = path.startsWith('/auth') || 
+                         path.startsWith('/embed') || 
+                         path.startsWith('/api/embed') || 
+                         path === '/';
 
     // Verify session
     const payload = session ? await verifySession(session) : null;
