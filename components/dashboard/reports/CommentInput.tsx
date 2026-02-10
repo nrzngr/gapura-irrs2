@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { 
-    Send, 
-    Paperclip, 
-    X, 
-    Loader2, 
-    Plus 
+import {
+    Send,
+    X,
+    Loader2,
+    Link,
+    Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
 
 interface CommentInputProps {
     reportId: string;
@@ -18,16 +17,17 @@ interface CommentInputProps {
     compact?: boolean;
 }
 
-export function CommentInput({ 
-    reportId, 
-    onSuccess, 
+export function CommentInput({
+    reportId,
+    onSuccess,
     placeholder = "Ketik pesan...",
-    compact = false 
+    compact = false
 }: CommentInputProps) {
     const [content, setContent] = useState('');
     const [sending, setSending] = useState(false);
-    const [uploading, setUploading] = useState(false);
     const [attachments, setAttachments] = useState<string[]>([]);
+    const [linkInput, setLinkInput] = useState('');
+    const [showLinkInput, setShowLinkInput] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize textarea
@@ -38,39 +38,19 @@ export function CommentInput({
         }
     }, [content]);
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files || files.length === 0) return;
+    const handleAddLink = () => {
+        const link = linkInput.trim();
+        if (!link) return;
 
-        setUploading(true);
         try {
-            const uploadedUrls: string[] = [];
-            
-            await Promise.all(Array.from(files).map(async (file) => {
-                if (file.size > 5 * 1024 * 1024) return;
-
-                const fileExt = file.name.split('.').pop();
-                const fileName = `comment-${reportId}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-                const { error: uploadError } = await supabase.storage
-                    .from('evidence')
-                    .upload(fileName, file);
-
-                if (uploadError) return;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('evidence')
-                    .getPublicUrl(fileName);
-
-                uploadedUrls.push(publicUrl);
-            }));
-
-            setAttachments(prev => [...prev, ...uploadedUrls]);
-        } catch (error) {
-            console.error('Failed to upload attachment:', error);
-        } finally {
-            setUploading(false);
+            new URL(link);
+        } catch {
+            return;
         }
+
+        setAttachments(prev => [...prev, link]);
+        setLinkInput('');
+        setShowLinkInput(false);
     };
 
     const removeAttachment = (index: number) => {
@@ -86,9 +66,9 @@ export function CommentInput({
             const res = await fetch(`/api/reports/${reportId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     content,
-                    attachments 
+                    attachments
                 })
             });
 
@@ -121,48 +101,74 @@ export function CommentInput({
                 ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                onKeyDown={handleKeyDown} 
+                onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none transition-all resize-none"
                 rows={3}
             />
-            
+
             {/* Attachments Preview */}
             {attachments.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
+                <div className="space-y-1.5">
                     {attachments.map((url, i) => (
-                        <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                            <img src={url} alt="Preview" className="w-full h-full object-cover" />
+                        <div key={i} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                            <Link size={12} className="text-blue-500 shrink-0" />
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex-1">{url}</a>
                             <button
                                 type="button"
                                 onClick={() => removeAttachment(i)}
-                                className="absolute top-0.5 right-0.5 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors"
+                                className="p-0.5 hover:bg-red-100 text-red-500 rounded transition-colors"
                             >
-                                <X size={10} />
+                                <X size={12} />
                             </button>
                         </div>
                     ))}
                 </div>
             )}
 
+            {/* Link Input */}
+            {showLinkInput && (
+                <div className="flex gap-2">
+                    <input
+                        type="url"
+                        value={linkInput}
+                        onChange={(e) => setLinkInput(e.target.value)}
+                        placeholder="https://drive.google.com/..."
+                        className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
+                        autoFocus
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAddLink}
+                        className="px-3 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all"
+                    >
+                        <Plus size={14} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { setShowLinkInput(false); setLinkInput(''); }}
+                        className="px-2 py-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
+
             {/* Actions */}
             <div className="flex items-center gap-2">
-                {/* Upload Button */}
-                <label className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer transition-colors text-sm text-gray-600",
-                    uploading && "opacity-50 pointer-events-none"
-                )}>
-                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                {/* Add Link Button */}
+                <button
+                    type="button"
+                    onClick={() => setShowLinkInput(true)}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer transition-colors text-sm text-gray-600",
+                        showLinkInput && "opacity-50 pointer-events-none"
+                    )}
+                >
+                    <Link size={14} />
                     <span className="text-xs font-medium">Lampiran</span>
-                    <input 
-                        type="file" 
-                        accept="image/*" 
-                        multiple 
-                        className="hidden" 
-                        onChange={handleFileUpload} 
-                        disabled={uploading}
-                    />
-                </label>
+                </button>
 
                 <div className="flex-1" />
 

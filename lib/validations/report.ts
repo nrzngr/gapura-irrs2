@@ -26,7 +26,7 @@ export const createReportSchema = z.object({
     immediate_action: z.string().optional(),
 
     // Step 4: Evidence
-    evidence_urls: z.array(z.string().url()).min(1, 'Wajib upload minimal 1 foto'),
+    evidence_urls: z.array(z.string().url()).min(1, 'Wajib isi minimal 1 link Google Drive'),
 }).refine(
     (data) => {
         // If flight related, flight_number is required

@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Plane, MapPin, Building2, AlertTriangle, CheckCircle, ChevronRight, ArrowLeft,
-    Loader2, Camera, Upload, Wrench, Package, MessageSquare, Clock, Calendar,
-    ToggleLeft, ToggleRight, FileText, Gauge
+    Loader2, Wrench, Package, MessageSquare, Clock, Calendar,
+    ToggleLeft, ToggleRight, FileText, Gauge, Link, Plus, X
 } from 'lucide-react';
 import { WizardStep } from '@/components/ui/WizardStep';
-import { supabase } from '@/lib/supabase';
 import { IRREGULARITY_CATEGORIES, AREA_TYPES, routeReportToDivision } from '@/lib/constants/irregularity-types';
 import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-status';
 import { AIRLINES } from '@/lib/constants/airlines';
@@ -97,38 +96,18 @@ type FormData = {
     // Step 5: Evidence
     reporter_name: string;
     evidence_urls: string[];
-    evidence_meta?: {
-        url: string;
-        dateTimeOriginal?: string;
-        gps?: {
-            latitude: number;
-            longitude: number;
-        };
-    }[];
 };
 
 export default function NewReportWizard() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
-    const [uploading, setUploading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const [userStation, setUserStation] = useState<{ id: string; code: string; name: string } | null>(null);
     const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
     const [selectedStationId, setSelectedStationId] = useState<string>('');
-    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-    
-    // ExifReader State
-    const exifReaderRef = useRef<any>(null);
-    const [isExifReaderLoaded, setIsExifReaderLoaded] = useState(false);
-
-    useEffect(() => {
-        import('exifreader').then((module) => {
-            exifReaderRef.current = module.default;
-            setIsExifReaderLoaded(true);
-        }).catch(err => console.error("Failed to load ExifReader", err));
-    }, []);
+    const [newLinkInput, setNewLinkInput] = useState('');
 
     const [formData, setFormData] = useState<FormData>({
         incident_date: new Date().toISOString().split('T')[0],
@@ -148,7 +127,6 @@ export default function NewReportWizard() {
         
         reporter_name: '',
         evidence_urls: [],
-        evidence_meta: [],
     });
 
     // Fetch user's station and all stations on mount
@@ -198,106 +176,31 @@ export default function NewReportWizard() {
         };
     }, []);
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files || files.length === 0) return;
+    const handleAddLink = () => {
+        const link = newLinkInput.trim();
+        if (!link) return;
 
-        const maxPhotos = 3;
-        if (formData.evidence_urls.length + files.length > maxPhotos) {
-            setError(`Maksimal ${maxPhotos} foto`);
+        if (formData.evidence_urls.length >= 3) {
+            setError('Maksimal 3 link');
             return;
         }
 
-        setUploading(true);
-        setError('');
-
         try {
-            const uploadedUrls: string[] = [];
-            const newPreviews: string[] = [];
-            const uploadedMetas: { url: string; dateTimeOriginal?: string; gps?: { latitude: number; longitude: number; }; }[] = [];
-
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                
-                if (file.size > 10 * 1024 * 1024) {
-                    setError('Ukuran file maksimal 10MB');
-                    continue;
-                }
-
-                let newMeta: { url: string; dateTimeOriginal?: string; gps?: { latitude: number; longitude: number; }; } = { url: '' };
-
-                if (isExifReaderLoaded && exifReaderRef.current) {
-                    try {
-                        const tags = await exifReaderRef.current.load(file);
-                        
-                        // Extract Timestamp
-                        const dateTimeOriginal = tags['DateTimeOriginal']?.description;
-                        if (dateTimeOriginal) {
-                            newMeta.dateTimeOriginal = dateTimeOriginal;
-                        }
-
-                        // Extract GPS
-                        const lat = tags['GPSLatitude']?.description;
-                        const long = tags['GPSLongitude']?.description;
-                        
-                        if (lat && long) {
-                             const latNum = parseFloat(String(lat));
-                             const longNum = parseFloat(String(long));
-                             if (!isNaN(latNum) && !isNaN(longNum)) {
-                                 newMeta.gps = { latitude: latNum, longitude: longNum };
-                             }
-                        }
-                    } catch (e) {
-                         console.log('EXIF extraction failed for file', file.name, e);
-                    }
-                }
-                
-                uploadedMetas.push(newMeta);
-                
-                // Create local preview
-                const objectUrl = URL.createObjectURL(file);
-                newPreviews.push(objectUrl);
-
-                // Upload to Supabase Storage
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-                const { error: uploadError } = await supabase.storage
-                    .from('evidence')
-                    .upload(fileName, file);
-
-                if (uploadError) {
-                    throw uploadError;
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('evidence')
-                    .getPublicUrl(fileName);
-
-                // Update the meta with the FINAL public URL
-                newMeta.url = publicUrl;
-                uploadedUrls.push(publicUrl);
-            }
-
-            // Update state with BOTH urls and meta
-            setImagePreviews(prev => [...prev, ...newPreviews]);
-            setFormData(prev => ({
-                ...prev,
-                evidence_urls: [...prev.evidence_urls, ...uploadedUrls],
-                // We need to manage evidence_meta in state too
-                evidence_meta: [...(prev.evidence_meta || []), ...uploadedMetas]
-            }));
-
-        } catch (err: any) {
-            console.error('Upload error:', err);
-            setError('Gagal upload foto. Silakan coba lagi.');
-        } finally {
-            setUploading(false);
+            new URL(link);
+        } catch {
+            setError('Link tidak valid. Pastikan format URL benar (contoh: https://drive.google.com/...)');
+            return;
         }
+
+        setError('');
+        setFormData(prev => ({
+            ...prev,
+            evidence_urls: [...prev.evidence_urls, link],
+        }));
+        setNewLinkInput('');
     };
 
-    const removeImage = (index: number) => {
-        setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    const removeLink = (index: number) => {
         setFormData(prev => ({
             ...prev,
             evidence_urls: prev.evidence_urls.filter((_, i) => i !== index),
@@ -692,7 +595,7 @@ export default function NewReportWizard() {
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
                             <h2 className="text-2xl font-bold">Evidence</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Upload proof</p>
+                            <p style={{ color: 'var(--text-secondary)' }}>Lampirkan link Google Drive sebagai bukti</p>
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
@@ -709,56 +612,60 @@ export default function NewReportWizard() {
                                 />
                             </div>
 
-                            {/* Photo Upload */}
+                            {/* Google Drive Link */}
                             <div className="space-y-4">
-                                <label className="label">13. Upload Irregularity Photo <span className="text-red-500">*</span></label>
+                                <label className="label">13. Link Google Drive Evidence <span className="text-red-500">*</span></label>
 
-                                
-                                {/* Image Previews */}
-                                {imagePreviews.length > 0 && (
-                                    <div className="grid grid-cols-3 gap-4">
-                                        {imagePreviews.map((preview, idx) => (
-                                            <div key={idx} className="relative group">
-                                                <img 
-                                                    src={preview} 
-                                                    alt={`Evidence ${idx + 1}`} 
-                                                    className="w-full h-32 object-cover rounded-xl"
-                                                />
+                                {/* Added Links */}
+                                {formData.evidence_urls.length > 0 && (
+                                    <div className="space-y-2">
+                                        {formData.evidence_urls.map((url, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                                                <Link className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                <a
+                                                    href={url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-sm text-emerald-700 hover:underline truncate flex-1"
+                                                >
+                                                    {url}
+                                                </a>
                                                 <button
                                                     type="button"
-                                                    onClick={() => removeImage(idx)}
-                                                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => removeLink(idx)}
+                                                    className="p-1 hover:bg-red-100 text-red-500 rounded-lg transition-colors shrink-0"
                                                 >
-                                                    ×
+                                                    <X className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
-                                {/* Upload Area */}
+                                {/* Add Link Input */}
                                 {formData.evidence_urls.length < 3 && (
-                                    <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 hover:bg-slate-50 transition-colors text-center cursor-pointer relative">
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            multiple
-                                            onChange={handleImageUpload}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        />
-                                        {uploading ? (
-                                            <Loader2 className="w-12 h-12 mx-auto animate-spin text-emerald-500" />
-                                        ) : (
-                                            <>
-                                                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                    <Camera className="w-8 h-8 text-emerald-600" />
-                                                </div>
-                                                <p className="font-bold">Klik atau Ambil Foto</p>
-                                                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                                                    JPG, PNG (Max 10MB per file)
-                                                </p>
-                                            </>
-                                        )}
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="url"
+                                                className="input-field flex-1"
+                                                placeholder="https://drive.google.com/..."
+                                                value={newLinkInput}
+                                                onChange={e => setNewLinkInput(e.target.value)}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAddLink}
+                                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                Tambah
+                                            </button>
+                                        </div>
+                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                            Paste link Google Drive (maks. {3 - formData.evidence_urls.length} lagi)
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -790,7 +697,7 @@ export default function NewReportWizard() {
                     ) : (
                         <button
                             type="submit"
-                            disabled={!isStepValid() || loading || uploading}
+                            disabled={!isStepValid() || loading}
                             className="flex-1 md:flex-none h-12 px-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {loading ? (

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft, MapPin, Calendar, Clock, Plane, Wrench, User, Building2,
-    AlertCircle, CheckCircle, Loader2, Send, MessageSquare
+    AlertCircle, CheckCircle, Loader2, Send, MessageSquare, Link, ExternalLink
 } from 'lucide-react';
 import { STATUS_CONFIG, canPerformAction, type ReportStatus } from '@/lib/constants/report-status';
 
@@ -272,15 +272,20 @@ export default function EmployeeReportDetailPage() {
 
                 {report.evidence_urls && report.evidence_urls.length > 0 && (
                     <div className="space-y-2">
-                        <p className="text-sm font-medium">Foto Bukti:</p>
-                        <div className="flex gap-2 flex-wrap">
+                        <p className="text-sm font-medium">Link Bukti:</p>
+                        <div className="space-y-2">
                             {report.evidence_urls.map((url, idx) => (
-                                <img 
-                                    key={idx} 
-                                    src={url} 
-                                    alt={`Evidence ${idx + 1}`}
-                                    className="w-24 h-24 object-cover rounded-xl"
-                                />
+                                <a
+                                    key={idx}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors"
+                                >
+                                    <Link className="w-4 h-4 text-blue-500 shrink-0" />
+                                    <span className="text-sm text-blue-700 truncate flex-1">{url}</span>
+                                    <ExternalLink className="w-4 h-4 text-blue-400 shrink-0" />
+                                </a>
                             ))}
                         </div>
                     </div>
@@ -299,14 +304,19 @@ export default function EmployeeReportDetailPage() {
                             {report.partner_response_notes}
                         </p>
                     )}
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="space-y-2">
                         {report.partner_evidence_urls.map((url, idx) => (
-                            <img 
-                                key={idx} 
-                                src={url} 
-                                alt={`Partner Evidence ${idx + 1}`}
-                                className="w-32 h-32 object-cover rounded-xl border-2 border-purple-200"
-                            />
+                            <a
+                                key={idx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 p-3 bg-purple-50 rounded-xl border border-purple-200 hover:bg-purple-100 transition-colors"
+                            >
+                                <Link className="w-4 h-4 text-purple-500 shrink-0" />
+                                <span className="text-sm text-purple-700 truncate flex-1">{url}</span>
+                                <ExternalLink className="w-4 h-4 text-purple-400 shrink-0" />
+                            </a>
                         ))}
                     </div>
                 </div>
@@ -373,7 +383,9 @@ export default function EmployeeReportDetailPage() {
                                         <div className="bg-emerald-500 text-white p-3 rounded-2xl rounded-tr-none text-sm leading-relaxed">
                                             {comment.content}
                                             {comment.attachments?.map((url, idx) => (
-                                                <img key={idx} src={url} className="mt-2 rounded-lg max-h-32" />
+                                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-1.5 text-xs underline opacity-80 hover:opacity-100">
+                                                    <Link className="w-3 h-3 shrink-0" />{url.length > 40 ? url.slice(0, 40) + '...' : url}
+                                                </a>
                                             ))}
                                         </div>
                                     </div>

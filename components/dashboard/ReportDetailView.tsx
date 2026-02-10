@@ -3,11 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   User,
-  Image as ImageIcon,
   CheckCircle2,
   Loader2,
   X,
-  Upload,
   AlertCircle,
   Edit3,
   Save,
@@ -22,6 +20,9 @@ import {
   Building2,
   Tag,
   MessageSquare,
+  Link,
+  Plus,
+  ExternalLink,
 } from "lucide-react";
 import {
   STATUS_CONFIG,
@@ -141,17 +142,15 @@ export function ReportDetailView({
 }: ReportDetailViewProps) {
   // State
   const [actionLoading, setActionLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [closeNotes, setCloseNotes] = useState("");
   const [reopenNotes, setReopenNotes] = useState("");
   const [closeEvidenceUrl, setCloseEvidenceUrl] = useState("");
-  const [closeEvidencePreview, setCloseEvidencePreview] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", flight_number: "", aircraft_reg: "", location: "" });
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [headerShadow, setHeaderShadow] = useState(false);
+  const [newEvidenceLink, setNewEvidenceLink] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Sync edit form with report
@@ -193,25 +192,24 @@ export function ReportDetailView({
       setCloseNotes("");
       setReopenNotes("");
       setCloseEvidenceUrl("");
-      setCloseEvidencePreview("");
     } finally { setActionLoading(false); }
   };
 
-  const handleCloseEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
+  const handleAddEvidenceLink = async () => {
+    if (!report || !newEvidenceLink.trim()) return;
     try {
-      const fileName = `resolution-${report?.id}-${Date.now()}.${file.name.split(".").pop()}`;
-      const { data, error } = await supabase.storage.from("evidence").upload(fileName, file, { upsert: true });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from("evidence").getPublicUrl(data.path);
-      setCloseEvidenceUrl(urlData.publicUrl);
-      setCloseEvidencePreview(URL.createObjectURL(file));
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Gagal upload foto evidence");
-    } finally { setUploading(false); }
+      new URL(newEvidenceLink.trim());
+    } catch {
+      alert("Link tidak valid");
+      return;
+    }
+    const currentEvidence = report.evidence_urls || (report.evidence_url ? [report.evidence_url] : []);
+    const newEvidence = [...currentEvidence, newEvidenceLink.trim()];
+    try {
+      await fetch(`/api/reports/${report.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ evidence_urls: newEvidence }) });
+      setNewEvidenceLink("");
+      onRefresh?.();
+    } catch (error) { console.error("Failed to add evidence link:", error); }
   };
 
   const handleSaveChanges = async () => {
@@ -228,32 +226,6 @@ export function ReportDetailView({
     } finally { setActionLoading(false); }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!report) return;
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      const uploadedUrls: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file.size > 10 * 1024 * 1024) continue;
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${report.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from("evidence").upload(fileName, file);
-        if (uploadError) continue;
-        const { data: { publicUrl } } = supabase.storage.from("evidence").getPublicUrl(fileName);
-        uploadedUrls.push(publicUrl);
-      }
-      if (uploadedUrls.length > 0) {
-        const currentEvidence = report.evidence_urls || (report.evidence_url ? [report.evidence_url] : []) || [];
-        const newEvidence = [...currentEvidence, ...uploadedUrls];
-        await fetch(`/api/reports/${report.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ evidence_urls: newEvidence }) });
-        onRefresh?.();
-      }
-    } catch (error) { console.error("Failed to upload evidence:", error); }
-    finally { setUploading(false); }
-  };
 
   // Empty State
   if (!report) {
@@ -276,7 +248,6 @@ export function ReportDetailView({
   const nextActions = getAllowedTransitions(report.status, userRole);
   const primaryAction = nextActions[0] || null;
   const canEdit = ["SUPER_ADMIN", "DIVISI_OS", "ANALYST"].includes(userRole);
-  const hasEvidence = allEvidence.length > 0;
   const isClosed = report.status === "SELESAI";
 
   let actionLabel = "Update Status";
@@ -460,46 +431,57 @@ export function ReportDetailView({
                 </SectionCard>
               )}
 
-              {/* LAMPIRAN — Evidence Gallery */}
-              <SectionCard 
-                title={`Lampiran (${allEvidence.length})`}
-                headerAction={!isClosed && (
-                  <label className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer text-xs font-semibold text-gray-600 transition-colors">
-                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    <span>Upload</span>
-                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                  </label>
-                )}
-              >
+              {/* LAMPIRAN — Evidence Links */}
+              <SectionCard title={`Lampiran (${allEvidence.length})`}>
                 {allEvidence.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  <div className="space-y-2">
                     {allEvidence.map((url, i) => {
                       const isPartnerEvidence = report.partner_evidence_urls?.includes(url);
                       return (
-                        <button
+                        <a
                           key={i}
-                          onClick={() => setLightboxUrl(url)}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className={cn(
-                            "aspect-square rounded-xl overflow-hidden bg-gray-100 relative group",
-                            "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--brand-primary)]",
-                            "hover:ring-2 hover:ring-offset-1 transition-all",
-                            isPartnerEvidence ? "ring-2 ring-emerald-400" : "hover:ring-blue-400"
+                            "flex items-center gap-3 p-3 rounded-xl border transition-colors hover:bg-gray-50",
+                            isPartnerEvidence ? "border-emerald-200 bg-emerald-50/50" : "border-gray-200"
                           )}
                         >
-                          <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <Link size={16} className={isPartnerEvidence ? "text-emerald-600 shrink-0" : "text-blue-500 shrink-0"} />
+                          <span className="text-sm text-[var(--text-secondary)] truncate flex-1">{url}</span>
                           {isPartnerEvidence && (
-                            <span className="absolute bottom-1.5 right-1.5 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm">
-                              Partner
-                            </span>
+                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-emerald-500 text-white rounded-md shrink-0">Partner</span>
                           )}
-                        </button>
+                          <ExternalLink size={14} className="text-gray-400 shrink-0" />
+                        </a>
                       );
                     })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-300">
-                    <ImageIcon size={32} strokeWidth={1.5} />
+                    <Link size={32} strokeWidth={1.5} />
                     <p className="text-sm mt-3">Tidak ada lampiran</p>
+                  </div>
+                )}
+                {/* Add new link */}
+                {!isClosed && (
+                  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                    <input
+                      type="url"
+                      value={newEvidenceLink}
+                      onChange={(e) => setNewEvidenceLink(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                      className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none"
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddEvidenceLink(); } }}
+                    />
+                    <button
+                      onClick={handleAddEvidenceLink}
+                      className="px-3 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all flex items-center gap-1.5"
+                    >
+                      <Plus size={14} />
+                      Tambah
+                    </button>
                   </div>
                 )}
               </SectionCard>
@@ -583,21 +565,19 @@ export function ReportDetailView({
                           </div>
                           <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{comment.content}</p>
                           {comment.attachments && comment.attachments.length > 0 && (
-                            <div className="flex gap-2 mt-3">
-                              {comment.attachments.slice(0, 3).map((url, idx) => (
-                                <button 
-                                  key={idx} 
-                                  className="w-14 h-14 rounded-lg overflow-hidden border border-gray-200 hover:ring-2 hover:ring-blue-400 transition-all" 
-                                  onClick={() => setLightboxUrl(url)}
+                            <div className="space-y-1.5 mt-3">
+                              {comment.attachments.map((url, idx) => (
+                                <a
+                                  key={idx}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-[12px] text-blue-600 hover:text-blue-800 hover:underline"
                                 >
-                                  <img src={url} alt="" className="w-full h-full object-cover" />
-                                </button>
+                                  <Link size={12} className="shrink-0" />
+                                  <span className="truncate">{url}</span>
+                                </a>
                               ))}
-                              {comment.attachments.length > 3 && (
-                                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center text-[11px] text-gray-500 font-medium">
-                                  +{comment.attachments.length - 3}
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
@@ -613,23 +593,6 @@ export function ReportDetailView({
         </div>
       </div>
 
-      {/* =============================================
-          LIGHTBOX
-          ============================================= */}
-      {lightboxUrl && (
-        <div 
-          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 animate-fade-in-up" 
-          onClick={() => setLightboxUrl(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Gambar bukti"
-        >
-          <button className="absolute top-4 right-4 p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors" aria-label="Tutup">
-            <X size={24} />
-          </button>
-          <img src={lightboxUrl} alt="Evidence" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" />
-        </div>
-      )}
 
       {/* =============================================
           MODALS
@@ -683,36 +646,26 @@ export function ReportDetailView({
               <button onClick={() => setShowCloseModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
             
-            {/* Evidence Upload */}
-            <div className="mb-5 p-5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
-              <p className="text-[14px] font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                <Upload size={16} className="text-emerald-600" />
-                Foto Bukti Penyelesaian
+            {/* Evidence Link Input */}
+            <div className="mb-5 space-y-3">
+              <p className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <Link size={16} className="text-emerald-600" />
+                Link Bukti Penyelesaian
                 <span className="text-red-500">*</span>
               </p>
-              {closeEvidencePreview ? (
-                <div className="relative rounded-xl overflow-hidden">
-                  <img src={closeEvidencePreview} alt="Preview" className="w-full h-40 object-cover" />
-                  <button 
-                    onClick={() => { setCloseEvidenceUrl(""); setCloseEvidencePreview(""); }} 
-                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg"
-                  >
-                    <X size={14} />
-                  </button>
+              <input
+                type="url"
+                value={closeEvidenceUrl}
+                onChange={(e) => setCloseEvidenceUrl(e.target.value)}
+                placeholder="https://drive.google.com/..."
+                className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none bg-gray-50"
+              />
+              {closeEvidenceUrl && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <Link size={14} className="text-emerald-600 shrink-0" />
+                  <a href={closeEvidenceUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-700 hover:underline truncate flex-1">{closeEvidenceUrl}</a>
+                  <button onClick={() => setCloseEvidenceUrl("")} className="p-1 hover:bg-red-100 text-red-500 rounded-lg"><X size={14} /></button>
                 </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center h-32 cursor-pointer hover:bg-gray-100 rounded-xl transition-colors border border-gray-200">
-                  <input type="file" accept="image/*" onChange={handleCloseEvidenceUpload} className="hidden" disabled={uploading} />
-                  {uploading ? (
-                    <Loader2 size={24} className="animate-spin text-gray-400" />
-                  ) : (
-                    <>
-                      <Upload size={24} className="text-gray-400 mb-2" />
-                      <span className="text-[13px] text-gray-500">Klik atau drag untuk upload</span>
-                      <span className="text-[11px] text-gray-400 mt-1">PNG, JPG hingga 10MB</span>
-                    </>
-                  )}
-                </label>
               )}
             </div>
 
@@ -743,7 +696,7 @@ export function ReportDetailView({
             </div>
             {!closeEvidenceUrl && (
               <p className="text-[12px] text-red-500 text-center mt-4 flex items-center justify-center gap-1.5">
-                <AlertCircle size={14} />Upload foto bukti wajib diisi
+                <AlertCircle size={14} />Link bukti penyelesaian wajib diisi
               </p>
             )}
           </div>
