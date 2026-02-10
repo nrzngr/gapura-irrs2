@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
           });
 
           if (error) {
+            console.error(`[Batch] Query "${q.id}" failed:`, error.message, 'SQL:', sql);
             return { id: q.id, error: error.message, columns: [], rows: [], rowCount: 0 };
           }
 

@@ -101,10 +101,13 @@ export function CustomDashboardContent() {
     try {
       const fields = FILTER_FIELDS.map(ff => ff.key).join(',');
       const res = await fetch(`/api/dashboards/filter-options?fields=${fields}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.error(`[Dashboard] Filter options failed (${res.status})`);
+        return;
+      }
       const data = await res.json();
       setFilterOptions(data);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[Dashboard] Filter fetch error:', err); }
   }, []);
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
@@ -195,10 +198,15 @@ export function CustomDashboardContent() {
               for (const r of results) {
                 if (!r.error) {
                   dataMap.set(r.id, { type: 'query', queryResult: { columns: r.columns, rows: r.rows, rowCount: r.rowCount, executionTimeMs: 0 } });
+                } else {
+                  console.error(`[Dashboard] Chart query "${r.id}" failed:`, r.error);
                 }
               }
+            } else {
+              const errBody = await res.text();
+              console.error(`[Dashboard] Batch query failed (${res.status}):`, errBody);
             }
-          } catch { /* ignore */ }
+          } catch (err) { console.error('[Dashboard] Batch fetch error:', err); }
         })()
       : Promise.resolve();
 
@@ -210,8 +218,10 @@ export function CustomDashboardContent() {
           if (res.ok) {
             const data = await res.json();
             dataMap.set(chart.id, { type: 'legacy', stats: data });
+          } else {
+            console.error(`[Dashboard] Legacy chart "${chart.id}" failed (${res.status})`);
           }
-        } catch { /* ignore */ }
+        } catch (err) { console.error('[Dashboard] Legacy fetch error:', err); }
       })
     );
 
