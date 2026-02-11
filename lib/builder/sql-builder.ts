@@ -134,7 +134,7 @@ export function buildQuery(def: QueryDefinition): BuildResult {
       : '';
     const clause = buildFilterClause(col, f, nextParam, castSuffix);
     if (clause) {
-      if (i > 0) {
+      if (whereParts.length > 0) {
         whereParts.push(f.conjunction === 'OR' ? 'OR' : 'AND');
       }
       whereParts.push(clause);
@@ -227,6 +227,12 @@ function buildFilterClause(
   nextParam: (v: string | number | boolean) => string,
   castSuffix: string = ''
 ): string | null {
+  if (f.value === null || f.value === undefined) {
+    if (f.operator !== 'is_null' && f.operator !== 'is_not_null') return null;
+  }
+  if (typeof f.value === 'string' && f.value.trim() === '' && !['is_null', 'is_not_null'].includes(f.operator)) {
+    return null;
+  }
   const p = (v: string | number | boolean) => nextParam(v) + castSuffix;
   switch (f.operator) {
     case 'eq':

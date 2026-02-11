@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { ChartPreview } from '@/components/builder/ChartPreview';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation } from 'lucide-react';
+import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import type { ChartVisualization, QueryResult, QueryDefinition } from '@/types/builder';
 
 // ─── Green Branding Palette ─────────────────────────────────────────────────
@@ -95,6 +96,8 @@ export function CustomDashboardContent() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
   const [filterOptions, setFilterOptions] = useState<Record<string, string[]>>({});
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pptx' | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // ─── Fetch filter options from batch endpoint ─────────────────────────────
   const fetchFilterOptions = useCallback(async () => {
@@ -345,12 +348,81 @@ export function CustomDashboardContent() {
 
   const activeFilterCount = Object.values(activeFilters).filter(v => v).length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
+  // Complexity: Time O(pages * tiles) | Space O(export_payload)
+  const handleExport = useCallback(async (format: 'xlsx' | 'pptx') => {
+    if (!dashboard) return;
+    setExportingFormat(format);
+    setShowExportMenu(false);
+    try {
+      const exportPages = pages.map(p => ({
+        name: p.name,
+        tiles: p.tiles.map(t => ({
+          id: t.id,
+          title: t.title,
+          chartType: t.visualization_config?.chartType || t.chart_type || 'bar',
+        })),
+      }));
+      const payload = {
+        dashboardName: dashboard.name,
+        subtitle: dashboard.description || dashboard.config?.subtitle,
+        pages: exportPages,
+        chartsData,
+      };
+      if (format === 'xlsx') await exportToXlsx(payload);
+      else await exportToPptx(payload);
+    } catch (err) {
+      console.error(`[Dashboard] Export ${format} error:`, err);
+    } finally {
+      setExportingFormat(null);
+    }
+  }, [dashboard, pages, chartsData]);
+
   // ─── Loading / Error ────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={S.loadingWrap}>
-        <Loader2 className="w-10 h-10 animate-spin" style={{ color: GAPURA_GREEN }} />
-        <p style={{ color: '#888', marginTop: 16, fontSize: 14 }}>Memuat dashboard...</p>
+      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        {/* Sidebar skeleton */}
+        <div style={{ width: 240, background: '#fff', borderRight: '1px solid #e0e0e0', padding: 16, flexShrink: 0 }}>
+          <div style={{ width: 80, height: 40, background: '#f0f0f0', borderRadius: 6, marginBottom: 20 }} className="animate-pulse" />
+          {[1,2,3,4].map(i => (
+            <div key={i} style={{ width: '100%', height: 32, background: '#f5f5f5', borderRadius: 6, marginBottom: 6 }} className="animate-pulse" />
+          ))}
+        </div>
+        {/* Main content skeleton */}
+        <div style={{ flex: 1, background: '#f5f5f5' }}>
+          {/* Header skeleton */}
+          <div style={{ background: '#fff', padding: '16px 24px', borderBottom: '1px solid #e0e0e0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+              <div style={{ width: 60, height: 40, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />
+              <div style={{ width: 200, height: 24, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />
+            </div>
+            <div style={{ width: '100%', height: 36, background: '#e8ede4', borderRadius: 4 }} className="animate-pulse" />
+            {/* KPI skeletons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
+              {[1,2,3,4].map(i => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ width: 60, height: 12, background: '#f0f0f0', borderRadius: 4, margin: '0 auto 8px' }} className="animate-pulse" />
+                  <div style={{ width: 80, height: 28, background: '#f0f0f0', borderRadius: 4, margin: '0 auto' }} className="animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Chart tile skeletons */}
+          <div style={{ padding: '20px 24px', maxWidth: 1400, margin: '0 auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ width: 120, height: 14, background: '#f0f0f0', borderRadius: 4 }} className="animate-pulse" />
+                  </div>
+                  <div style={{ padding: 16, height: 200 }}>
+                    <div style={{ width: '100%', height: '100%', background: '#f8f8f8', borderRadius: 6 }} className="animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -371,29 +443,9 @@ export function CustomDashboardContent() {
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── SIDEBAR (only if multi-page) ── */}
       {hasMultiplePages && (
-        <div style={{
-          width: sidebarCollapsed ? 48 : 240,
-          background: '#fff',
-          borderRight: '1px solid #e0e0e0',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'width 0.2s',
-          flexShrink: 0,
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          overflowY: 'auto',
-          zIndex: 20,
-        }}>
+        <div style={S.sidebarWrap(sidebarCollapsed)}>
           {/* Sidebar Header */}
-          <div style={{
-            padding: sidebarCollapsed ? '12px 8px' : '16px 12px',
-            borderBottom: '1px solid #e8e8e8',
-            display: 'flex',
-            flexDirection: sidebarCollapsed ? 'row' : 'column',
-            alignItems: 'center',
-            gap: 8,
-          }}>
+          <div style={S.sidebarHeader(sidebarCollapsed)}>
             {!sidebarCollapsed && (
               <img src="/logo.png" alt="Gapura" style={{ height: 48, objectFit: 'contain' }} />
             )}
@@ -406,58 +458,58 @@ export function CustomDashboardContent() {
           </div>
 
           {/* Page Navigation */}
-          <div style={{ padding: sidebarCollapsed ? '8px 4px' : '8px', flex: 1 }}>
+          <div style={S.sidebarNav(sidebarCollapsed)}>
             {!sidebarCollapsed && (
-              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', padding: '8px 8px 4px', marginBottom: 2 }}>
+              <div style={S.sidebarSectionLabel}>
                 Halaman
               </div>
             )}
-            {pages.map((page, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActivePage(idx)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                  padding: sidebarCollapsed ? '10px 8px' : '10px 12px',
-                  marginBottom: 2,
-                  borderRadius: 6,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: activePage === idx ? GAPURA_GREEN : 'transparent',
-                  color: activePage === idx ? '#fff' : '#555',
-                  fontSize: 12,
-                  fontWeight: activePage === idx ? 700 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s',
-                }}
-                onMouseOver={e => {
-                  if (activePage !== idx) e.currentTarget.style.background = '#f5f5f5';
-                }}
-                onMouseOut={e => {
-                  if (activePage !== idx) e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <span style={{
-                  width: 22, height: 22, borderRadius: 4,
-                  background: activePage === idx ? 'rgba(255,255,255,0.2)' : '#e8e8e8',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700, flexShrink: 0,
-                  color: activePage === idx ? '#fff' : '#888',
-                }}>
-                  {idx + 1}
-                </span>
-                {!sidebarCollapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{page.name}</span>}
-              </button>
-            ))}
+            {pages.map((page, idx) => {
+              const isActive = activePage === idx;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setActivePage(idx)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%',
+                    padding: sidebarCollapsed ? '10px 8px' : '10px 12px',
+                    marginBottom: 2,
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: isActive ? GAPURA_GREEN : 'transparent',
+                    color: isActive ? '#fff' : '#555',
+                    fontSize: 12,
+                    fontWeight: isActive ? 700 : 500,
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    borderLeft: isActive ? `3px solid #fff` : '3px solid transparent',
+                  }}
+                  className={!isActive ? 'embed-sidebar-btn' : undefined}
+                >
+                  <span style={{
+                    width: 22, height: 22, borderRadius: 4,
+                    background: isActive ? 'rgba(255,255,255,0.2)' : '#e8e8e8',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, flexShrink: 0,
+                    color: isActive ? '#fff' : '#888',
+                    transition: 'all 0.2s ease',
+                  }}>
+                    {idx + 1}
+                  </span>
+                  {!sidebarCollapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{page.name}</span>}
+                </button>
+              );
+            })}
           </div>
 
           {/* Active Filters Summary in Sidebar */}
           {!sidebarCollapsed && activeFilterCount > 0 && (
             <div style={{ padding: '8px 16px 12px', borderTop: '1px solid #e8e8e8' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#999', marginBottom: 6 }}>
+              <div style={{ ...S.sidebarSectionLabel, padding: 0, marginBottom: 6 }}>
                 Filter Aktif ({activeFilterCount})
               </div>
               <button
@@ -472,7 +524,7 @@ export function CustomDashboardContent() {
       )}
 
       {/* ── MAIN CONTENT ── */}
-      <div style={{ flex: 1, minWidth: 0, background: '#f5f5f5' }}>
+      <div style={S.mainContent}>
         {/* ── HEADER ── */}
         <div style={S.headerWrap}>
           <div style={S.headerInner}>
@@ -487,20 +539,47 @@ export function CustomDashboardContent() {
                   )}
                 </div>
               </div>
-              <div style={{ position: 'relative' }}>
-                <button onClick={() => setShowDatePicker(!showDatePicker)} style={S.dateBtn}>
-                  {formatDateRange()}
-                  <ChevronDownIcon size={12} />
-                </button>
-                {showDatePicker && (
-                  <div style={S.datePicker}>
-                    <label style={S.dateLabel}>From</label>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={S.dateInput} />
-                    <label style={S.dateLabel}>To</label>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={S.dateInput} />
-                    <button onClick={() => setShowDatePicker(false)} style={S.dateApply}>Apply</button>
-                  </div>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Export dropdown */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    disabled={exportingFormat !== null}
+                    style={S.exportBtn}
+                  >
+                    {exportingFormat ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    {exportingFormat ? 'Exporting...' : 'Export'}
+                    <ChevronDownIcon size={10} />
+                  </button>
+                  {showExportMenu && (
+                    <div style={S.exportMenu}>
+                      <button onClick={() => handleExport('xlsx')} style={S.exportMenuItem}>
+                        <FileSpreadsheet size={14} style={{ color: '#1b7a3d' }} />
+                        <span>Export ke Excel (.xlsx)</span>
+                      </button>
+                      <button onClick={() => handleExport('pptx')} style={S.exportMenuItem}>
+                        <Presentation size={14} style={{ color: '#c43e1c' }} />
+                        <span>Export ke PowerPoint (.pptx)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Date range */}
+                <div style={{ position: 'relative' }}>
+                  <button onClick={() => setShowDatePicker(!showDatePicker)} style={S.dateBtn}>
+                    {formatDateRange()}
+                    <ChevronDownIcon size={12} />
+                  </button>
+                  {showDatePicker && (
+                    <div style={S.datePicker}>
+                      <label style={S.dateLabel}>From</label>
+                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={S.dateInput} />
+                      <label style={S.dateLabel}>To</label>
+                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={S.dateInput} />
+                      <button onClick={() => setShowDatePicker(false)} style={S.dateApply}>Apply</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -616,19 +695,30 @@ export function CustomDashboardContent() {
               if (!cr) return null;
               const layout = chart.layout || { w: 6, h: 2 };
               const colSpan = layout.w || 6;
+              const isTableType = chart.visualization_config?.chartType === 'table';
 
               return (
                 <div key={chart.id} style={{ gridColumn: `span ${colSpan}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* CHART CARD */}
-                  {cr.type === 'query' && cr.queryResult ? (
+                  {/* CHART CARD (skip for table type) */}
+                  {!isTableType && cr.type === 'query' && cr.queryResult ? (
                     <ChartCard chart={chart} result={cr.queryResult} />
                   ) : cr.type === 'legacy' && cr.stats ? (
                     <LegacyCard chart={chart} stats={cr.stats} />
                   ) : null}
 
+                  {/* For table type: show title header + detail table directly */}
+                  {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
+                    <div style={{ ...S.card, borderRadius: '8px 8px 0 0' }}>
+                      <div style={S.cardTitle}>
+                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#333' }}>{chart.title}</h3>
+                        <span style={{ fontSize: 11, color: '#999' }}>{cr.queryResult.rowCount} baris</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* DETAIL TABLE (grouped below, separate card) */}
                   {cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
-                    <DetailTable title={chart.title} result={cr.queryResult} />
+                    <DetailTable title={isTableType ? chart.title : chart.title} result={cr.queryResult} />
                   )}
                   {cr.type === 'legacy' && cr.stats && cr.stats.distribution.length > 0 && (
                     <LegacyDetailTable title={chart.title} stats={cr.stats} />
@@ -667,19 +757,26 @@ export function CustomDashboardContent() {
 
         {/* ── FOOTER ── */}
         <div style={S.footer}>
-          <span style={{ color: GAPURA_GREEN, fontWeight: 600 }}>Gapura IRRS</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4caf50', display: 'inline-block' }} />
-            Data otomatis diperbarui
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/logo.png" alt="Gapura" style={{ height: 24, objectFit: 'contain', opacity: 0.7 }} />
+            <span style={{ color: '#666', fontWeight: 500, letterSpacing: 0.3 }}>Gapura IRRS</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#888' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#43a047', display: 'inline-block', boxShadow: '0 0 4px rgba(67,160,71,0.5)' }} />
+              Data otomatis diperbarui
+            </span>
+            <span style={{ color: '#bbb' }}>|</span>
+            <span style={{ color: '#aaa' }}>&copy; {new Date().getFullYear()} PT Gapura Angkasa</span>
+          </div>
         </div>
       </div>
 
       {/* Click outside to close dropdowns */}
-      {openDropdown && (
+      {(openDropdown || showExportMenu) && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 29 }}
-          onClick={() => setOpenDropdown(null)}
+          onClick={() => { setOpenDropdown(null); setShowExportMenu(false); }}
         />
       )}
     </div>
@@ -712,6 +809,29 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
         </div>
       </div>
     </div>
+  );
+}
+
+/** Render evidence URL — handles postgres array format {url1,url2} and plain URLs */
+function renderEvidenceCell(val: unknown): React.ReactNode {
+  if (val === null || val === undefined) return '-';
+  const str = String(val);
+  // Parse postgres text array format: {url1,url2}
+  let urls: string[] = [];
+  if (str.startsWith('{') && str.endsWith('}')) {
+    urls = str.slice(1, -1).split(',').map(u => u.trim()).filter(u => u.startsWith('http'));
+  } else if (str.startsWith('http')) {
+    urls = [str];
+  }
+  if (urls.length === 0) return str || '-';
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {urls.map((url, i) => (
+        <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#1565c0', textDecoration: 'underline', fontSize: 11 }}>
+          Evidence {urls.length > 1 ? i + 1 : ''}
+        </a>
+      ))}
+    </span>
   );
 }
 
@@ -828,6 +948,10 @@ function DetailTable({ title, result }: { title: string; result: QueryResult }) 
                 <td style={{ ...S.td, color: '#999', fontSize: 11 }}>{page * PAGE_SIZE + idx + 1}.</td>
                 {result.columns.map(col => {
                   const val = row[col];
+                  const isEvidenceCol = col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link');
+                  if (isEvidenceCol) {
+                    return <td key={col} style={{ ...S.td }}>{renderEvidenceCell(val)}</td>;
+                  }
                   const numVal = Number(val);
                   const isNum = !isNaN(numVal) && val !== null && val !== '' && typeof val !== 'boolean';
                   const maxVal = maxValues[col];
@@ -943,12 +1067,57 @@ function formatCellValue(val: unknown): string {
 // ─── INLINE STYLES ──────────────────────────────────────────────────────────
 
 const S = {
+  sidebarWrap: (collapsed: boolean) => ({
+    width: collapsed ? 48 : 240,
+    background: '#fff',
+    borderRight: '1px solid #e0e0e0',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'width 0.2s ease',
+    flexShrink: 0,
+    position: 'sticky',
+    top: 0,
+    height: '100vh',
+    overflowY: 'auto',
+    zIndex: 20,
+  }) as React.CSSProperties,
+
+  sidebarHeader: (collapsed: boolean) => ({
+    padding: collapsed ? '12px 8px' : '16px 12px',
+    borderBottom: '1px solid #e8e8e8',
+    display: 'flex',
+    flexDirection: collapsed ? 'row' : 'column',
+    alignItems: 'center',
+    gap: 8,
+  }) as React.CSSProperties,
+
+  sidebarNav: (collapsed: boolean) => ({
+    padding: collapsed ? '8px 4px' : '8px',
+    flex: 1,
+  }) as React.CSSProperties,
+
+  sidebarSectionLabel: {
+    fontSize: 9,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: '#999',
+    padding: '8px 8px 4px',
+    marginBottom: 2,
+  } as React.CSSProperties,
+
   loadingWrap: {
     minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    background: '#f5f5f5',
+  } as React.CSSProperties,
+
+  mainContent: {
+    flex: 1,
+    minWidth: 0,
     background: '#f5f5f5',
   } as React.CSSProperties,
 
@@ -1097,14 +1266,15 @@ const S = {
 
   card: {
     background: '#fff',
-    borderRadius: '8px 8px 0 0',
+    borderRadius: '10px 10px 0 0',
     border: '1px solid #e0e0e0',
     borderBottom: 'none',
     overflow: 'hidden',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   } as React.CSSProperties,
 
   cardTitle: {
-    padding: '12px 16px 8px',
+    padding: '14px 18px 10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1112,9 +1282,10 @@ const S = {
 
   detailCard: {
     background: '#fff',
-    borderRadius: '0 0 8px 8px',
+    borderRadius: '0 0 10px 10px',
     border: '1px solid #e0e0e0',
     overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
   } as React.CSSProperties,
 
   detailHeader: {
@@ -1191,14 +1362,65 @@ const S = {
   } as React.CSSProperties,
 
   footer: {
-    maxWidth: 1400,
-    margin: '0 auto',
-    padding: '12px 24px',
+    position: 'sticky',
+    bottom: 0,
+    zIndex: 10,
+    background: '#ffffff',
+    borderTop: '1px solid #e0e0e0',
+    padding: '10px 28px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     fontSize: 11,
     color: '#999',
-    borderTop: '1px solid #e8e8e8',
+    boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+  } as React.CSSProperties,
+
+  exportBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 14px',
+    borderRadius: 6,
+    background: '#fff',
+    color: '#555',
+    border: '1px solid #d0d0d0',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    transition: 'all 0.15s ease',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+  } as React.CSSProperties,
+
+  exportMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: 4,
+    background: '#fff',
+    border: '1px solid #e0e0e0',
+    borderRadius: 8,
+    boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+    zIndex: 50,
+    minWidth: 220,
+    padding: 4,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  exportMenuItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    padding: '10px 14px',
+    border: 'none',
+    background: 'transparent',
+    color: '#333',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+    borderRadius: 6,
+    transition: 'background 0.15s ease',
+    textAlign: 'left',
   } as React.CSSProperties,
 };

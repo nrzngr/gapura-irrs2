@@ -3,7 +3,7 @@
 import {
   BarChart3, ArrowRightLeft, Layers, TrendingUp, PieChart,
   Circle, ScatterChart as ScatterIcon, Table2, Gauge, GitMerge,
-  Activity,
+  Activity, Grid3X3,
 } from 'lucide-react';
 import type { ChartType, ChartVisualization, QueryResult } from '@/types/builder';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ const CHART_TYPES: { value: ChartType; label: string; icon: typeof BarChart3 }[]
   { value: 'pie', label: 'Pie', icon: PieChart },
   { value: 'donut', label: 'Donut', icon: Circle },
   { value: 'scatter', label: 'Scatter', icon: ScatterIcon },
+  { value: 'heatmap', label: 'Heatmap', icon: Grid3X3 },
   { value: 'table', label: 'Tabel', icon: Table2 },
   { value: 'kpi', label: 'KPI', icon: Gauge },
   { value: 'combo', label: 'Combo', icon: GitMerge },

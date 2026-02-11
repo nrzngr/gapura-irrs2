@@ -27,29 +27,13 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
   const isConfigured = hasDims || hasMeasures;
 
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid #e8e8e8',
-        borderRadius: 8,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        transition: 'box-shadow 0.2s',
-      }}
-      onMouseOver={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)')}
-      onMouseOut={e => (e.currentTarget.style.boxShadow = 'none')}
-    >
+    <div className="group bg-[var(--surface-1)] border border-[var(--surface-4)] rounded-lg overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md">
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 12px', borderBottom: '1px solid #f0f0f0',
-      }}>
-        <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--surface-4)]/50">
+        <h4 className="m-0 text-xs font-bold text-[var(--text-primary)] truncate flex-1">
           {title}
         </h4>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8 }}>
+        <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {/* Resize dropdown */}
           <select
             value={`${tile.layout.w}-${tile.layout.h}`}
@@ -57,11 +41,7 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
               const [w, h] = e.target.value.split('-').map(Number);
               onResize(tile.id, w, h);
             }}
-            style={{
-              padding: '2px 4px', fontSize: 10, background: 'transparent',
-              border: '1px solid #e0e0e0', borderRadius: 3, color: '#999',
-              outline: 'none', cursor: 'pointer',
-            }}
+            className="py-0.5 px-1 text-[10px] bg-transparent border border-[var(--surface-4)] rounded text-[var(--text-muted)] outline-none cursor-pointer"
           >
             {SIZE_OPTIONS.map(s => (
               <option key={`${s.w}-${s.h}`} value={`${s.w}-${s.h}`}>{s.label}</option>
@@ -69,18 +49,14 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
           </select>
           <button
             onClick={() => onEdit(tile.id)}
-            style={{ padding: 3, color: '#999', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 3, transition: 'color 0.2s' }}
-            onMouseOver={e => (e.currentTarget.style.color = '#6b8e3d')}
-            onMouseOut={e => (e.currentTarget.style.color = '#999')}
+            className="p-1 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors"
             title="Edit"
           >
             <Pencil size={12} />
           </button>
           <button
             onClick={() => onRemove(tile.id)}
-            style={{ padding: 3, color: '#999', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 3, transition: 'color 0.2s' }}
-            onMouseOver={e => (e.currentTarget.style.color = '#e53935')}
-            onMouseOut={e => (e.currentTarget.style.color = '#999')}
+            className="p-1 text-[var(--text-muted)] hover:text-red-500 transition-colors"
             title="Hapus"
           >
             <Trash2 size={12} />
@@ -89,24 +65,19 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, minHeight: 200, padding: 6 }}>
+      <div className="flex-1 min-h-[200px] p-1.5">
         {!isConfigured ? (
           <div
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              height: '100%', cursor: 'pointer', transition: 'background 0.2s',
-            }}
+            className="flex items-center justify-center h-full cursor-pointer rounded hover:bg-[var(--surface-2)] transition-colors"
             onClick={() => onEdit(tile.id)}
-            onMouseOver={e => (e.currentTarget.style.background = '#fafafa')}
-            onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
           >
-            <p style={{ fontSize: 12, color: '#bbb' }}>Klik Edit untuk mengkonfigurasi query</p>
+            <p className="text-xs text-[var(--text-muted)]">Klik Edit untuk mengkonfigurasi query</p>
           </div>
         ) : result && result.rows.length > 0 ? (
           <ChartPreview visualization={tile.visualization} result={result} />
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <p style={{ fontSize: 12, color: '#bbb' }}>Menunggu data...</p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-xs text-[var(--text-muted)]">Menunggu data...</p>
           </div>
         )}
       </div>

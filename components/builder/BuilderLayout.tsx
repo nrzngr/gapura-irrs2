@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Compass, LayoutGrid, Save, RotateCcw, Sparkles, Plus, Loader2 } from 'lucide-react';
+import { Compass, LayoutGrid, Save, RotateCcw, Sparkles, Plus, Loader2, MousePointerClick, Play, BarChart3, Check } from 'lucide-react';
 import { useQueryBuilder } from '@/lib/hooks/useQueryBuilder';
 import { useQueryExecution } from '@/lib/hooks/useQueryExecution';
 import { useDashboardState } from '@/lib/hooks/useDashboardState';
@@ -17,6 +17,20 @@ import { useAIDashboard } from '@/lib/hooks/useAIDashboard';
 import { cn } from '@/lib/utils';
 
 type Mode = 'explore' | 'dashboard';
+
+const PROMPT_SUGGESTIONS = [
+  { label: 'Laporan Bulanan', prompt: 'Buatkan dashboard laporan bulanan yang menampilkan trend, distribusi kategori, dan perbandingan antar stasiun' },
+  { label: 'Perbandingan Maskapai', prompt: 'Buat dashboard perbandingan jumlah laporan per maskapai dengan breakdown severity dan kategori' },
+  { label: 'Trend Compliment', prompt: 'Buatkan dashboard analisis trend compliment per bulan dengan distribusi area dan maskapai' },
+  { label: 'Severity Analysis', prompt: 'Buat dashboard analisis severity laporan dengan heatmap per stasiun dan trend waktu' },
+];
+
+const AI_STEPS = [
+  { label: 'Menganalisis schema...', delay: 0 },
+  { label: 'Merancang query...', delay: 3000 },
+  { label: 'Menyusun visualisasi...', delay: 8000 },
+  { label: 'Menyelesaikan dashboard...', delay: 15000 },
+];
 
 interface BuilderLayoutProps {
   onSaveDashboard: (name: string, description: string, tiles: any[], config?: any) => Promise<{ embedUrl: string } | null>;
@@ -38,6 +52,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   const [showWelcome, setShowWelcome] = useState(true);
 
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiStep, setAiStep] = useState(0);
 
   const qb = useQueryBuilder();
   const qe = useQueryExecution();
@@ -53,6 +68,15 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   useEffect(() => {
     if (hasQuery) setShowWelcome(false);
   }, [hasQuery]);
+
+  // AI loading progress stepper
+  useEffect(() => {
+    if (!ai.loading) { setAiStep(0); return; }
+    const timers = AI_STEPS.map((step, idx) =>
+      setTimeout(() => setAiStep(idx), step.delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [ai.loading]);
 
   const handleFieldClick = useCallback((table: string, field: FieldDef) => {
     if (field.type === 'number' || field.type === 'uuid') {
@@ -336,12 +360,14 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
               {showWelcome && !hasQuery ? (
                 /* Welcome / onboarding state with AI prompt */
                 <div className="flex items-center justify-center h-full p-8 overflow-auto">
-                  <div className="w-full max-w-2xl">
+                  <div className="w-full max-w-2xl animate-fade-in-up">
                     {/* AI Prompt Card */}
-                    <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 mb-5">
+                    <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 mb-5 shadow-lg shadow-purple-500/10">
+                      {/* Decorative sparkle */}
+                      <Sparkles size={12} className="absolute -top-1 -right-1 text-purple-400 animate-sparkle-pulse" style={{ animationDelay: '0.5s' }} />
                       <div className="bg-[var(--surface-1)] rounded-2xl p-5">
                         <div className="flex items-center gap-2 mb-3">
-                          <Sparkles size={16} className="text-purple-500" />
+                          <Sparkles size={16} className="text-purple-500 animate-sparkle-pulse" />
                           <span className="text-sm font-bold text-[var(--text-primary)]">Buat Dashboard dengan AI</span>
                         </div>
                         <textarea
@@ -357,34 +383,72 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                           className="w-full h-20 px-3 py-2.5 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                           disabled={ai.loading}
                         />
+
+                        {/* Prompt suggestion chips */}
+                        {!ai.loading && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {PROMPT_SUGGESTIONS.map(s => (
+                              <button
+                                key={s.label}
+                                onClick={() => { setAiPrompt(s.prompt); ai.clearError(); }}
+                                className="px-3 py-1.5 text-[11px] font-medium bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-full text-[var(--text-secondary)] hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50 transition-all"
+                              >
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* AI Loading Progress Stepper */}
+                        {ai.loading && (
+                          <div className="mt-3 space-y-2">
+                            {AI_STEPS.map((step, idx) => (
+                              <div key={idx} className="flex items-center gap-2.5">
+                                {idx < aiStep ? (
+                                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                    <Check size={12} className="text-emerald-600" />
+                                  </div>
+                                ) : idx === aiStep ? (
+                                  <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                                    <Loader2 size={12} className="text-purple-600 animate-spin" />
+                                  </div>
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full bg-[var(--surface-3)] shrink-0" />
+                                )}
+                                <span className={cn(
+                                  "text-xs transition-colors",
+                                  idx < aiStep ? "text-emerald-600 font-medium" :
+                                  idx === aiStep ? "text-purple-600 font-bold" :
+                                  "text-[var(--text-muted)]"
+                                )}>
+                                  {step.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         {ai.error && (
                           <p className="mt-2 text-xs text-red-500 text-left">{ai.error}</p>
                         )}
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="text-[10px] text-[var(--text-muted)]">Ctrl+Enter untuk generate</span>
-                          <button
-                            onClick={handleAIGenerate}
-                            disabled={ai.loading || !aiPrompt.trim()}
-                            className={cn(
-                              "flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all",
-                              ai.loading || !aiPrompt.trim()
-                                ? "bg-[var(--surface-3)] text-[var(--text-muted)] cursor-not-allowed"
-                                : "bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:shadow-lg hover:shadow-purple-500/25"
-                            )}
-                          >
-                            {ai.loading ? (
-                              <>
-                                <Loader2 size={14} className="animate-spin" />
-                                Membuat...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles size={14} />
-                                Buat dengan AI
-                              </>
-                            )}
-                          </button>
-                        </div>
+                        {!ai.loading && (
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-[10px] text-[var(--text-muted)]">Ctrl+Enter untuk generate</span>
+                            <button
+                              onClick={handleAIGenerate}
+                              disabled={!aiPrompt.trim()}
+                              className={cn(
+                                "flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all",
+                                !aiPrompt.trim()
+                                  ? "bg-[var(--surface-3)] text-[var(--text-muted)] cursor-not-allowed"
+                                  : "bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:shadow-lg hover:shadow-purple-500/25"
+                              )}
+                            >
+                              <Sparkles size={14} />
+                              Buat dengan AI
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -395,18 +459,27 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                       <div className="flex-1 h-px bg-[var(--surface-4)]" />
                     </div>
 
-                    {/* Compact 3-step guide */}
+                    {/* Enhanced 3-step guide cards */}
                     <div className="flex gap-3">
-                      <div className="flex-1 p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl">
-                        <span className="inline-flex w-5 h-5 rounded-full bg-blue-500 text-white items-center justify-center text-[10px] font-bold mb-1.5">1</span>
+                      <div className="flex-1 p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:-translate-y-0.5 transition-transform cursor-default group">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="inline-flex w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white items-center justify-center text-[10px] font-bold">1</span>
+                          <MousePointerClick size={13} className="text-blue-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        </div>
                         <p className="text-xs text-[var(--text-secondary)]">Pilih field di panel kiri</p>
                       </div>
-                      <div className="flex-1 p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl">
-                        <span className="inline-flex w-5 h-5 rounded-full bg-emerald-500 text-white items-center justify-center text-[10px] font-bold mb-1.5">2</span>
+                      <div className="flex-1 p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:-translate-y-0.5 transition-transform cursor-default group">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="inline-flex w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white items-center justify-center text-[10px] font-bold">2</span>
+                          <Play size={13} className="text-emerald-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        </div>
                         <p className="text-xs text-[var(--text-secondary)]">Klik &quot;Jalankan Query&quot;</p>
                       </div>
-                      <div className="flex-1 p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl">
-                        <span className="inline-flex w-5 h-5 rounded-full bg-purple-500 text-white items-center justify-center text-[10px] font-bold mb-1.5">3</span>
+                      <div className="flex-1 p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:-translate-y-0.5 transition-transform cursor-default group">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="inline-flex w-5 h-5 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 text-white items-center justify-center text-[10px] font-bold">3</span>
+                          <BarChart3 size={13} className="text-purple-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        </div>
                         <p className="text-xs text-[var(--text-secondary)]">Atur grafik &amp; simpan</p>
                       </div>
                     </div>
@@ -446,6 +519,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
           tileResults={tileResults}
           dashboardName={dash.name}
           dashboardDescription={dash.description}
+          pages={dash.pages}
         />
       )}
 
@@ -455,6 +529,8 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
         initialName={dash.name}
         initialDescription={dash.description}
         onSave={handleSave}
+        tileCount={dash.tiles.length}
+        pageCount={dash.pages.length}
       />
     </div>
   );

@@ -70,6 +70,7 @@ export type ChartType =
   | 'pie'
   | 'donut'
   | 'scatter'
+  | 'heatmap'
   | 'table'
   | 'kpi'
   | 'combo';

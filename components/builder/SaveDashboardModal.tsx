@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Save, Link2, Check, Loader2 } from 'lucide-react';
+import { X, Save, Link2, Check, Loader2, LayoutGrid, FileText } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface SaveDashboardModalProps {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface SaveDashboardModalProps {
   initialName: string;
   initialDescription: string;
   onSave: (name: string, description: string) => Promise<{ embedUrl: string } | null>;
+  tileCount?: number;
+  pageCount?: number;
 }
 
 export function SaveDashboardModal({
@@ -17,6 +20,8 @@ export function SaveDashboardModal({
   initialName,
   initialDescription,
   onSave,
+  tileCount = 0,
+  pageCount = 0,
 }: SaveDashboardModalProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
@@ -44,14 +49,16 @@ export function SaveDashboardModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const fullUrl = savedUrl ? `${typeof window !== 'undefined' ? window.location.origin : ''}${savedUrl}` : '';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[var(--surface-1)] border border-[var(--surface-4)] rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div className="relative bg-[var(--surface-1)] border border-[var(--surface-4)] rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--surface-4)]">
           <h3 className="text-sm font-bold text-[var(--text-primary)]">Simpan Dashboard</h3>
-          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -84,6 +91,23 @@ export function SaveDashboardModal({
                   className="w-full px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] resize-none"
                 />
               </div>
+
+              {/* Tile count summary */}
+              {(tileCount > 0 || pageCount > 0) && (
+                <div className="flex items-center gap-3 px-3 py-2 bg-[var(--surface-2)] rounded-lg text-xs text-[var(--text-secondary)]">
+                  <span className="flex items-center gap-1.5">
+                    <LayoutGrid size={12} className="text-[var(--text-muted)]" />
+                    {tileCount} tile{tileCount !== 1 ? 's' : ''}
+                  </span>
+                  {pageCount > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <FileText size={12} className="text-[var(--text-muted)]" />
+                      {pageCount} halaman
+                    </span>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={handleSave}
                 disabled={saving || !name.trim()}
@@ -99,27 +123,48 @@ export function SaveDashboardModal({
             </>
           ) : (
             <div className="text-center py-4">
-              <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Check size={24} className="text-emerald-600" />
+              {/* Success checkmark with celebration dots */}
+              <div className="relative inline-block mb-3">
+                <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto animate-scale-in">
+                  <Check size={28} className="text-emerald-600" />
+                </div>
+                {/* Celebration dots */}
+                <div className="absolute top-0 left-1/2 w-2 h-2 rounded-full bg-emerald-400 animate-celebrate-dot" style={{ '--dot-x': '-12px', '--dot-y': '-16px' } as React.CSSProperties} />
+                <div className="absolute top-0 left-1/2 w-2 h-2 rounded-full bg-purple-400 animate-celebrate-dot" style={{ '--dot-x': '14px', '--dot-y': '-12px', animationDelay: '0.1s' } as React.CSSProperties} />
+                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-blue-400 animate-celebrate-dot" style={{ '--dot-x': '-16px', '--dot-y': '8px', animationDelay: '0.15s' } as React.CSSProperties} />
+                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 animate-celebrate-dot" style={{ '--dot-x': '18px', '--dot-y': '6px', animationDelay: '0.2s' } as React.CSSProperties} />
               </div>
+
               <p className="text-sm font-bold text-[var(--text-primary)] mb-1">Dashboard Tersimpan!</p>
               <p className="text-xs text-[var(--text-muted)] mb-4">Embed URL untuk PowerPoint:</p>
-              <div className="flex items-center gap-2 p-2 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg">
+
+              <div className="flex items-center gap-2 p-2 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg mb-4">
                 <Link2 size={14} className="text-[var(--text-muted)] shrink-0" />
                 <span className="text-xs text-[var(--text-secondary)] truncate flex-1">{savedUrl}</span>
                 <button
                   onClick={handleCopy}
-                  className="px-2 py-1 text-[10px] font-bold bg-[var(--brand-primary)] text-white rounded-md hover:opacity-90"
+                  className="px-2 py-1 text-[10px] font-bold bg-[var(--brand-primary)] text-white rounded-md hover:opacity-90 transition-opacity"
                 >
                   {copied ? 'Disalin!' : 'Salin'}
                 </button>
               </div>
-              <div className="flex gap-2 mt-4">
+
+              {/* QR Code */}
+              {fullUrl && (
+                <div className="flex flex-col items-center gap-2 mb-4">
+                  <div className="p-3 bg-white rounded-xl border border-[var(--surface-4)]">
+                    <QRCodeSVG value={fullUrl} size={120} fgColor="#6b8e3d" />
+                  </div>
+                  <span className="text-[10px] text-[var(--text-muted)]">Scan QR untuk akses cepat</span>
+                </div>
+              )}
+
+              <div className="flex gap-2">
                 <a
                   href={savedUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 px-3 py-2 text-xs font-bold text-[var(--brand-primary)] border border-[var(--brand-primary)] rounded-lg text-center hover:bg-blue-50 transition-colors"
+                  className="flex-1 px-3 py-2 text-xs font-bold text-[var(--brand-primary)] border border-[var(--brand-primary)] rounded-lg text-center hover:bg-emerald-50 transition-colors"
                 >
                   Preview
                 </a>

@@ -115,11 +115,189 @@ export function ChartPreview({ visualization, result }: ChartPreviewProps) {
     );
   }
 
-  // Table type uses DataTable
-  if (chartType === 'table') {
+  // HEATMAP — 2 dimensions (rows × cols) + 1 measure for intensity
+  if (chartType === 'heatmap') {
+    const cols = result.columns;
+    if (cols.length < 3) {
+      return (
+        <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">
+          Heatmap membutuhkan 2 dimensi + 1 ukuran
+        </div>
+      );
+    }
+
+    // Identify measure vs dimension columns using visualization config
+    // yAxis[0] = measure column, xAxis = one dimension, remaining = other dimension
+    // Fallback: detect the most-numeric column as measure
+    let valueKey: string;
+    let dimKeys: string[];
+
+    const yMatch = yKeys.find(y => cols.includes(y));
+    if (yMatch) {
+      valueKey = yMatch;
+      dimKeys = cols.filter(c => c !== valueKey).slice(0, 2);
+    } else {
+      // Heuristic: column where every row is numeric → measure
+      const numericScore = cols.map(c => {
+        let numeric = 0;
+        for (const r of rawData) { if (isFinite(Number(r[c]))) numeric++; }
+        return numeric;
+      });
+      const measureIdx = numericScore.indexOf(Math.max(...numericScore));
+      valueKey = cols[measureIdx];
+      dimKeys = cols.filter(c => c !== valueKey).slice(0, 2);
+    }
+
+    // xAxis config determines column headers; remaining dim = row labels
+    const rowKey = xKey && dimKeys.includes(xKey) ? dimKeys.find(d => d !== xKey)! : dimKeys[0];
+    const colKey = dimKeys.find(d => d !== rowKey) || dimKeys[1] || dimKeys[0];
+
+    const rowLabels = [...new Set(rawData.map(d => String(d[rowKey] ?? '')))];
+    const colLabels = [...new Set(rawData.map(d => String(d[colKey] ?? '')))];
+
+    // Complexity: Time O(n) | Space O(r*c)
+    const matrix = new Map<string, number>();
+    let minVal = Infinity;
+    let maxVal = -Infinity;
+    for (const row of rawData) {
+      const rLabel = String(row[rowKey] ?? '');
+      const cLabel = String(row[colKey] ?? '');
+      const raw = Number(row[valueKey] ?? 0);
+      const val = isFinite(raw) ? raw : 0;
+      matrix.set(`${rLabel}__${cLabel}`, val);
+      if (val < minVal) minVal = val;
+      if (val > maxVal) maxVal = val;
+    }
+    if (!isFinite(minVal)) minVal = 0;
+    if (!isFinite(maxVal)) maxVal = 0;
+    const range = maxVal - minVal || 1;
+
+    // Parse hex color → RGB for proper color interpolation
+    const hex = palette[0] || '#7cb342';
+    const r0 = parseInt(hex.slice(1, 3), 16);
+    const g0 = parseInt(hex.slice(3, 5), 16);
+    const b0 = parseInt(hex.slice(5, 7), 16);
+    const cellColor = (t: number) => {
+      const r = Math.round(255 + (r0 - 255) * t);
+      const g = Math.round(255 + (g0 - 255) * t);
+      const b = Math.round(255 + (b0 - 255) * t);
+      return `rgb(${r},${g},${b})`;
+    };
+
+    const CELL_H = 36;
+    const CELL_W = Math.max(56, Math.min(80, Math.floor(600 / colLabels.length)));
+    const LABEL_W = Math.min(Math.max(...rowLabels.map(l => l.length * 7.5), 64), 160);
+    const HEADER_H = 36;
+
     return (
-      <div className="text-xs text-[var(--text-muted)] text-center py-8">
-        Gunakan tab Tabel untuk melihat data
+      <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
+        <div className="inline-block">
+          {/* Column headers */}
+          <div className="flex" style={{ paddingLeft: LABEL_W }}>
+            {colLabels.map(cl => (
+              <div
+                key={cl}
+                className="text-[10px] font-semibold text-[var(--text-secondary)] text-center px-1"
+                style={{ width: CELL_W, height: HEADER_H, lineHeight: `${HEADER_H}px` }}
+                title={cl}
+              >
+                <span className="block truncate">{cl}</span>
+              </div>
+            ))}
+          </div>
+          {/* Rows */}
+          {rowLabels.map(rl => (
+            <div key={rl} className="flex items-center">
+              <div
+                className="text-[10px] font-semibold text-[var(--text-secondary)] truncate shrink-0 pr-2 text-right"
+                style={{ width: LABEL_W }}
+                title={rl}
+              >
+                {rl}
+              </div>
+              {colLabels.map(cl => {
+                const val = matrix.get(`${rl}__${cl}`) ?? 0;
+                const t = (val - minVal) / range;
+                const bg = cellColor(t);
+                const isDark = t > 0.5;
+                return (
+                  <div
+                    key={cl}
+                    className="border border-white/60 rounded-sm flex items-center justify-center transition-colors"
+                    style={{ width: CELL_W, height: CELL_H, backgroundColor: bg }}
+                    title={`${rl} × ${cl}: ${val.toLocaleString('id-ID')}`}
+                  >
+                    <span
+                      className="text-[10px] font-bold"
+                      style={{ color: isDark ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.6)' }}
+                    >
+                      {val > 0 ? val.toLocaleString('id-ID') : '–'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          {/* Legend bar */}
+          <div className="flex items-center gap-2 mt-3" style={{ paddingLeft: LABEL_W }}>
+            <span className="text-[9px] text-[var(--text-muted)]">{minVal.toLocaleString('id-ID')}</span>
+            <div
+              className="h-2 rounded-full flex-1"
+              style={{
+                maxWidth: 160,
+                background: `linear-gradient(to right, ${cellColor(0)}, ${cellColor(0.5)}, ${cellColor(1)})`,
+              }}
+            />
+            <span className="text-[9px] text-[var(--text-muted)]">{maxVal.toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Table type — render inline data table
+  if (chartType === 'table') {
+    const columns = result.columns;
+    const rows = result.rows as Record<string, unknown>[];
+    const displayRows = rows.slice(0, 50);
+    return (
+      <div className="overflow-auto max-h-[400px] text-xs">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="sticky top-0 bg-[var(--surface-2)] px-3 py-2 text-left font-semibold text-[var(--text-secondary)] border-b border-[var(--surface-4)]">#</th>
+              {columns.map(col => (
+                <th key={col} className="sticky top-0 bg-[var(--surface-2)] px-3 py-2 text-left font-semibold text-[var(--text-secondary)] border-b border-[var(--surface-4)] whitespace-nowrap">
+                  {col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((row, idx) => (
+              <tr key={idx} className="border-b border-[var(--surface-3)] hover:bg-[var(--surface-2)]">
+                <td className="px-3 py-1.5 text-[var(--text-muted)]">{idx + 1}</td>
+                {columns.map(col => {
+                  const val = row[col];
+                  const str = val === null || val === undefined ? '-' : String(val);
+                  const isUrl = typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('{http'));
+                  return (
+                    <td key={col} className="px-3 py-1.5 text-[var(--text-primary)] max-w-[300px] truncate">
+                      {isUrl ? (
+                        <a href={str.replace(/^\{|\}$/g, '').split(',')[0]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Link Evidence
+                        </a>
+                      ) : str.length > 80 ? str.substring(0, 77) + '...' : str}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length > 50 && (
+          <div className="text-center py-2 text-[var(--text-muted)]">Menampilkan 50 dari {rows.length} baris</div>
+        )}
       </div>
     );
   }

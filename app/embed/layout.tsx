@@ -15,10 +15,6 @@ export default function EmbedLayout({
       <main className="embed-container">
         {children}
       </main>
-      <footer className="embed-footer">
-        <span className="embed-badge">Gapura IRRS</span>
-        <span className="embed-refresh">Data otomatis diperbarui</span>
-      </footer>
     </div>
   );
 }
