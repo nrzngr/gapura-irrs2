@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Plus, RotateCcw, Share2, MoreVertical, User, LayoutGrid, Sparkles } from 'lucide-react';
 import { TileCard } from './TileCard';
-import { DashboardSidebar } from './DashboardSidebar';
 import type { DashboardTile, QueryResult, DashboardPage } from '@/types/builder';
 import type { LayoutPreset } from '@/lib/hooks/useDashboardState';
 import { cn } from '@/lib/utils';
@@ -90,7 +89,6 @@ export function DashboardComposer({
   yearRange = '2025 - 2026',
 }: DashboardComposerProps) {
   const [activePageIdx, setActivePageIdx] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Determine which tiles to show based on active page
   const hasPages = pages.length > 1;
@@ -111,50 +109,63 @@ export function DashboardComposer({
     : `Landside & Airside Customer Feedback ${yearRange}`;
 
   return (
-    <div className="flex h-screen bg-[#f5f5f5]">
-      {/* Sidebar */}
-      {hasPages && (
-        <DashboardSidebar
-          activePage={activePageIdx}
-          onPageChange={setActivePageIdx}
-          pages={pages}
-          yearRange={yearRange}
-        />
-      )}
-
+    <div className="flex h-full bg-[#f5f5f5]">
       {/* Main Content */}
-      <div 
-        className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
-        style={{ marginLeft: hasPages ? (sidebarCollapsed ? 60 : 240) : 0 }}
+      <div
+        className="flex-1 flex flex-col overflow-hidden"
       >
-        {/* Top Bar with Reset and Share */}
-        <div className="flex items-center justify-end gap-2 px-4 py-2 bg-white border-b border-[#e0e0e0]">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
-            <RotateCcw size={14} />
-            Reset
-          </button>
-          <button 
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
-            style={{ backgroundColor: GAPURA_GREEN }}
-          >
-            <Share2 size={14} />
-            Share
-          </button>
-          <button className="p-1.5 text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
-            <MoreVertical size={18} />
-          </button>
-          <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center">
-            <User size={16} className="text-[#666]" />
+        {/* Top Bar with Page Tabs + Actions */}
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-white border-b border-[#e0e0e0]">
+          {/* Page tabs for multi-page editing */}
+          {hasPages ? (
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {pages.map((page, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActivePageIdx(idx)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-all",
+                    activePageIdx === idx
+                      ? "text-white shadow-sm"
+                      : "text-[#666] hover:bg-[#f5f5f5]"
+                  )}
+                  style={activePageIdx === idx ? { backgroundColor: GAPURA_GREEN } : undefined}
+                >
+                  {page.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div />
+          )}
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
+              <RotateCcw size={14} />
+              Reset
+            </button>
+            <button
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
+              style={{ backgroundColor: GAPURA_GREEN }}
+            >
+              <Share2 size={14} />
+              Share
+            </button>
+            <button className="p-1.5 text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
+              <MoreVertical size={18} />
+            </button>
+            <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center">
+              <User size={16} className="text-[#666]" />
+            </div>
           </div>
         </div>
 
         {/* Dashboard Content */}
         <div className="flex-1 overflow-auto">
-          <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          <div>
             {/* Gapura Header */}
-            <div className="bg-white px-5 py-3">
+            <div className="bg-white px-6 py-4">
               {/* Logo + Title Row */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <img src="/logo.png" alt="Gapura" style={{ height: 40, objectFit: 'contain' }} />
                   <h1 className="text-lg font-bold text-[#333]">
@@ -177,18 +188,18 @@ export function DashboardComposer({
                 className="flex items-center justify-between px-4 py-2 rounded"
                 style={{ backgroundColor: GAPURA_BANNER }}
               >
-                <span className="text-xs font-bold text-white">
+                <span className="text-sm font-bold text-white">
                   {dashboardDescription || 'Irregularity, Complain & Compliment Report'}
                 </span>
                 <div className="flex items-center gap-2">
                   {['HUB', 'Branch', 'Maskapai', 'Airlines', 'Category', 'Area'].map(f => (
                     <button
                       key={f}
-                      className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-white rounded border border-white/30 hover:bg-white/10 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white rounded border border-white/30 hover:bg-white/10 transition-colors"
                       style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
                     >
                       {f}
-                      <span className="text-[8px]">&#9660;</span>
+                      <span className="text-[10px]">&#9660;</span>
                     </button>
                   ))}
                 </div>
@@ -196,7 +207,7 @@ export function DashboardComposer({
 
               {/* KPI Stats Row */}
               {kpiTiles.length > 0 && (
-                <div className="grid grid-cols-4 gap-3 mt-3">
+                <div className="grid grid-cols-4 gap-4 mt-4">
                   {kpiTiles.slice(0, 4).map(tile => {
                     const result = tileResults.get(tile.id);
                     let value: string | number = '-';
@@ -208,10 +219,10 @@ export function DashboardComposer({
                     return (
                       <div 
                         key={tile.id} 
-                        className="group relative bg-white rounded-lg p-4 border border-[#e0e0e0] transition-shadow hover:shadow-md"
+                        className="group relative bg-white rounded-lg px-5 py-4 border border-[#e0e0e0] transition-shadow hover:shadow-md"
                         style={{ borderLeft: `3px solid ${GAPURA_GREEN}` }}
                       >
-                        <div className="text-[11px] font-semibold uppercase" style={{ color: GAPURA_GREEN }}>
+                        <div className="text-xs font-semibold uppercase" style={{ color: GAPURA_GREEN }}>
                           {tile.visualization.title || 'KPI'}
                         </div>
                         <div className="text-[28px] font-bold mt-1" style={{ color: GAPURA_GREEN }}>
@@ -220,13 +231,13 @@ export function DashboardComposer({
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => onEditTile(tile.id)}
-                            className="text-[9px] text-[#666] bg-white border border-[#e0e0e0] rounded px-1.5 py-0.5 hover:text-[#6b8e3d] transition-colors"
+                            className="text-[10px] text-[#666] bg-white border border-[#e0e0e0] rounded px-1.5 py-0.5 hover:text-[#6b8e3d] transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => onRemoveTile(tile.id)}
-                            className="text-[9px] text-red-400 bg-white border border-[#e0e0e0] rounded px-1.5 py-0.5 hover:text-red-600 transition-colors"
+                            className="text-[10px] text-red-400 bg-white border border-[#e0e0e0] rounded px-1.5 py-0.5 hover:text-red-600 transition-colors"
                           >
                             X
                           </button>
@@ -239,14 +250,14 @@ export function DashboardComposer({
             </div>
 
             {/* Content Tiles Grid */}
-            <div className="p-4">
+            <div className="px-6 py-5">
               {contentTiles.length > 0 ? (
                 <div
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(12, 1fr)',
-                    gridAutoRows: '200px',
-                    gap: 16,
+                    gridAutoRows: '220px',
+                    gap: 20,
                   }}
                 >
                   {contentTiles.map(tile => (
@@ -299,7 +310,7 @@ export function DashboardComposer({
 
             {/* Footer Timestamp */}
             <div className="px-5 py-3 border-t border-[#e0e0e0] bg-white">
-              <p className="text-[10px] text-[#999]">
+              <p className="text-xs text-[#999]">
                 Data Last Updated: 2/13/2026 1:18:37 PM | <button className="text-[#6b8e3d] hover:underline">Privacy Policy</button>
               </p>
             </div>

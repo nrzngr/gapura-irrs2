@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import type { DashboardTile, QueryResult } from '@/types/builder';
+import { formatDateValue, processChartData } from '@/lib/chart-utils';
 
 
 interface EnlargedChartProps {
@@ -57,7 +58,7 @@ export function EnlargedChart({ tile, result }: EnlargedChartProps) {
   });
   
   // Transform data for Recharts
-  const chartData = result.rows.map((row: any) => {
+  const chartData = processChartData(result.rows.map((row: any) => {
     const dataPoint: any = {};
     result.columns.forEach(col => {
       // Convert numeric strings to numbers
@@ -65,7 +66,7 @@ export function EnlargedChart({ tile, result }: EnlargedChartProps) {
       dataPoint[col] = typeof value === 'number' ? value : (isNaN(Number(value)) ? value : Number(value));
     });
     return dataPoint;
-  });
+  }), effectiveXAxis);
 
 
 
@@ -210,11 +211,17 @@ export function EnlargedChart({ tile, result }: EnlargedChartProps) {
           </ResponsiveContainer>
         );
         
-      case 'heatmap':
+       case 'heatmap':
         // Determine xAxis and yAxis from tile config or effective axis
+        // xAxis = Cols, yAxis = Rows
         const hmXAxis = tile.visualization.xAxis || result.columns[1] || 'category';
-        const hmYAxis = tile.visualization.yAxis || result.columns[0] || 'branch';
-        const hmMetric = (tile.visualization as any).colorField || result.columns.find(c => c !== hmXAxis && c !== (Array.isArray(hmYAxis) ? hmYAxis[0] : hmYAxis) && typeof result.rows[0]?.[c] === 'number') || 'count';
+        const rawY = tile.visualization.yAxis;
+        const hmYAxis = Array.isArray(rawY) && rawY.length > 0 ? rawY[0] : (typeof rawY === 'string' ? rawY : result.columns[0]);
+        
+        // Metric is the numerical value. colorField is priority.
+        const hmMetric = (tile.visualization as any).colorField || 
+          result.columns.find(c => c !== hmXAxis && c !== hmYAxis && (typeof result.rows[0]?.[c] === 'number' || !isNaN(Number(result.rows[0]?.[c])))) || 
+          'count';
 
         return (
           <div className="h-[500px]">

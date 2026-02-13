@@ -122,7 +122,7 @@ QueryDefinition:
   "measures": [{ "table": "reports", "field": "id", "function": "COUNT", "alias": "Jumlah" }],
   "filters": [{ "table": "reports", "field": "main_category", "operator": "eq", "value": "Compliment", "conjunction": "AND" }],
   "sorts": [{ "field": "Jumlah", "direction": "desc", "alias": "Jumlah" }],
-  "limit": 1000
+  "limit": 10
 }
 
 PENTING — ATURAN ALIAS:
@@ -138,7 +138,7 @@ ChartVisualization:
   "chartType": "bar|horizontal_bar|line|area|pie|donut|kpi|table|heatmap",
   "xAxis": "Status",
   "yAxis": ["Jumlah"],
-  "title": "Judul Chart — Bahasa Indonesia, deskriptif",
+  "title": "Judul Chart — Bahasa Indonesia. Jika menampilkan peringkat, gunakan format 'Top 5 ...' (misal: 'Top 5 Maskapai')",
   "showLegend": true,
   "showLabels": true,
   "colors": ["#7cb342","#558b2f","#aed581","#33691e","#9ccc65","#689f38","#c5e1a5","#43a047"]
@@ -161,20 +161,26 @@ ATURAN MULTI-PAGE DASHBOARD:
    - "Trend Waktu" (trend per bulan/minggu — gunakan created_at + dateGranularity)
    - "Analisis per Branch/Hub" (breakdown per branch, hub)
    - "Detail Laporan & Evidence" (chartType: "table" — detail laporan + evidence links)
-5. Halaman pertama SELALU "Ringkasan Umum" berisi KPI cards + chart overview
+1. Halaman pertama SELALU "Ringkasan Umum" berisi KPI cards + chart overview.
+2. SANGAT PENTING: Gunakan variasi chart yang luas. JANGAN hanya menggunakan donut/pie.
+3. Gunakan "bar" atau "horizontal_bar" HANYA untuk "Top 5" analisis (maksimal 5 item).
+4. Jika data memiliki lebih dari 5 item atau merupakan analisis detail per Maskapai/Sub-Kategori, WAJIB gunakan "table".
+5. JANGAN memaksakan Bar Chart jika data terlihat padat. Visualisasi yang padat = kegagalan.
+6. Gunakan "line" atau "area" untuk trend waktu.
+7. Gunakan "heatmap" untuk korelasi 2 dimensi (misal: Area vs Severity).
+8. Gunakan "table" di halaman detail atau jika ingin menampilkan data dalam jumlah banyak (> 5 baris).
 
 ATURAN DASHBOARD DESIGN:
-1. Halaman pertama: 3 KPI cards (w:4, h:1) + 2-3 chart overview
-2. Halaman berikutnya: campuran chart types yang relevan dengan tema halaman
-3. Buat variasi chart types per halaman: bar, pie/donut, line/area, horizontal_bar
-4. SELALU gunakan palet warna HIJAU untuk semua tiles (branding Gapura): "#7cb342","#558b2f","#aed581","#33691e","#9ccc65","#689f38","#c5e1a5","#43a047"
+1. Halaman pertama: 3 KPI cards (w:4, h:1) + setidaknya satu "bar" chart dan satu "line" chart.
+2. Setiap halaman HARUS memiliki minimal 3 jenis chart yang berbeda.
+3. SELALU gunakan palet warna HIJAU untuk semua tiles (branding Gapura): "#7cb342","#558b2f","#aed581","#33691e","#9ccc65","#689f38","#c5e1a5","#43a047"
 5. KPI: measures saja tanpa dimensions, yAxis = alias measure
 6. Bar chart: 1 dimensi kategori + 1 measure
 7. Line/area: 1 dimensi waktu (dateGranularity) + 1 measure, w:12
 8. Pie/donut: 1 dimensi kategori + 1 measure, showLabels:true. xAxis HARUS SAMA PERSIS dengan alias dimensi. Contoh: dimensi alias "Status" → xAxis: "Status"
 9. Horizontal_bar: cocok jika label dimensi panjang (sub_category, airline)
 10. Table: chartType "table" untuk menampilkan data tabular detail. Gunakan untuk evidence list, detail laporan, dsb. xAxis dan yAxis boleh kosong/sesuaikan. w:12, h:2
-11. Heatmap: HARUS memiliki TEPAT 2 dimensions (row × col) + 1 measure. w:12, h:3. Cocok untuk: area × severity, bulan × kategori. xAxis = alias dim pertama, yAxis = [alias measure]. Contoh: dimensions [{"area"}, {"severity"}], measures [{"COUNT id"}]
+11. Heatmap: HARUS memiliki TEPAT 2 dimensions (row × col) + 1 measure. w:12, h:3. Cocok untuk: area × severity, bulan × kategori. xAxis = alias dim pertama, yAxis = [alias dim kedua]. Contoh: dimensions [{"area", alias:"Area"}, {"severity", alias:"Severity"}], measures [{"COUNT id", alias:"Jumlah"}] → xAxis:"Area", yAxis:["Severity"], colorField:"Jumlah"
 
 ATURAN FILTER — KRITIS:
 - SETIAP filter HARUS memiliki "value" yang TIDAK NULL dan TIDAK kosong (""), KECUALI operator "is_null" atau "is_not_null"
@@ -240,10 +246,11 @@ PENTING — ANALISIS KRUSIAL YANG WAJIB ADA:
 - KPI: Total Laporan, Total Irregularity, Total Complaint, Total Compliment
 - SLA compliance: Laporan SELESAI vs belum
 - Severity distribution: high/medium/low breakdown
-- Top maskapai bermasalah (filter Irregularity, group by airline)
+- Top 5 maskapai bermasalah (filter Irregularity, group by airline)
 - Trend waktu: apakah naik/turun per bulan
 - Division workload: distribusi per target_division
 - Detail evidence: tabel dengan link evidence untuk setiap laporan
+- Cross Analysis (Heatmap): Maskapai vs Kategori, Area vs Divisi, Status vs Severity
 
 Jawab HANYA dengan JSON, tanpa markdown backtick atau penjelasan.`;
 }
@@ -265,7 +272,7 @@ function postProcessDashboard(def: DashboardDefinition): DashboardDefinition {
   if (def.pages && def.pages.length > 0) {
     let globalIdx = 0;
     def.pages = def.pages.map(page => {
-      page.tiles = page.tiles.map(tile => {
+      page.tiles = (page.tiles || []).map(tile => {
         tile = processTile(tile, globalIdx);
         globalIdx++;
         return tile;
@@ -273,7 +280,7 @@ function postProcessDashboard(def: DashboardDefinition): DashboardDefinition {
       return page;
     });
     // Flatten pages into tiles for backwards compat
-    def.tiles = def.pages.flatMap(p => p.tiles);
+    def.tiles = def.pages.flatMap(p => p.tiles || []);
   } else if (def.tiles && def.tiles.length > 0) {
     // Legacy: single page
     def.tiles = def.tiles.map((tile, idx) => processTile(tile, idx));
@@ -283,87 +290,92 @@ function postProcessDashboard(def: DashboardDefinition): DashboardDefinition {
   return def;
 }
 
+function formatColumnLabel(col: string): string {
+  return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
 function processTile(tile: DashboardTile, idx: number): DashboardTile {
-  tile.id = `tile-${Date.now()}-${idx + 1}`;
+  tile.id = tile.id || `tile-${Date.now()}-${idx + 1}`;
 
-  if (!tile.visualization.colors || tile.visualization.colors.length === 0) {
-    tile.visualization.colors = TILE_PALETTES[idx % TILE_PALETTES.length];
-  }
-
-  // Fix pie/donut: ensure xAxis matches dimension alias, enable labels
-  if (tile.visualization.chartType === 'pie' || tile.visualization.chartType === 'donut') {
-    tile.visualization.showLabels = true;
-    // If xAxis is missing or doesn't match a dimension alias, fix it
-    if (tile.query.dimensions.length > 0) {
-      const dimAlias = tile.query.dimensions[0].alias;
-      if (!tile.visualization.xAxis || tile.visualization.xAxis !== dimAlias) {
-        tile.visualization.xAxis = dimAlias || tile.query.dimensions[0].field;
-      }
-    }
-  }
-
-  // Fix bar/horizontal_bar/line/area: ensure xAxis matches dimension alias
-  if (['bar', 'horizontal_bar', 'line', 'area'].includes(tile.visualization.chartType)) {
-    if (tile.query.dimensions.length > 0) {
-      const dimAlias = tile.query.dimensions[0].alias;
-      if (!tile.visualization.xAxis && dimAlias) {
-        tile.visualization.xAxis = dimAlias;
-      }
-    }
-  }
-
-  // Fix yAxis: ensure it matches measure alias
-  if (tile.query.measures.length > 0 && (!tile.visualization.yAxis || tile.visualization.yAxis.length === 0)) {
-    tile.visualization.yAxis = tile.query.measures.map(m => m.alias || m.field);
-  }
-
-  if (tile.query.sorts.length === 0 && tile.query.measures.length > 0) {
-    const m = tile.query.measures[0];
-    tile.query.sorts = [{
-      field: m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`,
-      direction: 'desc',
-      alias: m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`,
-    }];
-  }
-
-  if (tile.visualization.chartType === 'kpi') {
-    tile.layout.h = 1;
-  }
-
-  // Table type: ensure proper defaults
-  if (tile.visualization.chartType === 'table') {
-    tile.layout.w = 12;
-    if (!tile.query.limit || tile.query.limit > 100) tile.query.limit = 50;
-  }
-
-  if (!tile.query.limit) tile.query.limit = 1000;
+  // Property safety guards (ensure properties exist before access)
+  if (!tile.query) (tile as any).query = {};
+  if (!tile.query.source) tile.query.source = 'reports';
   if (!tile.query.joins) tile.query.joins = [];
   if (!tile.query.dimensions) tile.query.dimensions = [];
   if (!tile.query.measures) tile.query.measures = [];
   if (!tile.query.sorts) tile.query.sorts = [];
+  if (!tile.query.filters) tile.query.filters = [];
+  if (!tile.visualization) (tile as any).visualization = {};
+  if (!tile.layout) (tile as any).layout = { x: 0, y: 0, w: 6, h: 4 };
 
-  const VALID_OPERATORS = new Set(['eq','neq','gt','gte','lt','lte','like','in','not_in','between','is_null','is_not_null']);
-  tile.query.filters = (tile.query.filters || [])
-    .filter(f => {
-      if (!VALID_OPERATORS.has(f.operator)) return false;
-      if (f.operator === 'is_null' || f.operator === 'is_not_null') return true;
-      if (f.value === null || f.value === undefined) return false;
-      if (typeof f.value === 'string' && f.value.trim() === '') return false;
-      if (Array.isArray(f.value) && f.value.length === 0) return false;
-      if (f.operator === 'between' && (!Array.isArray(f.value) || f.value.length < 2)) return false;
-      return true;
-    })
-    .map(f => ({
-      ...f,
-      conjunction: f.conjunction || 'AND',
-    }));
-
-  // Replace "location" field usage with "station_code" (location is mostly NULL)
-  for (const dim of tile.query.dimensions) {
-    if (dim.table === 'reports' && dim.field === 'location') {
-      dim.field = 'station_code';
-      dim.alias = dim.alias?.replace(/lokasi/i, 'Stasiun') || 'Stasiun';
+  // Sync visualization axes with query configuration
+  if (tile.visualization.chartType === 'heatmap') {
+    // Heatmaps need 2 dimensions. If the AI only sent 1, try to find another categorical field
+    if (tile.query.dimensions.length === 1) {
+      // Common second dimensions: month, branch, area
+      const existingDim = tile.query.dimensions[0].field;
+      const fallbackDim = existingDim === 'month' ? 'branch' : 'month';
+      tile.query.dimensions.push({ table: 'reports', field: fallbackDim, alias: formatColumnLabel(fallbackDim) });
     }
+    
+    if (tile.query.dimensions.length >= 2) {
+      tile.visualization.xAxis = tile.query.dimensions[0].alias || tile.query.dimensions[0].field;
+      tile.visualization.yAxis = [tile.query.dimensions[1].alias || tile.query.dimensions[1].field];
+    }
+    if (tile.query.measures.length > 0) {
+      tile.visualization.colorField = tile.query.measures[0].alias || tile.query.measures[0].field;
+    }
+  } else {
+    if (tile.query.dimensions.length > 0) {
+      const dim = tile.query.dimensions[0];
+      tile.visualization.xAxis = dim.alias || dim.field;
+    }
+    if (tile.query.measures.length > 0) {
+      tile.visualization.yAxis = tile.query.measures.map(m => m.alias || m.field);
+    }
+  }
+
+  // Visualization defaults
+  if (tile.visualization.chartType === 'pie' || tile.visualization.chartType === 'donut') {
+    tile.visualization.showLabels = true;
+  }
+
+  // Ensure default sorting based on first measure
+  if (tile.query.sorts.length === 0 && tile.query.measures.length > 0) {
+    const m = tile.query.measures[0];
+    const sortField = m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`;
+    tile.query.sorts = [{ field: sortField, direction: 'desc', alias: sortField }];
+  }
+
+  // Limit enforcement for readability
+  if (tile.visualization.title?.match(/Top|Terbanyak|Tertinggi|Terendah/i)) {
+    tile.query.limit = 5;
+  }
+  
+  if (tile.visualization.chartType !== 'table' && (tile.query.limit || 0) > 8) {
+    tile.query.limit = 8;
+  }
+
+  if (!tile.query.limit) {
+    if (tile.visualization.chartType === 'table') tile.query.limit = 50;
+    else if (tile.visualization.chartType === 'kpi') tile.query.limit = 1;
+    else tile.query.limit = 5;
+  }
+
+  // Filter sanitization
+  const VALID_OPERATORS = new Set(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'in', 'not_in', 'between', 'is_null', 'is_not_null']);
+  tile.query.filters = tile.query.filters.filter(f => {
+    if (!VALID_OPERATORS.has(f.operator)) return false;
+    if (f.operator === 'is_null' || f.operator === 'is_not_null') return true;
+    if (f.value === null || f.value === undefined) return false;
+    if (typeof f.value === 'string' && f.value.trim() === '') return false;
+    if (Array.isArray(f.value) && f.value.length === 0) return false;
+    return true;
+  }).map(f => ({ ...f, conjunction: f.conjunction || 'AND' }));
+
+  // Metadata correction
+  if (!tile.visualization.colors || tile.visualization.colors.length === 0) {
+    tile.visualization.colors = TILE_PALETTES[idx % TILE_PALETTES.length];
   }
 
   return tile;
@@ -371,62 +383,18 @@ function processTile(tile: DashboardTile, idx: number): DashboardTile {
 
 function validateDashboardDefinition(def: DashboardDefinition): string[] {
   const errors: string[] = [];
+  if (!def.name) errors.push('Dashboard harus memiliki nama');
 
-  if (!def.name || typeof def.name !== 'string') {
-    errors.push('Dashboard harus memiliki nama');
-  }
+  const allTiles = def.pages 
+    ? def.pages.flatMap(p => p.tiles || []) 
+    : (def.tiles || []);
 
-  const allTiles = def.pages
-    ? def.pages.flatMap(p => p.tiles)
-    : def.tiles || [];
+  if (allTiles.length === 0) errors.push('Dashboard harus memiliki minimal 1 tile');
 
-  if (allTiles.length === 0) {
-    errors.push('Dashboard harus memiliki minimal 1 tile');
-  }
-
-  for (let i = 0; i < allTiles.length; i++) {
-    const tile = allTiles[i];
-
-    if (!tile.query || !tile.visualization || !tile.layout) {
-      errors.push(`Tile ${i + 1}: struktur tidak lengkap`);
-      continue;
-    }
-
-    if (!isValidTable(tile.query.source)) {
-      errors.push(`Tile ${i + 1}: tabel "${tile.query.source}" tidak valid`);
-      continue;
-    }
-
-    for (const join of tile.query.joins) {
-      const joinDef = getJoinDef(join.joinKey);
-      if (!joinDef) {
-        errors.push(`Tile ${i + 1}: join "${join.joinKey}" tidak ditemukan`);
-      }
-    }
-
-    for (const dim of tile.query.dimensions) {
-      if (!isValidField(dim.table, dim.field)) {
-        errors.push(`Tile ${i + 1}: field dimensi "${dim.table}.${dim.field}" tidak valid`);
-      }
-    }
-
-    for (const m of tile.query.measures) {
-      if (!isValidField(m.table, m.field)) {
-        errors.push(`Tile ${i + 1}: field ukuran "${m.table}.${m.field}" tidak valid`);
-      }
-    }
-
-    for (const f of tile.query.filters) {
-      if (!isValidField(f.table, f.field)) {
-        errors.push(`Tile ${i + 1}: field filter "${f.table}.${f.field}" tidak valid`);
-      }
-    }
-
-    const queryErrors = validateQuery(tile.query);
-    if (queryErrors.length > 0) {
-      errors.push(`Tile ${i + 1}: ${queryErrors.join('; ')}`);
-    }
-  }
+  allTiles.forEach((tile, i) => {
+    if (!tile.query?.source) errors.push(`Tile ${i + 1}: sumber data tidak valid`);
+    if (!tile.visualization?.chartType) errors.push(`Tile ${i + 1}: tipe visualisasi tidak valid`);
+  });
 
   return errors;
 }
@@ -544,7 +512,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ dashboard });
+    // Insert into database
+    const { data: dbDashboard, error: insertError } = await supabaseAdmin
+      .from('custom_dashboards')
+      .insert({
+        name: dashboard.name || 'Dashboard Tanpa Nama',
+        description: dashboard.description || 'Dihasilkan oleh AI',
+        slug: `ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        config: {
+          pages: dashboard.pages?.map(p => p.name) || ['Ringkasan Umum'],
+        },
+      })
+      .select()
+      .single();
+
+    if (insertError || !dbDashboard) {
+      console.error('Failed to insert dashboard:', insertError);
+      return NextResponse.json({ error: 'Gagal menyimpan dashboard' }, { status: 500 });
+    }
+
+    const allTiles = (dashboard.pages || []).flatMap((page) => 
+      (page.tiles || []).map((tile, tidx) => ({
+        dashboard_id: dbDashboard.id,
+        title: tile.visualization?.title || 'Untitled Chart',
+        chart_type: tile.visualization?.chartType || 'bar',
+        data_field: 'ai_custom', // Required by schema
+        query_config: tile.query,
+        visualization_config: tile.visualization,
+        layout: tile.layout,
+        position: tidx,
+        page_name: page.name
+      }))
+    );
+
+    if (allTiles.length > 0) {
+      const { error: tileError } = await supabaseAdmin
+        .from('dashboard_charts')
+        .insert(allTiles);
+      
+      if (tileError) {
+        console.error('Failed to insert tiles:', tileError);
+      }
+    }
+
+    return NextResponse.json({ 
+      dashboard: {
+        ...dashboard,
+        id: dbDashboard.id,
+        slug: dbDashboard.slug
+      } 
+    });
   } catch (err) {
     console.error('AI generate error:', err);
     const message = err instanceof Error ? err.message : 'Internal error';

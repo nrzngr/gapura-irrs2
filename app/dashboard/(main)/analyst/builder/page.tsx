@@ -14,7 +14,7 @@ interface SavedDashboard {
 
 export default function DashboardBuilderPage() {
   const [savedDashboards, setSavedDashboards] = useState<SavedDashboard[]>([]);
-  const [savedExpanded, setSavedExpanded] = useState(true);
+  const [savedExpanded, setSavedExpanded] = useState(false);
 
   useEffect(() => {
     fetchDashboards();
@@ -92,11 +92,11 @@ export default function DashboardBuilderPage() {
           {/* Collapsible header */}
           <button
             onClick={() => setSavedExpanded(!savedExpanded)}
-            className="w-full flex items-center justify-between px-6 py-2.5 hover:bg-[var(--surface-2)] transition-colors"
+            className="w-full flex items-center justify-between px-6 py-3 hover:bg-[var(--surface-2)] transition-colors"
           >
             <div className="flex items-center gap-2">
               <BarChart3 size={13} className="text-[var(--text-muted)]" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-muted)]">
                 Dashboard Tersimpan
               </h3>
               <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--surface-3)] text-[var(--text-muted)] rounded-full">
@@ -109,19 +109,19 @@ export default function DashboardBuilderPage() {
           {/* Expandable content */}
           {savedExpanded && (
             <div className="px-6 pb-3 max-h-[300px] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {savedDashboards.map(d => (
                   <div
                     key={d.id}
-                    className="group flex items-center justify-between p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:shadow-md hover:border-[var(--brand-primary)]/30 hover:-translate-y-px transition-all"
+                    className="group flex items-center justify-between p-4 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:shadow-md hover:border-[var(--brand-primary)]/30 hover:-translate-y-px transition-all"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-[var(--text-primary)] truncate">{d.name}</p>
                       {d.description && (
-                        <p className="text-[10px] text-[var(--text-muted)] truncate">{d.description}</p>
+                        <p className="text-xs text-[var(--text-muted)] truncate">{d.description}</p>
                       )}
-                      <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--text-muted)]">
-                        <Clock size={10} />
+                      <div className="flex items-center gap-1 mt-1 text-[11px] text-[var(--text-muted)]">
+                        <Clock size={12} />
                         {new Date(d.created_at).toLocaleDateString('id-ID')}
                       </div>
                     </div>

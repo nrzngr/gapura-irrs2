@@ -629,14 +629,23 @@ export function CustomDashboardContent() {
                       const pName = pages[activePage]?.name || '';
                       const cfFrom = dashboard?.config?.dateFrom;
                       const cfTo = dashboard?.config?.dateTo;
-                      let yr = '2025 - 2026';
+                      let yr = '';
                       if (cfFrom && cfTo) {
                         const fy = new Date(cfFrom).getFullYear();
                         const ty = new Date(cfTo).getFullYear();
-                        yr = fy === ty ? `${fy}` : `${fy} - ${ty}`;
+                        yr = fy === ty ? ` ${fy}` : ` ${fy} - ${ty}`;
                       }
-                      if (pName.includes('CGO')) return `CGO Cargo Customer Feedback ${yr}`;
-                      return `Landside & Airside Customer Feedback ${yr}`;
+                      
+                      // Priority 1: Dashboard name from DB
+                      if (dashboard?.name && !dashboard.name.toLowerCase().includes('untitled')) {
+                        return `${dashboard.name}${yr}`;
+                      }
+
+                      // Priority 2: Page name context
+                      if (pName.toLowerCase().includes('cgo')) return `CGO Cargo Customer Feedback${yr}`;
+                      
+                      // Fallback: Template name
+                      return `Landside & Airside Customer Feedback${yr}`;
                     })()}
                   </h1>
                   {hasMultiplePages && pages[activePage] && (
@@ -852,12 +861,12 @@ export function CustomDashboardContent() {
                       data={cr.queryResult.rows}
                       xAxis={chart.visualization_config.xAxis || 'category'}
                       yAxis={chart.visualization_config.yAxis?.length === 1 ? chart.visualization_config.yAxis[0] : (chart.visualization_config.yAxis || ['branch'])}
-                      metric={chart.visualization_config.colorField || 'count'}
+                      metric={chart.visualization_config.colorField || (Array.isArray(chart.visualization_config.yAxis) && chart.visualization_config.yAxis[0]) || 'Jumlah'}
                       showTitle={true}
                       onViewDetail={() => handleViewDetail(chart.title, cr.queryResult ? cr.queryResult.rows : [], 'heatmap', {
                         xAxis: chart.visualization_config?.xAxis,
                         yAxis: chart.visualization_config?.yAxis,
-                        metric: chart.visualization_config?.colorField
+                        metric: chart.visualization_config?.colorField || (Array.isArray(chart.visualization_config?.yAxis) && chart.visualization_config?.yAxis[0]) || 'Jumlah'
                       }, chart.query_config)}
                     />
                   ) : !isTableType && cr.type === 'query' && cr.queryResult ? (

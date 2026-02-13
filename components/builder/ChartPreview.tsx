@@ -13,6 +13,7 @@ import {
 import type { ChartVisualization, QueryResult, DashboardTile } from '@/types/builder';
 import { CustomPivotTable } from './CustomPivotTable';
 import { ChartClickHandler } from '@/components/chart-detail/ChartClickHandler';
+import { formatDateValue, ISO_DATETIME_RE, processChartData } from '@/lib/chart-utils';
 
 interface ChartPreviewProps {
   visualization: ChartVisualization;
@@ -41,43 +42,7 @@ const TOOLTIP_STYLE = {
   boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
 };
 
-// ISO datetime pattern: 2026-01-23T00:00:00+00:00 or 2026-01-23T00:00:00.000Z
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-
-function formatDateValue(val: unknown): string {
-  if (typeof val !== 'string' || !ISO_DATETIME_RE.test(val)) return String(val ?? '');
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val);
-  // Format based on granularity hint from the value itself
-  const day = d.getUTCDate();
-  const month = d.toLocaleDateString('id-ID', { month: 'short', timeZone: 'UTC' });
-  const year = d.getUTCFullYear();
-  // If day=1 and time=00:00, likely month granularity
-  if (day === 1 && d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
-    return `${month} ${year}`;
-  }
-  return `${day} ${month} ${year}`;
-}
-
-function isDateColumn(rows: Record<string, unknown>[], key: string): boolean {
-  for (const row of rows.slice(0, 5)) {
-    const v = row[key];
-    if (typeof v === 'string' && ISO_DATETIME_RE.test(v)) return true;
-  }
-  return false;
-}
-
-/** Pre-process data: format datetime xKey values for display */
-function processChartData(
-  rows: Record<string, unknown>[],
-  xKey: string,
-): Record<string, unknown>[] {
-  if (!isDateColumn(rows, xKey)) return rows;
-  return rows.map(row => ({
-    ...row,
-    [xKey]: formatDateValue(row[xKey]),
-  }));
-}
+// Date formatting logic moved to @/lib/chart-utils.ts
 
 function DateTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -116,8 +81,34 @@ export function ChartPreview({ visualization, result, tile, dashboardId }: Chart
     );
   };
 
-  const xKey = xAxis || result.columns[0] || '';
-  const yKeys = yAxis.length > 0 ? yAxis : result.columns.slice(1);
+  let xKey = xAxis || result.columns[0] || '';
+  
+  // yKeys heuristic: use provided yAxis if they exist in columns, 
+  // otherwise use all numeric columns except xKey
+  let yKeys = yAxis.filter(y => result.columns.includes(y));
+  if (yKeys.length === 0) {
+    yKeys = result.columns.filter(c => {
+      if (c === xKey) return false;
+      // Heuristic: is at least one value a finite number?
+      return rawData.some(r => typeof r[c] === 'number' && isFinite(r[c] as number));
+    });
+  }
+
+  // SELF-HEALING: If xKey is a number and yKeys[0] is a string, they are likely swapped
+  if (yKeys.length > 0 && rawData.length > 0) {
+    const firstValX = rawData[0][xKey];
+    const firstValY = rawData[0][yKeys[0]];
+    if (typeof firstValX === 'number' && typeof firstValY === 'string') {
+      // Swapping x and y keys
+      const temp = xKey;
+      xKey = yKeys[0];
+      yKeys = [temp, ...yKeys.slice(1)];
+    }
+  }
+
+  // Ultimate fallback
+  if (yKeys.length === 0) yKeys = result.columns.slice(1);
+
   const data = processChartData(rawData, xKey);
 
   // KPI
@@ -458,7 +449,7 @@ export function ChartPreview({ visualization, result, tile, dashboardId }: Chart
                dy={index * 12 + 4 - ((lines.length - 1) * 6)} 
                textAnchor="end" 
                fill="var(--text-secondary)" 
-               fontSize={10} // Slightly smaller font
+               fontSize={data.length > 15 ? 9 : 10} // Shrink font if many items
                width={yAxisWidth}
              >
                {line}
@@ -468,13 +459,18 @@ export function ChartPreview({ visualization, result, tile, dashboardId }: Chart
       );
     };
 
+    // Dynamic height for horizontal bars to prevent label overlap
+    // Min 30px per category + margin
+    const minH = isHorizontal ? Math.max(300, data.length * 32 + 40) : '100%';
+
     return (
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          layout={isHorizontal ? 'vertical' : 'horizontal'}
-          margin={{ top: 10, right: isHorizontal ? 60 : 20, left: isHorizontal ? yAxisWidth - 40 : 0, bottom: 0 }}
-        >
+      <div style={{ width: '100%', height: '100%', minHeight: isHorizontal ? minH : undefined, overflowY: isHorizontal ? 'auto' : 'visible' }}>
+        <ResponsiveContainer width="100%" height={isHorizontal ? minH : "100%"}>
+          <BarChart
+            data={data}
+            layout={isHorizontal ? 'vertical' : 'horizontal'}
+            margin={{ top: 10, right: isHorizontal ? 60 : 20, left: isHorizontal ? yAxisWidth - 40 : 0, bottom: 20 }}
+          >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           {isHorizontal ? (
             <>
@@ -517,18 +513,19 @@ export function ChartPreview({ visualization, result, tile, dashboardId }: Chart
             <Bar
               key={key}
               dataKey={key}
-              fill={GAPURA_GREEN_LIGHT}
+              fill={palette[i % palette.length]}
               stackId={stackId}
               radius={isStacked ? 0 : isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
               label={showLabels ? { 
                 position: isHorizontal ? 'right' : 'top', 
-                fontSize: 10, 
+                fontSize: 9, 
                 fill: '#666'
               } : false}
             />
           ))}
         </BarChart>
       </ResponsiveContainer>
+      </div>
     );
   }
 

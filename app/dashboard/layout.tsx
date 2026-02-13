@@ -17,15 +17,12 @@ export default async function DashboardLayout({
         redirect('/auth/login');
     }
 
+    // Parent layout is now just a container/auth guard.
+    // Child layouts (like (main)/layout.tsx) handle Sidebars and specific frames.
+    // This allows pages like chart-detail to be full-width easily.
     return (
-        <div className="flex h-screen bg-slate-50">
-            {/* Sidebar */}
-            <Sidebar role={String(session.role || 'EMPLOYEE')} />
-
-            {/* Main Content Area */}
-            <main className="flex-1 md:ml-[260px] h-full overflow-y-auto w-full">
-                {children}
-            </main>
+        <div className="min-h-screen bg-slate-50 w-full overflow-x-hidden">
+            {children}
         </div>
     );
 }

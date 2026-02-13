@@ -115,6 +115,13 @@ export async function POST(req: NextRequest) {
         jsonContent = jsonContent.substring(firstBrace, lastBrace + 1);
       }
 
+      // 3. SEC-OPS: Sanitize common malformed JSON values (unquoted ratios, etc.)
+      // Fixes cases like "nilai": 1:6 -> "nilai": "1:6"
+      jsonContent = jsonContent.replace(/:\s*([0-9]+\s*:\s*[0-9]+)\b/g, ': "$1"');
+      
+      // Fixes unquoted percentages if any: 14.3% -> "14.3%"
+      jsonContent = jsonContent.replace(/:\s*([0-9.]+\s*%)\b/g, ': "$1"');
+
       insights = JSON.parse(jsonContent);
     } catch (parseError) {
       console.warn('JSON Parse Warning:', parseError);
@@ -180,7 +187,7 @@ FORMAT OUTPUT (JSON):
     {
       "label": "Nama Cabang/Maskapai/Kategori",
       "arah": "naik/turun/stabil/kritis",
-      "persentase": 0, // Estimasi kenaikan/penurunan atau kontribusi %
+      "persentase": 0, // Nilai angka saja (e.g., 41.4)
       "deskripsi": "Penjelasan konteks kenapa ini trend penting"
     }
   ],
@@ -188,12 +195,14 @@ FORMAT OUTPUT (JSON):
   "anomali": [
     {
       "label": "Entitas yang outlier",
-      "nilai": 0,
+      "nilai": "string", // WAJIB QUOTED STRING jika mengandung ":" atau karakter non-angka
       "deskripsi": "Kenapa ini anomali? (Misal: 3x lipat rata-rata)"
     }
   ],
   "kesimpulan": "Satu kalimat penutup yang merangkum status kesehatan operasional berdasarkan data ini."
-}`;
+}
+
+PENTING: Pastikan semua nilai di dalam JSON valid. Nilai yang mengandung ":" (rasio), "%", atau teks harus diapit tanda kutip ganda (quoted string).`;
 }
 
 function parseInsightsFromText(text: string): unknown {

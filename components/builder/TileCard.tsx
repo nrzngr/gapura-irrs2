@@ -55,11 +55,11 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize, dashboardId
 
   return (
     <div 
-      className="group bg-white rounded-lg overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md border border-[#e0e0e0]"
+      className="group bg-white rounded-xl overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md border border-[#eaeaea]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#f0f0f0]">
-        <h4 className="m-0 text-[13px] font-bold text-[#333] truncate flex-1">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#f0f0f0]">
+        <h4 className="m-0 text-sm font-bold text-[#333] truncate flex-1">
           {title}
         </h4>
         <div className="flex items-center gap-1 ml-2">
@@ -67,45 +67,47 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize, dashboardId
           {result && result.rows.length > 0 && (
             <button
               onClick={handleViewDetails}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-[#6b8e3d] bg-[#e8f5e9] hover:bg-[#c8e6c9] rounded transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#6b8e3d] bg-[#e8f5e9] hover:bg-[#c8e6c9] rounded transition-colors"
               title="Lihat Detail"
             >
-              <Eye size={12} />
+              <Eye size={14} />
               <span>Detail</span>
             </button>
           )}
-          {/* Resize dropdown */}
-          <select
-            value={`${tile.layout.w}-${tile.layout.h}`}
-            onChange={e => {
-              const [w, h] = e.target.value.split('-').map(Number);
-              onResize(tile.id, w, h);
-            }}
-            className="py-0.5 px-1 text-[10px] bg-transparent border border-[#e0e0e0] rounded text-[#666] outline-none cursor-pointer hover:border-[#6b8e3d]"
-          >
-            {SIZE_OPTIONS.map(s => (
-              <option key={`${s.w}-${s.h}`} value={`${s.w}-${s.h}`}>{s.label}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => onEdit(tile.id)}
-            className="p-1 text-[#666] hover:text-[#6b8e3d] transition-colors"
-            title="Edit"
-          >
-            <Pencil size={12} />
-          </button>
-          <button
-            onClick={() => onRemove(tile.id)}
-            className="p-1 text-[#666] hover:text-red-500 transition-colors"
-            title="Hapus"
-          >
-            <Trash2 size={12} />
-          </button>
+          {/* Resize dropdown + edit/delete — visible on hover */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select
+              value={`${tile.layout.w}-${tile.layout.h}`}
+              onChange={e => {
+                const [w, h] = e.target.value.split('-').map(Number);
+                onResize(tile.id, w, h);
+              }}
+              className="py-0.5 px-1 text-xs bg-transparent border border-[#e0e0e0] rounded text-[#666] outline-none cursor-pointer hover:border-[#6b8e3d]"
+            >
+              {SIZE_OPTIONS.map(s => (
+                <option key={`${s.w}-${s.h}`} value={`${s.w}-${s.h}`}>{s.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => onEdit(tile.id)}
+              className="p-1.5 text-[#666] hover:text-[#6b8e3d] transition-colors"
+              title="Edit"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={() => onRemove(tile.id)}
+              className="p-1.5 text-[#666] hover:text-red-500 transition-colors"
+              title="Hapus"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Body */}
-      <div className={`flex-1 ${isTable ? 'overflow-hidden' : 'min-h-[150px]'} p-3`}>
+      <div className={`flex-1 ${isTable ? 'overflow-hidden' : 'min-h-[150px]'} p-4`}>
         {!isConfigured ? (
           <div
             className="flex items-center justify-center h-full cursor-pointer rounded hover:bg-[#f5f5f5] transition-colors"

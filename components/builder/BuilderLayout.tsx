@@ -255,20 +255,20 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Top bar with steps */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[var(--surface-1)] border-b border-[var(--surface-4)]">
+      <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface-1)] border-b border-[var(--surface-4)]">
         <div className="flex items-center gap-3">
           {/* Mode toggle */}
           <div className="flex bg-[var(--surface-2)] rounded-xl p-0.5 border border-[var(--surface-4)]">
             <button
               onClick={() => setMode('explore')}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all",
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold rounded-lg transition-all",
                 mode === 'explore'
                   ? "bg-[var(--brand-primary)] text-white shadow-sm"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               )}
             >
-              <Compass size={14} />
+              <Compass size={16} />
               Jelajahi Data
             </button>
             <button
@@ -277,13 +277,13 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                 else setMode('dashboard');
               }}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all",
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold rounded-lg transition-all",
                 mode === 'dashboard'
                   ? "bg-[var(--brand-primary)] text-white shadow-sm"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               )}
             >
-              <LayoutGrid size={14} />
+              <LayoutGrid size={16} />
               Susun Dashboard {dash.tiles.length > 0 && `(${dash.tiles.length})`}
             </button>
           </div>
@@ -299,7 +299,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
           {mode === 'explore' && !editingTileId && hasResult && (
             <button
               onClick={addCurrentAsTile}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
             >
               <Plus size={14} />
               Tambah ke Dashboard
@@ -308,7 +308,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
           {editingTileId && mode === 'explore' && (
             <button
               onClick={handleSaveTileEdit}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
             >
               <Save size={14} />
               Simpan Perubahan
@@ -326,7 +326,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
           {mode === 'dashboard' && dash.tiles.length > 0 && (
             <button
               onClick={() => setShowSaveModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-[var(--brand-primary)] text-white rounded-lg hover:opacity-90 shadow-sm transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-[var(--brand-primary)] text-white rounded-lg hover:opacity-90 shadow-sm transition-all"
             >
               <Save size={14} />
               Simpan Dashboard
@@ -375,7 +375,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
               {showWelcome && !hasQuery ? (
                 /* Welcome / onboarding state with AI prompt */
                 <div className="flex items-center justify-center h-full p-8 overflow-auto">
-                  <div className="w-full max-w-2xl animate-fade-in-up">
+                  <div className="w-full max-w-4xl animate-fade-in-up">
                     {/* AI Prompt Card */}
                     <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 mb-5 shadow-lg shadow-purple-500/10">
                       {/* Decorative sparkle */}

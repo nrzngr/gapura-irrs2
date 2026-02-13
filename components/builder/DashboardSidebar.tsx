@@ -48,8 +48,8 @@ export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = 
       {/* Title */}
       {!collapsed && (
         <div className="px-4 py-3 border-b border-[#e0e0e0]">
-          <p className="text-xs font-semibold text-[#333]">Customer Feedback</p>
-          <p className="text-[10px] text-[#666]">{yearRange}</p>
+          <p className="text-sm font-semibold text-[#333]">Customer Feedback</p>
+          <p className="text-xs text-[#666]">{yearRange}</p>
         </div>
       )}
 
@@ -63,7 +63,7 @@ export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = 
               key={idx}
               onClick={() => onPageChange(idx)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-200 relative",
+                "w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-200 relative",
                 isActive 
                   ? "text-[#6b8e3d] bg-[#e8f5e9]" 
                   : "text-[#666] hover:bg-[#eeeeee]"
@@ -78,7 +78,7 @@ export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = 
               )}
               <Icon size={16} />
               {!collapsed && (
-                <span className="text-xs font-medium truncate">{item.name}</span>
+                <span className="text-sm font-medium truncate">{item.name}</span>
               )}
             </button>
           );
@@ -88,8 +88,8 @@ export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = 
       {/* Footer */}
       {!collapsed && (
         <div className="px-4 py-3 border-t border-[#e0e0e0]">
-          <p className="text-[9px] text-[#999]">Data Last Updated: 2/13/2026 1:18:37 PM</p>
-          <button className="text-[9px] text-[#6b8e3d] hover:underline mt-1">Privacy Policy</button>
+          <p className="text-[11px] text-[#999]">Data Last Updated: 2/13/2026 1:18:37 PM</p>
+          <button className="text-[11px] text-[#6b8e3d] hover:underline mt-1">Privacy Policy</button>
         </div>
       )}
     </div>
