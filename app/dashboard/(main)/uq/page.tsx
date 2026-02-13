@@ -141,7 +141,7 @@ export default function UQDashboard() {
                                                 {STATUS_CONFIG[r.status as ReportStatus]?.label || r.status}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-sm text-[var(--text-secondary)]">{r.stations?.code || '-'}</td>
+                                        <td className="p-4 text-sm text-[var(--text-secondary)]">{r.stations?.code || r.branch || '-'}</td>
                                         <td className="p-4 text-sm text-[var(--text-muted)]">{new Date(r.created_at).toLocaleDateString('id-ID')}</td>
                                     </tr>
                                 ))

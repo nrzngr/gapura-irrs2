@@ -183,7 +183,7 @@ export default function OTReportsPage() {
                                                 </div>
                                             </td>
                                             <td className="py-4 px-4">
-                                                <p className="font-medium truncate max-w-[120px]" style={{ color: 'var(--text-primary)' }}>{report.users?.full_name || '-'}</p>
+                                                <p className="font-medium truncate max-w-[120px]" style={{ color: 'var(--text-primary)' }}>{report.users?.full_name || report.reporter_name || '-'}</p>
                                             </td>
                                             <td className="py-4 px-4 text-center">
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white" style={{ background: severity.color }}>

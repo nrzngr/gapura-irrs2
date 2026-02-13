@@ -254,7 +254,7 @@ export default function AnalystDashboard() {
                 'Judul Laporan': r.title,
                 'Status': STATUS_CONFIG[r.status as keyof typeof STATUS_CONFIG]?.label || r.status,
                 'Severity': r.severity?.toUpperCase() || '-',
-                'Stasiun': r.stations?.code || '-',
+                'Stasiun': r.stations?.code || r.branch || '-',
                 'Nama Stasiun': r.stations?.name || '-',
                 'Divisi Tujuan': r.target_division || '-',
                 'Pelapor': r.users?.full_name || '-',
@@ -388,7 +388,7 @@ export default function AnalystDashboard() {
                     r.title.substring(0, 30) + (r.title.length > 30 ? '...' : ''),
                     STATUS_CONFIG[r.status as keyof typeof STATUS_CONFIG]?.label || r.status,
                     r.severity,
-                    r.stations?.code || '-',
+                    r.stations?.code || r.branch || '-',
                     new Date(r.created_at).toLocaleDateString('id-ID')
                 ]),
                 theme: 'striped',
@@ -1122,7 +1122,7 @@ export default function AnalystDashboard() {
                                                     {r.severity}
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-sm text-[var(--text-secondary)]">{r.stations?.code || '-'}</td>
+                                            <td className="p-4 text-sm text-[var(--text-secondary)]">{r.stations?.code || r.branch || '-'}</td>
                                             <td className="p-4 text-sm text-[var(--text-muted)]">{new Date(r.created_at).toLocaleDateString('id-ID')}</td>
                                         </tr>
                                     ))

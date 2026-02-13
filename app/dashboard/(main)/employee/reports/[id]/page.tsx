@@ -228,7 +228,7 @@ export default function EmployeeReportDetailPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="space-y-1">
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Station</p>
-                        <p className="font-medium text-sm">{report.stations?.code || '-'}</p>
+                        <p className="font-medium text-sm">{report.stations?.code || report.branch || '-'}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Tanggal</p>
