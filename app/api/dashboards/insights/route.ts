@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        maxTokens: 2000,
         stream: false,
         provider: {
           dataCollection: "allow" // Required for free models

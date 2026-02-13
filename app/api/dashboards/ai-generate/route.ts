@@ -487,7 +487,7 @@ export async function POST(request: NextRequest) {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
-          max_tokens: 16384,
+          maxTokens: 16384,
           stream: false,
           provider: {
             dataCollection: "allow"

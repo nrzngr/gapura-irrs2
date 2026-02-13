@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
             { role: 'system', content: 'Kamu analis data profesional. Kembalikan HANYA JSON valid tanpa markdown code fences.' },
             { role: 'user', content: prompt },
           ],
-          max_tokens: 4096,
+          maxTokens: 4096,
           temperature: 0.4,
           stream: false,
           provider: {
