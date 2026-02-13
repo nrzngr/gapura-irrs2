@@ -37,6 +37,7 @@ interface Report {
     started_at: string | null;
     validated_at: string | null;
     users: { id: string; full_name: string; email: string } | null;
+    branch: string | null;
     stations: { id: string; code: string; name: string } | null;
     acknowledged_user: { id: string; full_name: string } | null;
     validated_user: { id: string; full_name: string } | null;

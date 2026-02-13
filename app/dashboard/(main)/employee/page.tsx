@@ -13,7 +13,7 @@ import {
 import { PrismButton } from '@/components/ui/PrismButton';
 import { cn } from '@/lib/utils';
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
-import { CreateReportModal } from '../../../components/dashboard/CreateReportModal';
+import { CreateReportModal } from '@/components/dashboard/CreateReportModal';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { Report } from '@/types';
 
