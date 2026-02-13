@@ -1,6 +1,7 @@
 'use client';
 
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import type { DashboardTile, QueryResult } from '@/types/builder';
 import { ChartPreview } from './ChartPreview';
 
@@ -10,6 +11,7 @@ interface TileCardProps {
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
   onResize: (id: string, w: number, h: number) => void;
+  dashboardId?: string;
 }
 
 const SIZE_OPTIONS = [
@@ -20,20 +22,58 @@ const SIZE_OPTIONS = [
   { label: 'Full Tall', w: 12, h: 3 },
 ];
 
-export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardProps) {
+const GAPURA_GREEN = '#6b8e3d';
+
+export function TileCard({ tile, result, onEdit, onRemove, onResize, dashboardId }: TileCardProps) {
+  const router = useRouter();
   const title = tile.visualization.title || 'Tile Tanpa Judul';
   const hasDims = tile.query.dimensions.length > 0;
   const hasMeasures = tile.query.measures.length > 0;
   const isConfigured = hasDims || hasMeasures;
+  const isTable = tile.visualization.chartType === 'table';
+
+  const handleViewDetails = () => {
+    if (!result) return;
+
+    // Store data in sessionStorage for the detail page
+    const detailData = {
+      tile,
+      result,
+      dashboardId,
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
+    
+    // Navigate to detail page
+    const params = new URLSearchParams();
+    if (dashboardId) params.set('dashboardId', dashboardId);
+    params.set('tileId', tile.id);
+    
+    router.push(`/dashboard/chart-detail?${params.toString()}`);
+  };
 
   return (
-    <div className="group bg-[var(--surface-1)] border border-[var(--surface-4)] rounded-lg overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md">
+    <div 
+      className="group bg-white rounded-lg overflow-hidden flex flex-col h-full transition-shadow hover:shadow-md border border-[#e0e0e0]"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--surface-4)]/50">
-        <h4 className="m-0 text-xs font-bold text-[var(--text-primary)] truncate flex-1">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#f0f0f0]">
+        <h4 className="m-0 text-[13px] font-bold text-[#333] truncate flex-1">
           {title}
         </h4>
-        <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 ml-2">
+          {/* View Details button - always visible */}
+          {result && result.rows.length > 0 && (
+            <button
+              onClick={handleViewDetails}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-[#6b8e3d] bg-[#e8f5e9] hover:bg-[#c8e6c9] rounded transition-colors"
+              title="Lihat Detail"
+            >
+              <Eye size={12} />
+              <span>Detail</span>
+            </button>
+          )}
           {/* Resize dropdown */}
           <select
             value={`${tile.layout.w}-${tile.layout.h}`}
@@ -41,7 +81,7 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
               const [w, h] = e.target.value.split('-').map(Number);
               onResize(tile.id, w, h);
             }}
-            className="py-0.5 px-1 text-[10px] bg-transparent border border-[var(--surface-4)] rounded text-[var(--text-muted)] outline-none cursor-pointer"
+            className="py-0.5 px-1 text-[10px] bg-transparent border border-[#e0e0e0] rounded text-[#666] outline-none cursor-pointer hover:border-[#6b8e3d]"
           >
             {SIZE_OPTIONS.map(s => (
               <option key={`${s.w}-${s.h}`} value={`${s.w}-${s.h}`}>{s.label}</option>
@@ -49,14 +89,14 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
           </select>
           <button
             onClick={() => onEdit(tile.id)}
-            className="p-1 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors"
+            className="p-1 text-[#666] hover:text-[#6b8e3d] transition-colors"
             title="Edit"
           >
             <Pencil size={12} />
           </button>
           <button
             onClick={() => onRemove(tile.id)}
-            className="p-1 text-[var(--text-muted)] hover:text-red-500 transition-colors"
+            className="p-1 text-[#666] hover:text-red-500 transition-colors"
             title="Hapus"
           >
             <Trash2 size={12} />
@@ -65,19 +105,19 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize }: TileCardP
       </div>
 
       {/* Body */}
-      <div className="flex-1 min-h-[200px] p-1.5">
+      <div className={`flex-1 ${isTable ? 'overflow-hidden' : 'min-h-[150px]'} p-3`}>
         {!isConfigured ? (
           <div
-            className="flex items-center justify-center h-full cursor-pointer rounded hover:bg-[var(--surface-2)] transition-colors"
+            className="flex items-center justify-center h-full cursor-pointer rounded hover:bg-[#f5f5f5] transition-colors"
             onClick={() => onEdit(tile.id)}
           >
-            <p className="text-xs text-[var(--text-muted)]">Klik Edit untuk mengkonfigurasi query</p>
+            <p className="text-xs text-[#999]">Klik Edit untuk mengkonfigurasi query</p>
           </div>
         ) : result && result.rows.length > 0 ? (
           <ChartPreview visualization={tile.visualization} result={result} />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-xs text-[var(--text-muted)]">Menunggu data...</p>
+            <p className="text-xs text-[#999]">Menunggu data...</p>
           </div>
         )}
       </div>

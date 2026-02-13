@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, LayoutGrid, Sparkles } from 'lucide-react';
+import { Plus, RotateCcw, Share2, MoreVertical, User, LayoutGrid, Sparkles } from 'lucide-react';
 import { TileCard } from './TileCard';
+import { DashboardSidebar } from './DashboardSidebar';
 import type { DashboardTile, QueryResult, DashboardPage } from '@/types/builder';
 import type { LayoutPreset } from '@/lib/hooks/useDashboardState';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,7 @@ interface DashboardComposerProps {
   dashboardName?: string;
   dashboardDescription?: string;
   pages?: DashboardPage[];
+  yearRange?: string;
 }
 
 const GAPURA_GREEN = '#6b8e3d';
@@ -50,7 +52,6 @@ function LayoutPreviewSVG({ cols }: { cols: number[] }) {
     rects.push({ x: 1 + third + gap, y: 1, w: third, h: h - 2 });
     rects.push({ x: 1 + (third + gap) * 2, y: 1, w: third, h: h - 2 });
   } else if (cols.length === 3 && cols[2] === 2) {
-    // 2+1: two on top, one full bottom
     const half = (w - gap - 2) / 2;
     const topH = (h - gap - 2) * 0.55;
     const botH = h - 2 - topH - gap;
@@ -58,7 +59,6 @@ function LayoutPreviewSVG({ cols }: { cols: number[] }) {
     rects.push({ x: 1 + half + gap, y: 1, w: half, h: topH });
     rects.push({ x: 1, y: 1 + topH + gap, w: w - 2, h: botH });
   } else {
-    // 1+2: one full top, two on bottom
     const half = (w - gap - 2) / 2;
     const topH = (h - gap - 2) * 0.45;
     const botH = h - 2 - topH - gap;
@@ -87,8 +87,10 @@ export function DashboardComposer({
   dashboardName,
   dashboardDescription,
   pages = [],
+  yearRange = '2025 - 2026',
 }: DashboardComposerProps) {
   const [activePageIdx, setActivePageIdx] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Determine which tiles to show based on active page
   const hasPages = pages.length > 1;
@@ -103,139 +105,98 @@ export function DashboardComposer({
   const kpiTiles = visibleTiles.filter(t => t.visualization.chartType === 'kpi');
   const contentTiles = visibleTiles.filter(t => t.visualization.chartType !== 'kpi');
 
+  const isCGO = activePage?.name?.toLowerCase().includes('cgo');
+  const displayTitle = isCGO 
+    ? `CGO Cargo Customer Feedback ${yearRange}`
+    : `Landside & Airside Customer Feedback ${yearRange}`;
+
   return (
-    <div className="flex flex-col h-full bg-[var(--surface-2)]">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[var(--surface-1)] border-b border-[var(--surface-4)]">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Layout:</span>
-          <div className="flex items-center gap-1">
-            {PRESETS.map(p => (
-              <button
-                key={p.key}
-                onClick={() => onApplyPreset(p.key)}
-                className="flex items-center justify-center w-10 h-8 rounded-lg border border-transparent text-[var(--text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] hover:bg-[var(--surface-2)] transition-all"
-                title={p.label}
-              >
-                <LayoutPreviewSVG cols={p.cols} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          onClick={onAddTile}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
-          style={{ background: GAPURA_GREEN }}
-        >
-          <Plus size={14} />
-          Tambah Tile
-        </button>
-      </div>
-
-      {/* Page Tabs (if multi-page) */}
+    <div className="flex h-screen bg-[#f5f5f5]">
+      {/* Sidebar */}
       {hasPages && (
-        <div className="flex items-center gap-1 px-4 py-1.5 bg-[var(--surface-1)] border-b border-[var(--surface-4)] overflow-x-auto">
-          {pages.map((page, idx) => (
-            <button
-              key={idx}
-              onClick={() => setActivePageIdx(idx)}
-              className={cn(
-                "px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all whitespace-nowrap",
-                activePageIdx === idx
-                  ? "text-white shadow-sm"
-                  : "text-[var(--text-muted)] bg-[var(--surface-2)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-3)]"
-              )}
-              style={activePageIdx === idx ? { background: GAPURA_GREEN } : undefined}
-            >
-              {page.name}
-              <span className="ml-1.5 opacity-60">({page.tiles.length})</span>
-            </button>
-          ))}
-        </div>
+        <DashboardSidebar
+          activePage={activePageIdx}
+          onPageChange={setActivePageIdx}
+          pages={pages}
+          yearRange={yearRange}
+        />
       )}
 
-      {/* Preview Area */}
-      <div className="flex-1 overflow-auto">
-        {tiles.length === 0 ? (
-          /* Enhanced empty state */
-          <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="relative p-6 border-2 border-dashed border-[var(--surface-4)] rounded-2xl">
-              <LayoutGrid size={40} className="text-[var(--text-muted)] opacity-30" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--surface-4)] animate-pulse" />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium text-[var(--text-secondary)] mb-1">Belum ada tile</p>
-              <p className="text-xs text-[var(--text-muted)]">Mulai dengan menambah tile atau gunakan AI</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={onAddTile}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
-                style={{ background: GAPURA_GREEN }}
-              >
-                <Plus size={14} />
-                Tambah Tile
-              </button>
-              <button
-                onClick={() => {/* AI hint - user should go to explore mode */}}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
-              >
-                <Sparkles size={14} />
-                Buat dengan AI
-              </button>
-            </div>
+      {/* Main Content */}
+      <div 
+        className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+        style={{ marginLeft: hasPages ? (sidebarCollapsed ? 60 : 240) : 0 }}
+      >
+        {/* Top Bar with Reset and Share */}
+        <div className="flex items-center justify-end gap-2 px-4 py-2 bg-white border-b border-[#e0e0e0]">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
+            <RotateCcw size={14} />
+            Reset
+          </button>
+          <button 
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
+            style={{ backgroundColor: GAPURA_GREEN }}
+          >
+            <Share2 size={14} />
+            Share
+          </button>
+          <button className="p-1.5 text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
+            <MoreVertical size={18} />
+          </button>
+          <div className="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center">
+            <User size={16} className="text-[#666]" />
           </div>
-        ) : (
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-auto">
           <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-            {/* Gapura Header Preview */}
-            <div className="bg-[var(--surface-1)] border-b border-[var(--surface-4)]" style={{ padding: '12px 20px' }}>
-              {/* Logo + Title */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                <img src="/logo.png" alt="Gapura" style={{ height: 40, objectFit: 'contain' }} />
-                <span className="text-lg font-bold text-[var(--text-primary)]">
-                  {dashboardName || 'Dashboard Preview'}
-                </span>
-                <div style={{ marginLeft: 'auto' }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '5px 12px', borderRadius: 4,
-                    background: GAPURA_GREEN, color: '#fff', fontSize: 11, fontWeight: 500,
-                  }}>
-                    Select date range
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6L7.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </span>
+            {/* Gapura Header */}
+            <div className="bg-white px-5 py-3">
+              {/* Logo + Title Row */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <img src="/logo.png" alt="Gapura" style={{ height: 40, objectFit: 'contain' }} />
+                  <h1 className="text-lg font-bold text-[#333]">
+                    {displayTitle}
+                  </h1>
                 </div>
+                <button
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-white rounded transition-colors"
+                  style={{ backgroundColor: GAPURA_GREEN }}
+                >
+                  Select date range
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2.5 3.5L5 6L7.5 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
               </div>
 
               {/* Banner */}
-              <div style={{
-                background: GAPURA_BANNER, borderRadius: 4, padding: '7px 14px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6,
-              }}>
-                <span style={{ color: '#fff', fontWeight: 700, fontSize: 12 }}>
+              <div 
+                className="flex items-center justify-between px-4 py-2 rounded"
+                style={{ backgroundColor: GAPURA_BANNER }}
+              >
+                <span className="text-xs font-bold text-white">
                   {dashboardDescription || 'Irregularity, Complain & Compliment Report'}
                 </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {['HUB', 'Branch', 'Airlines', 'Category'].map(f => (
-                    <span key={f} style={{
-                      padding: '2px 8px', borderRadius: 3,
-                      background: 'rgba(255,255,255,0.2)', color: '#fff',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      fontSize: 10, fontWeight: 500,
-                    }}>
-                      {f} <span style={{ fontSize: 8 }}>&#9660;</span>
-                    </span>
+                <div className="flex items-center gap-2">
+                  {['HUB', 'Branch', 'Maskapai', 'Airlines', 'Category', 'Area'].map(f => (
+                    <button
+                      key={f}
+                      className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-white rounded border border-white/30 hover:bg-white/10 transition-colors"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                    >
+                      {f}
+                      <span className="text-[8px]">&#9660;</span>
+                    </button>
                   ))}
                 </div>
               </div>
 
               {/* KPI Stats Row */}
               {kpiTiles.length > 0 && (
-                <div style={{
-                  display: 'grid', gridTemplateColumns: `repeat(${Math.min(kpiTiles.length, 4)}, 1fr)`,
-                  gap: 12, marginTop: 12,
-                }}>
+                <div className="grid grid-cols-4 gap-3 mt-3">
                   {kpiTiles.slice(0, 4).map(tile => {
                     const result = tileResults.get(tile.id);
                     let value: string | number = '-';
@@ -245,22 +206,27 @@ export function DashboardComposer({
                       value = Number(row[yKey]) || 0;
                     }
                     return (
-                      <div key={tile.id} className="group relative bg-[var(--surface-2)] rounded-xl p-4 border border-[var(--surface-4)]" style={{ borderLeft: `3px solid ${GAPURA_GREEN}` }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: GAPURA_GREEN }}>{tile.visualization.title || 'KPI'}</div>
-                        <div style={{ fontSize: 28, fontWeight: 700, color: GAPURA_GREEN }}>
+                      <div 
+                        key={tile.id} 
+                        className="group relative bg-white rounded-lg p-4 border border-[#e0e0e0] transition-shadow hover:shadow-md"
+                        style={{ borderLeft: `3px solid ${GAPURA_GREEN}` }}
+                      >
+                        <div className="text-[11px] font-semibold uppercase" style={{ color: GAPURA_GREEN }}>
+                          {tile.visualization.title || 'KPI'}
+                        </div>
+                        <div className="text-[28px] font-bold mt-1" style={{ color: GAPURA_GREEN }}>
                           {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
                         </div>
-                        {/* Edit/Remove overlay */}
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => onEditTile(tile.id)}
-                            className="text-[9px] text-[var(--text-muted)] bg-[var(--surface-1)] border border-[var(--surface-4)] rounded px-1.5 py-0.5 hover:text-[var(--brand-primary)] transition-colors"
+                            className="text-[9px] text-[#666] bg-white border border-[#e0e0e0] rounded px-1.5 py-0.5 hover:text-[#6b8e3d] transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => onRemoveTile(tile.id)}
-                            className="text-[9px] text-red-400 bg-[var(--surface-1)] border border-[var(--surface-4)] rounded px-1.5 py-0.5 hover:text-red-600 transition-colors"
+                            className="text-[9px] text-red-400 bg-white border border-[#e0e0e0] rounded px-1.5 py-0.5 hover:text-red-600 transition-colors"
                           >
                             X
                           </button>
@@ -273,36 +239,72 @@ export function DashboardComposer({
             </div>
 
             {/* Content Tiles Grid */}
-            <div style={{ padding: 16 }}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(12, 1fr)',
-                  gridAutoRows: '180px',
-                  gap: 12,
-                }}
-              >
-                {contentTiles.map(tile => (
-                  <div
-                    key={tile.id}
-                    style={{
-                      gridColumn: `span ${tile.layout.w}`,
-                      gridRow: `span ${tile.layout.h}`,
-                    }}
-                  >
-                    <TileCard
-                      tile={tile}
-                      result={tileResults.get(tile.id)}
-                      onEdit={onEditTile}
-                      onRemove={onRemoveTile}
-                      onResize={onResizeTile}
-                    />
+            <div className="p-4">
+              {contentTiles.length > 0 ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(12, 1fr)',
+                    gridAutoRows: '200px',
+                    gap: 16,
+                  }}
+                >
+                  {contentTiles.map(tile => (
+                    <div
+                      key={tile.id}
+                      style={{
+                        gridColumn: `span ${tile.layout.w}`,
+                        gridRow: `span ${tile.layout.h}`,
+                      }}
+                    >
+                      <TileCard
+                        tile={tile}
+                        result={tileResults.get(tile.id)}
+                        onEdit={onEditTile}
+                        onRemove={onRemoveTile}
+                        onResize={onResizeTile}
+                        dashboardId={activePage?.name || 'untitled'}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                  <div className="relative p-6 border-2 border-dashed border-[#e0e0e0] rounded-2xl">
+                    <LayoutGrid size={40} className="text-[#999] opacity-30" />
                   </div>
-                ))}
-              </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#666] mb-1">Belum ada tile</p>
+                    <p className="text-xs text-[#999]">Mulai dengan menambah tile atau gunakan AI</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={onAddTile}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
+                      style={{ backgroundColor: GAPURA_GREEN }}
+                    >
+                      <Plus size={14} />
+                      Tambah Tile
+                    </button>
+                    <button
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      <Sparkles size={14} />
+                      Buat dengan AI
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Timestamp */}
+            <div className="px-5 py-3 border-t border-[#e0e0e0] bg-white">
+              <p className="text-[10px] text-[#999]">
+                Data Last Updated: 2/13/2026 1:18:37 PM | <button className="text-[#6b8e3d] hover:underline">Privacy Policy</button>
+              </p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

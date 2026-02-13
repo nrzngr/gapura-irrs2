@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { OpenRouter } from '@openrouter/sdk';
 import { verifySession } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { TABLES, JOINS, isValidTable, isValidField, getJoinDef } from '@/lib/builder/schema';
@@ -467,40 +468,41 @@ export async function POST(request: NextRequest) {
     // Build system prompt with real data
     const systemPrompt = buildSystemPrompt(dataContext);
 
-    // Call OpenAI
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Call OpenRouter
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'OpenAI API key belum dikonfigurasi' }, { status: 500 });
+      return NextResponse.json({ error: 'OpenRouter API key belum dikonfigurasi' }, { status: 500 });
     }
 
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.2',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
-        max_completion_tokens: 16384,
-      }),
-    });
+    const openrouter = new OpenRouter({ apiKey });
+    let content;
 
-    if (!openaiRes.ok) {
-      const errBody = await openaiRes.text();
-      console.error('OpenAI API error:', openaiRes.status, errBody);
-      return NextResponse.json(
+    try {
+      const completion: any = await openrouter.chat.send({
+        httpReferer: 'https://gapura.id',
+        xTitle: 'Gapura Dashboard',
+        chatGenerationParams: {
+          model: "arcee-ai/trinity-large-preview:free",
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 16384,
+          stream: false,
+          provider: {
+            dataCollection: "allow"
+          }
+        }
+      });
+      
+      content = completion.choices?.[0]?.message?.content;
+    } catch (error: any) {
+       console.error('OpenRouter API error:', error);
+       return NextResponse.json(
         { error: 'Gagal menghubungi AI. Coba lagi nanti.' },
         { status: 502 }
       );
     }
-
-    const openaiData = await openaiRes.json();
-    const content = openaiData.choices?.[0]?.message?.content;
 
     if (!content) {
       return NextResponse.json(
@@ -509,9 +511,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Clean <think> tags from reasoning models
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
     // Parse AI response
     let dashboard: DashboardDefinition;
     try {
+      // Try extracting JSON if wrapped in markdown
+      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+         content = jsonMatch[1];
+      }
       dashboard = JSON.parse(content) as DashboardDefinition;
     } catch {
       console.error('Failed to parse AI response:', content);

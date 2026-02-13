@@ -37,9 +37,36 @@ export function useAIDashboard() {
     }
   }
 
+  async function generateCustomerFeedback(dateFrom: string, dateTo: string): Promise<DashboardDefinition | null> {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/dashboards/customer-feedback-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dateFrom, dateTo }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Gagal membuat dashboard Customer Feedback');
+        return null;
+      }
+
+      return data.dashboard as DashboardDefinition;
+    } catch {
+      setError('Gagal menghubungi server. Periksa koneksi internet.');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function clearError() {
     setError(null);
   }
 
-  return { generate, loading, error, clearError };
+  return { generate, generateCustomerFeedback, loading, error, clearError };
 }

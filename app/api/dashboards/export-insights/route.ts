@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { OpenRouter } from '@openrouter/sdk';
 import { verifySession } from '@/lib/auth-utils';
 
 interface TileSummary {
@@ -109,46 +110,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak ada data tile' }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'OpenAI API key belum dikonfigurasi' }, { status: 500 });
+      return NextResponse.json({ error: 'OpenRouter API key belum dikonfigurasi' }, { status: 500 });
     }
 
+    const openrouter = new OpenRouter({ apiKey });
     const prompt = buildInsightsPrompt(body);
 
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'Kamu analis data profesional. Kembalikan HANYA JSON valid tanpa markdown code fences.' },
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
-        max_completion_tokens: 4096,
-        temperature: 0.4,
-      }),
-    });
-
-    if (!openaiRes.ok) {
-      const errBody = await openaiRes.text();
-      console.error('[export-insights] OpenAI error:', openaiRes.status, errBody);
+    let content;
+    try {
+      const completion: any = await openrouter.chat.send({
+        httpReferer: 'https://gapura.id',
+        xTitle: 'Gapura Dashboard',
+        chatGenerationParams: {
+          model: "arcee-ai/trinity-large-preview:free",
+          messages: [
+            { role: 'system', content: 'Kamu analis data profesional. Kembalikan HANYA JSON valid tanpa markdown code fences.' },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 4096,
+          temperature: 0.4,
+          stream: false,
+          provider: {
+            dataCollection: "allow"
+          }
+        }
+      });
+      content = completion.choices?.[0]?.message?.content;
+    } catch (error: any) {
+      console.error('[export-insights] OpenRouter error:', error);
       return NextResponse.json({ error: 'Gagal menghubungi AI' }, { status: 502 });
     }
-
-    const openaiData = await openaiRes.json();
-    const content = openaiData.choices?.[0]?.message?.content;
 
     if (!content) {
       return NextResponse.json({ error: 'AI tidak mengembalikan respons' }, { status: 502 });
     }
 
+    // Clean <think> tags from reasoning models
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
     let insights: InsightsResponse;
     try {
+      // Try extracting JSON if wrapped in markdown
+      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+         content = jsonMatch[1];
+      }
       insights = JSON.parse(content);
     } catch {
       console.error('[export-insights] Failed to parse:', content);

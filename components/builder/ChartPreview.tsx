@@ -10,23 +10,35 @@ import {
   ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
-import type { ChartVisualization, QueryResult } from '@/types/builder';
+import type { ChartVisualization, QueryResult, DashboardTile } from '@/types/builder';
+import { CustomPivotTable } from './CustomPivotTable';
+import { ChartClickHandler } from '@/components/chart-detail/ChartClickHandler';
 
 interface ChartPreviewProps {
   visualization: ChartVisualization;
   result: QueryResult;
+  tile?: DashboardTile;
+  dashboardId?: string;
 }
 
+// Gapura Brand Colors
+const GAPURA_GREEN = '#6b8e3d';
+const GAPURA_GREEN_LIGHT = '#7cb342';
+const GAPURA_GREEN_DARK = '#558b2f';
+const GAPURA_BLUE = '#42a5f5';
+const GAPURA_YELLOW = '#fdd835';
+
 const DEFAULT_COLORS = [
-  '#7cb342', '#558b2f', '#aed581', '#33691e', '#9ccc65',
-  '#689f38', '#c5e1a5', '#43a047', '#81c784', '#4caf50',
+  GAPURA_GREEN_LIGHT, GAPURA_BLUE, GAPURA_YELLOW, GAPURA_GREEN_DARK, '#aed581',
+  '#33691e', '#9ccc65', '#689f38', '#c5e1a5', '#43a047', '#81c784', '#4caf50',
 ];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: 'var(--surface-1)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: '8px',
-  fontSize: '12px',
+  backgroundColor: '#ffffff',
+  border: '1px solid #e0e0e0',
+  borderRadius: '6px',
+  fontSize: '11px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
 };
 
 // ISO datetime pattern: 2026-01-23T00:00:00+00:00 or 2026-01-23T00:00:00.000Z
@@ -81,7 +93,7 @@ function DateTooltip({ active, payload, label }: any) {
   );
 }
 
-export function ChartPreview({ visualization, result }: ChartPreviewProps) {
+export function ChartPreview({ visualization, result, tile, dashboardId }: ChartPreviewProps) {
   const { chartType, xAxis, yAxis, colorField, showLegend, showLabels, colors } = visualization;
   const palette = colors && colors.length > 0 ? colors : DEFAULT_COLORS;
   const rawData = result.rows as Record<string, unknown>[];
@@ -93,6 +105,16 @@ export function ChartPreview({ visualization, result }: ChartPreviewProps) {
       </div>
     );
   }
+
+  // Wrap chart with click handler if tile is provided
+  const wrapWithClickHandler = (children: React.ReactNode) => {
+    if (!tile) return children;
+    return (
+      <ChartClickHandler tile={tile} result={result} dashboardId={dashboardId}>
+        {children}
+      </ChartClickHandler>
+    );
+  };
 
   const xKey = xAxis || result.columns[0] || '';
   const yKeys = yAxis.length > 0 ? yAxis : result.columns.slice(1);
@@ -302,9 +324,14 @@ export function ChartPreview({ visualization, result }: ChartPreviewProps) {
     );
   }
 
+  // Pivot table type — render cross-tabulation table
+  if (chartType === 'pivot') {
+    return <CustomPivotTable result={result} title={visualization.title} />;
+  }
+
   const commonAxisProps = {
-    tick: { fill: 'var(--text-secondary)', fontSize: 11 },
-    axisLine: false,
+    tick: { fill: '#666666', fontSize: 10 },
+    axisLine: { stroke: '#e0e0e0' },
     tickLine: false,
   };
 
@@ -393,54 +420,111 @@ export function ChartPreview({ visualization, result }: ChartPreviewProps) {
     // Calculate YAxis width based on longest label for horizontal bars
     let yAxisWidth = 80;
     if (isHorizontal) {
+      // Calculate max length, but cap calculation at 30 chars per line (assume wrapping)
       const maxLabelLen = Math.max(...data.map(d => String(d[xKey] ?? '').length), 0);
-      yAxisWidth = Math.min(Math.max(maxLabelLen * 6.5, 100), 220);
+      // If label > 25 chars, we'll wrap it. So width is based on ~25 chars + padding
+      const effectiveLen = Math.min(maxLabelLen, 35); 
+      yAxisWidth = Math.min(Math.max(effectiveLen * 6.5, 100), 160); // Cap at 160px width
     }
+
+    // Helper for wrapping text
+    const CustomYAxisTick = (props: any) => {
+      const { x, y, payload } = props;
+      const label = String(payload.value || '');
+      
+      // Split into words
+      const words = label.split(' ');
+      const lines: string[] = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        if ((currentLine + ' ' + words[i]).length < 25) {
+          currentLine += ' ' + words[i];
+        } else {
+          lines.push(currentLine);
+          currentLine = words[i];
+        }
+      }
+      lines.push(currentLine);
+
+      // Render lines
+      return (
+        <g transform={`translate(${x},${y})`}>
+          {lines.map((line, index) => (
+             <text 
+               key={index} 
+               x={0} 
+               y={0} 
+               dy={index * 12 + 4 - ((lines.length - 1) * 6)} 
+               textAnchor="end" 
+               fill="var(--text-secondary)" 
+               fontSize={10} // Slightly smaller font
+               width={yAxisWidth}
+             >
+               {line}
+             </text>
+          ))}
+        </g>
+      );
+    };
 
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           layout={isHorizontal ? 'vertical' : 'horizontal'}
-          margin={{ top: 10, right: 20, left: isHorizontal ? 10 : 0, bottom: 0 }}
+          margin={{ top: 10, right: isHorizontal ? 60 : 20, left: isHorizontal ? yAxisWidth - 40 : 0, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           {isHorizontal ? (
             <>
-              <XAxis type="number" {...commonAxisProps} allowDecimals={false} />
+              <XAxis 
+                type="number" 
+                tick={{ fill: '#999', fontSize: 10 }}
+                axisLine={{ stroke: '#e0e0e0' }}
+                tickLine={false}
+                allowDecimals={false} 
+              />
               <YAxis
                 type="category"
                 dataKey={xKey}
-                {...commonAxisProps}
+                axisLine={false}
+                tickLine={false}
+                interval={0}
                 width={yAxisWidth}
-                tick={({ x, y, payload }: any) => {
-                  const label = String(payload.value ?? '');
-                  const maxChars = Math.floor(yAxisWidth / 6);
-                  const display = label.length > maxChars ? label.slice(0, maxChars - 1) + '…' : label;
-                  return (
-                    <text x={x} y={y} dy={4} textAnchor="end" fill="var(--text-secondary)" fontSize={11}>
-                      {display}
-                    </text>
-                  );
-                }}
+                tick={<CustomYAxisTick />}
               />
             </>
           ) : (
             <>
-              <XAxis dataKey={xKey} {...commonAxisProps} />
-              <YAxis {...commonAxisProps} allowDecimals={false} />
+              <XAxis 
+                dataKey={xKey} 
+                tick={{ fill: '#666', fontSize: 10 }}
+                axisLine={{ stroke: '#e0e0e0' }}
+                tickLine={false}
+                interval={0} 
+              />
+              <YAxis 
+                tick={{ fill: '#999', fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false} 
+              />
             </>
           )}
           <Tooltip content={<DateTooltip />} />
-          {showLegend && <Legend />}
           {yKeys.map((key, i) => (
             <Bar
               key={key}
               dataKey={key}
-              fill={palette[i % palette.length]}
+              fill={GAPURA_GREEN_LIGHT}
               stackId={stackId}
               radius={isStacked ? 0 : isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
-              label={showLabels ? { position: isHorizontal ? 'right' : 'top', fontSize: 11, fill: '#555' } : false}
+              label={showLabels ? { 
+                position: isHorizontal ? 'right' : 'top', 
+                fontSize: 10, 
+                fill: '#666'
+              } : false}
             />
           ))}
         </BarChart>

@@ -72,6 +72,7 @@ export type ChartType =
   | 'scatter'
   | 'heatmap'
   | 'table'
+  | 'pivot'
   | 'kpi'
   | 'combo';
 

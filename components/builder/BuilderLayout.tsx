@@ -54,6 +54,10 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiStep, setAiStep] = useState(0);
 
+  // Customer Feedback template
+  const [cfDateFrom, setCfDateFrom] = useState('');
+  const [cfDateTo, setCfDateTo] = useState('');
+
   const qb = useQueryBuilder();
   const qe = useQueryExecution();
   const dash = useDashboardState();
@@ -167,6 +171,15 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
     }
   }, [aiPrompt, ai, dash]);
 
+  const handleCustomerFeedbackGenerate = useCallback(async () => {
+    if (!cfDateFrom || !cfDateTo) return;
+    const def = await ai.generateCustomerFeedback(cfDateFrom, cfDateTo);
+    if (def) {
+      dash.loadDashboard(def);
+      setMode('dashboard');
+    }
+  }, [cfDateFrom, cfDateTo, ai, dash]);
+
   const addCurrentAsTile = useCallback(() => {
     if (!hasQuery) return;
     dash.addTile(qb.query, visualization);
@@ -224,6 +237,8 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
       dateRange: '7d',
       autoRefresh: true,
       pages: dash.pages.map(p => p.name),
+      dateFrom: cfDateFrom || undefined,
+      dateTo: cfDateTo || undefined,
     };
 
     return onSaveDashboard(name, description, tiles, config);
@@ -448,6 +463,58 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                               Buat dengan AI
                             </button>
                           </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Customer Feedback Template Card */}
+                    <div className="p-[1px] rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 mb-5 shadow-lg shadow-emerald-500/10">
+                      <div className="bg-[var(--surface-1)] rounded-2xl p-5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <BarChart3 size={16} className="text-emerald-600" />
+                          <span className="text-sm font-bold text-[var(--text-primary)]">Customer Feedback Dashboard</span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">Template</span>
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)] mb-3">
+                          Generate dashboard 5 halaman (Case Category, Detail Category, Detail Report, CGO Case Category, CGO Detail Report) dengan layout tetap sesuai standar.
+                        </p>
+                        <div className="flex items-end gap-3">
+                          <div className="flex-1">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Dari</label>
+                            <input
+                              type="date"
+                              value={cfDateFrom}
+                              onChange={(e) => setCfDateFrom(e.target.value)}
+                              className="w-full mt-1 px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 text-[var(--text-primary)]"
+                              disabled={ai.loading}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Sampai</label>
+                            <input
+                              type="date"
+                              value={cfDateTo}
+                              onChange={(e) => setCfDateTo(e.target.value)}
+                              className="w-full mt-1 px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 text-[var(--text-primary)]"
+                              disabled={ai.loading}
+                            />
+                          </div>
+                          <button
+                            onClick={handleCustomerFeedbackGenerate}
+                            disabled={!cfDateFrom || !cfDateTo || ai.loading}
+                            className={cn(
+                              "flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap",
+                              !cfDateFrom || !cfDateTo || ai.loading
+                                ? "bg-[var(--surface-3)] text-[var(--text-muted)] cursor-not-allowed"
+                                : "bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:shadow-lg hover:shadow-emerald-500/25"
+                            )}
+                          >
+                            {ai.loading ? <Loader2 size={14} className="animate-spin" /> : <BarChart3 size={14} />}
+                            Generate
+                          </button>
+                        </div>
+                        {ai.error && (
+                          <p className="mt-2 text-xs text-red-500">{ai.error}</p>
                         )}
                       </div>
                     </div>

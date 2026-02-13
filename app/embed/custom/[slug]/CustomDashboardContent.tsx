@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { ChartPreview } from '@/components/builder/ChartPreview';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation } from 'lucide-react';
+import { HeatmapChart } from '@/components/charts/HeatmapChart';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink } from 'lucide-react';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import type { ChartVisualization, QueryResult, QueryDefinition } from '@/types/builder';
 
@@ -74,6 +75,7 @@ type ActiveFilters = Record<string, string>;
 export function CustomDashboardContent() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const range = searchParams.get('range') || '7d';
 
@@ -99,6 +101,65 @@ export function CustomDashboardContent() {
   const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pptx' | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  // ─── HANDLERS ─────────────────────────────────────────────────────────────
+
+  const handleViewDetail = (
+    chartTitle: string, 
+    data: any[], 
+    chartType: string, 
+    config?: { xAxis?: string, yAxis?: string[], metric?: string },
+    queryConfig?: QueryDefinition
+  ) => {
+    // Apply current filters to the query config if provided, otherwise use default
+    const fullQuery = queryConfig 
+      ? applyFiltersToQuery(queryConfig)
+      : {
+          source: 'reports',
+          joins: [],
+          dimensions: [], 
+          measures: [],
+          filters: [], 
+          sorts: [],
+          limit: 1000
+        };
+
+    // Basic tile construction for detail view
+    const detailData = {
+      tile: {
+        id: `chart-${Date.now()}`,
+        visualization: {
+          chartType: chartType,
+          title: chartTitle,
+          // Use provided config or fallback to heuristics
+          xAxis: config?.xAxis || (data[0] ? Object.keys(data[0])[0] : ''), 
+          yAxis: config?.yAxis || (data[0] ? [Object.keys(data[0])[1]] : []),
+          colorField: config?.metric, // Pass the metric as colorField for Heatmap
+          showLegend: true,
+          showLabels: false
+        },
+        query: fullQuery,
+        layout: { x: 0, y: 0, w: 6, h: 3 }
+      },
+      result: {
+        columns: data[0] ? Object.keys(data[0]) : [],
+        rows: data,
+        rowCount: data.length,
+        executionTimeMs: 0
+      },
+      dashboardId: 'custom-dashboard', // Generic ID
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
+    
+    // Navigate to detail page
+    const params = new URLSearchParams();
+    params.set('dashboardId', 'custom-dashboard');
+    params.set('tileId', detailData.tile.id);
+    
+    router.push(`/dashboard/chart-detail?${params.toString()}`);
+  };
+
   // ─── Fetch filter options from batch endpoint ─────────────────────────────
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -116,7 +177,9 @@ export function CustomDashboardContent() {
   // ─── Data fetching ──────────────────────────────────────────────────────────
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch(`/api/dashboards?slug=${slug}`);
+      const res = await fetch(`/api/dashboards?slug=${slug}&t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+      });
       if (!res.ok) throw new Error('Dashboard not found');
       const data = await res.json();
       setDashboard(data);
@@ -168,8 +231,12 @@ export function CustomDashboardContent() {
 
     return {
       ...queryConfig,
+      joins: queryConfig.joins || [],
+      dimensions: queryConfig.dimensions || [],
+      measures: queryConfig.measures || [],
+      sorts: queryConfig.sorts || [],
       filters: [
-        ...queryConfig.filters,
+        ...(queryConfig.filters || []),
         ...extraFilters.filter((f): f is NonNullable<typeof f> => f !== null),
         ...dateFilters,
       ],
@@ -232,30 +299,54 @@ export function CustomDashboardContent() {
     setChartsData(dataMap);
   }, [range, applyFiltersToQuery]);
 
-  // Initial load
+  /** Extract the charts for a specific page index from a dashboard */
+  const getPageCharts = useCallback((dash: Dashboard, pageIdx: number): ChartData[] => {
+    const charts = dash.dashboard_charts;
+    const hasPages = charts.some(c => c.page_name && c.page_name !== 'Ringkasan Umum');
+    const configPages = dash.config?.pages;
+
+    if (hasPages || (configPages && configPages.length > 1)) {
+      const pageMap = new Map<string, ChartData[]>();
+      const pageOrder = configPages || [];
+      for (const pn of pageOrder) pageMap.set(pn, []);
+      for (const chart of charts) {
+        const pageName = chart.page_name || 'Ringkasan Umum';
+        if (!pageMap.has(pageName)) pageMap.set(pageName, []);
+        pageMap.get(pageName)!.push(chart);
+      }
+      const pagesArr = Array.from(pageMap.entries()).filter(([, t]) => t.length > 0);
+      const target = pagesArr[pageIdx];
+      return target ? target[1] : charts;
+    }
+    return charts;
+  }, []);
+
+  // Initial load — only fetch ACTIVE PAGE charts (avoids >30 batch limit)
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       const dash = await fetchDashboard();
       if (dash?.dashboard_charts) {
         dashboardRef.current = dash;
+        const pageCharts = getPageCharts(dash, 0);
         await Promise.all([
-          fetchChartData(dash.dashboard_charts),
+          fetchChartData(pageCharts),
           fetchFilterOptions(),
         ]);
       }
       setLoading(false);
     };
     load();
-  }, [slug, fetchDashboard, fetchChartData, fetchFilterOptions]);
+  }, [slug, fetchDashboard, fetchChartData, fetchFilterOptions, getPageCharts]);
 
-  // Re-fetch data when filters change
+  // Re-fetch data when page changes or filters change — only fetch active page
   useEffect(() => {
     if (dashboardRef.current?.dashboard_charts) {
-      fetchChartData(dashboardRef.current.dashboard_charts);
+      const pageCharts = getPageCharts(dashboardRef.current, activePage);
+      fetchChartData(pageCharts);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, dateFrom, dateTo]);
+  }, [activePage, activeFilters, dateFrom, dateTo]);
 
   // ─── Computed: pages ──────────────────────────────────────────────────────
   const pages = useMemo(() => {
@@ -408,7 +499,7 @@ export function CustomDashboardContent() {
             </div>
           </div>
           {/* Chart tile skeletons */}
-          <div style={{ padding: '20px 24px', maxWidth: 1400, margin: '0 auto' }}>
+          <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
               {[1,2,3,4,5,6].map(i => (
                 <div key={i} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
@@ -533,7 +624,21 @@ export function CustomDashboardContent() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 {!hasMultiplePages && <img src="/logo.png" alt="Gapura Airport Services" style={{ height: 60, objectFit: 'contain' }} />}
                 <div>
-                  <h1 style={S.title}>{dashboard.name}</h1>
+                  <h1 style={S.title}>
+                    {(() => {
+                      const pName = pages[activePage]?.name || '';
+                      const cfFrom = dashboard?.config?.dateFrom;
+                      const cfTo = dashboard?.config?.dateTo;
+                      let yr = '2025 - 2026';
+                      if (cfFrom && cfTo) {
+                        const fy = new Date(cfFrom).getFullYear();
+                        const ty = new Date(cfTo).getFullYear();
+                        yr = fy === ty ? `${fy}` : `${fy} - ${ty}`;
+                      }
+                      if (pName.includes('CGO')) return `CGO Cargo Customer Feedback ${yr}`;
+                      return `Landside & Airside Customer Feedback ${yr}`;
+                    })()}
+                  </h1>
                   {hasMultiplePages && pages[activePage] && (
                     <span style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{pages[activePage].name}</span>
                   )}
@@ -586,7 +691,7 @@ export function CustomDashboardContent() {
             {/* Banner with Interactive Filters */}
             <div style={S.banner}>
               <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
-                {dashboard.description || 'Irregularity, Complain & Compliment Report'}
+                Irregularity, Complain & Compliment Report
               </span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {FILTER_FIELDS.filter(ff => filterOptions[ff.key] && filterOptions[ff.key].length > 0).map(ff => (
@@ -693,14 +798,69 @@ export function CustomDashboardContent() {
             {contentTiles.map(chart => {
               const cr = chartsData.get(chart.id);
               if (!cr) return null;
-              const layout = chart.layout || { w: 6, h: 2 };
+              let layout = chart.layout || { w: 6, h: 2 };
+
+              // --- "GENIUS FIX" OVERRIDE ---
+              // Correctly access title from visualization object
+              const title = (chart as any).visualization?.title;
+              
+              if (title === 'Case Report by Area') layout = { ...layout, w: 8 };
+              if (title === 'General Category') layout = { ...layout, w: 4 }; // Force order to stick next to Heatmap
+              if (title === 'Terminal Area Category') layout = { ...layout, w: 6 };
+              if (title === 'Apron Area Category') layout = { ...layout, w: 6 };
+              
+              // Apply explicit order via CSS `order` property
+              const orderStyle = title === 'Case Report by Area' ? 1 
+                               : title === 'General Category' ? 2 
+                               : title === 'Terminal Area Category' ? 3 
+                               : title === 'Apron Area Category' ? 4 
+                               : 10;
+              
               const colSpan = layout.w || 6;
               const isTableType = chart.visualization_config?.chartType === 'table';
 
+              // Apply explicit order via flex/grid order if needed, but here reliable DOM order is better.
+              // Since sorting the array directly might cause re-renders if not stable, we rely on layout config.
+              // Actually, to fix strict ordering visually (Row 1: Heatmap+General), we use 'order' CSS property if the container is flex/grid.
+              // But standard CSS Grid auto-placement follows DOM order.
+              // Let's rely on width for now, assuming typical DB order: Heatmap -> Terminal -> Apron -> General.
+              
+              // If the DB order is H -> T -> A -> G:
+              // H(8) [Row 1]
+              // T(6) -> Row 2
+              // A(6) -> Row 2
+              // G(4) -> Row 3? No, G(4) might fill the empty space in Row 1 if dense packing is on?
+              // The container likely uses `grid-auto-flow: dense`? If not, G(4) stays in Row 3.
+              
+              // We NEED to reorder the tiles in the map function? impossible inside map.
+              // We should sort contentTiles BEFORE mapping.
+              // BUT I can't easily change the hook logic above.
+              
+              // ALTERNATIVE: Use `order` style property! CSS Grid items respect `order`.
               return (
-                <div key={chart.id} style={{ gridColumn: `span ${colSpan}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* CHART CARD (skip for table type) */}
-                  {!isTableType && cr.type === 'query' && cr.queryResult ? (
+                <div key={chart.id} style={{ 
+                  gridColumn: `span ${colSpan}`, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 2,
+                  order: orderStyle // Force visual order
+                }}>
+                  {/* HEATMAP (specific handling) */}
+                  {cr.type === 'query' && cr.queryResult && chart.visualization_config?.chartType === 'heatmap' ? (
+                    <HeatmapChart
+                      title={chart.title}
+                      data={cr.queryResult.rows}
+                      xAxis={chart.visualization_config.xAxis || 'category'}
+                      yAxis={chart.visualization_config.yAxis?.length === 1 ? chart.visualization_config.yAxis[0] : (chart.visualization_config.yAxis || ['branch'])}
+                      metric={chart.visualization_config.colorField || 'count'}
+                      showTitle={true}
+                      onViewDetail={() => handleViewDetail(chart.title, cr.queryResult ? cr.queryResult.rows : [], 'heatmap', {
+                        xAxis: chart.visualization_config?.xAxis,
+                        yAxis: chart.visualization_config?.yAxis,
+                        metric: chart.visualization_config?.colorField
+                      }, chart.query_config)}
+                    />
+                  ) : !isTableType && cr.type === 'query' && cr.queryResult ? (
                     <ChartCard chart={chart} result={cr.queryResult} />
                   ) : cr.type === 'legacy' && cr.stats ? (
                     <LegacyCard chart={chart} stats={cr.stats} />
@@ -716,9 +876,16 @@ export function CustomDashboardContent() {
                     </div>
                   )}
 
-                  {/* DETAIL TABLE (grouped below, separate card) */}
-                  {cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
-                    <DetailTable title={isTableType ? chart.title : chart.title} result={cr.queryResult} />
+                  {/* DETAIL TABLE (only for table type charts) */}
+                  {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
+                    <DetailTable 
+                      title={chart.title} 
+                      result={cr.queryResult} 
+                      onViewDetail={() => handleViewDetail(chart.title, cr.queryResult ? cr.queryResult.rows : [], 'table', {
+                         xAxis: chart.visualization_config?.xAxis,
+                         // For table, we might want to pass all columns, but for now this is fine since it's just 'table' type
+                      }, chart.query_config)}
+                    />
                   )}
                   {cr.type === 'legacy' && cr.stats && cr.stats.distribution.length > 0 && (
                     <LegacyDetailTable title={chart.title} stats={cr.stats} />
@@ -732,7 +899,7 @@ export function CustomDashboardContent() {
         {/* ── PAGE NAVIGATION (bottom) ── */}
         {hasMultiplePages && (
           <div style={{
-            maxWidth: 1400, margin: '0 auto', padding: '0 24px 16px',
+            padding: '0 24px 16px',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
             <button
@@ -786,6 +953,7 @@ export function CustomDashboardContent() {
 // ─── CHART CARD ─────────────────────────────────────────────────────────────
 
 function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult }) {
+  const router = useRouter();
   const baseViz: ChartVisualization = chart.visualization_config || {
     chartType: (chart.chart_type as any) || 'bar',
     yAxis: result.columns.slice(1),
@@ -798,13 +966,69 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
 
   if (isTable) return null;
 
+  const handleViewDetail = () => {
+    // Store data in sessionStorage for the detail page
+    const detailData = {
+      tile: {
+        id: chart.id,
+        visualization: viz,
+        query: chart.query_config || {
+          source: 'reports',
+          joins: [],
+          dimensions: [],
+          measures: [],
+          filters: [],
+          sorts: [],
+          limit: 1000
+        },
+        layout: chart.layout || { x: 0, y: 0, w: 6, h: 3 }
+      },
+      result: result,
+      dashboardId: 'embed-dashboard',
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
+    
+    // Navigate to detail page
+    const params = new URLSearchParams();
+    params.set('dashboardId', 'embed-dashboard');
+    params.set('tileId', chart.id);
+    
+    router.push(`/dashboard/chart-detail?${params.toString()}`);
+  };
+
   return (
     <div style={S.card}>
-      <div style={S.cardTitle}>
+      <div style={{...S.cardTitle, justifyContent: 'space-between'}}>
         <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#333' }}>{chart.title}</h3>
+        <button
+          onClick={handleViewDetail}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            fontSize: '11px',
+            fontWeight: 600,
+            color: '#fff',
+            backgroundColor: '#6b8e3d',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+          }}
+          title="Lihat Detail"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>Detail</span>
+        </button>
       </div>
-      <div style={{ padding: '8px 12px', minHeight: 240 }}>
-        <div style={{ width: '100%', height: 240 }}>
+      <div style={{ padding: '12px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: '100%', flex: 1, minHeight: 400 }}>
           <ChartPreview visualization={viz} result={result} />
         </div>
       </div>
@@ -864,7 +1088,7 @@ function LegacyCard({ chart, stats }: { chart: ChartData; stats: ChartResult['st
 
 // ─── DETAIL TABLE (separate card, grouped with chart above) ─────────────────
 
-function DetailTable({ title, result }: { title: string; result: QueryResult }) {
+function DetailTable({ title, result, onViewDetail }: { title: string; result: QueryResult; onViewDetail?: () => void }) {
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -925,7 +1149,30 @@ function DetailTable({ title, result }: { title: string; result: QueryResult }) 
     <div style={S.detailCard}>
       <div style={S.detailHeader}>
         <span style={S.detailTitle}>Detail: {title}</span>
-        <span style={{ fontSize: 11, color: '#999' }}>{rows.length} baris</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 11, color: '#999' }}>{rows.length} baris</span>
+          {onViewDetail && (
+            <button
+              onClick={onViewDetail}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 8px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 10,
+                color: '#666'
+              }}
+              title="View Full Detail"
+            >
+              <ExternalLink size={12} />
+              Detail
+            </button>
+          )}
+        </div>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={S.table}>
@@ -1127,8 +1374,6 @@ const S = {
   } as React.CSSProperties,
 
   headerInner: {
-    maxWidth: 1400,
-    margin: '0 auto',
     padding: '16px 24px',
   } as React.CSSProperties,
 
@@ -1252,16 +1497,14 @@ const S = {
   statValue: { fontSize: 32, fontWeight: 700, color: GAPURA_GREEN } as React.CSSProperties,
 
   contentWrap: {
-    maxWidth: 1400,
-    margin: '0 auto',
     padding: '20px 24px 24px',
   } as React.CSSProperties,
 
   chartGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(12, 1fr)',
-    gap: 16,
-    alignItems: 'start',
+    gap: 20,
+    alignItems: 'stretch',
   } as React.CSSProperties,
 
   card: {
@@ -1271,6 +1514,8 @@ const S = {
     borderBottom: 'none',
     overflow: 'hidden',
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    display: 'flex',
+    flexDirection: 'column',
   } as React.CSSProperties,
 
   cardTitle: {
