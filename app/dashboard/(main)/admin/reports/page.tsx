@@ -197,7 +197,7 @@ export default function AdminReportsPage() {
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" style={{ background: 'var(--surface-4)', color: 'var(--text-secondary)' }}>
-                                                                {report.stations?.code || 'N/A'}
+                                                                {report.stations?.code || report.branch || 'N/A'}
                                                             </span>
                                                             {report.flight_number && (
                                                                 <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'oklch(0.50 0.12 250)' }}>
@@ -219,7 +219,7 @@ export default function AdminReportsPage() {
 
                                             {/* Reporter */}
                                             <td className="py-4 px-4">
-                                                <p className="font-medium truncate max-w-[120px]" style={{ color: 'var(--text-primary)' }}>{report.users?.full_name || '-'}</p>
+                                                <p className="font-medium truncate max-w-[120px]" style={{ color: 'var(--text-primary)' }}>{report.users?.full_name || report.reporter_name || '-'}</p>
                                             </td>
 
                                             {/* Severity Badge */}

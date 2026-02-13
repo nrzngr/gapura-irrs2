@@ -73,7 +73,7 @@ function DataField({
         {label}
       </dt>
       <dd className={cn(
-        "text-[15px] leading-snug",
+        "text-[15px] leading-snug break-words",
         isEmpty ? "text-gray-300 italic" : "text-[var(--text-primary)] font-medium"
       )}>
         {isEmpty ? "Tidak ditentukan" : value}

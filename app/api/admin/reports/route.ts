@@ -67,12 +67,7 @@ export async function GET(request: Request) {
 
         if (error) throw error;
 
-        return NextResponse.json(data, {
-            headers: {
-                'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-                'CDN-Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-            },
-        });
+        return NextResponse.json(data);
     } catch (error) {
         console.error('Error fetching reports:', error);
         return NextResponse.json({ error: 'Gagal memuat laporan' }, { status: 500 });

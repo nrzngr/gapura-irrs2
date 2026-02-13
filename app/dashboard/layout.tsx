@@ -2,6 +2,7 @@
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
+import Sidebar from '@/components/Sidebar';
 
 export default async function DashboardLayout({
     children,
@@ -17,8 +18,14 @@ export default async function DashboardLayout({
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            {children}
+        <div className="flex h-screen bg-slate-50">
+            {/* Sidebar */}
+            <Sidebar role={String(session.role || 'EMPLOYEE')} />
+
+            {/* Main Content Area */}
+            <main className="flex-1 md:ml-[260px] h-full overflow-y-auto w-full">
+                {children}
+            </main>
         </div>
     );
 }

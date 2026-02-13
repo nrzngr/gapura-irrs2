@@ -90,6 +90,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/analyst', label: 'Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/analyst/reports', label: 'Laporan', icon: ClipboardList },
                 { href: '/dashboard/analyst/builder', label: 'Explore & Build', icon: Hash },
+                { href: '/dashboard/analyst/import', label: 'Import Data', icon: FolderOpen },
             ]
         }
     ],
