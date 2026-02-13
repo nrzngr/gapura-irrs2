@@ -8,6 +8,7 @@ import { ChartPreview } from './ChartPreview';
 interface TileCardProps {
   tile: DashboardTile;
   result?: QueryResult | null;
+  error?: string | null;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
   onResize: (id: string, w: number, h: number) => void;
@@ -24,7 +25,7 @@ const SIZE_OPTIONS = [
 
 const GAPURA_GREEN = '#6b8e3d';
 
-export function TileCard({ tile, result, onEdit, onRemove, onResize, dashboardId }: TileCardProps) {
+export function TileCard({ tile, result, error, onEdit, onRemove, onResize, dashboardId }: TileCardProps) {
   const router = useRouter();
   const title = tile.visualization.title || 'Tile Tanpa Judul';
   const hasDims = tile.query.dimensions.length > 0;
@@ -115,8 +116,20 @@ export function TileCard({ tile, result, onEdit, onRemove, onResize, dashboardId
           >
             <p className="text-xs text-[#999]">Klik Edit untuk mengkonfigurasi query</p>
           </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-full px-4 text-center">
+            <p className="text-xs text-red-500">{error}</p>
+          </div>
         ) : result && result.rows.length > 0 ? (
-          <ChartPreview visualization={tile.visualization} result={result} />
+          <ChartPreview 
+            visualization={tile.visualization} 
+            result={result} 
+            compact={tile.layout.w < 6}
+          />
+        ) : result ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-xs text-[#999]">Tidak ada data</p>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className="text-xs text-[#999]">Menunggu data...</p>

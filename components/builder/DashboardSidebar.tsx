@@ -17,9 +17,9 @@ export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = 
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { name: '1. Case Category', icon: BarChart3 },
-    { name: '2. Detail Category', icon: LayoutDashboard },
-    { name: '3. Detail Report', icon: FileText },
+    { name: 'Case Category', icon: BarChart3 },
+    { name: 'Detail Category', icon: LayoutDashboard },
+    { name: 'Detail Report', icon: FileText },
     { name: 'CGO - Case Category', icon: BarChart3 },
     { name: 'CGO - Detail Report', icon: FileText },
   ];

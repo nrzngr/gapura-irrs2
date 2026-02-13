@@ -227,22 +227,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false, 
         showLabels: true 
       },
-      layout: { x: 0, y: 1, w: 8, h: 3 }, // WIDTH 8 (Row 1 Left)
+      layout: { x: 0, y: 1, w: 6, h: 3 }, // WIDTH 6 (Row 1 Left)
     },
-    // Table -> Bar: General Category (Small, fits in w:4)
-    {
-      id: tileId(),
-      query: {
-        source: 'reports', joins: [],
-        dimensions: [{ table: 'reports', field: 'sub_category', alias: 'Category' }],
-        measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, ls, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'GENERAL', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
-      },
-      visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
-      layout: { x: 8, y: 1, w: 4, h: 2 }, // WIDTH 4 (Row 1 Right)
-    },
-    // Table -> Bar: Terminal Area Category (Long labels, move to Row 2)
+    // Table -> Bar: Terminal Area Category
     {
       id: tileId(),
       query: {
@@ -253,9 +240,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Terminal Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
-      layout: { x: 0, y: 3, w: 6, h: 2 }, // WIDTH 6 (Row 2 Left)
+      layout: { x: 6, y: 1, w: 2, h: 3 }, // WIDTH 2 (Row 1 Mid-Left)
     },
-    // Table -> Bar: Apron Area Category (Long labels, move to Row 2)
+    // Table -> Bar: Apron Area Category
     {
       id: tileId(),
       query: {
@@ -266,9 +253,22 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
-      layout: { x: 6, y: 3, w: 6, h: 2 }, // WIDTH 6 (Row 2 Right)
+      layout: { x: 8, y: 1, w: 2, h: 3 }, // WIDTH 2 (Row 1 Mid-Right)
     },
-    // Horizontal Bar: HUB Report (Moved to Row 3)
+    // Table -> Bar: General Category
+    {
+      id: tileId(),
+      query: {
+        source: 'reports', joins: [],
+        dimensions: [{ table: 'reports', field: 'sub_category', alias: 'Category' }],
+        measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
+        filters: [...df, ls, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'GENERAL', conjunction: 'AND' as const }],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+      },
+      visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
+      layout: { x: 10, y: 1, w: 2, h: 3 }, // WIDTH 2 (Row 1 Right)
+    },
+    // Horizontal Bar: HUB Report
     {
       id: tileId(),
       query: {
@@ -279,9 +279,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true },
-      layout: { x: 0, y: 5, w: 4, h: 2 }, // Row 3 Left
+      layout: { x: 0, y: 4, w: 3, h: 4 }, // Row 2 Left
     },
-    // Table: Detail Report Landside & Airside (Moved to Row 3)
+    // Table: Detail Report Landside & Airside
     {
       id: tileId(),
       query: {
@@ -295,14 +295,13 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
           { table: 'reports', field: 'report_content', alias: 'Report' },
           { table: 'reports', field: 'root_cause', alias: 'Root Caused' },
           { table: 'reports', field: 'action_taken', alias: 'Action Taken' },
-          { table: 'reports', field: 'evidence_url', alias: 'Evidence' },
         ],
         measures: [],
         filters: [...df, ls],
         sorts: [{ field: 'Date', direction: 'desc' }], limit: 5000,
       },
-      visualization: { chartType: 'table', title: 'Detail Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },
-      layout: { x: 4, y: 5, w: 8, h: 2 }, // Row 3 Right
+      visualization: { chartType: 'table', title: 'Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },
+      layout: { x: 3, y: 4, w: 9, h: 4 }, // Row 2 Right
     },
   ];
 
@@ -329,7 +328,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       },
       visualization: { 
         chartType: 'heatmap', 
-        title: 'Detail Terminal Area by Branch',
+        title: 'Terminal Area by Branch',
         xAxis: 'Branch',
         yAxis: ['Category'],
         colorField: 'Total',
@@ -353,7 +352,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       },
       visualization: { 
         chartType: 'heatmap', 
-        title: 'Detail Apron Area by Branch',
+        title: 'Apron Area by Branch',
         xAxis: 'Branch',
         yAxis: ['Category'],
         colorField: 'Total',
@@ -377,7 +376,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       },
       visualization: { 
         chartType: 'heatmap', 
-        title: 'Detail General Category by Branch',
+        title: 'General Category by Branch',
         xAxis: 'Branch',
         yAxis: ['Category'],
         colorField: 'Total',
@@ -403,7 +402,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       },
       visualization: { 
         chartType: 'heatmap', 
-        title: 'Detail Terminal Area by Airlines',
+        title: 'Terminal Area by Airlines',
         xAxis: 'Category',
         yAxis: ['Airlines'],
         colorField: 'Total',
@@ -427,7 +426,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       },
       visualization: { 
         chartType: 'heatmap', 
-        title: 'Detail Apron Area by Airlines',
+        title: 'Apron Area by Airlines',
         xAxis: 'Category',
         yAxis: ['Airlines'],
         colorField: 'Total',
@@ -451,7 +450,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       },
       visualization: { 
         chartType: 'heatmap', 
-        title: 'Detail General Category by Airlines',
+        title: 'General Category by Airlines',
         xAxis: 'Category',
         yAxis: ['Airlines'],
         colorField: 'Total',
@@ -473,9 +472,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   const page5Tiles = cloneForCGO(page2Tiles);
 
   const pages: DashboardPage[] = [
-    { name: '1. Case Category', tiles: page1Tiles },
-    { name: '2. Detail Category', tiles: page3Tiles },
-    { name: '3. Detail Report', tiles: page2Tiles },
+    { name: 'Case Category', tiles: page1Tiles },
+    { name: 'Detail Category', tiles: page2Tiles },
+    { name: 'Detail Report', tiles: page3Tiles },
     { name: 'CGO - Case Category', tiles: page4Tiles },
     { name: 'CGO - Detail Report', tiles: page5Tiles },
   ];

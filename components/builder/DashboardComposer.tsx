@@ -9,12 +9,13 @@ import { cn } from '@/lib/utils';
 
 interface DashboardComposerProps {
   tiles: DashboardTile[];
-  onAddTile: () => void;
   onEditTile: (id: string) => void;
   onRemoveTile: (id: string) => void;
   onResizeTile: (id: string, w: number, h: number) => void;
   onApplyPreset: (preset: LayoutPreset) => void;
   tileResults: Map<string, QueryResult>;
+  tileErrors?: Map<string, string>;
+  onAddTile: (query: any, viz: any) => void;
   dashboardName?: string;
   dashboardDescription?: string;
   pages?: DashboardPage[];
@@ -77,12 +78,13 @@ function LayoutPreviewSVG({ cols }: { cols: number[] }) {
 
 export function DashboardComposer({
   tiles,
+  tileResults,
+  tileErrors,
   onAddTile,
   onEditTile,
   onRemoveTile,
   onResizeTile,
   onApplyPreset,
-  tileResults,
   dashboardName,
   dashboardDescription,
   pages = [],
@@ -271,6 +273,7 @@ export function DashboardComposer({
                       <TileCard
                         tile={tile}
                         result={tileResults.get(tile.id)}
+                        error={tileErrors?.get(tile.id)}
                         onEdit={onEditTile}
                         onRemove={onRemoveTile}
                         onResize={onResizeTile}
@@ -290,7 +293,7 @@ export function DashboardComposer({
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={onAddTile}
+                      onClick={() => onAddTile({}, {})}
                       className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
                       style={{ backgroundColor: GAPURA_GREEN }}
                     >

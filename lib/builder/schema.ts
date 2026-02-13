@@ -51,6 +51,7 @@ export const TABLES: TableDef[] = [
       { name: 'root_cause', label: 'Akar Masalah', type: 'string' },
       { name: 'action_taken', label: 'Tindakan yang Diambil', type: 'string' },
       { name: 'evidence_urls', label: 'Link Evidence (Google Drive)', type: 'string' },
+      { name: 'evidence_url', label: 'Evidence URL (Legacy)', type: 'string' },
       { name: 'reporter_name', label: 'Nama Pelapor', type: 'string' },
       { name: 'reference_number', label: 'Nomor Referensi', type: 'string' },
       { name: 'is_flight_related', label: 'Terkait Penerbangan', type: 'boolean' },
