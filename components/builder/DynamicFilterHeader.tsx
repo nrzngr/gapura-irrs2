@@ -65,65 +65,65 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
   }, [selectedHub, selectedBranch, selectedMaskapai, selectedAirlines, selectedCategory, selectedArea, onFilterChange]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="w-28">
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="w-32">
         <PrismSelect 
           options={options.hub} 
           value={selectedHub} 
           onChange={setSelectedHub} 
           placeholder="HUB" 
           variant={variant}
-          label={variant === 'default' ? 'HUB' : undefined}
+          label="HUB Area"
         />
       </div>
-      <div className="w-28">
+      <div className="w-32">
         <PrismSelect 
           options={options.branch} 
           value={selectedBranch} 
           onChange={setSelectedBranch} 
           placeholder="Branch" 
           variant={variant}
-          label={variant === 'default' ? 'Branch' : undefined}
+          label="Branch / Station"
         />
       </div>
-      <div className="w-28">
+      <div className="w-32">
         <PrismSelect 
           options={options.airline_type} 
           value={selectedMaskapai} 
           onChange={setSelectedMaskapai} 
           placeholder="Maskapai" 
           variant={variant}
-          label={variant === 'default' ? 'Maskapai' : undefined}
+          label="Domestic/Intl"
         />
       </div>
-      <div className="w-28">
+      <div className="w-32">
         <PrismSelect 
           options={options.airline} 
           value={selectedAirlines} 
           onChange={setSelectedAirlines} 
           placeholder="Airlines" 
           variant={variant}
-          label={variant === 'default' ? 'Airlines' : undefined}
+          label="Airlines Name"
         />
       </div>
-      <div className="w-28">
+      <div className="w-32">
         <PrismSelect 
           options={options.main_category} 
           value={selectedCategory} 
           onChange={setSelectedCategory} 
           placeholder="Category" 
           variant={variant}
-          label={variant === 'default' ? 'Category' : undefined}
+          label="Case Category"
         />
       </div>
-      <div className="w-28">
+      <div className="w-32">
         <PrismSelect 
           options={options.area} 
           value={selectedArea} 
           onChange={setSelectedArea} 
           placeholder="Area" 
           variant={variant}
-          label={variant === 'default' ? 'Area' : undefined}
+          label="Ops. Area"
         />
       </div>
     </div>

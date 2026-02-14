@@ -105,13 +105,13 @@ export default function CustomerFeedbackPage() {
                 </div>
 
                 {/* Filters Row */}
-                <div className="grid grid-cols-6 gap-3">
-                    <PrismSelect options={options.hub} value={selectedHub} onChange={setSelectedHub} placeholder="HUB" />
-                    <PrismSelect options={options.branch} value={selectedBranch} onChange={setSelectedBranch} placeholder="Branch" />
-                    <PrismSelect options={options.airline_type} value={selectedMaskapai} onChange={setSelectedMaskapai} placeholder="Maskapai" />
-                    <PrismSelect options={options.airline} value={selectedAirlines} onChange={setSelectedAirlines} placeholder="Airlines" />
-                    <PrismSelect options={options.main_category} value={selectedCategory} onChange={setSelectedCategory} placeholder="Category" />
-                    <PrismSelect options={options.area} value={selectedArea} onChange={setSelectedArea} placeholder="Area" />
+                <div className="grid grid-cols-3 gap-4">
+                    <PrismSelect label="HUB Area" options={options.hub} value={selectedHub} onChange={setSelectedHub} placeholder="Select HUB" />
+                    <PrismSelect label="Branch / Station" options={options.branch} value={selectedBranch} onChange={setSelectedBranch} placeholder="Select Branch" />
+                    <PrismSelect label="Domestic / International" options={options.airline_type} value={selectedMaskapai} onChange={setSelectedMaskapai} placeholder="Select Type" />
+                    <PrismSelect label="Airlines Name" options={options.airline} value={selectedAirlines} onChange={setSelectedAirlines} placeholder="Select Airline" />
+                    <PrismSelect label="Case Category" options={options.main_category} value={selectedCategory} onChange={setSelectedCategory} placeholder="Select Category" />
+                    <PrismSelect label="Operational Area" options={options.area} value={selectedArea} onChange={setSelectedArea} placeholder="Select Area" />
                 </div>
 
                 {/* KPI/Stats Row */}

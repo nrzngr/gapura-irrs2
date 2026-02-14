@@ -57,7 +57,7 @@ export function PrismSelect({
     return (
         <div className="relative" ref={containerRef}>
             {label && (
-                <label className="label">
+                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ml-1 ${variant === 'white' ? 'text-white/80' : 'text-[var(--text-secondary)]'}`}>
                     {label} {required && <span className="text-[var(--status-error)]">*</span>}
                 </label>
             )}

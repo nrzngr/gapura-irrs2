@@ -1395,7 +1395,7 @@ const S = {
   banner: {
     background: GAPURA_BANNER,
     borderRadius: 6,
-    padding: '10px 20px',
+    padding: '14px 20px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
