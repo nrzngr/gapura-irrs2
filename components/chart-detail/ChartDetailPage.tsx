@@ -11,7 +11,8 @@ import type { DashboardTile, QueryResult } from '@/types/builder';
 import { useRef } from 'react';
 import { toPng } from 'html-to-image';
 import { saveAs } from 'file-saver';
-import { Download, FileText, Link as LinkIcon, Check } from 'lucide-react';
+import { Download, FileText, Link as LinkIcon, Check, LayoutGrid } from 'lucide-react';
+import { SupportingCharts } from './SupportingCharts';
 
 interface ChartDetailData {
   tile: DashboardTile;
@@ -31,10 +32,16 @@ interface AIInsight {
   rekomendasi: string[];
   anomali: Array<{
     label: string;
-    nilai: number;
+    nilai: number | string;
     deskripsi: string;
   }>;
   kesimpulan: string;
+  saranEksplorasi?: string[];
+  supportingCharts?: Array<{
+    visualization: DashboardTile['visualization'];
+    query: DashboardTile['query'];
+    explanation: string;
+  }>;
 }
 
 // Helper to format chart type for AI context
@@ -49,6 +56,7 @@ export default function ChartDetailPage() {
   const [insights, setInsights] = useState<AIInsight | null>(null);
   const [loading, setLoading] = useState(true);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  const [supportingData, setSupportingData] = useState<Record<number, QueryResult>>({});
   const [fullData, setFullData] = useState<QueryResult | null>(null);
   const [copied, setCopied] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -179,21 +187,54 @@ export default function ChartDetailPage() {
           dashboardId: detailData.dashboardId,
           tileId: detailData.tile.id,
           totalRows: result.rows.length,
-          dataSample: result.rows.slice(0, 50),
+          dataSample: result.rows.slice(0, 100), // Increase sample for better context
           statistics: {
             total,
             average: avg,
             maximum: max,
-            minimum: min
+            minimum: min,
+            variance: max - min, // Add range/variance context
+            rowCount: result.rows.length
           },
-          context: `Tampilkan analisis untuk ${formatChartType(detailData.tile.visualization.chartType)} berjudul "${detailData.tile.visualization.title}". Fokus pada anomali dan rekomendasi perbaikan.`
+          context: `Berikan analisis SANGAT MENDALAM untuk ${formatChartType(detailData.tile.visualization.chartType)} berjudul "${detailData.tile.visualization.title}". 
+          Gunakan pendekatan data storytelling. Hubungkan total volume (${total.toLocaleString('id-ID')}) dengan rata-rata (${avg.toLocaleString('id-ID')}). 
+          Identifikasi siapa atau apa yang menjadi penyumbang terbesar (Pareto) dan berikan rekomendasi strategis tanpa batasan panjang analisis.`
         })
       });
 
       const responseData = await response.json();
       
       if (response.ok && responseData.insights) {
-        return responseData.insights;
+        const insights = responseData.insights as AIInsight;
+        
+        // Fetch data for supporting charts if any
+        if (insights.supportingCharts && insights.supportingCharts.length > 0) {
+          const suppPromises = insights.supportingCharts.map(async (sc, idx) => {
+            try {
+              const res = await fetch('/api/dashboards/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: sc.query })
+              });
+              if (res.ok) {
+                const result = await res.json();
+                return { idx, result };
+              }
+            } catch (e) {
+              console.error(`Failed to fetch supporting chart ${idx}:`, e);
+            }
+            return null;
+          });
+
+          const results = await Promise.all(suppPromises);
+          const newDataMap: Record<number, QueryResult> = {};
+          results.forEach(r => {
+            if (r) newDataMap[r.idx] = r.result;
+          });
+          setSupportingData(newDataMap);
+        }
+
+        return insights;
       } else if (responseData.fallback) {
         console.warn('Using fallback insights due to API error:', responseData.error);
         return responseData.fallback;
@@ -301,17 +342,30 @@ export default function ChartDetailPage() {
           />
         </section>
 
+
         {/* Data and Insights Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          {/* Data Table */}
-          <section className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] overflow-hidden">
-            <DataTableWithPagination 
-              data={displayData}
-              title={tile.visualization.title || 'Chart Data'}
-            />
-          </section>
+          {/* Main Data Column */}
+          <div className="space-y-6">
+            {/* Supporting Charts / AI Mini-Dashboard */}
+            {insights?.supportingCharts && insights.supportingCharts.length > 0 && (
+              <SupportingCharts 
+                charts={insights.supportingCharts}
+                dataMap={supportingData}
+                loading={insightsLoading}
+              />
+            )}
 
-          {/* AI Insights */}
+            {/* Data Table */}
+            <section className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] overflow-hidden">
+              <DataTableWithPagination 
+                data={displayData}
+                title={tile.visualization.title || 'Chart Data'}
+              />
+            </section>
+          </div>
+
+          {/* AI Insights Sidebar */}
           <section className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] overflow-hidden">
             <AIInsightsPanel 
               insights={insights}

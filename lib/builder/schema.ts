@@ -243,3 +243,21 @@ export function isValidTable(table: string): boolean {
 export function getAllTableNames(): string[] {
   return TABLES.map(t => t.name);
 }
+export function buildSchemaContextForAI(): string {
+  const tableDescriptions = TABLES.map(t => {
+    const fields = t.fields.map(f => {
+      let desc = `    - ${f.name} (${f.type}, label: "${f.label}")`;
+      if (f.enumValues && f.enumValues.length > 0) {
+        desc += ` — enum: [${f.enumValues.map(v => `"${v}"`).join(', ')}]`;
+      }
+      return desc;
+    }).join('\n');
+    return `  Table: "${t.name}" (label: "${t.label}")\n  Fields:\n${fields}`;
+  }).join('\n\n');
+
+  const joinDescriptions = JOINS.map(j =>
+    `  - key: "${j.key}" — ${j.from}.${j.fromField} → ${j.to}.${j.toField} (label: "${j.label}")`
+  ).join('\n');
+
+  return `DATABASE SCHEMA:\n\n${tableDescriptions}\n\nAVAILABLE JOINS:\n${joinDescriptions}`;
+}

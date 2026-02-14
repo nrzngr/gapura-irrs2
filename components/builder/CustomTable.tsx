@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { QueryResult } from '@/types/builder';
+import { formatDisplayValue } from '@/lib/chart-utils';
 
 interface CustomTableProps {
   result: QueryResult;
@@ -12,42 +13,8 @@ interface CustomTableProps {
 const GAPURA_GREEN = '#6b8e3d';
 const GAPURA_GREEN_DARK = '#5a7a3a';
 
-// ISO datetime pattern
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-
-function formatDateValue(val: unknown): string {
-  if (typeof val !== 'string' || !ISO_DATETIME_RE.test(val)) return String(val ?? '');
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val);
-  const day = d.getUTCDate();
-  const month = d.toLocaleDateString('id-ID', { month: 'short', timeZone: 'UTC' });
-  const year = d.getUTCFullYear();
-  if (day === 1 && d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
-    return `${month} ${year}`;
-  }
-  return `${month} ${day}, ${year}`;
-}
-
 function formatValue(val: unknown, colName: string): string {
-  if (val === null || val === undefined) return '-';
-  
-  // Check if it's a date column
-  if (typeof val === 'string' && ISO_DATETIME_RE.test(val)) {
-    return formatDateValue(val);
-  }
-  
-  // Check if column name suggests it's a date
-  const lowerCol = colName.toLowerCase();
-  if (lowerCol.includes('date') || lowerCol.includes('time') || lowerCol.includes('created')) {
-    return formatDateValue(val);
-  }
-  
-  // Numbers
-  if (typeof val === 'number') {
-    return val.toLocaleString('id-ID');
-  }
-  
-  return String(val);
+  return formatDisplayValue(val, colName);
 }
 
 function isNumericColumn(rows: Record<string, unknown>[], col: string): boolean {

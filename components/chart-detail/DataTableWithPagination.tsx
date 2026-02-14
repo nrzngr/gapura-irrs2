@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Download, Search, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, FileType } from 'lucide-react';
 import type { QueryResult } from '@/types/builder';
+import { formatDisplayValue } from '@/lib/chart-utils';
 
 interface DataTableWithPaginationProps {
   data: QueryResult;
@@ -96,10 +97,8 @@ export function DataTableWithPagination({ data, title }: DataTableWithPagination
     URL.revokeObjectURL(url);
   };
 
-  const formatValue = (val: unknown): string => {
-    if (val === null || val === undefined) return '-';
-    if (typeof val === 'number') return val.toLocaleString('id-ID');
-    return String(val);
+  const formatValue = (val: unknown, colName: string): string => {
+    return formatDisplayValue(val, colName);
   };
 
   return (
@@ -179,7 +178,7 @@ export function DataTableWithPagination({ data, title }: DataTableWithPagination
                     className="px-3 py-2 text-[11px] text-[#333] max-w-[200px] truncate"
                     title={String(row[col])}
                   >
-                    {formatValue(row[col])}
+                    {formatValue(row[col], col)}
                   </td>
                 ))}
               </tr>

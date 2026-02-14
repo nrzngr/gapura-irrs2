@@ -12,7 +12,7 @@ import {
 import type { ChartVisualization, QueryResult, DashboardTile } from '@/types/builder';
 import { CustomPivotTable } from './CustomPivotTable';
 import { ChartClickHandler } from '@/components/chart-detail/ChartClickHandler';
-import { formatDateValue, ISO_DATETIME_RE, processChartData } from '@/lib/chart-utils';
+import { formatDateValue, ISO_DATETIME_RE, processChartData, formatDisplayValue } from '@/lib/chart-utils';
 
 interface ChartPreviewProps {
   visualization: ChartVisualization;
@@ -78,7 +78,9 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
 
   // Logic to determine active dimensions and measures
   let activeXKey = visualization.xAxis || result.columns[0] || '';
-  let activeYKeys = visualization.yAxis?.filter(y => result.columns.includes(y)) || [];
+  const rawY = visualization.yAxis;
+  let activeYKeys = (Array.isArray(rawY) ? rawY : (rawY ? [String(rawY)] : []))
+    .filter(y => result.columns.includes(y));
 
   if (activeYKeys.length === 0) {
     activeYKeys = result.columns.filter(c => {
@@ -103,10 +105,22 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     const cols = result.columns;
     if (cols.length < 3) return <div className="p-4 text-xs text-center text-muted-foreground">Heatmap requires 3 columns</div>;
 
-    let valueKey = colorField && cols.includes(colorField) ? colorField : activeYKeys[0];
-    const dimKeys = cols.filter(c => c !== valueKey).slice(0, 2);
-    const rowKey = activeXKey && dimKeys.includes(activeXKey) ? dimKeys.find(d => d !== activeXKey)! : dimKeys[0];
-    const colKey = dimKeys.find(d => d !== rowKey) || dimKeys[1];
+    // Robustly detect numeric vs categorical columns
+    const numericCols = cols.filter(c => {
+      const vals = rawData.slice(0, 10).map(r => r[c]);
+      return vals.some(v => typeof v === 'number' && isFinite(v));
+    });
+    const categCols = cols.filter(c => !numericCols.includes(c));
+
+    // Value (measure) should be the first numeric column
+    let valueKey = colorField && cols.includes(colorField) ? colorField : (numericCols[0] || activeYKeys[0] || cols[cols.length - 1]);
+    
+    // Dimensions should be the categorical ones
+    let dimKeys = categCols.length >= 2 ? categCols.slice(0, 2) : cols.filter(c => c !== valueKey).slice(0, 2);
+
+    // Prefer activeXKey for colKey (X-axis/Horizontal)
+    let colKey = activeXKey && dimKeys.includes(activeXKey) ? activeXKey : dimKeys[0];
+    let rowKey = dimKeys.find(d => d !== colKey) || dimKeys[1] || dimKeys[0];
 
     const rowLabels = [...new Set(rawData.map(d => String(d[rowKey] ?? '')))];
     const colLabels = [...new Set(rawData.map(d => String(d[colKey] ?? '')))];
@@ -173,14 +187,18 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     
     // Compact adjustments
     const fontSize = compact ? 8 : 10;
-    const itemHeight = compact ? 34 : 44;
-    const dynamicMinH = horizontal ? Math.max(compact ? 220 : 300, data.length * itemHeight + 60) : '100%';
+    const itemHeight = compact ? 34 : 54; // Increased from 44
+    const dynamicMinH = horizontal ? (data.length * itemHeight + (compact ? 40 : 100)) : '100%';
     
     let yAxisWidth = 80;
     if (horizontal) {
-      const maxLen = Math.max(...data.map(d => String(d[activeXKey] ?? '').length), 0);
-      const effectiveLen = Math.min(maxLen, compact ? 12 : 30); // Reduced length for compact
-      yAxisWidth = Math.min(Math.max(effectiveLen * (compact ? 5 : 6.5), compact ? 50 : 100), 160);
+      const labels = data.map(d => String(d[activeXKey] ?? ''));
+      const longestWord = Math.max(...labels.flatMap(l => l.split(' ').map(w => w.length)), 0);
+      const maxLines = Math.max(...labels.map(l => l.split(' ').length), 1);
+      
+      // Calculate width based on longest word or wrapped lines
+      const effectiveCharLen = Math.min(Math.max(longestWord, 12), 25);
+      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 5 : 7.5), compact ? 60 : 120), 220);
     }
 
     return wrap(
@@ -205,12 +223,12 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                   interval={0} 
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const label = String(payload.value).split(' ');
+                    const words = String(payload.value).split(' ');
                     const lines = [];
-                    let cur = label[0];
-                    for(let i=1; i<label.length; i++) {
-                      if ((cur + ' ' + label[i]).length < (compact ? 12 : 25)) cur += ' ' + label[i];
-                      else { lines.push(cur); cur = label[i]; }
+                    let cur = words[0];
+                    for(let i=1; i<words.length; i++) {
+                      if ((cur + ' ' + words[i]).length < (compact ? 12 : 20)) cur += ' ' + words[i];
+                      else { lines.push(cur); cur = words[i]; }
                     }
                     lines.push(cur);
                     return (
@@ -218,12 +236,12 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                         {lines.map((l, i) => (
                           <text 
                             key={i} 
-                            x={-5} 
+                            x={-8} 
                             y={0} 
-                            dy={i * (fontSize + 1) + 3 - ((lines.length - 1) * (fontSize/2))} 
+                            dy={i * (fontSize + 2) + 4 - ((lines.length - 1) * (fontSize/1.5))} 
                             textAnchor="end" 
                             fontSize={fontSize} 
-                            fill="#555"
+                            fill="#444"
                             fontWeight={500}
                           >
                             {l}
@@ -236,7 +254,35 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
               </>
             ) : (
               <>
-                <XAxis dataKey={activeXKey} {...commonProps} interval={0} />
+                <XAxis 
+                  dataKey={activeXKey} 
+                  {...commonProps} 
+                  height={compact ? 40 : 60}
+                  interval={0} 
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const label = String(payload.value);
+                    const isLong = label.length > 10;
+                    const shouldRotate = isLong || data.length > 6;
+                    
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text
+                          x={0}
+                          y={0}
+                          dy={10}
+                          textAnchor={shouldRotate ? "end" : "middle"}
+                          fill="#666"
+                          fontSize={fontSize}
+                          transform={shouldRotate ? "rotate(-35)" : undefined}
+                          fontWeight={500}
+                        >
+                          {label.length > (compact ? 15 : 25) ? label.substring(0, compact ? 12 : 22) + '...' : label}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
                 <YAxis {...commonProps} allowDecimals={false} />
               </>
             )}
@@ -246,14 +292,14 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 key={key} 
                 dataKey={key} 
                 fill={palette[i % palette.length]} 
-                radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} 
-                minPointSize={2} // Ensure very small bars are visible
+                radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]} 
+                minPointSize={2}
                 label={showLabels ? { 
                   position: horizontal ? 'right' : 'top', 
                   fontSize: fontSize, 
                   fill: '#666',
-                  formatter: (val: any) => typeof val === 'number' ? val.toLocaleString('id-ID') : String(val ?? ''),
-                  offset: compact ? 4 : 8
+                  formatter: (val: any) => formatDisplayValue(val),
+                  offset: compact ? 4 : 10
                 } : false}
               />
             ))}

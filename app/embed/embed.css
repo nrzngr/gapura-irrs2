@@ -370,12 +370,6 @@
   color: #93c5fd;
 }
 
-/* ─── Custom Dashboard Preview (light theme override) ─────────────────────── */
-.custom-dashboard-preview {
-  /* Override the dark embed-body background for custom dashboard pages */
-  /* Uses the app's light design system (card-solid, --surface-*, --text-*) */
-}
-
 /* When custom-dashboard-preview is present, override parent dark styles */
 .embed-body:has(.custom-dashboard-preview) {
   background: var(--surface-1, #f8fafc);

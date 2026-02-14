@@ -51,12 +51,12 @@ export interface QueryJoin {
 
 export interface QueryDefinition {
   source: string;
-  joins: QueryJoin[];
-  dimensions: QueryDimension[];
-  measures: QueryMeasure[];
-  filters: QueryFilter[];
-  sorts: QuerySort[];
-  limit: number;
+  joins?: QueryJoin[];
+  dimensions?: QueryDimension[];
+  measures?: QueryMeasure[];
+  filters?: QueryFilter[];
+  sorts?: QuerySort[];
+  limit?: number;
 }
 
 // ===== Chart / Visualization Types =====

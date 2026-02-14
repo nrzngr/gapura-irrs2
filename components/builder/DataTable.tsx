@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDisplayValue } from '@/lib/chart-utils';
 
 interface DataTableProps {
   columns: string[];
@@ -10,22 +11,8 @@ interface DataTableProps {
   maxRows?: number;
 }
 
-function formatValue(val: unknown): string {
-  if (val === null || val === undefined) return '-';
-  if (typeof val === 'number') {
-    if (Number.isInteger(val)) return val.toLocaleString('id-ID');
-    return val.toLocaleString('id-ID', { maximumFractionDigits: 2 });
-  }
-  if (typeof val === 'boolean') return val ? 'Ya' : 'Tidak';
-  const str = String(val);
-  // Date detection
-  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
-    return new Date(str).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    return new Date(str + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-  return str;
+function formatValue(val: unknown, colName: string): string {
+  return formatDisplayValue(val, colName);
 }
 
 export function DataTable({ columns, rows, maxRows = 100 }: DataTableProps) {
@@ -98,7 +85,7 @@ export function DataTable({ columns, rows, maxRows = 100 }: DataTableProps) {
               >
                 {columns.map(col => (
                   <td key={col} className="p-2 text-[var(--text-secondary)] whitespace-nowrap max-w-[200px] truncate">
-                    {formatValue(row[col])}
+                    {formatValue(row[col], col)}
                   </td>
                 ))}
               </tr>

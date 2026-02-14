@@ -28,13 +28,19 @@ export function validateQuery(def: QueryDefinition): string[] {
     return errors;
   }
 
-  if (def.dimensions.length === 0 && def.measures.length === 0) {
+  const dimensions = def.dimensions || [];
+  const measures = def.measures || [];
+  const filters = def.filters || [];
+  const joins = def.joins || [];
+  const sorts = def.sorts || [];
+
+  if (dimensions.length === 0 && measures.length === 0) {
     errors.push('Pilih minimal satu dimensi atau ukuran');
   }
 
   // Collect valid tables (source + joined tables)
   const validTables = new Set<string>([def.source]);
-  for (const join of def.joins) {
+  for (const join of joins) {
     const joinDef = getJoinDef(join.joinKey);
     if (!joinDef) {
       errors.push(`Join "${join.joinKey}" tidak ditemukan`);
@@ -44,7 +50,7 @@ export function validateQuery(def: QueryDefinition): string[] {
   }
 
   // Validate dimensions
-  for (const dim of def.dimensions) {
+  for (const dim of dimensions) {
     if (!validTables.has(dim.table)) {
       errors.push(`Tabel dimensi "${dim.table}" belum di-join`);
     } else if (!isValidField(dim.table, dim.field)) {
@@ -53,7 +59,7 @@ export function validateQuery(def: QueryDefinition): string[] {
   }
 
   // Validate measures
-  for (const m of def.measures) {
+  for (const m of measures) {
     if (!validTables.has(m.table)) {
       errors.push(`Tabel ukuran "${m.table}" belum di-join`);
     } else if (!isValidField(m.table, m.field)) {
@@ -62,7 +68,7 @@ export function validateQuery(def: QueryDefinition): string[] {
   }
 
   // Validate filters
-  for (const f of def.filters) {
+  for (const f of filters) {
     if (!validTables.has(f.table)) {
       errors.push(`Tabel filter "${f.table}" belum di-join`);
     } else if (!isValidField(f.table, f.field)) {
@@ -78,6 +84,12 @@ export function buildQuery(def: QueryDefinition): BuildResult {
   const params: (string | number | boolean)[] = [];
   let paramIdx = 0;
 
+  const dimensions = def.dimensions || [];
+  const measures = def.measures || [];
+  const filters = def.filters || [];
+  const joins = def.joins || [];
+  const sorts = def.sorts || [];
+
   const nextParam = (value: string | number | boolean): string => {
     paramIdx++;
     params.push(value);
@@ -87,7 +99,7 @@ export function buildQuery(def: QueryDefinition): BuildResult {
   // === SELECT ===
   const selectParts: string[] = [];
 
-  for (const dim of def.dimensions) {
+  for (const dim of dimensions) {
     const col = qualifiedCol(dim.table, dim.field);
     const alias = dim.alias || `${dim.table}_${dim.field}`;
     const fieldDef = getFieldDef(dim.table, dim.field);
@@ -99,7 +111,7 @@ export function buildQuery(def: QueryDefinition): BuildResult {
     }
   }
 
-  for (const m of def.measures) {
+  for (const m of measures) {
     const col = qualifiedCol(m.table, m.field);
     const alias = m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`;
     const aggExpr = buildAggregate(m.function, col);
@@ -115,7 +127,7 @@ export function buildQuery(def: QueryDefinition): BuildResult {
 
   // === JOINS ===
   const joinClauses: string[] = [];
-  for (const join of def.joins) {
+  for (const join of joins) {
     const joinDef = getJoinDef(join.joinKey);
     if (!joinDef) continue;
     joinClauses.push(
@@ -125,8 +137,8 @@ export function buildQuery(def: QueryDefinition): BuildResult {
 
   // === WHERE ===
   const whereParts: string[] = [];
-  for (let i = 0; i < def.filters.length; i++) {
-    const f = def.filters[i];
+  for (let i = 0; i < filters.length; i++) {
+    const f = filters[i];
     const col = qualifiedCol(f.table, f.field);
     const fieldDef = getFieldDef(f.table, f.field);
     const castSuffix = fieldDef?.type === 'date' ? '::date'
@@ -143,15 +155,15 @@ export function buildQuery(def: QueryDefinition): BuildResult {
 
   // === GROUP BY ===
   const groupByParts: string[] = [];
-  if (def.measures.length > 0 && def.dimensions.length > 0) {
-    for (let i = 0; i < def.dimensions.length; i++) {
+  if (measures.length > 0 && dimensions.length > 0) {
+    for (let i = 0; i < dimensions.length; i++) {
       groupByParts.push(`${i + 1}`);
     }
   }
 
   // === ORDER BY ===
   const orderByParts: string[] = [];
-  for (const s of def.sorts) {
+  for (const s of sorts) {
     const dir = s.direction === 'desc' ? 'DESC' : 'ASC';
     if (s.alias) {
       orderByParts.push(`"${s.alias}" ${dir}`);
@@ -162,11 +174,11 @@ export function buildQuery(def: QueryDefinition): BuildResult {
 
   // Default sort: first measure desc, or first dimension asc
   if (orderByParts.length === 0) {
-    if (def.measures.length > 0) {
-      const m = def.measures[0];
+    if (measures.length > 0) {
+      const m = measures[0];
       const alias = m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`;
       orderByParts.push(`"${alias}" DESC`);
-    } else if (def.dimensions.length > 0) {
+    } else if (dimensions.length > 0) {
       orderByParts.push(`1 ASC`);
     }
   }

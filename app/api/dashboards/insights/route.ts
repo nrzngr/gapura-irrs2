@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenRouter } from '@openrouter/sdk';
 import { supabase } from '@/lib/supabase';
+import { buildSchemaContextForAI } from '@/lib/builder/schema';
 import crypto from 'crypto';
 
 // OpenRouter Configuration
@@ -202,7 +203,7 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "system",
-            content: "Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, mendalam, dan actionable untuk manajemen operasional. Fokus pada integritas data, tren keselamatan/kualitas, dan efisiensi operasional. Jangan memberikan saran generik. Gunakan terminologi penerbangan yang tepat (e.g., OTP, SLA, Irregularity). Analisis harus berbasis data yang diberikan, bukan asumsi umum. JANGAN GUNAKAN EMOJI PADA OUTPUT."
+            content: "Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, sangat mendalam (comprehensive), dan actionable untuk manajemen operasional. JANGAN MEMBATASI KEDALAMAN ANALISIS — eksplorasi setiap detil yang relevan dari data yang diberikan. Fokus pada integritas data, tren keselamatan/kualitas, efisiensi operasional, dan korelasi antar dimensi. JANGAN gunakan emoji. Gunakan bahasa Indonesia yang profesional namun tegas. Target Anda adalah memberikan 'Data Storytelling' yang mengubah angka menjadi narasi strategi bisnis."
           },
           {
             role: "user",
@@ -210,7 +211,7 @@ export async function POST(req: NextRequest) {
           }
         ],
         temperature: 0.7,
-        maxTokens: 2000,
+        maxTokens: 4000,
         stream: false,
         provider: {
           dataCollection: "allow"
@@ -271,14 +272,17 @@ export async function POST(req: NextRequest) {
 
 function generatePrompt(data: InsightRequest & { context?: string }): string {
   const { chartTitle, chartType, totalRows, dataSample, statistics, dateRange, context } = data;
+  const schemaContext = buildSchemaContextForAI();
   
   return `
-Analisis data ground handling berikut dan berikan insight strategis untuk perbaikan operasional maupun layanan.
+Analisis data ground handling berikut dan berikan insight strategis serta visualisasi pendukung.
+
+${schemaContext}
 
 KONTEKS DASHBOARD:
 ${context || 'Analisis Umum'}
 
-DETAIL CHART:
+DETAIL CHART UTAMA:
 - Judul: ${chartTitle}
 - Tipe Visualisasi: ${chartType}
 - Total Data: ${totalRows} baris
@@ -293,13 +297,14 @@ RINGKASAN STATISTIK:
 SAMPEL DATA (Top 50 Rows):
 ${JSON.stringify(dataSample, null, 2)}
 
-INSTRUKSI ANALISIS:
-1. Identifikasi pola dominan (pareto) pada data. 
-2. Cari anomali spesifik (misal: cabang/maskapai dengan performa jauh di bawah rata-rata).
-3. Hubungkan data dengan potensi isu operasional (misal: delay handling, complain penumpang).
-4. Berikan rekomendasi perbaikan proses konkret.
+INSTRUKSI ANALISIS (BEBAS BATASAN):
+1. Identifikasi SETIAP pola dominan (pareto) yang muncul pada data. JANGAN membatasi jumlah temuan jika data memang kompleks.
+2. Cari anomali spesifik dan berikan analisis 'root cause' berdasarkan data (misal: cabang/maskapai dengan performa jauh di bawah rata-rata).
+3. Hubungkan data dengan potensi isu operasional secara luas (Safety, Quality, Efficiency, Financial Impact).
+5. Berikan rekomendasi perbaikan proses yang konkret, bertingkat, dan komprehensif.
+6. Buat minimal 4 VISUALISASI PENDUKUNG (supportingCharts). Jika dimensi kategorikal memiliki kemungkinan nama yang panjang (seperti sub-kategori, maskapai, station), gunakan 'horizontal_bar' atau 'pie' agar visualisasi lebih rapi. Susunlah seperti sebuah DASHBOARD EKSEKUTIF pendukung untuk memberikan gambaran komprehensif (360-degree view).
 
-JANGAN BERIKAN SARAN GENERIK SEPERTI "TINGKATKAN KUALITAS". BERIKAN SARAN SPESIFIK BERDASARKAN DATA, CONTOH: "FOKUS PERBAIKAN PADA CABANG CGK KARENA MENYUMBANG 40% KELUHAN".
+JANGAN BERIKAN SARAN GENERIK. BERIKAN ANALISIS YANG SANGAT SPESIFIK. TIDAK ADA BATASAN PANJANG ANALISIS — PRIORITASKAN KELENGKAPAN DAN KEDALAMAN (INSIGHTFULNESS).
 
 FORMAT OUTPUT (JSON):
 {
@@ -321,7 +326,27 @@ FORMAT OUTPUT (JSON):
       "deskripsi": "Kenapa ini anomali? (Misal: 3x lipat rata-rata)"
     }
   ],
-  "kesimpulan": "Satu kalimat penutup yang merangkum status kesehatan operasional berdasarkan data ini."
+  "kesimpulan": "Satu kalimat penutup yang merangkum status kesehatan operasional berdasarkan data ini.",
+  "saranEksplorasi": ["Pertanyaan atau topik lanjutan untuk dieksplorasi 1", "Pertanyaan atau topik lanjutan untuk dieksplorasi 2"],
+  "supportingCharts": [
+    {
+      "visualization": {
+        "chartType": "bar|line|area|pie|donut|heatmap",
+        "title": "Judul Chart Pendukung (Bahasa Indonesia)",
+        "xAxis": "Field Dimensi (Horizontal)",
+        "yAxis": ["Field Measure (untuk Bar/Line) ATAU Dimensi Kedua (khusus Heatmap)"],
+        "colorField": "Field Measure Utamanya (khusus Heatmap)"
+      },
+      "query": {
+        "source": "reports",
+        "dimensions": [{"table": "reports", "field": "field_name", "alias": "Alias"}],
+        "measures": [{"table": "reports", "field": "id", "function": "COUNT", "alias": "Jumlah"}],
+        "sorts": [{"field": "Jumlah", "direction": "desc", "alias": "Jumlah"}],
+        "limit": 5
+      },
+      "explanation": "Alasan kenapa chart ini penting untuk mendukung analisis chart utama."
+    }
+  ]
 }
 
 PENTING: Pastikan semua nilai di dalam JSON valid. Nilai yang mengandung ":" (rasio), "%", atau teks harus diapit tanda kutip ganda (quoted string).`;

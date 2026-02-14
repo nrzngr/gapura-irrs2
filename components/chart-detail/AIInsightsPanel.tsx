@@ -12,10 +12,16 @@ interface AIInsight {
   rekomendasi: string[];
   anomali: Array<{
     label: string;
-    nilai: number;
+    nilai: number | string;
     deskripsi: string;
   }>;
   kesimpulan: string;
+  saranEksplorasi?: string[];
+  supportingCharts?: Array<{
+    visualization: any;
+    query: any;
+    explanation: string;
+  }>;
 }
 
 interface AIInsightsPanelProps {
@@ -60,12 +66,17 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
 
   return (
     <div className="p-6 h-full overflow-auto">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#e0e0e0]">
-        <Sparkles className="w-5 h-5 text-[#6b8e3d]" />
-        <h3 className="text-sm font-semibold text-[#6b8e3d] uppercase tracking-wide">
-          Insight AI
-        </h3>
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#e0e0e0]">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#6b8e3d]" />
+          <h3 className="text-sm font-semibold text-[#6b8e3d] uppercase tracking-wide">
+            Insight AI
+          </h3>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#e8f5e9] border border-[#c8e6c9] rounded-full">
+          <div className="w-1.5 h-1.5 bg-[#4caf50] rounded-full animate-pulse" />
+          <span className="text-[10px] font-bold text-[#2e7d32] uppercase tracking-tighter">Deep Analysis</span>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -202,9 +213,22 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
         {/* Conclusion */}
         {insights.kesimpulan && (
           <section className="pt-4 border-t border-[#e0e0e0]">
-            <p className="text-sm text-[#666] italic text-center">
+            <p className="text-sm text-[#333] font-medium text-center italic mb-4">
               "{insights.kesimpulan}"
             </p>
+            
+            {insights.saranEksplorasi && insights.saranEksplorasi.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {insights.saranEksplorasi.map((saran, idx) => (
+                  <button 
+                    key={idx}
+                    className="text-[10px] bg-white border border-[#e0e0e0] text-[#666] px-3 py-1 rounded-full hover:border-[#6b8e3d] hover:text-[#6b8e3d] transition-all"
+                  >
+                    {saran}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         )}
       </div>
