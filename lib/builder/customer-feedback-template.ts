@@ -42,11 +42,33 @@ function cloneForCGO(tiles: DashboardTile[]): DashboardTile[] {
 
 export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: string): DashboardDefinition {
   tileCounter = 0;
+  
+  // Parse dates safely - handle ISO format (YYYY-MM-DD)
+  const parseDate = (dateStr: string): Date => {
+    // If already in YYYY-MM-DD format, parse directly to avoid timezone issues
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    }
+    return new Date(dateStr);
+  };
+  
   const df = dateFilters(dateFrom, dateTo);
   const ls = landsideFilter();
-  const fromYear = new Date(dateFrom).getFullYear();
-  const toYear = new Date(dateTo).getFullYear();
+  const fromDate = parseDate(dateFrom);
+  const toDate = parseDate(dateTo);
+  const fromYear = fromDate.getFullYear();
+  const toYear = toDate.getFullYear();
+  
+  // Check if using full date range (1900-2099), if so don't show year range in title
+  const isFullRange = fromYear === 1900 && toYear === 2099;
   const yearRange = fromYear === toYear ? `${fromYear}` : `${fromYear} - ${toYear}`;
+  const displayTitle = isFullRange ? 'Customer Feedback' : `Landside & Airside Customer Feedback ${yearRange}`;
+  const displayDescription = isFullRange 
+    ? 'Landside & Airside Customer Feedback – Irregularity, Complaint & Compliment Report'
+    : `Landside & Airside Customer Feedback ${yearRange} – Irregularity, Complaint & Compliment Report`;
+  
+  console.log('[Customer Feedback] Date range:', { dateFrom, dateTo, fromYear, toYear, yearRange });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE 1: Case Category (Landside/Airside)
@@ -95,7 +117,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
       layout: { x: 9, y: 0, w: 3, h: 1 },
     },
 
-    // ── Row 1: 4 charts ──
+    // ── Row 1: 4 charts (Stacked 2x2) ──
     // Donut: Report by Case Category
     {
       id: tileId(),
@@ -107,7 +129,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'donut', title: 'Report by Case Category', xAxis: 'category', yAxis: ['count'], showLegend: true, showLabels: true },
-      layout: { x: 0, y: 1, w: 3, h: 2 },
+      layout: { x: 0, y: 1, w: 6, h: 2 },
     },
     // Horizontal Bar: Branch Report
     {
@@ -117,10 +139,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'branch', alias: 'branch' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...df, ls],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10, // Reduced to 10 to fit in view
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Branch Report', xAxis: 'branch', yAxis: ['count'], showLegend: false, showLabels: true },
-      layout: { x: 3, y: 1, w: 3, h: 2 },
+      layout: { x: 6, y: 1, w: 6, h: 2 },
     },
     // Horizontal Bar: Airlines Report
     {
@@ -130,10 +152,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'airline', alias: 'airline' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...df, ls],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10, // Reduced to 10
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Airlines Report', xAxis: 'airline', yAxis: ['count'], showLegend: false, showLabels: true },
-      layout: { x: 6, y: 1, w: 3, h: 2 },
+      layout: { x: 0, y: 3, w: 6, h: 2 },
     },
     // Horizontal Bar: Monthly Report
     {
@@ -143,14 +165,13 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'created_at', alias: 'month', dateGranularity: 'month' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...df, ls],
-        sorts: [{ field: 'month', direction: 'asc' }], limit: 12, // Reduced to 12 (1 year)
+        sorts: [{ field: 'month', direction: 'asc' }], limit: 12,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'month', yAxis: ['count'], showLegend: false, showLabels: true },
-      layout: { x: 9, y: 1, w: 3, h: 2 },
+      layout: { x: 6, y: 3, w: 6, h: 2 },
     },
 
-    // ── Row 2: Donut + 2 Heatmaps (Even 4-4-4 Split) ──
-    // Donut: Category by Area
+    // ── Row 2: Donut + 2 Heatmaps (Stacked) ──
     {
       id: tileId(),
       query: {
@@ -161,9 +182,8 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 5,
       },
       visualization: { chartType: 'donut', title: 'Category by Area', xAxis: 'area', yAxis: ['count'], showLegend: true, showLabels: true },
-      layout: { x: 0, y: 3, w: 4, h: 2 },
+      layout: { x: 0, y: 5, w: 6, h: 2 },
     },
-    // Heatmap: Case Category by Branch
     {
       id: tileId(),
       query: {
@@ -177,9 +197,8 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 200,
       },
       visualization: { chartType: 'heatmap', title: 'Case Category by Branch', xAxis: 'category', yAxis: ['branch'], colorField: 'count', showLegend: false, showLabels: false },
-      layout: { x: 4, y: 3, w: 4, h: 2 },
+      layout: { x: 6, y: 5, w: 6, h: 2 },
     },
-    // Heatmap: Case Category by Airlines
     {
       id: tileId(),
       query: {
@@ -193,7 +212,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 200,
       },
       visualization: { chartType: 'heatmap', title: 'Case Category by Airlines', xAxis: 'category', yAxis: ['airline'], colorField: 'count', showLegend: false, showLabels: false },
-      layout: { x: 8, y: 3, w: 4, h: 2 },
+      layout: { x: 0, y: 7, w: 6, h: 2 },
     },
   ];
 
@@ -240,7 +259,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Terminal Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
-      layout: { x: 6, y: 1, w: 2, h: 3 }, // WIDTH 2 (Row 1 Mid-Left)
+      layout: { x: 0, y: 4, w: 6, h: 3 },
     },
     // Table -> Bar: Apron Area Category
     {
@@ -253,7 +272,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
-      layout: { x: 8, y: 1, w: 2, h: 3 }, // WIDTH 2 (Row 1 Mid-Right)
+      layout: { x: 6, y: 4, w: 6, h: 3 },
     },
     // Table -> Bar: General Category
     {
@@ -266,7 +285,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true },
-      layout: { x: 10, y: 1, w: 2, h: 3 }, // WIDTH 2 (Row 1 Right)
+      layout: { x: 0, y: 7, w: 6, h: 3 },
     },
     // Horizontal Bar: HUB Report
     {
@@ -279,7 +298,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true },
-      layout: { x: 0, y: 4, w: 3, h: 4 }, // Row 2 Left
+      layout: { x: 6, y: 7, w: 6, h: 4 },
     },
     // Table: Detail Report Landside & Airside
     {
@@ -301,7 +320,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'Date', direction: 'desc' }], limit: 5000,
       },
       visualization: { chartType: 'table', title: 'Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },
-      layout: { x: 3, y: 4, w: 9, h: 4 }, // Row 2 Right
+      layout: { x: 0, y: 11, w: 12, h: 4 },
     },
   ];
 
@@ -335,7 +354,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false,
         showLabels: true 
       },
-      layout: { x: 0, y: 1, w: 4, h: 3 },
+      layout: { x: 0, y: 1, w: 6, h: 3 },
     },
     {
       id: tileId(),
@@ -359,7 +378,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false,
         showLabels: true 
       },
-      layout: { x: 4, y: 1, w: 4, h: 3 },
+      layout: { x: 6, y: 1, w: 6, h: 3 },
     },
     {
       id: tileId(),
@@ -383,10 +402,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false,
         showLabels: true 
       },
-      layout: { x: 8, y: 1, w: 4, h: 3 },
+      layout: { x: 0, y: 4, w: 6, h: 3 },
     },
     
-    // Row 2: By Airlines (transposed - airlines are rows, categories are columns)
+    // Row 2: By Airlines
     {
       id: tileId(),
       query: {
@@ -409,7 +428,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false,
         showLabels: true 
       },
-      layout: { x: 0, y: 4, w: 4, h: 3 },
+      layout: { x: 6, y: 4, w: 6, h: 3 },
     },
     {
       id: tileId(),
@@ -433,7 +452,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false,
         showLabels: true 
       },
-      layout: { x: 4, y: 4, w: 4, h: 3 },
+      layout: { x: 0, y: 7, w: 6, h: 3 },
     },
     {
       id: tileId(),
@@ -457,7 +476,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false,
         showLabels: true 
       },
-      layout: { x: 8, y: 4, w: 4, h: 3 },
+      layout: { x: 6, y: 7, w: 6, h: 3 },
     },
   ];
 
@@ -489,8 +508,8 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   }
 
   return {
-    name: `Customer Feedback ${yearRange}`,
-    description: `Landside & Airside Customer Feedback ${yearRange} - Irregularity, Complaint & Compliment Report`,
+    name: displayTitle,
+    description: displayDescription,
     tiles: allTiles,
     pages,
     globalFilters: [],

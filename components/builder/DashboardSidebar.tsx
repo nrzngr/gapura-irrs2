@@ -13,7 +13,7 @@ interface DashboardSidebarProps {
 
 const GAPURA_GREEN = '#6b8e3d';
 
-export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = '2025 - 2026' }: DashboardSidebarProps) {
+export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = '' }: DashboardSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [

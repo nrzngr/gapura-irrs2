@@ -144,7 +144,7 @@ export async function GET(request: Request) {
                     ),
                     monthly AS (
                         SELECT json_agg(json_build_object(
-                            'month', to_char(date_trunc('month', created_at), 'Mon YY'),
+                            'month', month_label,
                             'total', total,
                             'resolved', resolved,
                             'high', high
@@ -167,7 +167,11 @@ export async function GET(request: Request) {
                         COALESCE(st.data, '[]'::json) AS status_data,
                         COALESCE(inc.data, '[]'::json) AS incident_data,
                         COALESCE(m.data, '[]'::json) AS trend_data
-                    FROM summary s, severity_dist sev, status_dist st, incident_dist inc, monthly m
+                    FROM summary s
+                    LEFT JOIN severity_dist sev ON true
+                    LEFT JOIN status_dist st ON true
+                    LEFT JOIN incident_dist inc ON true
+                    LEFT JOIN monthly m ON true
                 `,
                 query_params: params,
             }),

@@ -1,12 +1,28 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenRouter } from '@openrouter/sdk';
 import { supabase } from '@/lib/supabase';
+import crypto from 'crypto';
 
 // OpenRouter Configuration
 const openrouter = new OpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
+
+// In-memory cache for AI insights
+interface CacheEntry {
+  insights: unknown;
+  timestamp: number;
+  requestHash: string;
+}
+
+const insightsCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const MAX_CACHE_SIZE = 100; // Maximum number of cached entries
+
+// Rate limiting
+const requestTimestamps = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 requests per minute per chart
 
 interface InsightRequest {
   chartTitle: string;
@@ -27,11 +43,116 @@ interface InsightRequest {
   };
 }
 
+// Generate cache key from request
+function generateCacheKey(body: InsightRequest): string {
+  const keyData = {
+    chartTitle: body.chartTitle,
+    chartType: body.chartType,
+    dashboardId: body.dashboardId,
+    tileId: body.tileId,
+    totalRows: body.totalRows,
+    statistics: body.statistics,
+    dateRange: body.dateRange,
+    // Use first 10 rows of data sample for cache key
+    dataSample: body.dataSample.slice(0, 10)
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(keyData)).digest('hex');
+}
+
+// Check rate limit
+function checkRateLimit(tileId: string | undefined): boolean {
+  if (!tileId) return true; // Allow if no tileId
+  
+  const now = Date.now();
+  const timestamps = requestTimestamps.get(tileId) || [];
+  
+  // Remove old timestamps outside the window
+  const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
+  
+  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    return false; // Rate limit exceeded
+  }
+  
+  validTimestamps.push(now);
+  requestTimestamps.set(tileId, validTimestamps);
+  return true;
+}
+
+// Get cached insights
+function getCachedInsights(cacheKey: string): unknown | null {
+  const cached = insightsCache.get(cacheKey);
+  if (!cached) return null;
+  
+  const now = Date.now();
+  if (now - cached.timestamp > CACHE_TTL) {
+    insightsCache.delete(cacheKey);
+    return null;
+  }
+  
+  return cached.insights;
+}
+
+// Set cached insights
+function setCachedInsights(cacheKey: string, insights: unknown): void {
+  // Clean up old entries if cache is too large
+  if (insightsCache.size >= MAX_CACHE_SIZE) {
+    const now = Date.now();
+    for (const [key, entry] of insightsCache.entries()) {
+      if (now - entry.timestamp > CACHE_TTL) {
+        insightsCache.delete(key);
+      }
+    }
+    
+    // If still too large, remove oldest entry
+    if (insightsCache.size >= MAX_CACHE_SIZE) {
+      let oldestKey = '';
+      let oldestTime = Infinity;
+      for (const [key, entry] of insightsCache.entries()) {
+        if (entry.timestamp < oldestTime) {
+          oldestTime = entry.timestamp;
+          oldestKey = key;
+        }
+      }
+      if (oldestKey) insightsCache.delete(oldestKey);
+    }
+  }
+  
+  insightsCache.set(cacheKey, {
+    insights,
+    timestamp: Date.now(),
+    requestHash: cacheKey
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body: InsightRequest = await req.json();
-    
     const { chartTitle, chartType, dashboardId, tileId, totalRows, dataSample, statistics, dateRange } = body;
+    
+    // Generate cache key
+    const cacheKey = generateCacheKey(body);
+    
+    // Check cache first
+    const cachedInsights = getCachedInsights(cacheKey);
+    if (cachedInsights) {
+      console.log(`[AI Insights] Cache hit for tile: ${tileId}`);
+      return NextResponse.json({
+        insights: cachedInsights,
+        generatedAt: new Date().toISOString(),
+        cached: true
+      });
+    }
+    
+    // Check rate limit
+    if (!checkRateLimit(tileId)) {
+      console.warn(`[AI Insights] Rate limit exceeded for tile: ${tileId}`);
+      return NextResponse.json({
+        insights: generateFallbackInsights(),
+        generatedAt: new Date().toISOString(),
+        rateLimited: true,
+        message: 'Terlalu banyak permintaan. Silakan coba lagi dalam beberapa menit.'
+      });
+    }
     
     // Fetch context from Supabase if IDs are available
     let dashboardContext = '';
@@ -72,8 +193,9 @@ export async function POST(req: NextRequest) {
       context: `${dashboardContext}${chartContext}`
     });
     
+    // Call AI without timeout (model takes time to respond)
     const completion: any = await openrouter.chat.send({
-      httpReferer: 'https://gapura.id', // Required for free model rankings
+      httpReferer: 'https://gapura.id',
       xTitle: 'Gapura Dashboard',
       chatGenerationParams: {
         model: "arcee-ai/trinity-large-preview:free",
@@ -91,7 +213,7 @@ export async function POST(req: NextRequest) {
         maxTokens: 2000,
         stream: false,
         provider: {
-          dataCollection: "allow" // Required for free models
+          dataCollection: "allow"
         }
       }
     });
@@ -116,34 +238,34 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. SEC-OPS: Sanitize common malformed JSON values (unquoted ratios, etc.)
-      // Fixes cases like "nilai": 1:6 -> "nilai": "1:6"
       jsonContent = jsonContent.replace(/:\s*([0-9]+\s*:\s*[0-9]+)\b/g, ': "$1"');
-      
-      // Fixes unquoted percentages if any: 14.3% -> "14.3%"
       jsonContent = jsonContent.replace(/:\s*([0-9.]+\s*%)\b/g, ': "$1"');
 
       insights = JSON.parse(jsonContent);
     } catch (parseError) {
       console.warn('JSON Parse Warning:', parseError);
       console.log('Raw Insights Text:', insightsText);
-      // If parsing fails, create a structured response from the text
       insights = parseInsightsFromText(insightsText);
     }
     
+    // Cache the insights
+    setCachedInsights(cacheKey, insights);
+    
     return NextResponse.json({
       insights,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      cached: false
     });
     
   } catch (error) {
     console.error('AI Insights Error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Gagal menghasilkan insight',
-        fallback: generateFallbackInsights()
-      },
-      { status: 500 }
-    );
+    
+    // Return fallback if AI fails
+    return NextResponse.json({
+      insights: generateFallbackInsights(),
+      generatedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Gagal menghasilkan insight'
+    });
   }
 }
 
@@ -151,7 +273,7 @@ function generatePrompt(data: InsightRequest & { context?: string }): string {
   const { chartTitle, chartType, totalRows, dataSample, statistics, dateRange, context } = data;
   
   return `
-Analisis data ground handling berikut dan berikan insight strategis untuk perbaikan operasional mapupun layanan.
+Analisis data ground handling berikut dan berikan insight strategis untuk perbaikan operasional maupun layanan.
 
 KONTEKS DASHBOARD:
 ${context || 'Analisis Umum'}
@@ -187,7 +309,7 @@ FORMAT OUTPUT (JSON):
     {
       "label": "Nama Cabang/Maskapai/Kategori",
       "arah": "naik/turun/stabil/kritis",
-      "persentase": 0, // Nilai angka saja (e.g., 41.4)
+      "persentase": 0,
       "deskripsi": "Penjelasan konteks kenapa ini trend penting"
     }
   ],
@@ -195,7 +317,7 @@ FORMAT OUTPUT (JSON):
   "anomali": [
     {
       "label": "Entitas yang outlier",
-      "nilai": "string", // WAJIB QUOTED STRING jika mengandung ":" atau karakter non-angka
+      "nilai": "string",
       "deskripsi": "Kenapa ini anomali? (Misal: 3x lipat rata-rata)"
     }
   ],
@@ -206,7 +328,6 @@ PENTING: Pastikan semua nilai di dalam JSON valid. Nilai yang mengandung ":" (ra
 }
 
 function parseInsightsFromText(text: string): unknown {
-  // Fallback parser if JSON parsing fails
   const lines = text.split('\n').filter(line => line.trim());
   
   return {
@@ -225,7 +346,7 @@ function generateFallbackInsights() {
     temuanUtama: [
       "Data tersedia untuk analisis manual",
       "Statistik dasar dapat dilihat di panel summary",
-      "Export data tersedia dalam format CSV/Excel/PDF"
+      "Export data tersedia dalam format CSV"
     ],
     tren: [],
     rekomendasi: [

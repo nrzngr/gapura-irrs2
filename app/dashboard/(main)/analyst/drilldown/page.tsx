@@ -63,11 +63,13 @@ export default function AnalystDrilldownPage() {
                 return filtered.filter(r => r.stations?.code === value);
             case 'month': {
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const monthIdx = months.indexOf(value);
-                if (monthIdx >= 0) {
-                    return filtered.filter(r => new Date(r.created_at).getMonth() === monthIdx);
-                }
-                return filtered;
+                return filtered.filter(r => {
+                    const date = new Date(r.created_at);
+                    const m = months[date.getMonth()];
+                    const y = date.getFullYear().toString().slice(-2);
+                    const monYY = `${m} ${y}`;
+                    return m === value || monYY === value;
+                });
             }
             case 'status':
                 return filtered.filter(r => r.status === value);
@@ -76,6 +78,7 @@ export default function AnalystDrilldownPage() {
             case 'area':
                 return filtered.filter(r => (r.area || 'General') === value);
             case 'severity':
+                if (value === 'all') return filtered;
                 return filtered.filter(r => r.severity === value);
             default:
                 return filtered;

@@ -18,6 +18,7 @@ interface PrismSelectProps {
     label?: string;
     searchable?: boolean;
     required?: boolean;
+    variant?: 'default' | 'white';
 }
 
 export function PrismSelect({ 
@@ -27,7 +28,8 @@ export function PrismSelect({
     placeholder = 'Select option', 
     label,
     searchable = true,
-    required = false
+    required = false,
+    variant = 'default'
 }: PrismSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -65,26 +67,32 @@ export function PrismSelect({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-                    w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-200
-                    ${isOpen 
-                        ? 'border-[var(--brand-primary)] bg-[var(--surface-2)] shadow-[0_0_0_4px_oklch(0.55_0.16_160_/_0.1)]' 
-                        : 'border-transparent bg-[var(--surface-3)] hover:bg-[var(--surface-4)]'
+                    w-full flex items-center justify-between px-3 py-1.5 rounded-lg border transition-all duration-200
+                    ${variant === 'white'
+                        ? isOpen 
+                            ? 'border-white/40 bg-white/25 text-white shadow-lg' 
+                            : 'border-white/10 bg-white/5 text-white/90 hover:bg-white/15 hover:border-white/20'
+                        : isOpen 
+                            ? 'border-[var(--brand-primary)] bg-[var(--surface-2)] border-2' 
+                            : 'border-transparent bg-[var(--surface-3)] hover:bg-[var(--surface-4)] border-2'
                     }
                 `}
             >
                 {selectedOption ? (
-                    <div className="flex flex-col items-start text-left">
-                        <span className="font-medium text-[var(--text-primary)]">{selectedOption.label}</span>
+                    <div className="flex flex-col items-start text-left min-w-0">
+                        <span className={`font-semibold truncate w-full ${variant === 'white' ? 'text-sm text-white' : 'text-base text-[var(--text-primary)]'}`}>
+                            {selectedOption.label}
+                        </span>
                         {selectedOption.description && (
-                            <span className="text-xs text-[var(--text-secondary)]">{selectedOption.description}</span>
+                            <span className="text-[10px] opacity-70 truncate w-full">{selectedOption.description}</span>
                         )}
                     </div>
                 ) : (
-                    <span className="text-[var(--text-muted)]">{placeholder}</span>
+                    <span className={`text-sm ${variant === 'white' ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>{placeholder}</span>
                 )}
                 <ChevronDown 
-                    size={20} 
-                    className={`text-[var(--text-secondary)] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
+                    size={16} 
+                    className={`${variant === 'white' ? 'text-white' : 'text-[var(--text-secondary)]'} transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
                 />
             </button>
 

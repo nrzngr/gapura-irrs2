@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { ChartPreview } from '@/components/builder/ChartPreview';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink } from 'lucide-react';
+import { DynamicFilterHeader } from '@/components/builder/DynamicFilterHeader';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import type { ChartVisualization, QueryResult, QueryDefinition } from '@/types/builder';
 
@@ -17,7 +18,8 @@ const GREEN_PALETTE = ['#7cb342', '#558b2f', '#aed581', '#33691e', '#9ccc65', '#
 const FILTER_FIELDS = [
   { key: 'hub', label: 'HUB', table: 'reports', field: 'hub' },
   { key: 'branch', label: 'Branch', table: 'reports', field: 'branch' },
-  { key: 'airline', label: 'Maskapai', table: 'reports', field: 'airline' },
+  { key: 'maskapai', label: 'Maskapai', table: 'reports', field: 'airline_type' },
+  { key: 'airline', label: 'Airlines', table: 'reports', field: 'airline' },
   { key: 'main_category', label: 'Kategori', table: 'reports', field: 'main_category' },
   { key: 'area', label: 'Area', table: 'reports', field: 'area' },
   { key: 'target_division', label: 'Divisi', table: 'reports', field: 'target_division' },
@@ -96,8 +98,6 @@ export function CustomDashboardContent() {
 
   // Interactive filters
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
-  const [filterOptions, setFilterOptions] = useState<Record<string, string[]>>({});
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pptx' | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -160,19 +160,7 @@ export function CustomDashboardContent() {
     router.push(`/dashboard/chart-detail?${params.toString()}`);
   };
 
-  // ─── Fetch filter options from batch endpoint ─────────────────────────────
-  const fetchFilterOptions = useCallback(async () => {
-    try {
-      const fields = FILTER_FIELDS.map(ff => ff.key).join(',');
-      const res = await fetch(`/api/dashboards/filter-options?fields=${fields}`);
-      if (!res.ok) {
-        console.error(`[Dashboard] Filter options failed (${res.status})`);
-        return;
-      }
-      const data = await res.json();
-      setFilterOptions(data);
-    } catch (err) { console.error('[Dashboard] Filter fetch error:', err); }
-  }, []);
+  // Filters are now handled by DynamicFilterHeader
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
   const fetchDashboard = useCallback(async () => {
@@ -195,7 +183,7 @@ export function CustomDashboardContent() {
   /** Apply active filters to a query config */
   const applyFiltersToQuery = useCallback((queryConfig: QueryDefinition): QueryDefinition => {
     const extraFilters = Object.entries(activeFilters)
-      .filter(([, val]) => val && val !== '')
+      .filter(([, val]) => val && val !== 'all')
       .map(([key, val]) => {
         const ff = FILTER_FIELDS.find(f => f.key === key);
         return ff ? {
@@ -326,18 +314,13 @@ export function CustomDashboardContent() {
     const load = async () => {
       setLoading(true);
       const dash = await fetchDashboard();
-      if (dash?.dashboard_charts) {
+      if (dash) {
         dashboardRef.current = dash;
-        const pageCharts = getPageCharts(dash, 0);
-        await Promise.all([
-          fetchChartData(pageCharts),
-          fetchFilterOptions(),
-        ]);
       }
       setLoading(false);
     };
     load();
-  }, [slug, fetchDashboard, fetchChartData, fetchFilterOptions, getPageCharts]);
+  }, [slug, fetchDashboard]);
 
   // Re-fetch data when page changes or filters change — only fetch active page
   useEffect(() => {
@@ -607,7 +590,7 @@ export function CustomDashboardContent() {
                 onClick={() => { setActiveFilters({}); setDateFrom(''); setDateTo(''); }}
                 style={{ fontSize: 10, color: '#e53935', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               >
-                Hapus Semua Filter
+                Reset Filter
               </button>
             </div>
           )}
@@ -627,25 +610,31 @@ export function CustomDashboardContent() {
                   <h1 style={S.title}>
                     {(() => {
                       const pName = pages[activePage]?.name || '';
-                      const cfFrom = dashboard?.config?.dateFrom;
-                      const cfTo = dashboard?.config?.dateTo;
+                      const cfFrom = dateFrom || dashboard?.config?.dateFrom;
+                      const cfTo = dateTo || dashboard?.config?.dateTo;
                       let yr = '';
                       if (cfFrom && cfTo) {
                         const fy = new Date(cfFrom).getFullYear();
                         const ty = new Date(cfTo).getFullYear();
-                        yr = fy === ty ? ` ${fy}` : ` ${fy} - ${ty}`;
+                        if (!isNaN(fy) && !isNaN(ty)) {
+                          yr = fy === ty ? `${fy}` : `${fy} - ${ty}`;
+                        }
                       }
+                      
+                      const yearSuffix = yr ? ` ${yr}` : '';
                       
                       // Priority 1: Dashboard name from DB
                       if (dashboard?.name && !dashboard.name.toLowerCase().includes('untitled')) {
-                        return `${dashboard.name}${yr}`;
+                        // If yr is already in the name, don't append it again
+                        if (yr && dashboard.name.includes(yr)) return dashboard.name;
+                        return `${dashboard.name}${yearSuffix}`;
                       }
 
                       // Priority 2: Page name context
-                      if (pName.toLowerCase().includes('cgo')) return `CGO Cargo Customer Feedback${yr}`;
+                      if (pName.toLowerCase().includes('cgo')) return `CGO Cargo Customer Feedback${yearSuffix}`;
                       
                       // Fallback: Template name
-                      return `Landside & Airside Customer Feedback${yr}`;
+                      return `Landside & Airside Customer Feedback${yearSuffix}`;
                     })()}
                   </h1>
                   {hasMultiplePages && pages[activePage] && (
@@ -703,53 +692,17 @@ export function CustomDashboardContent() {
                 Irregularity, Complain & Compliment Report
               </span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                {FILTER_FIELDS.filter(ff => filterOptions[ff.key] && filterOptions[ff.key].length > 0).map(ff => (
-                  <div key={ff.key} style={{ position: 'relative' }}>
-                    <button
-                      onClick={() => setOpenDropdown(openDropdown === ff.key ? null : ff.key)}
-                      style={{
-                        ...S.filterPill,
-                        background: activeFilters[ff.key] ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)',
-                        borderColor: activeFilters[ff.key] ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)',
-                      }}
-                    >
-                      {ff.label}
-                      {activeFilters[ff.key] && <span style={{ fontWeight: 700 }}>: {activeFilters[ff.key]}</span>}
-                      <ChevronDownIcon size={10} />
-                    </button>
-                    {openDropdown === ff.key && (
-                      <div style={S.dropdown}>
-                        <button
-                          onClick={() => {
-                            setActiveFilters(prev => { const n = { ...prev }; delete n[ff.key]; return n; });
-                            setOpenDropdown(null);
-                          }}
-                          style={S.dropdownItem(!activeFilters[ff.key])}
-                        >
-                          Semua
-                        </button>
-                        {(filterOptions[ff.key] || []).map(val => (
-                          <button
-                            key={val}
-                            onClick={() => {
-                              setActiveFilters(prev => ({ ...prev, [ff.key]: val }));
-                              setOpenDropdown(null);
-                            }}
-                            style={S.dropdownItem(activeFilters[ff.key] === val)}
-                          >
-                            {val}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {activeFilterCount > 0 && (
+                <DynamicFilterHeader 
+                  onFilterChange={setActiveFilters}
+                  initialFilters={activeFilters}
+                  variant="white"
+                />
+                {(dateFrom || dateTo) && (
                   <button
-                    onClick={() => { setActiveFilters({}); setDateFrom(''); setDateTo(''); }}
+                    onClick={() => { setDateFrom(''); setDateTo(''); }}
                     style={{ ...S.filterPill, background: 'rgba(229,57,53,0.3)', borderColor: 'rgba(229,57,53,0.5)' }}
                   >
-                    <X size={10} /> Reset
+                    <X size={10} /> Reset Date
                   </button>
                 )}
               </div>
@@ -949,10 +902,10 @@ export function CustomDashboardContent() {
       </div>
 
       {/* Click outside to close dropdowns */}
-      {(openDropdown || showExportMenu) && (
+      {showExportMenu && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 29 }}
-          onClick={() => { setOpenDropdown(null); setShowExportMenu(false); }}
+          onClick={() => { setShowExportMenu(false); }}
         />
       )}
     </div>

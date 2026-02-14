@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Compass, LayoutGrid, Save, RotateCcw, Sparkles, Plus, Loader2, MousePointerClick, Play, BarChart3, Check } from 'lucide-react';
 import { useQueryBuilder } from '@/lib/hooks/useQueryBuilder';
 import { useQueryExecution } from '@/lib/hooks/useQueryExecution';
@@ -57,6 +57,14 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   // Customer Feedback template
   const [cfDateFrom, setCfDateFrom] = useState('');
   const [cfDateTo, setCfDateTo] = useState('');
+  const [globalFilters, setGlobalFilters] = useState<any>({
+    hub: 'all',
+    branch: 'all',
+    maskapai: 'all',
+    airlines: 'all',
+    category: 'all',
+    area: 'all'
+  });
 
   const qb = useQueryBuilder();
   const qe = useQueryExecution();
@@ -136,14 +144,34 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
 
   const executeTileQueries = useCallback(async () => {
     const results = new Map<string, QueryResult>();
+    
+    // Construct global filters to inject
+    const globalFilterDefs: any[] = [];
+    if (globalFilters.hub !== 'all') globalFilterDefs.push({ table: 'reports', field: 'hub', operator: 'eq', value: globalFilters.hub, conjunction: 'AND' });
+    if (globalFilters.branch !== 'all') globalFilterDefs.push({ table: 'reports', field: 'branch', operator: 'eq', value: globalFilters.branch, conjunction: 'AND' });
+    if (globalFilters.airlines !== 'all') globalFilterDefs.push({ table: 'reports', field: 'airline', operator: 'eq', value: globalFilters.airlines, conjunction: 'AND' });
+    if (globalFilters.maskapai !== 'all') globalFilterDefs.push({ table: 'reports', field: 'airline_type', operator: 'eq', value: globalFilters.maskapai, conjunction: 'AND' });
+    if (globalFilters.category !== 'all') globalFilterDefs.push({ table: 'reports', field: 'main_category', operator: 'eq', value: globalFilters.category, conjunction: 'AND' });
+    if (globalFilters.area !== 'all') globalFilterDefs.push({ table: 'reports', field: 'area', operator: 'eq', value: globalFilters.area, conjunction: 'AND' });
+
     await Promise.all(
       dash.tiles.map(async tile => {
         if (tile.query.dimensions.length > 0 || tile.query.measures.length > 0) {
           try {
+            // Blend global filters into tile query
+            // Override existing tile filters with global ones if they target the same field
+            const globalFields = globalFilterDefs.map(gf => gf.field);
+            const filteredTileFilters = tile.query.filters.filter(tf => !globalFields.includes(tf.field));
+            
+            const blendedQuery = {
+              ...tile.query,
+              filters: [...filteredTileFilters, ...globalFilterDefs]
+            };
+
             const res = await fetch('/api/dashboards/query', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query: tile.query }),
+              body: JSON.stringify({ query: blendedQuery }),
             });
             if (res.ok) {
               const data = await res.json();
@@ -154,7 +182,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
       })
     );
     setTileResults(results);
-  }, [dash.tiles]);
+  }, [dash.tiles, globalFilters]);
 
   useEffect(() => {
     if (mode === 'dashboard') {
@@ -170,6 +198,13 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
       setMode('dashboard');
     }
   }, [aiPrompt, ai, dash]);
+
+  const yearRange = useMemo(() => {
+    if (!cfDateFrom || !cfDateTo) return '';
+    const fy = new Date(cfDateFrom).getFullYear();
+    const ty = new Date(cfDateTo).getFullYear();
+    return fy === ty ? `${fy}` : `${fy} - ${ty}`;
+  }, [cfDateFrom, cfDateTo]);
 
   const handleCustomerFeedbackGenerate = useCallback(async () => {
     if (!cfDateFrom || !cfDateTo) return;
@@ -587,6 +622,10 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
           dashboardName={dash.name}
           dashboardDescription={dash.description}
           pages={dash.pages}
+          yearRange={yearRange}
+          onReset={dash.resetTiles}
+          onFilterChange={setGlobalFilters}
+          currentFilters={globalFilters}
         />
       )}
 

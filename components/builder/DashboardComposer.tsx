@@ -6,6 +6,7 @@ import { TileCard } from './TileCard';
 import type { DashboardTile, QueryResult, DashboardPage } from '@/types/builder';
 import type { LayoutPreset } from '@/lib/hooks/useDashboardState';
 import { cn } from '@/lib/utils';
+import { DynamicFilterHeader } from './DynamicFilterHeader';
 
 interface DashboardComposerProps {
   tiles: DashboardTile[];
@@ -20,6 +21,9 @@ interface DashboardComposerProps {
   dashboardDescription?: string;
   pages?: DashboardPage[];
   yearRange?: string;
+  onReset?: () => void;
+  onFilterChange?: (filters: any) => void;
+  currentFilters?: any;
 }
 
 const GAPURA_GREEN = '#6b8e3d';
@@ -88,7 +92,10 @@ export function DashboardComposer({
   dashboardName,
   dashboardDescription,
   pages = [],
-  yearRange = '2025 - 2026',
+  yearRange = '',
+  onReset,
+  onFilterChange,
+  currentFilters,
 }: DashboardComposerProps) {
   const [activePageIdx, setActivePageIdx] = useState(0);
 
@@ -106,9 +113,13 @@ export function DashboardComposer({
   const contentTiles = visibleTiles.filter(t => t.visualization.chartType !== 'kpi');
 
   const isCGO = activePage?.name?.toLowerCase().includes('cgo');
-  const displayTitle = isCGO 
-    ? `CGO Cargo Customer Feedback ${yearRange}`
-    : `Landside & Airside Customer Feedback ${yearRange}`;
+  const yearSuffix = yearRange ? ` ${yearRange}` : '';
+  
+  const displayTitle = dashboardName && !dashboardName.toLowerCase().includes('untitled')
+    ? (dashboardName.includes(yearRange) ? dashboardName : `${dashboardName}${yearSuffix}`)
+    : isCGO 
+      ? `CGO Cargo Customer Feedback${yearSuffix}`
+      : `Landside & Airside Customer Feedback${yearSuffix}`;
 
   return (
     <div className="flex h-full bg-[#f5f5f5]">
@@ -141,16 +152,12 @@ export function DashboardComposer({
             <div />
           )}
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
+            <button 
+              onClick={onReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors"
+            >
               <RotateCcw size={14} />
               Reset
-            </button>
-            <button
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
-              style={{ backgroundColor: GAPURA_GREEN }}
-            >
-              <Share2 size={14} />
-              Share
             </button>
             <button className="p-1.5 text-[#666] hover:bg-[#f5f5f5] rounded-lg transition-colors">
               <MoreVertical size={18} />
@@ -194,16 +201,10 @@ export function DashboardComposer({
                   {dashboardDescription || 'Irregularity, Complain & Compliment Report'}
                 </span>
                 <div className="flex items-center gap-2">
-                  {['HUB', 'Branch', 'Maskapai', 'Airlines', 'Category', 'Area'].map(f => (
-                    <button
-                      key={f}
-                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white rounded border border-white/30 hover:bg-white/10 transition-colors"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-                    >
-                      {f}
-                      <span className="text-[10px]">&#9660;</span>
-                    </button>
-                  ))}
+                  <DynamicFilterHeader 
+                    onFilterChange={onFilterChange || (() => {})} 
+                    initialFilters={currentFilters}
+                  />
                 </div>
               </div>
 

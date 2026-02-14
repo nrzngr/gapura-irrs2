@@ -1,18 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { PrismSelect } from '@/components/ui/PrismSelect';
 import { PrismButton as Button } from '@/components/ui/PrismButton';
 import { RotateCcw, Share2, MoreVertical, Calendar } from 'lucide-react';
 
-// Placeholder data for filters
-const hubOptions = [{ value: 'all', label: 'All HUB' }];
-const branchOptions = [{ value: 'all', label: 'All Branch' }];
-const maskapaiOptions = [{ value: 'all', label: 'All Maskapai' }];
-const airlinesOptions = [{ value: 'all', label: 'All Airlines' }];
-const categoryOptions = [{ value: 'all', label: 'All Category' }];
-const areaOptions = [{ value: 'all', label: 'All Area' }];
+// Initial static options (will be populated dynamicly)
+const allOption = { value: 'all', label: 'All' };
+const initialOptions = [allOption];
 
 import { CustomerFeedbackDashboardCharts } from '@/components/dashboard/CustomerFeedbackCharts';
 
@@ -25,20 +21,60 @@ export default function CustomerFeedbackPage() {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedArea, setSelectedArea] = useState('all');
 
+    // Options states
+    const [options, setOptions] = useState<any>({
+        hub: initialOptions,
+        branch: initialOptions,
+        airline: initialOptions,
+        airline_type: initialOptions,
+        main_category: initialOptions,
+        area: initialOptions
+    });
+
+    useEffect(() => {
+        async function fetchFilters() {
+            try {
+                const res = await fetch('/api/dashboard/filters');
+                const data = await res.json();
+                
+                setOptions({
+                    hub: [allOption, ...(data.hub || [])],
+                    branch: [allOption, ...(data.branch || [])],
+                    airline: [allOption, ...(data.airline || [])],
+                    airline_type: [allOption, ...(data.airline_type || [])],
+                    main_category: [allOption, ...(data.main_category || [])],
+                    area: [allOption, ...(data.area || [])]
+                });
+            } catch (err) {
+                console.error('Error loading filters:', err);
+            }
+        }
+        fetchFilters();
+    }, []);
+
+    const handleReset = () => {
+        setSelectedHub('all');
+        setSelectedBranch('all');
+        setSelectedMaskapai('all');
+        setSelectedAirlines('all');
+        setSelectedCategory('all');
+        setSelectedArea('all');
+    };
+
     return (
         <div className="p-6 space-y-6 min-h-screen bg-[var(--surface-1)] text-[var(--text-primary)] font-sans">
             {/* Top Header */}
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-[var(--text-primary)]">Customer Feedback 2025 - 2026</h1>
+                <h1 className="text-2xl font-bold text-[var(--text-primary)]">Customer Feedback</h1>
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--border-subtle)] text-sm font-medium hover:bg-[var(--surface-2)] transition-colors">
+                    <button 
+                        onClick={handleReset}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--border-subtle)] text-sm font-medium hover:bg-[var(--surface-2)] transition-colors"
+                    >
                         <RotateCcw size={16} />
                         Reset
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium hover:bg-blue-200 transition-colors">
-                        <Share2 size={16} />
-                        Share
-                    </button>
+                    {/* Share removed as per previous task */}
                     <button className="p-2 rounded-full border border-[var(--border-subtle)] hover:bg-[var(--surface-2)] transition-colors">
                         <MoreVertical size={16} />
                     </button>
@@ -54,7 +90,7 @@ export default function CustomerFeedbackPage() {
                              Gapura<br/>Logo
                         </div>
                         <div>
-                            <h2 className="text-3xl font-bold text-[var(--brand-primary)]">Landside & Airside Customer Feedback 2025 - 2026</h2>
+                            <h2 className="text-3xl font-bold text-[var(--brand-primary)]">Landside & Airside Customer Feedback</h2>
                              <div className="flex items-center gap-2 mt-2 bg-green-500 text-white px-3 py-1 rounded w-fit">
                                 <span className="font-semibold">Irregularity, Complain & Compliment Report</span>
                             </div>
@@ -70,12 +106,12 @@ export default function CustomerFeedbackPage() {
 
                 {/* Filters Row */}
                 <div className="grid grid-cols-6 gap-3">
-                    <PrismSelect options={hubOptions} value={selectedHub} onChange={setSelectedHub} placeholder="HUB" />
-                    <PrismSelect options={branchOptions} value={selectedBranch} onChange={setSelectedBranch} placeholder="Branch" />
-                    <PrismSelect options={maskapaiOptions} value={selectedMaskapai} onChange={setSelectedMaskapai} placeholder="Maskapai" />
-                    <PrismSelect options={airlinesOptions} value={selectedAirlines} onChange={setSelectedAirlines} placeholder="Airlines" />
-                    <PrismSelect options={categoryOptions} value={selectedCategory} onChange={setSelectedCategory} placeholder="Category" />
-                    <PrismSelect options={areaOptions} value={selectedArea} onChange={setSelectedArea} placeholder="Area" />
+                    <PrismSelect options={options.hub} value={selectedHub} onChange={setSelectedHub} placeholder="HUB" />
+                    <PrismSelect options={options.branch} value={selectedBranch} onChange={setSelectedBranch} placeholder="Branch" />
+                    <PrismSelect options={options.airline_type} value={selectedMaskapai} onChange={setSelectedMaskapai} placeholder="Maskapai" />
+                    <PrismSelect options={options.airline} value={selectedAirlines} onChange={setSelectedAirlines} placeholder="Airlines" />
+                    <PrismSelect options={options.main_category} value={selectedCategory} onChange={setSelectedCategory} placeholder="Category" />
+                    <PrismSelect options={options.area} value={selectedArea} onChange={setSelectedArea} placeholder="Area" />
                 </div>
 
                 {/* KPI/Stats Row */}
@@ -99,7 +135,16 @@ export default function CustomerFeedbackPage() {
                 </div>
 
                 {/* Charts Area */}
-                <CustomerFeedbackDashboardCharts />
+                <CustomerFeedbackDashboardCharts 
+                    filters={{
+                        hub: selectedHub,
+                        branch: selectedBranch,
+                        maskapai: selectedMaskapai,
+                        airlines: selectedAirlines,
+                        category: selectedCategory,
+                        area: selectedArea
+                    }}
+                />
 
 
                 {/* Detail Table Placeholder */}

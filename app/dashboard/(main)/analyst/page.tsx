@@ -8,7 +8,7 @@ import {
     FileText, RefreshCw, Loader2, Building2, Calendar, Plus, Download,
     FileSpreadsheet, Eye, ArrowRight, Shield, Zap, Search, Filter,
     Target, Users, Activity, Timer, AlertTriangle, ArrowUp, ArrowDown,
-    ArrowLeft, TrendingDown, Gauge, CalendarDays
+    ArrowLeft, TrendingDown, Gauge, CalendarDays, LayoutDashboard
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -50,6 +50,7 @@ export default function AnalystDashboard() {
     const [dateRange, setDateRange] = useState<'all' | 'week' | 'month'>('all');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [customDashboards, setCustomDashboards] = useState<{ id: string; name: string; description: string | null; slug: string; created_at: string }[]>([]);
+    const [cfLoading, setCfLoading] = useState(false);
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -76,6 +77,58 @@ export default function AnalystDashboard() {
             setRefreshing(false);
         }
     }, []);
+
+    // Customer Feedback Dashboard shortcut handler
+    const handleCustomerFeedbackShortcut = useCallback(async () => {
+        setCfLoading(true);
+        try {
+            // Check localStorage for cached slug
+            const cachedSlug = localStorage.getItem('cf_dashboard_slug');
+            
+            if (cachedSlug) {
+                // Verify the dashboard still exists
+                const checkRes = await fetch(`/api/dashboards?slug=${cachedSlug}`);
+                
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    if (checkData.dashboards?.length > 0) {
+                        // Dashboard exists, navigate to it
+                        router.push(`/embed/custom/${cachedSlug}`);
+                        return;
+                    }
+                }
+                
+                // Dashboard not found, clear the cache
+                console.log('[Customer Feedback] Cached dashboard not found, generating new one...');
+                localStorage.removeItem('cf_dashboard_slug');
+            }
+
+            // Generate new dashboard without date range
+            const res = await fetch('/api/dashboards/customer-feedback-generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}), // No dateFrom/dateTo
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to generate dashboard');
+            }
+
+            const data = await res.json();
+            if (data.dashboard?.slug) {
+                // Cache the slug
+                localStorage.setItem('cf_dashboard_slug', data.dashboard.slug);
+                router.push(`/embed/custom/${data.dashboard.slug}`);
+            } else {
+                throw new Error('No slug returned');
+            }
+        } catch (err) {
+            console.error('Customer Feedback shortcut error:', err);
+            alert('Gagal membuka Customer Feedback Dashboard. Silakan coba lagi.');
+        } finally {
+            setCfLoading(false);
+        }
+    }, [router]);
 
     useEffect(() => {
         fetchData();
@@ -506,6 +559,18 @@ export default function AnalystDashboard() {
                                 ))}
                             </div>
 
+                            <button 
+                                onClick={handleCustomerFeedbackShortcut}
+                                disabled={cfLoading}
+                                className={cn(
+                                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                                    "bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:shadow-lg hover:shadow-emerald-500/25",
+                                    cfLoading && "opacity-70 cursor-not-allowed"
+                                )}
+                            >
+                                {cfLoading ? <Loader2 size={16} className="animate-spin" /> : <LayoutDashboard size={16} />}
+                                Customer Feedback Dashboard
+                            </button>
                             <button onClick={() => router.push('/dashboard/employee/new')} className="btn-primary">
                                 <Plus size={16} /> Buat Laporan
                             </button>
@@ -626,11 +691,12 @@ export default function AnalystDashboard() {
                         <div className="h-[280px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart
-                                    data={analytics?.trendData}
+                                    data={analytics?.trendData?.length ? analytics.trendData : monthlyReportData}
                                     margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                    onClick={(state) => {
-                                        if (state?.activeLabel) {
-                                            router.push(drilldownUrl('month', String(state.activeLabel)));
+                                    onClick={(state: any) => {
+                                        const label = state?.activeLabel || (state?.activePayload?.[0]?.payload?.month);
+                                        if (label) {
+                                            router.push(drilldownUrl('month', String(label)));
                                         }
                                     }}
                                     style={{ cursor: 'pointer' }}
