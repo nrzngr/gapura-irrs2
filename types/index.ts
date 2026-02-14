@@ -8,6 +8,13 @@ export type ReportSeverity = 'low' | 'medium' | 'high' | 'urgent';
 
 export type DivisionType = 'OS' | 'OP' | 'OT' | 'UQ' | 'GENERAL';
 
+export interface SessionPayload {
+    id: string;
+    email: string;
+    role: string;
+    full_name?: string;
+}
+
 export interface User {
     id: string;
     email: string;
@@ -96,7 +103,7 @@ export interface Report {
     incident_date?: string;
     incident_time?: string;
     reference_number?: string;
-    evidence_meta?: any;
+    evidence_meta?: Record<string, unknown>;
 
     // Workflow
     created_at: string;

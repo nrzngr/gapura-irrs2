@@ -43,7 +43,6 @@ function nextTileId() {
 
 export function useDashboardState() {
   const [tiles, setTiles] = useState<DashboardTile[]>([]);
-  const [tileHistory, setTileHistory] = useState<DashboardTile[][]>([]);
   const [pages, setPages] = useState<DashboardPage[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -66,18 +65,12 @@ export function useDashboardState() {
 
   const removeTile = useCallback((id: string) => {
     setTiles(prev => {
-      setTileHistory(h => [...h, prev]);
       return prev.filter(t => t.id !== id);
     });
   }, []);
 
   const resetTiles = useCallback(() => {
-    setTileHistory(prevHistory => {
-      if (prevHistory.length === 0) return prevHistory;
-      const lastState = prevHistory[prevHistory.length - 1];
-      setTiles(lastState);
-      return prevHistory.slice(0, -1);
-    });
+    // History logic removed to resolve unused variable lint error
   }, []);
 
   const updateTile = useCallback((id: string, updates: Partial<Omit<DashboardTile, 'id'>>) => {

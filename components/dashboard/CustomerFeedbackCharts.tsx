@@ -31,79 +31,14 @@ const COLORS = {
 
 // --- DATA ---
 
-const caseCategoryData = [
-    { name: 'Irregularity', value: 276, color: COLORS.irregularity }, // Green
-    { name: 'Complaint', value: 133, color: COLORS.complaint },     // Blue
-    { name: 'Compliment', value: 18, color: COLORS.compliment },    // Yellow
-];
+// --- DATA ---
+// (Unused static data removed)
 
-const areaCategoryData = [
-    { name: 'Terminal Area', value: 211, color: COLORS.terminal },
-    { name: 'Apron Area', value: 152, color: COLORS.apron },
-    { name: 'General', value: 64, color: COLORS.general },
-];
-
-const branchData = [
-    { name: 'CGK', value: 227 },
-    { name: 'DPS', value: 74 },
-    { name: 'SUB', value: 41 },
-    { name: 'KNO', value: 13 },
-    { name: 'YIA', value: 11 },
-    { name: 'BKS', value: 8 },
-    { name: 'UPG', value: 8 },
-    { name: 'MDC', value: 7 },
-    { name: 'TKG', value: 5 },
-    { name: 'PKU', value: 4 },
-].reverse(); // Reverse for vertical bar chart to show top at top if layout was horizontal, but here we use vertical bars
-
-const airlinesData = [
-    { name: 'Garuda Indonesia', value: 147 },
-    { name: 'Citilink', value: 48 },
-    { name: 'Pelita Air', value: 34 },
-    { name: 'Scoot', value: 25 },
-    { name: 'VietJet Air', value: 21 },
-    { name: 'China Southern', value: 19 },
-    { name: 'Thai Airways', value: 18 },
-    { name: 'Korean Air', value: 10 },
-    { name: 'China Airlines', value: 15 },
-    { name: 'Non Airline Case', value: 13 },
-];
-
-const monthlyData = [
-    { name: 'December', value: 58 },
-    { name: 'November', value: 27 },
-    { name: 'October', value: 56 }, // Est
-    { name: 'September', value: 58 },
-    { name: 'August', value: 57 },
-    { name: 'July', value: 17 },
-    { name: 'June', value: 7 },
-    { name: 'May', value: 22 },
-    { name: 'April', value: 43 },
-    { name: 'March', value: 17 },
-    { name: 'February', value: 34 },
-    { name: 'January', value: 31 },
-];
-
-const branchHeatmapData = [
-    { branch: 'CGK', irregularity: 133, complaint: 82, compliment: 12, total: 227 },
-    { branch: 'DPS', irregularity: 57, complaint: 17, compliment: 0, total: 74 },
-    { branch: 'SUB', irregularity: 31, complaint: 8, compliment: 2, total: 41 },
-    { branch: 'KNO', irregularity: 9, complaint: 4, compliment: 0, total: 13 },
-    { branch: 'YIA', irregularity: 9, complaint: 2, compliment: 0, total: 11 },
-];
-
-const airlinesHeatmapData = [
-    { airline: 'Garuda Indonesia', irregularity: 96, complaint: 48, compliment: 3, total: 147 },
-    { airline: 'Citilink', irregularity: 34, complaint: 12, compliment: 2, total: 48 },
-    { airline: 'Pelita Air', irregularity: 19, complaint: 13, compliment: 2, total: 34 },
-    { airline: 'Scoot', irregularity: 20, complaint: 4, compliment: 1, total: 25 },
-    { airline: 'VietJet Air', irregularity: 17, complaint: 4, compliment: 0, total: 21 },
-];
 
 
 // --- COMPONENTS ---
 
-export function DonutChart({ title, data, centerTotal, onViewDetail }: { title: string, data: any[], centerTotal?: number, onViewDetail?: () => void }) {
+export function DonutChart({ title, data, onViewDetail }: { title: string, data: Record<string, any>[], onViewDetail?: () => void }) {
     return (
         <GlassCard className="h-full flex flex-col relative" padding="md">
             <div className="flex items-center justify-between mb-4">
@@ -149,7 +84,7 @@ export function DonutChart({ title, data, centerTotal, onViewDetail }: { title: 
     );
 }
 
-export function HorizontalBarChart({ title, data, onViewDetail }: { title: string, data: any[], onViewDetail?: () => void }) {
+export function HorizontalBarChart({ title, data, onViewDetail }: { title: string, data: Record<string, any>[], onViewDetail?: () => void }) {
     return (
         <GlassCard className="h-full flex flex-col relative" padding="md">
             <div className="flex items-center justify-between mb-4">
@@ -191,18 +126,17 @@ export function HorizontalBarChart({ title, data, onViewDetail }: { title: strin
     );
 }
 
-const HEATMAP_GREEN = '#6b8e3d';
-const HEATMAP_BANNER = '#5a7a3a';
 
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 
 // --- FETCHING LOGIC ---
-async function fetchChartData(query: any) {
+async function fetchChartData(query: Record<string, any>) {
     const res = await fetch('/api/dashboards/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
     });
+    if (!res.ok) throw new Error('Failed to fetch chart data');
     const data = await res.json();
     return data.rows || [];
 }
@@ -226,7 +160,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
             setLoading(true);
             try {
                 // Construct base filters
-                const apiFilters: any[] = [];
+                const apiFilters: { table: string, field: string, operator: string, value: string, conjunction: string }[] = [];
                 if (filters.hub !== 'all') apiFilters.push({ table: 'reports', field: 'hub', operator: 'eq', value: filters.hub, conjunction: 'AND' });
                 if (filters.branch !== 'all') apiFilters.push({ table: 'reports', field: 'branch', operator: 'eq', value: filters.branch, conjunction: 'AND' });
                 if (filters.airlines !== 'all') apiFilters.push({ table: 'reports', field: 'airline', operator: 'eq', value: filters.airlines, conjunction: 'AND' });
@@ -280,7 +214,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 ]);
 
                 // Map colors for donut
-                const coloredCaseCat = caseCat.map((item: any) => ({
+                const coloredCaseCat = caseCat.map((item: Record<string, any>) => ({
                     ...item,
                     color: item.name === 'Irregularity' ? COLORS.irregularity : 
                            item.name === 'Complaint' ? COLORS.complaint : COLORS.compliment
@@ -307,7 +241,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
     
     if (!data) return null;
 
-    const handleViewDetail = (chartTitle: string, data: any[], chartType: string, config?: { xAxis?: string, yAxis?: string[], metric?: string }) => {
+    const handleViewDetail = (chartTitle: string, chartData: Record<string, any>[], chartType: string, config?: { xAxis?: string, yAxis?: string[], metric?: string }) => {
         // Store data in sessionStorage for the detail page
         const detailData = {
             tile: {
@@ -315,8 +249,8 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 visualization: {
                     chartType: chartType,
                     title: chartTitle,
-                    xAxis: config?.xAxis || (data[0] ? Object.keys(data[0])[0] : ''),
-                    yAxis: config?.yAxis || (data[0] ? [Object.keys(data[0])[1]] : []),
+                    xAxis: config?.xAxis || (chartData[0] ? Object.keys(chartData[0])[0] : ''),
+                    yAxis: config?.yAxis || (chartData[0] ? [Object.keys(chartData[0])[1]] : []),
                     colorField: config?.metric,
                     showLegend: true,
                     showLabels: false
@@ -333,9 +267,9 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 layout: { x: 0, y: 0, w: 6, h: 3 }
             },
             result: {
-                columns: data[0] ? Object.keys(data[0]) : [],
-                rows: data,
-                rowCount: data.length,
+                columns: chartData[0] ? Object.keys(chartData[0]) : [],
+                rows: chartData,
+                rowCount: chartData.length,
                 executionTimeMs: 0
             },
             dashboardId: 'customer-feedback',

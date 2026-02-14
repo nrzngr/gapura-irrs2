@@ -8,7 +8,7 @@ interface EnlargedChartProps {
   result: QueryResult;
 }
 
-const COLORS = ['#6b8e3d', '#7cb342', '#8bc34a', '#9ccc65', '#aed581', '#c5e1a5', '#42a5f5', '#66bb6a', '#81c784', '#a5d6a7'];
+
 
 export function EnlargedChart({ tile, result }: EnlargedChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);

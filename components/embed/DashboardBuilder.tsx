@@ -146,7 +146,7 @@ export function DashboardBuilder({ onSave }: DashboardBuilderProps) {
             
             {charts.length === 0 ? (
               <div className="builder-empty">
-                <p>Belum ada chart. Klik "Tambah Chart" untuk memulai.</p>
+                <p>Belum ada chart. Klik &quot;Tambah Chart&quot; untuk memulai.</p>
               </div>
             ) : (
               <Reorder.Group axis="y" values={charts} onReorder={setCharts} className="builder-charts-list">

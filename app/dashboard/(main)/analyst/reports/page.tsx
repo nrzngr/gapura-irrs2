@@ -255,7 +255,7 @@ export default function AnalystReportsPage() {
                     report={selectedReport}
                     onClose={() => setSelectedReport(null)}
                     userRole="ANALYST"
-                    onStatusChange={fetchReports}
+                    onRefresh={fetchReports}
                 />
             )}
         </div>

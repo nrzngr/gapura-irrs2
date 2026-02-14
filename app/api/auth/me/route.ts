@@ -7,12 +7,33 @@ import { verifySession } from '@/lib/auth-utils';
  * GET /api/auth/me
  * Returns current user's profile including station info
  */
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('session')?.value;
 
+        const demoEnabled = process.env.DEMO_MODE === 'true';
+        const isDemo = demoEnabled && (request.headers.get('x-demo') === 'true');
+
         if (!token) {
+            if (isDemo) {
+                return NextResponse.json({
+                    id: 'demo-user-id',
+                    email: 'demo@gapura.demo',
+                    full_name: 'Demo User',
+                    nik: 'DEMO123',
+                    phone: '08123456789',
+                    role: 'ANALYST',
+                    division: 'OS',
+                    status: 'ACTIVE',
+                    station_id: 'demo-station-id',
+                    station: {
+                        id: 'demo-station-id',
+                        code: 'CGK',
+                        name: 'Soekarno-Hatta International Airport'
+                    }
+                });
+            }
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

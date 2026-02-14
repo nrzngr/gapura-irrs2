@@ -34,6 +34,7 @@ export interface QueryFilter {
   operator: FilterOperator;
   value: string | number | boolean | string[] | number[] | null;
   conjunction: FilterConjunction;
+  _tag?: string;
 }
 
 export interface QuerySort {
@@ -51,11 +52,11 @@ export interface QueryJoin {
 
 export interface QueryDefinition {
   source: string;
-  joins?: QueryJoin[];
-  dimensions?: QueryDimension[];
-  measures?: QueryMeasure[];
-  filters?: QueryFilter[];
-  sorts?: QuerySort[];
+  joins: QueryJoin[];
+  dimensions: QueryDimension[];
+  measures: QueryMeasure[];
+  filters: QueryFilter[];
+  sorts: QuerySort[];
   limit?: number;
 }
 

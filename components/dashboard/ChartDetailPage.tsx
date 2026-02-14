@@ -165,13 +165,13 @@ export function ChartDetailPage({
     );
 }
 
-function SummaryCard({
+export function SummaryCard({
     icon: Icon,
     label,
     value,
     color,
 }: {
-    icon: any;
+    icon: React.ElementType;
     label: string;
     value: number;
     color: 'blue' | 'green' | 'amber' | 'red';

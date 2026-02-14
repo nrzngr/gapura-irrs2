@@ -7,7 +7,6 @@ import type {
   QueryMeasure,
   QueryFilter,
   QuerySort,
-  QueryJoin,
 } from '@/types/builder';
 import { getJoinsForSource, getFieldsForTable, JOINS } from '@/lib/builder/schema';
 import type { FieldDef } from '@/types/builder';
@@ -26,7 +25,7 @@ export function useQueryBuilder(initial?: Partial<QueryDefinition>) {
   const [query, setQuery] = useState<QueryDefinition>({ ...defaultQuery, ...initial });
 
   const setSource = useCallback((source: string) => {
-    setQuery(prev => ({
+    setQuery(() => ({
       ...defaultQuery,
       source,
       // Reset everything when source changes

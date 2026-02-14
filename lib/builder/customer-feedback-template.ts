@@ -501,10 +501,12 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   // Strip _tag sentinel from all filters before returning
   const allTiles = pages.flatMap(p => p.tiles);
   for (const tile of allTiles) {
-    tile.query.filters = tile.query.filters.map((f: any) => {
+    // Complexity: Time O(n) | Space O(n)
+    tile.query.filters = (tile.query.filters as Record<string, any>[]).map((f) => {
       const { _tag, ...rest } = f;
+      void _tag; // Consume _tag to satisfy lint
       return rest;
-    });
+    }) as Record<string, any>[];
   }
 
   return {

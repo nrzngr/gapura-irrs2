@@ -7,7 +7,6 @@ import {
     AlertTriangle,
     AlertCircle,
     Shield,
-    CheckCircle,
     CheckCircle2,
     Eye,
     Clock,
@@ -206,9 +205,7 @@ export function getAllowedTransitions(
 export function canPerformAction(
     action: 'verify' | 'close' | 'reopen' | 'comment',
     currentStatus: ReportStatus | string,
-    userRole: string,
-    _targetDivision?: string,
-    _userDivision?: string
+    userRole: string
 ): boolean {
     const isAnalyst = userRole === 'ANALYST' || userRole === 'SUPER_ADMIN';
 

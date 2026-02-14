@@ -2,6 +2,37 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
+interface StationRow {
+    station: string;
+    total: number | string;
+    resolved: number | string;
+    pending: number | string;
+    in_progress: number | string;
+    high: number | string;
+    medium: number | string;
+    low: number | string;
+}
+
+interface DivisionRow {
+    division: string;
+    total: number | string;
+    resolved: number | string;
+    pending: number | string;
+    high: number | string;
+}
+
+interface SummaryRow {
+    total_reports: number | string;
+    resolved: number | string;
+    pending: number | string;
+    verified: number | string;
+    high_severity: number | string;
+    trend_data: unknown[];
+    severity_data: unknown[];
+    status_data: unknown[];
+    incident_data: unknown[];
+}
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
@@ -181,7 +212,7 @@ export async function GET(request: Request) {
         ]);
 
         // Parse station data
-        const stationData = (stationResult.data || []).map((row: any) => ({
+        const stationData = ((stationResult.data as StationRow[]) || []).map((row) => ({
             station: row.station,
             total: Number(row.total),
             resolved: Number(row.resolved),
@@ -194,7 +225,7 @@ export async function GET(request: Request) {
         }));
 
         // Parse division data
-        const divisionData = (divisionResult.data || []).map((row: any) => ({
+        const divisionData = ((divisionResult.data as DivisionRow[]) || []).map((row) => ({
             division: row.division,
             total: Number(row.total),
             resolved: Number(row.resolved),
@@ -204,7 +235,7 @@ export async function GET(request: Request) {
         }));
 
         // Parse summary data
-        const summaryRow = summaryResult.data?.[0] || {};
+        const summaryRow = (summaryResult.data as SummaryRow[])?.[0] || {} as SummaryRow;
         const totalReports = Number(summaryRow.total_reports) || 0;
         const resolvedReports = Number(summaryRow.resolved) || 0;
 

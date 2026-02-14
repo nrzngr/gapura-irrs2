@@ -147,7 +147,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
 
       // Separator
       sheetData.push([]);
-      currentRow++;
     }
 
     const ws = XLSX.utils.aoa_to_sheet(sheetData.map(r =>

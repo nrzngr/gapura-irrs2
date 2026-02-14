@@ -1,9 +1,6 @@
 import type {
   QueryDefinition,
-  QueryDimension,
-  QueryMeasure,
   QueryFilter,
-  QuerySort,
 } from '@/types/builder';
 import { isValidField, isValidTable, getJoinDef, getFieldDef } from './schema';
 
@@ -123,7 +120,7 @@ export function buildQuery(def: QueryDefinition): BuildResult {
   }
 
   // === FROM ===
-  let fromClause = `"${def.source}"`;
+  const fromClause = `"${def.source}"`;
 
   // === JOINS ===
   const joinClauses: string[] = [];

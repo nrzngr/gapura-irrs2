@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { DashboardDefinition } from '@/types/builder';
+import { fetchWithDemo } from '@/lib/utils';
 
 export function useAIDashboard() {
   const [loading, setLoading] = useState(false);
@@ -12,7 +13,7 @@ export function useAIDashboard() {
     setError(null);
 
     try {
-      const res = await fetch('/api/dashboards/ai-generate', {
+      const res = await fetchWithDemo('/api/dashboards/ai-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -42,7 +43,7 @@ export function useAIDashboard() {
     setError(null);
 
     try {
-      const res = await fetch('/api/dashboards/customer-feedback-generate', {
+      const res = await fetchWithDemo('/api/dashboards/customer-feedback-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom, dateTo }),

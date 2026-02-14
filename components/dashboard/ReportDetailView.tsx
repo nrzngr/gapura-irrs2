@@ -12,11 +12,9 @@ import {
   RotateCcw,
   FileText,
   ChevronLeft,
-  ChevronRight,
   Plane,
   MapPin,
   Calendar,
-  Clock,
   Building2,
   Tag,
   MessageSquare,
@@ -121,10 +119,8 @@ interface ReportDetailViewProps {
   onUpdateStatus?: (reportId: string, status: string, notes?: string, evidenceUrl?: string) => Promise<void>;
   onRefresh?: () => void;
   onClose?: () => void;
-  isModal?: boolean;
   userRole?: string;
   divisionColor?: string;
-  currentUserId?: string;
 }
 
 /* ============================================
@@ -135,10 +131,8 @@ export function ReportDetailView({
   onUpdateStatus,
   onRefresh,
   onClose,
-  isModal = false,
   userRole = "PARTNER_ADMIN",
   divisionColor = "#10b981",
-  currentUserId,
 }: ReportDetailViewProps) {
   // State
   const [actionLoading, setActionLoading] = useState(false);
@@ -149,7 +143,6 @@ export function ReportDetailView({
   const [closeEvidenceUrl, setCloseEvidenceUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", flight_number: "", aircraft_reg: "", location: "" });
-  const [headerShadow, setHeaderShadow] = useState(false);
   const [newEvidenceLink, setNewEvidenceLink] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -176,10 +169,7 @@ export function ReportDetailView({
     return () => { supabase.removeChannel(channel); };
   }, [report?.id, onRefresh]);
 
-  // Scroll shadow detection
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setHeaderShadow(e.currentTarget.scrollTop > 8);
-  }, []);
+
 
   // Handlers
   const handleUpdateStatus = async (status: string, notes?: string, evidenceUrl?: string) => {
@@ -351,7 +341,6 @@ export function ReportDetailView({
           <main 
             className="lg:col-span-8 overflow-y-auto scroll-smooth border-r border-gray-100" 
             ref={scrollRef}
-            onScroll={handleScroll}
           >
             <div className="p-6 space-y-5">
 

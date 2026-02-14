@@ -13,11 +13,18 @@ interface ReportDetailModalProps {
     onClose: () => void;
     report: Report | null;
     onUpdateStatus?: (reportId: string, status: string) => Promise<void>;
-    onStatusChange?: () => Promise<void> | void;
+    onRefresh?: () => Promise<void> | void;
     userRole?: string;
 }
 
-export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUpdateStatus, onStatusChange, userRole = 'PARTNER_ADMIN' }: ReportDetailModalProps) {
+export function ReportDetailModal({ 
+    isOpen, 
+    onClose, 
+    report: initialReport, 
+    onUpdateStatus, 
+    onRefresh, 
+    userRole = 'PARTNER_ADMIN' 
+}: ReportDetailModalProps) {
     const effectiveIsOpen = isOpen ?? !!initialReport;
     const [fullReport, setFullReport] = useState<Report | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
@@ -90,9 +97,9 @@ export function ReportDetailModal({ isOpen, onClose, report: initialReport, onUp
                         <ReportDetailView 
                             report={displayReport} 
                             onUpdateStatus={onUpdateStatus}
-                            isModal={true}
                             userRole={userRole}
                              onRefresh={() => {
+                                 if (onRefresh) onRefresh();
                                  if (initialReport?.id) {
                                      fetch(`/api/reports/${initialReport.id}`)
                                         .then(res => res.json())

@@ -113,14 +113,14 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     const categCols = cols.filter(c => !numericCols.includes(c));
 
     // Value (measure) should be the first numeric column
-    let valueKey = colorField && cols.includes(colorField) ? colorField : (numericCols[0] || activeYKeys[0] || cols[cols.length - 1]);
+    const valueKey = colorField && cols.includes(colorField) ? colorField : (numericCols[0] || activeYKeys[0] || cols[cols.length - 1]);
     
     // Dimensions should be the categorical ones
-    let dimKeys = categCols.length >= 2 ? categCols.slice(0, 2) : cols.filter(c => c !== valueKey).slice(0, 2);
+    const dimKeys = categCols.length >= 2 ? categCols.slice(0, 2) : cols.filter(c => c !== valueKey).slice(0, 2);
 
     // Prefer activeXKey for colKey (X-axis/Horizontal)
-    let colKey = activeXKey && dimKeys.includes(activeXKey) ? activeXKey : dimKeys[0];
-    let rowKey = dimKeys.find(d => d !== colKey) || dimKeys[1] || dimKeys[0];
+    const colKey = activeXKey && dimKeys.includes(activeXKey) ? activeXKey : dimKeys[0];
+    const rowKey = dimKeys.find(d => d !== colKey) || dimKeys[1] || dimKeys[0];
 
     const rowLabels = [...new Set(rawData.map(d => String(d[rowKey] ?? '')))];
     const colLabels = [...new Set(rawData.map(d => String(d[colKey] ?? '')))];

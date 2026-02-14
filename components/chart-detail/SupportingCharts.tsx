@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ChartPreview } from '@/components/builder/ChartPreview';
-import { LayoutGrid, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import type { DashboardTile, QueryResult } from '@/types/builder';
 
 interface SupportingChart {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@/types';
+import { fetchWithDemo } from '@/lib/utils';
 
 interface UseAuthReturn {
     user: User | null;
@@ -24,17 +25,17 @@ export function useAuth(redirectOnFail: boolean = true): UseAuthReturn {
 
     const fetchUser = useCallback(async () => {
         try {
-            const res = await fetch('/api/auth/me');
+            const res = await fetchWithDemo('/api/auth/me');
             if (res.ok) {
                 const data = await res.json();
                 setUser(data);
             } else if (redirectOnFail) {
-                router.push('/login');
+                router.push('/auth/login');
             }
         } catch (error) {
             console.error('Auth error:', error);
             if (redirectOnFail) {
-                router.push('/login');
+                router.push('/auth/login');
             }
         } finally {
             setLoading(false);

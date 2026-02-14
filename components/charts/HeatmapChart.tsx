@@ -8,7 +8,7 @@ const HEATMAP_LIGHT = '#e8f5e9'; // Light green for totals
 
 interface HeatmapChartProps {
     title?: string;
-    data: any[];
+    data: Record<string, any>[];
     xAxis: string;
     yAxis: string | string[];
     metric: string;
@@ -36,7 +36,7 @@ export function HeatmapChart({
 
     // 2. Build row keys from yAxis field(s)
     const SEPARATOR = '|||';
-    const getRowKey = (row: any) => yFields.map(f => row[f] ?? '').join(SEPARATOR);
+    const getRowKey = (row: Record<string, any>) => yFields.map(f => row[f] ?? '').join(SEPARATOR);
     const parseRowKey = (key: string) => key.split(SEPARATOR);
 
     // 3. Process Data: Build Pivot Map and Calculate Totals
@@ -98,8 +98,7 @@ export function HeatmapChart({
         };
     };
 
-    // For multi-Y: track first-field to avoid repeating
-    let lastFirstField = '';
+
 
     // --- PAGINATION LOGIC ---
     const [currentPage, setCurrentPage] = useState(1);
@@ -223,8 +222,8 @@ export function HeatmapChart({
                     <tbody>
                         {currentRowKeys.map((rk, idx) => {
                             const parts = parseRowKey(rk);
-                            const showFirstField = !isMultiY || parts[0] !== lastFirstField;
-                            if (isMultiY) lastFirstField = parts[0];
+                            // Pre-calculate showFirstField correctly without reassigning a variable in render
+                            const showFirstField = !isMultiY || (idx === 0 || parts[0] !== parseRowKey(currentRowKeys[idx - 1])[0]);
                             const isOdd = idx % 2 !== 0;
                             
                             return (

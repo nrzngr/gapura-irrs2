@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import type { QueryDefinition, QueryResult } from '@/types/builder';
+import { fetchWithDemo } from '@/lib/utils';
 
 export function useQueryExecution() {
   const [data, setData] = useState<QueryResult | null>(null);
@@ -13,7 +14,7 @@ export function useQueryExecution() {
     setError(null);
 
     try {
-      const res = await fetch('/api/dashboards/query', {
+      const res = await fetchWithDemo('/api/dashboards/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),

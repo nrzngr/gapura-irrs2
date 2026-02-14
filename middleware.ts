@@ -16,6 +16,9 @@ export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
     const session = request.cookies.get('session')?.value;
 
+    const demoEnabled = process.env.DEMO_MODE === 'true';
+    const isDemo = demoEnabled && (request.nextUrl.searchParams.get('demo') === '1' || request.headers.get('x-demo') === 'true');
+
     // Paths that don't require auth
     // /embed/* routes are public for PowerPoint hyperlink integration
     const isPublicPath = path.startsWith('/auth') || 
@@ -26,9 +29,14 @@ export async function middleware(request: NextRequest) {
     // Verify session
     const payload = session ? await verifySession(session) : null;
 
-    // 1. If trying to access protected route without valid session
-    if (!isPublicPath && !payload) {
+    // 1. If trying to access protected route without valid session and not in demo mode
+    if (!isPublicPath && !payload && !isDemo) {
         return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+
+    // If in demo mode, skip further checks
+    if (isDemo && !payload) {
+        return NextResponse.next();
     }
 
     if (payload) {

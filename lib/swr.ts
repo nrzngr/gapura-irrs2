@@ -1,7 +1,8 @@
 import useSWR, { SWRConfiguration } from 'swr';
+import { fetchWithDemo } from './utils';
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url);
+  const res = await fetchWithDemo(url);
   if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
   return res.json();
 };
