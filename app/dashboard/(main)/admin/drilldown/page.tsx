@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { type Report } from '@/types';
-import { ChartDetailPage } from '@/components/dashboard/ChartDetailPage';
+import { DrilldownDetailView } from '@/components/dashboard/DrilldownDetailView';
 
 const TITLE_MAP: Record<string, Record<string, string>> = {
     severity: {
@@ -84,7 +84,7 @@ export default function AdminDrilldownPage() {
     }, [type, value]);
 
     return (
-        <ChartDetailPage
+        <DrilldownDetailView
             title={title}
             subtitle={`Filter: ${type} = ${value}`}
             backHref="/dashboard/admin"

@@ -1,17 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { saveAs } from 'file-saver';
+import { Download, FileText, Link as LinkIcon, Check } from 'lucide-react';
+import type { DashboardTile, QueryResult } from '@/types/builder';
 import { EnlargedChart } from './EnlargedChart';
 import { DataTableWithPagination } from './DataTableWithPagination';
 import { AIInsightsPanel } from './AIInsightsPanel';
 import { SummaryCards } from './SummaryCards';
-import type { DashboardTile, QueryResult } from '@/types/builder';
-import { useRef } from 'react';
-import { toPng } from 'html-to-image';
-import { saveAs } from 'file-saver';
-import { Download, FileText, Link as LinkIcon, Check, LayoutGrid } from 'lucide-react';
 import { SupportingCharts } from './SupportingCharts';
 
 interface ChartDetailData {
@@ -50,70 +49,16 @@ const formatChartType = (type: string) => {
 };
 
 export default function ChartDetailPage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const [data, setData] = useState<ChartDetailData | null>(null);
   const [insights, setInsights] = useState<AIInsight | null>(null);
-  const [loading, setLoading] = useState(true);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [supportingData, setSupportingData] = useState<Record<number, QueryResult>>({});
   const [fullData, setFullData] = useState<QueryResult | null>(null);
   const [copied, setCopied] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  const handleDownloadImage = async () => {
-    if (chartRef.current) {
-      try {
-        const dataUrl = await toPng(chartRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
-        saveAs(dataUrl, `${data?.tile.visualization.title || 'chart'}.png`);
-      } catch (err) {
-        console.error('Failed to download image', err);
-      }
-    }
-  };
-
-  const handleExportCSV = () => {
-    const displayData = fullData || data?.result;
-    if (!displayData) return;
-    
-    const headers = displayData.columns.join(',');
-    const rows = displayData.rows.map(row => 
-      displayData.columns.map(col => {
-        const cell = row[col];
-        return typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell;
-      }).join(',')
-    ).join('\n');
-    
-    const csvContent = `${headers}\n${rows}`;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `${data?.tile.visualization.title || 'data'}.csv`);
-  };
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  useEffect(() => {
-    // Get data from sessionStorage
-    const storedData = sessionStorage.getItem('chartDetailData');
-    if (storedData) {
-      const parsed = JSON.parse(storedData);
-      setData(parsed);
-      
-      // Fetch full data (unlimited)
-      fetchFullData(parsed.tile).then(setFullData);
-      
-      // Generate AI insights
-      generateInsights(parsed).then(setInsights);
-    } else {
-      // Redirect back if no data
-      router.back();
-    }
-  }, [router]);
-
-  const fetchFullData = async (tile: DashboardTile): Promise<QueryResult> => {
+  const fetchFullData = useCallback(async (tile: DashboardTile): Promise<QueryResult> => {
     try {
       const response = await fetch('/api/dashboards/query', {
         method: 'POST',
@@ -135,9 +80,9 @@ export default function ChartDetailPage() {
     
     // Fallback to stored data
     return data?.result || { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 };
-  };
+  }, [data?.result]);
 
-  const generateInsights = async (detailData: ChartDetailData): Promise<AIInsight | null> => {
+  const generateInsights = useCallback(async (detailData: ChartDetailData): Promise<AIInsight | null> => {
     setInsightsLoading(true);
     try {
       // Calculate statistics
@@ -164,8 +109,8 @@ export default function ChartDetailPage() {
         metricCol = result.columns[result.columns.length - 1];
       }
 
-      const values = result.rows.map((row: any) => {
-        const val = Number(row[metricCol]);
+      const values = result.rows.map((row: Record<string, unknown>) => {
+        const val = Number(row[metricCol!]);
         return isNaN(val) ? 0 : val;
       });
       
@@ -259,7 +204,64 @@ export default function ChartDetailPage() {
     }
     
     return null;
+  }, []);
+
+  const handleDownloadImage = async () => {
+    if (chartRef.current) {
+      try {
+        const dataUrl = await toPng(chartRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
+        saveAs(dataUrl, `${data?.tile.visualization.title || 'chart'}.png`);
+      } catch (err) {
+        console.error('Failed to download image', err);
+      }
+    }
   };
+
+  const handleExportCSV = () => {
+    const displayData = fullData || data?.result;
+    if (!displayData) return;
+    
+    const headers = displayData.columns.join(',');
+    const rows = displayData.rows.map(row => 
+      displayData.columns.map(col => {
+        const cell = row[col];
+        return typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell;
+      }).join(',')
+    ).join('\n');
+    
+    const csvContent = `${headers}\n${rows}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `${data?.tile.visualization.title || 'data'}.csv`);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  useEffect(() => {
+    // Get data from sessionStorage
+    const storedData = sessionStorage.getItem('chartDetailData');
+    if (storedData) {
+      const parsed = JSON.parse(storedData) as ChartDetailData;
+      setData(parsed);
+    } else {
+      // Redirect back if no data
+      router.back();
+    }
+  }, [router]);
+
+  // Separate effect for data-dependent operations
+  useEffect(() => {
+    if (data) {
+      // Fetch full data (unlimited)
+      fetchFullData(data.tile).then(setFullData);
+      
+      // Generate AI insights
+      generateInsights(data).then(setInsights);
+    }
+  }, [data, fetchFullData, generateInsights]);
 
   if (!data) {
     return (

@@ -1,14 +1,14 @@
-import type { DashboardDefinition, DashboardTile, DashboardPage } from '@/types/builder';
+import type { DashboardDefinition, DashboardTile, DashboardPage, QueryFilter } from '@/types/builder';
 
 // ─── Division Filters ────────────────────────────────────────────────────────
 // Use a sentinel string to identify the division filter for CGO page cloning
 const DIVISION_SENTINEL = '__DIVISION_FILTER__';
 
-function landsideFilter() {
+function landsideFilter(): QueryFilter {
   return { table: 'reports', field: 'target_division', operator: 'not_in' as const, value: ['UQ'], conjunction: 'AND' as const, _tag: DIVISION_SENTINEL };
 }
 
-function cgoFilter() {
+function cgoFilter(): QueryFilter {
   return { table: 'reports', field: 'target_division', operator: 'eq' as const, value: 'UQ', conjunction: 'AND' as const };
 }
 
@@ -29,7 +29,7 @@ function cloneForCGO(tiles: DashboardTile[]): DashboardTile[] {
     id: tileId(),
     query: {
       ...t.query,
-      filters: t.query.filters.map((f: any) =>
+      filters: t.query.filters.map((f: QueryFilter) =>
         f._tag === DIVISION_SENTINEL ? cgoFilter() : { ...f }
       ),
     },
@@ -501,12 +501,14 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   // Strip _tag sentinel from all filters before returning
   const allTiles = pages.flatMap(p => p.tiles);
   for (const tile of allTiles) {
-    // Complexity: Time O(n) | Space O(n)
-    tile.query.filters = (tile.query.filters as Record<string, any>[]).map((f) => {
-      const { _tag, ...rest } = f;
-      void _tag; // Consume _tag to satisfy lint
-      return rest;
-    }) as Record<string, any>[];
+    tile.query.filters = tile.query.filters.map((f) => {
+      if ('_tag' in f) {
+        const { _tag, ...rest } = f;
+        void _tag;
+        return rest as import('@/types/builder').QueryFilter;
+      }
+      return f;
+    });
   }
 
   return {

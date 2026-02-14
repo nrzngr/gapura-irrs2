@@ -267,7 +267,7 @@ export default function AdminReportsPage() {
                     report={selectedReport}
                     onClose={() => setSelectedReport(null)}
                     userRole="SUPER_ADMIN"
-                    onStatusChange={fetchReports}
+                    onRefresh={fetchReports}
                 />
             )}
         </div>

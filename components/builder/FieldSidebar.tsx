@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, Link2, Check, Database, Columns3,
 } from 'lucide-react';
 import { TABLES, getJoinsForSource } from '@/lib/builder/schema';
-import type { FieldDef, JoinDef } from '@/types/builder';
+import type { FieldDef } from '@/types/builder';
 import { cn } from '@/lib/utils';
 
 interface FieldSidebarProps {

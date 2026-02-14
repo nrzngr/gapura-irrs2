@@ -274,8 +274,8 @@ export default function LoginPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-2">
-                                    {demoCredentials.slice(0, 3).map((cred) => (
+                                <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                                    {demoCredentials.map((cred) => (
                                         <button
                                             key={cred.role}
                                             onClick={() => setFormData({ email: cred.email, password: 'Gapura123!' })}
@@ -293,7 +293,7 @@ export default function LoginPage() {
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {demoCredentials.slice(0, 3).map((cred) => (
+                                {demoCredentials.map((cred) => (
                                     <button
                                         key={cred.role}
                                         onClick={() => setFormData({ email: cred.email, password: 'Gapura123!' })}
@@ -318,12 +318,6 @@ export default function LoginPage() {
                                         <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
                                     </button>
                                 ))}
-                                <button 
-                                    onClick={() => setDemoMode(true)}
-                                    className="w-full py-2 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    Lihat semua role...
-                                </button>
                             </div>
                         )}
                         

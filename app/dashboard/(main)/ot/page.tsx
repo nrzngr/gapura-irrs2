@@ -193,7 +193,7 @@ export default function OTDashboard() {
     );
 }
 
-function MiniStat({ icon: Icon, label, value, highlight }: { icon: any; label: string; value: string | number; highlight?: boolean }) {
+function MiniStat({ icon: Icon, label, value, highlight }: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; value: string | number; highlight?: boolean }) {
     return (
         <div className="flex items-center gap-3">
             <div className={cn("p-2.5 rounded-xl", highlight ? "bg-white/30" : "bg-white/20")}>

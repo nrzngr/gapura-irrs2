@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { type Report } from '@/types';
-import { ChartDetailPage } from '@/components/dashboard/ChartDetailPage';
+import { DrilldownDetailView } from '@/components/dashboard/DrilldownDetailView';
 
 const TITLE_MAP: Record<string, string> = {
     category: 'Laporan berdasarkan Kategori',
@@ -91,7 +91,7 @@ export default function AnalystDrilldownPage() {
     }, [type, value]);
 
     return (
-        <ChartDetailPage
+        <DrilldownDetailView
             title={title}
             subtitle={period !== 'all' ? `Periode: ${period === 'week' ? '7 Hari Terakhir' : '30 Hari Terakhir'}` : undefined}
             backHref="/dashboard/analyst"

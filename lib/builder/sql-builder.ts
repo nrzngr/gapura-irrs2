@@ -29,7 +29,6 @@ export function validateQuery(def: QueryDefinition): string[] {
   const measures = def.measures || [];
   const filters = def.filters || [];
   const joins = def.joins || [];
-  const sorts = def.sorts || [];
 
   if (dimensions.length === 0 && measures.length === 0) {
     errors.push('Pilih minimal satu dimensi atau ukuran');

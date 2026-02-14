@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { type Report } from '@/types';
-import { ChartDetailPage } from '@/components/dashboard/ChartDetailPage';
+import { DrilldownDetailView } from '@/components/dashboard/DrilldownDetailView';
 
 const TITLE_MAP: Record<string, string> = {
     trend_month: 'Laporan berdasarkan Bulan',
@@ -59,7 +59,7 @@ export default function OSDrilldownPage() {
     }, [type, value]);
 
     return (
-        <ChartDetailPage
+        <DrilldownDetailView
             title={title}
             backHref="/dashboard/os"
             reports={filteredReports}

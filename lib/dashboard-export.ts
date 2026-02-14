@@ -57,7 +57,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
   for (const page of payload.pages) {
     const sheetData: Record<string, unknown>[][] = [];
     const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
-    let currentRow = 0;
 
     // Page title row
     sheetData.push([{
@@ -67,7 +66,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
         alignment: { horizontal: 'left' as const },
       },
     }]);
-    currentRow++;
 
     // Subtitle
     if (payload.subtitle) {
@@ -75,12 +73,10 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
         v: payload.subtitle,
         s: { font: { italic: true, sz: 10, color: { rgb: '888888' } } },
       }]);
-      currentRow++;
     }
 
     // Empty separator
     sheetData.push([]);
-    currentRow++;
 
     let maxCols = 1;
 
@@ -97,7 +93,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
           alignment: { horizontal: 'left' as const },
         },
       }]);
-      currentRow++;
 
       if (cr.queryResult) {
         const cols = cr.queryResult.columns;
@@ -105,7 +100,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
 
         // Header row
         sheetData.push(cols.map(c => ({ v: formatCol(c), s: headerStyle })));
-        currentRow++;
 
         // Data rows
         const rows = cr.queryResult.rows as Record<string, unknown>[];
@@ -124,7 +118,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
               },
             };
           }));
-          currentRow++;
         }
       } else if (cr.stats) {
         if (3 > maxCols) maxCols = 3;
@@ -133,7 +126,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
           { v: 'Jumlah', s: headerStyle },
           { v: 'Persentase', s: headerStyle },
         ]);
-        currentRow++;
 
         for (const item of cr.stats.distribution) {
           sheetData.push([
@@ -141,7 +133,6 @@ export async function exportToXlsx(payload: ExportPayload): Promise<void> {
             { v: item.count, t: 'n' as const, s: { border: cellBorder, alignment: { horizontal: 'center' as const }, font: { sz: 10 } } },
             { v: `${item.percentage}%`, s: { border: cellBorder, alignment: { horizontal: 'center' as const }, font: { sz: 10 } } },
           ]);
-          currentRow++;
         }
       }
 

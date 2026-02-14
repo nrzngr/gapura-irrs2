@@ -9,17 +9,6 @@ const openrouter = new OpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-// In-memory cache for AI insights
-interface CacheEntry {
-  insights: unknown;
-  timestamp: number;
-  requestHash: string;
-}
-
-const insightsCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
-const MAX_CACHE_SIZE = 100; // Maximum number of cached entries
-
 // Rate limiting
 const requestTimestamps = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -54,75 +43,46 @@ function generateCacheKey(body: InsightRequest): string {
     totalRows: body.totalRows,
     statistics: body.statistics,
     dateRange: body.dateRange,
-    // Use first 10 rows of data sample for cache key
-    dataSample: body.dataSample.slice(0, 10)
+    // Use first 50 rows for better uniqueness
+    dataSample: body.dataSample.slice(0, 50)
   };
   return crypto.createHash('sha256').update(JSON.stringify(keyData)).digest('hex');
 }
 
 // Check rate limit
 function checkRateLimit(tileId: string | undefined): boolean {
-  if (!tileId) return true; // Allow if no tileId
-  
+  if (!tileId) return true;
   const now = Date.now();
   const timestamps = requestTimestamps.get(tileId) || [];
-  
-  // Remove old timestamps outside the window
   const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
-  
-  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    return false; // Rate limit exceeded
-  }
-  
+  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) return false;
   validTimestamps.push(now);
   requestTimestamps.set(tileId, validTimestamps);
   return true;
 }
 
-// Get cached insights
-function getCachedInsights(cacheKey: string): unknown | null {
-  const cached = insightsCache.get(cacheKey);
-  if (!cached) return null;
-  
-  const now = Date.now();
-  if (now - cached.timestamp > CACHE_TTL) {
-    insightsCache.delete(cacheKey);
-    return null;
-  }
-  
-  return cached.insights;
+// Persistent cache helpers
+async function getPersistentCache(cacheKey: string) {
+  const { data, error } = await supabase
+    .from('ai_cache_entries')
+    .select('*')
+    .eq('cache_key', cacheKey)
+    .single();
+    
+  if (error || !data) return null;
+  return data;
 }
 
-// Set cached insights
-function setCachedInsights(cacheKey: string, insights: unknown): void {
-  // Clean up old entries if cache is too large
-  if (insightsCache.size >= MAX_CACHE_SIZE) {
-    const now = Date.now();
-    for (const [key, entry] of insightsCache.entries()) {
-      if (now - entry.timestamp > CACHE_TTL) {
-        insightsCache.delete(key);
-      }
-    }
-    
-    // If still too large, remove oldest entry
-    if (insightsCache.size >= MAX_CACHE_SIZE) {
-      let oldestKey = '';
-      let oldestTime = Infinity;
-      for (const [key, entry] of insightsCache.entries()) {
-        if (entry.timestamp < oldestTime) {
-          oldestTime = entry.timestamp;
-          oldestKey = key;
-        }
-      }
-      if (oldestKey) insightsCache.delete(oldestKey);
-    }
-  }
-  
-  insightsCache.set(cacheKey, {
-    insights,
-    timestamp: Date.now(),
-    requestHash: cacheKey
-  });
+async function setPersistentCache(cacheKey: string, insights: any, supportingCharts: any, metadata: any) {
+  await supabase
+    .from('ai_cache_entries')
+    .upsert({
+      cache_key: cacheKey,
+      insights,
+      supporting_charts: supportingCharts,
+      metadata,
+      created_at: new Date().toISOString()
+    });
 }
 
 export async function POST(req: NextRequest) {
@@ -133,13 +93,13 @@ export async function POST(req: NextRequest) {
     // Generate cache key
     const cacheKey = generateCacheKey(body);
     
-    // Check cache first
-    const cachedInsights = getCachedInsights(cacheKey);
-    if (cachedInsights) {
+    // 4. PERSISTENT CACHE LOOKUP
+    const cachedEntry = await getPersistentCache(cacheKey);
+    if (cachedEntry) {
       console.log(`[AI Insights] Cache hit for tile: ${tileId}`);
       return NextResponse.json({
-        insights: cachedInsights,
-        generatedAt: new Date().toISOString(),
+        insights: cachedEntry.insights,
+        generatedAt: cachedEntry.created_at,
         cached: true
       });
     }
@@ -249,8 +209,25 @@ export async function POST(req: NextRequest) {
       insights = parseInsightsFromText(insightsText);
     }
     
-    // Cache the insights
-    setCachedInsights(cacheKey, insights);
+    // 4.5 DEDUPLICATE SUPPORTING CHARTS
+    if (insights && Array.isArray(insights.supportingCharts)) {
+      const seenTitles = new Set<string>();
+      insights.supportingCharts = (insights.supportingCharts as any[]).filter(chart => {
+        if (!chart || !chart.visualization || !chart.visualization.title) return false;
+        const normalizedTitle = chart.visualization.title.trim().toLowerCase();
+        if (seenTitles.has(normalizedTitle)) return false;
+        seenTitles.add(normalizedTitle);
+        return true;
+      });
+    }
+    
+    // 5. PERSISTENT CACHE STORAGE
+    await setPersistentCache(cacheKey, insights, insights.supportingCharts, {
+      model: "arcee-ai/trinity-large-preview:free",
+      chartTitle,
+      chartType,
+      totalRows
+    });
     
     return NextResponse.json({
       insights,
@@ -349,7 +326,10 @@ FORMAT OUTPUT (JSON):
   ]
 }
 
-PENTING: Pastikan semua nilai di dalam JSON valid. Nilai yang mengandung ":" (rasio), "%", atau teks harus diapit tanda kutip ganda (quoted string).`;
+PENTING:
+1. Nilai "xAxis", "yAxis", dan "colorField" dalam object "visualization" HARUS SAMA PERSIS dengan string "alias" yang Anda definisikan di dalam object "query.dimensions" atau "query.measures".
+2. Jika Anda memberikan alias "Kategori", maka xAxis HARUS "Kategori", bukan nama field databasenya.
+3. Pastikan semua nilai di dalam JSON valid. Nilai yang mengandung ":" (rasio), "%", atau teks harus diapit tanda kutip ganda (quoted string).`;
 }
 
 function parseInsightsFromText(text: string): unknown {

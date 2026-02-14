@@ -23,8 +23,6 @@ const SIZE_OPTIONS = [
   { label: 'Full Tall', w: 12, h: 3 },
 ];
 
-const GAPURA_GREEN = '#6b8e3d';
-
 export function TileCard({ tile, result, error, onEdit, onRemove, onResize, dashboardId }: TileCardProps) {
   const router = useRouter();
   const title = tile.visualization.title || 'Tile Tanpa Judul';

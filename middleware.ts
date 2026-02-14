@@ -14,7 +14,20 @@ const ROLE_DASHBOARDS: Record<string, string> = {
 
 export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
-    const session = request.cookies.get('session')?.value;
+    const cookieStore = request.cookies;
+    
+    // Multi-Account Support: Try to extract active session from bundle first
+    let session = cookieStore.get('session')?.value;
+    const authBundle = cookieStore.get('auth_bundle')?.value;
+
+    if (authBundle) {
+        try {
+            const bundle = JSON.parse(authBundle);
+            if (bundle.active_uid && bundle.sessions[bundle.active_uid]) {
+                session = bundle.sessions[bundle.active_uid];
+            }
+        } catch { /* fallback to legacy */ }
+    }
 
     const demoEnabled = process.env.DEMO_MODE === 'true';
     const isDemo = demoEnabled && (request.nextUrl.searchParams.get('demo') === '1' || request.headers.get('x-demo') === 'true');

@@ -176,7 +176,7 @@ export function getSlaStatus(slaDeadline: Date | string | null): {
  * Only ANALYST can change statuses
  */
 export function getAllowedTransitions(
-    currentStatus: ReportStatus | string,
+    currentStatus: ReportStatus,
     userRole: string
 ): ReportStatus[] {
     const isAnalyst = userRole === 'ANALYST' || userRole === 'SUPER_ADMIN';
@@ -204,7 +204,7 @@ export function getAllowedTransitions(
  */
 export function canPerformAction(
     action: 'verify' | 'close' | 'reopen' | 'comment',
-    currentStatus: ReportStatus | string,
+    currentStatus: ReportStatus,
     userRole: string
 ): boolean {
     const isAnalyst = userRole === 'ANALYST' || userRole === 'SUPER_ADMIN';

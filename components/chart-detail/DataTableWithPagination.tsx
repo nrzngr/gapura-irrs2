@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, FileType } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import type { QueryResult } from '@/types/builder';
 import { formatDisplayValue } from '@/lib/chart-utils';
 

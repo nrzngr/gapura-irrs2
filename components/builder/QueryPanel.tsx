@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Play, ChevronDown, ChevronRight, ArrowUpDown, Layers, BarChart3, Filter, ArrowDownUp, Zap } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, ArrowUpDown, Layers, BarChart3, Filter, ArrowDownUp, Zap } from 'lucide-react';
 import type {
   QueryDefinition,
   QueryDimension,

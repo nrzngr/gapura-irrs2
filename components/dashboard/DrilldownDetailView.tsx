@@ -8,7 +8,7 @@ import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status'
 import { cn } from '@/lib/utils';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 
-interface ChartDetailPageProps {
+interface DrilldownDetailViewProps {
     title: string;
     subtitle?: string;
     backHref: string;
@@ -18,7 +18,7 @@ interface ChartDetailPageProps {
     breakdownChart?: React.ReactNode;
 }
 
-export function ChartDetailPage({
+export function DrilldownDetailView({
     title,
     subtitle,
     backHref,
@@ -26,7 +26,7 @@ export function ChartDetailPage({
     loading,
     userRole = 'SUPER_ADMIN',
     breakdownChart,
-}: ChartDetailPageProps) {
+}: DrilldownDetailViewProps) {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
     const totalCount = reports.length;

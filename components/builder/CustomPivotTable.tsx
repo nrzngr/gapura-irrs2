@@ -176,17 +176,14 @@ export function CustomPivotTable({ result, title }: CustomPivotTableProps) {
   }, [result, title]);
 
   const { 
-    displayRows, 
+    displayRows,
     cols, 
     matrix, 
-    rowTotals, 
     colTotals, 
     grandTotal, 
     maxValue, 
     totalRows,
-    isHierarchical,
-    rowField,
-    colField
+    rowField
   } = processedData;
 
   // Paginate
@@ -286,7 +283,7 @@ export function CustomPivotTable({ result, title }: CustomPivotTableProps) {
               </tr>
             ) : (
               <>
-                {paginatedRows.map((row, idx) => (
+                {paginatedRows.map((row: { row: string; total: number }, idx: number) => (
                   <tr
                     key={`${row.row}-${idx}`}
                     className="border-b border-[#f0f0f0]"

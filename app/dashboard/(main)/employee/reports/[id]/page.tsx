@@ -174,7 +174,7 @@ export default function EmployeeReportDetailPage() {
     }
 
     const statusConfig = STATUS_CONFIG[report.status];
-    const canComment = user && canPerformAction('comment', report.status, user.role, report.target_division, user.division);
+    const canComment = user && canPerformAction('comment', report.status, user.role);
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-24">

@@ -3,9 +3,32 @@
 import { useState, useEffect } from 'react';
 import { PrismSelect } from '@/components/ui/PrismSelect';
 
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+export interface FilterData {
+  hub?: string;
+  branch?: string;
+  maskapai?: string;
+  airlines?: string;
+  category?: string;
+  area?: string;
+}
+
+interface FilterOptionsState {
+  hub: SelectOption[];
+  branch: SelectOption[];
+  airline: SelectOption[];
+  airline_type: SelectOption[];
+  main_category: SelectOption[];
+  area: SelectOption[];
+}
+
 interface DynamicFilterHeaderProps {
-  onFilterChange: (filters: any) => void;
-  initialFilters?: any;
+  onFilterChange: (filters: FilterData) => void;
+  initialFilters?: FilterData;
   variant?: 'default' | 'white';
 }
 
@@ -17,7 +40,7 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
   const [selectedCategory, setSelectedCategory] = useState(initialFilters?.category || 'all');
   const [selectedArea, setSelectedArea] = useState(initialFilters?.area || 'all');
 
-  const [options, setOptions] = useState<any>({
+  const [options, setOptions] = useState<FilterOptionsState>({
     hub: [{ value: 'all', label: 'HUB: All' }],
     branch: [{ value: 'all', label: 'Branch: All' }],
     airline: [{ value: 'all', label: 'Airlines: All' }],

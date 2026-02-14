@@ -13,6 +13,7 @@ export interface SessionPayload {
     email: string;
     role: string;
     full_name?: string;
+    sid?: string; // Unique Session ID for database tracking & revocation
 }
 
 export interface User {

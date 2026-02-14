@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { formatDisplayValue } from '@/lib/chart-utils';
 
 interface DataTableProps {

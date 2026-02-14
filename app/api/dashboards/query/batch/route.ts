@@ -29,26 +29,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Execute all queries in parallel
+    // Execute all queries in parallel, with internal memoization to avoid redundant DB calls for identical SQL
     const startTime = Date.now();
+    const queryMemo = new Map<string, Promise<any>>();
 
     const results = await Promise.all(
       queries.map(async (q) => {
         try {
           const { sql, params } = buildQuery(q.query);
-          const { data, error } = await supabaseAdmin.rpc('run_analytics_query', {
-            query_text: sql,
-            query_params: params.map(String),
-          });
+          const memoKey = JSON.stringify({ sql, params });
 
-          if (error) {
-            console.error(`[Batch] Query "${q.id}" failed:`, error.message, 'SQL:', sql);
-            return { id: q.id, error: error.message, columns: [], rows: [], rowCount: 0 };
+          if (!queryMemo.has(memoKey)) {
+            const queryPromise = (async () => {
+              const { data, error } = await supabaseAdmin.rpc('run_analytics_query', {
+                query_text: sql,
+                query_params: params.map(String),
+              });
+
+              if (error) {
+                console.error(`[Batch] Query "${q.id}" failed:`, error.message, 'SQL:', sql);
+                return { error: error.message, columns: [], rows: [], rowCount: 0 };
+              }
+
+              const rows = Array.isArray(data) ? data : [];
+              const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+              return { columns, rows, rowCount: rows.length };
+            })();
+            queryMemo.set(memoKey, queryPromise);
           }
 
-          const rows = Array.isArray(data) ? data : [];
-          const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-          return { id: q.id, columns, rows, rowCount: rows.length };
+          const result = await queryMemo.get(memoKey);
+          return { id: q.id, ...result };
         } catch (err) {
           return { id: q.id, error: err instanceof Error ? err.message : 'Unknown error', columns: [], rows: [], rowCount: 0 };
         }

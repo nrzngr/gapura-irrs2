@@ -21,7 +21,6 @@ export function CommentInput({
     reportId,
     onSuccess,
     placeholder = "Ketik pesan...",
-    compact = false
 }: CommentInputProps) {
     const [content, setContent] = useState('');
     const [sending, setSending] = useState(false);

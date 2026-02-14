@@ -12,7 +12,7 @@ import { ChartPreview } from './ChartPreview';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { DashboardComposer } from './DashboardComposer';
 import { SaveDashboardModal } from './SaveDashboardModal';
-import type { ChartVisualization, QueryResult, FieldDef, AggregateFunction } from '@/types/builder';
+import type { ChartVisualization, QueryResult, FieldDef, AggregateFunction, ChartType, QueryDefinition, TileLayout, QueryFilter } from '@/types/builder';
 import { useAIDashboard } from '@/lib/hooks/useAIDashboard';
 import { cn } from '@/lib/utils';
 
@@ -32,8 +32,37 @@ const AI_STEPS = [
   { label: 'Menyelesaikan dashboard...', delay: 15000 },
 ];
 
+interface GlobalFilters {
+  hub?: string;
+  branch?: string;
+  maskapai?: string;
+  airlines?: string;
+  category?: string;
+  area?: string;
+}
+
 interface BuilderLayoutProps {
-  onSaveDashboard: (name: string, description: string, tiles: any[], config?: any) => Promise<{ embedUrl: string } | null>;
+  onSaveDashboard: (name: string, description: string, tiles: SaveTile[], config?: SaveConfig) => Promise<{ embedUrl: string } | null>;
+}
+
+interface SaveTile {
+  title: string;
+  chartType: ChartType;
+  dataField: string;
+  width: 'full' | 'half' | 'third';
+  position: number;
+  query_config: QueryDefinition;
+  visualization_config: ChartVisualization;
+  layout: TileLayout;
+  page_name: string;
+}
+
+interface SaveConfig {
+  dateRange: string;
+  autoRefresh: boolean;
+  pages: string[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 const defaultVisualization: ChartVisualization = {
@@ -57,7 +86,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   // Customer Feedback template
   const [cfDateFrom, setCfDateFrom] = useState('');
   const [cfDateTo, setCfDateTo] = useState('');
-  const [globalFilters, setGlobalFilters] = useState<any>({
+  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>({
     hub: 'all',
     branch: 'all',
     maskapai: 'all',
@@ -78,12 +107,19 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
 
   // Hide welcome once they interact
   useEffect(() => {
-    if (hasQuery) setShowWelcome(false);
+    if (hasQuery) {
+      // Use a microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => setShowWelcome(false));
+    }
   }, [hasQuery]);
 
   // AI loading progress stepper
   useEffect(() => {
-    if (!ai.loading) { setAiStep(0); return; }
+    if (!ai.loading) {
+      // Use a microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => setAiStep(0));
+      return;
+    }
     const timers = AI_STEPS.map((step, idx) =>
       setTimeout(() => setAiStep(idx), step.delay)
     );
@@ -146,13 +182,13 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
     const results = new Map<string, QueryResult>();
     
     // Construct global filters to inject
-    const globalFilterDefs: any[] = [];
-    if (globalFilters.hub !== 'all') globalFilterDefs.push({ table: 'reports', field: 'hub', operator: 'eq', value: globalFilters.hub, conjunction: 'AND' });
-    if (globalFilters.branch !== 'all') globalFilterDefs.push({ table: 'reports', field: 'branch', operator: 'eq', value: globalFilters.branch, conjunction: 'AND' });
-    if (globalFilters.airlines !== 'all') globalFilterDefs.push({ table: 'reports', field: 'airline', operator: 'eq', value: globalFilters.airlines, conjunction: 'AND' });
-    if (globalFilters.maskapai !== 'all') globalFilterDefs.push({ table: 'reports', field: 'airline_type', operator: 'eq', value: globalFilters.maskapai, conjunction: 'AND' });
-    if (globalFilters.category !== 'all') globalFilterDefs.push({ table: 'reports', field: 'main_category', operator: 'eq', value: globalFilters.category, conjunction: 'AND' });
-    if (globalFilters.area !== 'all') globalFilterDefs.push({ table: 'reports', field: 'area', operator: 'eq', value: globalFilters.area, conjunction: 'AND' });
+    const globalFilterDefs: QueryFilter[] = [];
+    if (globalFilters.hub !== 'all' && globalFilters.hub !== undefined) globalFilterDefs.push({ table: 'reports', field: 'hub', operator: 'eq', value: globalFilters.hub, conjunction: 'AND' });
+    if (globalFilters.branch !== 'all' && globalFilters.branch !== undefined) globalFilterDefs.push({ table: 'reports', field: 'branch', operator: 'eq', value: globalFilters.branch, conjunction: 'AND' });
+    if (globalFilters.airlines !== 'all' && globalFilters.airlines !== undefined) globalFilterDefs.push({ table: 'reports', field: 'airline', operator: 'eq', value: globalFilters.airlines, conjunction: 'AND' });
+    if (globalFilters.maskapai !== 'all' && globalFilters.maskapai !== undefined) globalFilterDefs.push({ table: 'reports', field: 'airline_type', operator: 'eq', value: globalFilters.maskapai, conjunction: 'AND' });
+    if (globalFilters.category !== 'all' && globalFilters.category !== undefined) globalFilterDefs.push({ table: 'reports', field: 'main_category', operator: 'eq', value: globalFilters.category, conjunction: 'AND' });
+    if (globalFilters.area !== 'all' && globalFilters.area !== undefined) globalFilterDefs.push({ table: 'reports', field: 'area', operator: 'eq', value: globalFilters.area, conjunction: 'AND' });
 
     await Promise.all(
       dash.tiles.map(async tile => {
@@ -186,7 +222,8 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
 
   useEffect(() => {
     if (mode === 'dashboard') {
-      executeTileQueries();
+      // Use a microtask to avoid synchronous setState in effect
+      Promise.resolve().then(() => executeTileQueries());
     }
   }, [mode, executeTileQueries]);
 
@@ -260,7 +297,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
       title: t.visualization.title || 'Tanpa Judul',
       chartType: t.visualization.chartType,
       dataField: 'custom',
-      width: t.layout.w >= 12 ? 'full' : t.layout.w >= 6 ? 'half' : 'third',
+      width: (t.layout.w >= 12 ? 'full' : t.layout.w >= 6 ? 'half' : 'third') as 'full' | 'half' | 'third',
       position: idx,
       query_config: t.query,
       visualization_config: t.visualization,
@@ -277,7 +314,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
     };
 
     return onSaveDashboard(name, description, tiles, config);
-  }, [dash.tiles, dash.pages, onSaveDashboard]);
+  }, [dash.tiles, dash.pages, onSaveDashboard, cfDateFrom, cfDateTo]);
 
   const updateVisualization = useCallback((updates: Partial<ChartVisualization>) => {
     setVisualization(prev => ({ ...prev, ...updates }));
@@ -592,7 +629,6 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                   result={qe.data}
                   loading={qe.loading}
                   error={qe.error}
-                  visualization={visualization}
                   chartPreview={chartPreviewNode}
                 />
               )}

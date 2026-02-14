@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, RotateCcw, Share2, MoreVertical, User, LayoutGrid, Sparkles } from 'lucide-react';
+import { Plus, RotateCcw, MoreVertical, User, LayoutGrid, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 import { TileCard } from './TileCard';
-import type { DashboardTile, QueryResult, DashboardPage } from '@/types/builder';
+import type { DashboardTile, QueryResult, DashboardPage, QueryDefinition, ChartVisualization } from '@/types/builder';
 import type { LayoutPreset } from '@/lib/hooks/useDashboardState';
 import { cn } from '@/lib/utils';
 import { DynamicFilterHeader } from './DynamicFilterHeader';
+import type { FilterData } from './DynamicFilterHeader';
 
 interface DashboardComposerProps {
   tiles: DashboardTile[];
@@ -16,69 +18,18 @@ interface DashboardComposerProps {
   onApplyPreset: (preset: LayoutPreset) => void;
   tileResults: Map<string, QueryResult>;
   tileErrors?: Map<string, string>;
-  onAddTile: (query: any, viz: any) => void;
+  onAddTile: (query: QueryDefinition, viz: ChartVisualization) => void;
   dashboardName?: string;
   dashboardDescription?: string;
   pages?: DashboardPage[];
   yearRange?: string;
   onReset?: () => void;
-  onFilterChange?: (filters: any) => void;
-  currentFilters?: any;
+  onFilterChange?: (filters: FilterData) => void;
+  currentFilters?: FilterData;
 }
 
 const GAPURA_GREEN = '#6b8e3d';
 const GAPURA_BANNER = '#5a7a3a';
-
-const PRESETS: { key: LayoutPreset; label: string; cols: number[] }[] = [
-  { key: '1-col', label: '1 Kolom', cols: [1] },
-  { key: '2-col', label: '2 Kolom', cols: [1, 1] },
-  { key: '3-col', label: '3 Kolom', cols: [1, 1, 1] },
-  { key: '2+1', label: '2+1 Grid', cols: [1, 1, 2] },
-  { key: '1+2', label: '1+2 Grid', cols: [2, 1, 1] },
-];
-
-/** Mini SVG grid preview for layout presets */
-function LayoutPreviewSVG({ cols }: { cols: number[] }) {
-  const w = 24;
-  const h = 16;
-  const gap = 1.5;
-  const rects: { x: number; y: number; w: number; h: number }[] = [];
-
-  if (cols.length === 1) {
-    rects.push({ x: 1, y: 1, w: w - 2, h: h - 2 });
-  } else if (cols.length === 2 && cols[0] === cols[1]) {
-    const half = (w - gap - 2) / 2;
-    rects.push({ x: 1, y: 1, w: half, h: h - 2 });
-    rects.push({ x: 1 + half + gap, y: 1, w: half, h: h - 2 });
-  } else if (cols.length === 3 && cols.every(c => c === 1)) {
-    const third = (w - gap * 2 - 2) / 3;
-    rects.push({ x: 1, y: 1, w: third, h: h - 2 });
-    rects.push({ x: 1 + third + gap, y: 1, w: third, h: h - 2 });
-    rects.push({ x: 1 + (third + gap) * 2, y: 1, w: third, h: h - 2 });
-  } else if (cols.length === 3 && cols[2] === 2) {
-    const half = (w - gap - 2) / 2;
-    const topH = (h - gap - 2) * 0.55;
-    const botH = h - 2 - topH - gap;
-    rects.push({ x: 1, y: 1, w: half, h: topH });
-    rects.push({ x: 1 + half + gap, y: 1, w: half, h: topH });
-    rects.push({ x: 1, y: 1 + topH + gap, w: w - 2, h: botH });
-  } else {
-    const half = (w - gap - 2) / 2;
-    const topH = (h - gap - 2) * 0.45;
-    const botH = h - 2 - topH - gap;
-    rects.push({ x: 1, y: 1, w: w - 2, h: topH });
-    rects.push({ x: 1, y: 1 + topH + gap, w: half, h: botH });
-    rects.push({ x: 1 + half + gap, y: 1 + topH + gap, w: half, h: botH });
-  }
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      {rects.map((r, i) => (
-        <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} rx={1.5} fill="currentColor" opacity={0.35} />
-      ))}
-    </svg>
-  );
-}
 
 export function DashboardComposer({
   tiles,
@@ -88,7 +39,6 @@ export function DashboardComposer({
   onEditTile,
   onRemoveTile,
   onResizeTile,
-  onApplyPreset,
   dashboardName,
   dashboardDescription,
   pages = [],
@@ -176,7 +126,7 @@ export function DashboardComposer({
               {/* Logo + Title Row */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="Gapura" style={{ height: 40, objectFit: 'contain' }} />
+                  <Image src="/logo.png" alt="Gapura" width={120} height={40} style={{ objectFit: 'contain' }} />
                   <h1 className="text-lg font-bold text-[#333]">
                     {displayTitle}
                   </h1>
@@ -294,7 +244,10 @@ export function DashboardComposer({
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => onAddTile({}, {})}
+                      onClick={() => onAddTile(
+                      { source: '', joins: [], dimensions: [], measures: [], filters: [], sorts: [] },
+                      { chartType: 'bar', yAxis: [], showLegend: false, showLabels: false }
+                    )}
                       className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-lg transition-all hover:opacity-90"
                       style={{ backgroundColor: GAPURA_GREEN }}
                     >

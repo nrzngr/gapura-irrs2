@@ -265,7 +265,7 @@ export default function OSReportsPage() {
                 report={selectedReport}
                 onClose={() => setSelectedReport(null)}
                 userRole="DIVISI_OS"
-                onStatusChange={fetchReports}
+                onRefresh={fetchReports}
             />
         </div>
     );

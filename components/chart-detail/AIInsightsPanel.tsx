@@ -1,4 +1,5 @@
-import { Sparkles, TrendingUp, TrendingDown, AlertCircle, Lightbulb, CheckCircle, BarChart3, Search, AlertTriangle, Minus, ArrowRight } from 'lucide-react';
+import { Sparkles, TrendingUp, TrendingDown, AlertCircle, Lightbulb, CheckCircle, BarChart3, Search, AlertTriangle, Minus } from 'lucide-react';
+import { ChartVisualization, QueryDefinition } from '@/types/builder';
 
 interface AIInsight {
   ringkasan: string;
@@ -18,8 +19,8 @@ interface AIInsight {
   kesimpulan: string;
   saranEksplorasi?: string[];
   supportingCharts?: Array<{
-    visualization: any;
-    query: any;
+    visualization: ChartVisualization;
+    query: QueryDefinition;
     explanation: string;
   }>;
 }
@@ -214,7 +215,7 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
         {insights.kesimpulan && (
           <section className="pt-4 border-t border-[#e0e0e0]">
             <p className="text-sm text-[#333] font-medium text-center italic mb-4">
-              "{insights.kesimpulan}"
+              &quot;{insights.kesimpulan}&quot;
             </p>
             
             {insights.saranEksplorasi && insights.saranEksplorasi.length > 0 && (

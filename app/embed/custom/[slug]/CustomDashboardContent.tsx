@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { ChartPreview } from '@/components/builder/ChartPreview';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink } from 'lucide-react';
-import { DynamicFilterHeader } from '@/components/builder/DynamicFilterHeader';
+import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
-import type { ChartVisualization, QueryResult, QueryDefinition } from '@/types/builder';
+import type { ChartVisualization, QueryResult, QueryDefinition, ChartType } from '@/types/builder';
 
 // ─── Green Branding Palette ─────────────────────────────────────────────────
 const GAPURA_GREEN = '#6b8e3d';
@@ -72,7 +73,7 @@ function greenify(viz: ChartVisualization): ChartVisualization {
   return { ...viz, colors: GREEN_PALETTE };
 }
 
-type ActiveFilters = Record<string, string>;
+type ActiveFilters = FilterData;
 
 export function CustomDashboardContent() {
   const params = useParams();
@@ -105,7 +106,7 @@ export function CustomDashboardContent() {
 
   const handleViewDetail = (
     chartTitle: string, 
-    data: any[], 
+    data: Record<string, unknown>[], 
     chartType: string, 
     config?: { xAxis?: string, yAxis?: string[], metric?: string },
     queryConfig?: QueryDefinition
@@ -521,7 +522,7 @@ export function CustomDashboardContent() {
           {/* Sidebar Header */}
           <div style={S.sidebarHeader(sidebarCollapsed)}>
             {!sidebarCollapsed && (
-              <img src="/logo.png" alt="Gapura" style={{ height: 48, objectFit: 'contain' }} />
+              <Image src="/logo.png" alt="Gapura" width={48} height={48} style={{ height: 48, objectFit: 'contain' }} />
             )}
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -605,7 +606,7 @@ export function CustomDashboardContent() {
             {/* Logo + Title + Date */}
             <div style={S.titleRow}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                {!hasMultiplePages && <img src="/logo.png" alt="Gapura Airport Services" style={{ height: 60, objectFit: 'contain' }} />}
+                {!hasMultiplePages && <Image src="/logo.png" alt="Gapura Airport Services" width={60} height={60} style={{ height: 60, objectFit: 'contain' }} />}
                 <div>
                   <h1 style={S.title}>
                     {(() => {
@@ -764,7 +765,7 @@ export function CustomDashboardContent() {
 
               // --- "GENIUS FIX" OVERRIDE ---
               // Correctly access title from visualization object
-              const title = (chart as any).visualization?.title;
+              const title = chart.visualization_config?.title || chart.title;
               
               if (title === 'Case Report by Area') layout = { ...layout, w: 8 };
               if (title === 'General Category') layout = { ...layout, w: 4 }; // Force order to stick next to Heatmap
@@ -887,7 +888,7 @@ export function CustomDashboardContent() {
         {/* ── FOOTER ── */}
         <div style={S.footer}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/logo.png" alt="Gapura" style={{ height: 24, objectFit: 'contain', opacity: 0.7 }} />
+            <Image src="/logo.png" alt="Gapura" width={24} height={24} style={{ height: 24, objectFit: 'contain', opacity: 0.7 }} />
             <span style={{ color: '#666', fontWeight: 500, letterSpacing: 0.3 }}>Gapura IRRS</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -917,7 +918,7 @@ export function CustomDashboardContent() {
 function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult }) {
   const router = useRouter();
   const baseViz: ChartVisualization = chart.visualization_config || {
-    chartType: (chart.chart_type as any) || 'bar',
+    chartType: (chart.chart_type as ChartType) || 'bar',
     yAxis: result.columns.slice(1),
     xAxis: result.columns[0],
     showLegend: true,

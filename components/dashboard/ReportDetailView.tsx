@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   CheckCircle2,
@@ -121,6 +121,8 @@ interface ReportDetailViewProps {
   onClose?: () => void;
   userRole?: string;
   divisionColor?: string;
+  isModal?: boolean;
+  currentUserId?: string;
 }
 
 /* ============================================

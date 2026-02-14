@@ -8,7 +8,7 @@ const HEATMAP_LIGHT = '#e8f5e9'; // Light green for totals
 
 interface HeatmapChartProps {
     title?: string;
-    data: Record<string, any>[];
+    data: Record<string, unknown>[];
     xAxis: string;
     yAxis: string | string[];
     metric: string;
@@ -26,21 +26,22 @@ export function HeatmapChart({
     showTitle = true
 }: HeatmapChartProps) {
     // Support single or multiple yAxis fields
-    const yFields = Array.isArray(yAxis) ? yAxis : [yAxis];
+    const yFields = useMemo(() => Array.isArray(yAxis) ? yAxis : [yAxis], [yAxis]);
     const isMultiY = yFields.length > 1;
 
     // 1. Get unique X values (column headers)
     const xValues = useMemo(() => 
-        Array.from(new Set(data.map(d => d[xAxis]))).filter(Boolean).sort(),
+        Array.from(new Set(data.map(d => d[xAxis] as string))).filter(Boolean).sort(),
     [data, xAxis]);
 
     // 2. Build row keys from yAxis field(s)
     const SEPARATOR = '|||';
-    const getRowKey = (row: Record<string, any>) => yFields.map(f => row[f] ?? '').join(SEPARATOR);
     const parseRowKey = (key: string) => key.split(SEPARATOR);
 
     // 3. Process Data: Build Pivot Map and Calculate Totals
     const { pivotMap, rowKeys, rowTotals, colTotals, grandTotal } = useMemo(() => {
+        const getRowKeyInternal = (row: Record<string, unknown>) => yFields.map(f => String(row[f] ?? '')).join(SEPARATOR);
+        
         const pMap = new Map<string, Map<string, number>>();
         const rTotals: Record<string, number> = {};
         const cTotals: Record<string, number> = {};
@@ -51,8 +52,8 @@ export function HeatmapChart({
 
         // First pass: aggregate data into pivot map
         data.forEach(row => {
-            const rk = getRowKey(row);
-            const x = row[xAxis];
+            const rk = getRowKeyInternal(row);
+            const x = String(row[xAxis] ?? '');
             const val = Number(row[metric]) || 0;
             
             if (!seenKeys.has(rk)) { seenKeys.add(rk); rKeys.push(rk); }
@@ -78,7 +79,7 @@ export function HeatmapChart({
         rKeys.sort((a, b) => rTotals[b] - rTotals[a]);
 
         return { pivotMap: pMap, rowKeys: rKeys, rowTotals: rTotals, colTotals: cTotals, grandTotal: gTotal };
-    }, [data, xAxis, metric, xValues, yFields]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [data, xAxis, metric, xValues, yFields]);
 
     // Helper for heatmap cell background
     const allVals = rowKeys.flatMap(rk => xValues.map(x => pivotMap.get(rk)?.get(x) || 0));

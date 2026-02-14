@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Menu, ChevronLeft, LayoutDashboard, FileText, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DashboardSidebarProps {
   activePage: number;
   onPageChange: (index: number) => void;
-  pages: { name: string }[];
   yearRange?: string;
 }
 
 const GAPURA_GREEN = '#6b8e3d';
 
-export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = '' }: DashboardSidebarProps) {
+export function DashboardSidebar({ activePage, onPageChange, yearRange = '' }: DashboardSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
@@ -33,7 +33,13 @@ export function DashboardSidebar({ activePage, onPageChange, pages, yearRange = 
       <div className="flex items-center justify-between p-4 border-b border-[#e0e0e0]">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Gapura" style={{ height: 24, objectFit: 'contain' }} />
+            <Image 
+              src="/logo.png" 
+              alt="Gapura" 
+              height={24} 
+              width={100} 
+              style={{ objectFit: 'contain' }} 
+            />
           </div>
         )}
         <button

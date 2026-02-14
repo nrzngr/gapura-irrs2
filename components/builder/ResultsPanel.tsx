@@ -3,18 +3,17 @@
 import { useState } from 'react';
 import { Table2, BarChart3, Clock, Rows3, AlertCircle } from 'lucide-react';
 import { DataTable } from './DataTable';
-import type { QueryResult, ChartVisualization } from '@/types/builder';
+import type { QueryResult } from '@/types/builder';
 import { cn } from '@/lib/utils';
 
 interface ResultsPanelProps {
   result: QueryResult | null;
   loading: boolean;
   error: string | null;
-  visualization: ChartVisualization;
   chartPreview: React.ReactNode;
 }
 
-export function ResultsPanel({ result, loading, error, visualization, chartPreview }: ResultsPanelProps) {
+export function ResultsPanel({ result, loading, error, chartPreview }: ResultsPanelProps) {
   const [tab, setTab] = useState<'table' | 'chart'>('table');
 
   if (loading) {

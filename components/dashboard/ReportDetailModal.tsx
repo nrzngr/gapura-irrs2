@@ -5,8 +5,6 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { type Report } from '@/types';
 import { ReportDetailView } from './ReportDetailView';
-import { cn } from '@/lib/utils';
-import { SEVERITY_CONFIG } from '@/lib/constants/report-status'; // Keep if needed for header, but ReportDetailView handles most.
 
 interface ReportDetailModalProps {
     isOpen?: boolean;

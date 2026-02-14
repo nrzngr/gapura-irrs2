@@ -17,6 +17,7 @@ import {
     Legend
 } from 'recharts';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { QueryDefinition, QueryFilter, FilterOperator, FilterConjunction } from '@/types/builder';
 
 // Color Palette based on screenshot
 const COLORS = {
@@ -29,16 +30,20 @@ const COLORS = {
     barGreen: '#4ade80'
 };
 
+interface ChartDataItem extends Record<string, unknown> {
+    name: string;
+    value: number;
+    color?: string;
+}
+
 // --- DATA ---
 
 // --- DATA ---
 // (Unused static data removed)
 
-
-
 // --- COMPONENTS ---
 
-export function DonutChart({ title, data, onViewDetail }: { title: string, data: Record<string, any>[], onViewDetail?: () => void }) {
+export function DonutChart({ title, data, onViewDetail }: { title: string, data: ChartDataItem[], onViewDetail?: () => void }) {
     return (
         <GlassCard className="h-full flex flex-col relative" padding="md">
             <div className="flex items-center justify-between mb-4">
@@ -84,7 +89,7 @@ export function DonutChart({ title, data, onViewDetail }: { title: string, data:
     );
 }
 
-export function HorizontalBarChart({ title, data, onViewDetail }: { title: string, data: Record<string, any>[], onViewDetail?: () => void }) {
+export function HorizontalBarChart({ title, data, onViewDetail }: { title: string, data: ChartDataItem[], onViewDetail?: () => void }) {
     return (
         <GlassCard className="h-full flex flex-col relative" padding="md">
             <div className="flex items-center justify-between mb-4">
@@ -127,10 +132,8 @@ export function HorizontalBarChart({ title, data, onViewDetail }: { title: strin
 }
 
 
-import { HeatmapChart } from '@/components/charts/HeatmapChart';
-
 // --- FETCHING LOGIC ---
-async function fetchChartData(query: Record<string, any>) {
+async function fetchChartData(query: QueryDefinition) {
     const res = await fetch('/api/dashboards/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +141,7 @@ async function fetchChartData(query: Record<string, any>) {
     });
     if (!res.ok) throw new Error('Failed to fetch chart data');
     const data = await res.json();
-    return data.rows || [];
+    return (data.rows || []) as ChartDataItem[];
 }
 
 interface FilterParams {
@@ -150,9 +153,16 @@ interface FilterParams {
     area: string;
 }
 
+interface DashboardData {
+    caseCategory: ChartDataItem[];
+    branch: ChartDataItem[];
+    airlines: ChartDataItem[];
+    monthly: ChartDataItem[];
+}
+
 export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterParams }) {
     const router = useRouter();
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -160,25 +170,28 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
             setLoading(true);
             try {
                 // Construct base filters
-                const apiFilters: { table: string, field: string, operator: string, value: string, conjunction: string }[] = [];
-                if (filters.hub !== 'all') apiFilters.push({ table: 'reports', field: 'hub', operator: 'eq', value: filters.hub, conjunction: 'AND' });
-                if (filters.branch !== 'all') apiFilters.push({ table: 'reports', field: 'branch', operator: 'eq', value: filters.branch, conjunction: 'AND' });
-                if (filters.airlines !== 'all') apiFilters.push({ table: 'reports', field: 'airline', operator: 'eq', value: filters.airlines, conjunction: 'AND' });
-                if (filters.maskapai !== 'all') apiFilters.push({ table: 'reports', field: 'airline_type', operator: 'eq', value: filters.maskapai, conjunction: 'AND' });
-                if (filters.category !== 'all') apiFilters.push({ table: 'reports', field: 'main_category', operator: 'eq', value: filters.category, conjunction: 'AND' });
-                if (filters.area !== 'all') apiFilters.push({ table: 'reports', field: 'area', operator: 'eq', value: filters.area, conjunction: 'AND' });
+                const apiFilters: QueryFilter[] = [];
+                if (filters.hub !== 'all') apiFilters.push({ table: 'reports', field: 'hub', operator: 'eq' as FilterOperator, value: filters.hub, conjunction: 'AND' as FilterConjunction });
+                if (filters.branch !== 'all') apiFilters.push({ table: 'reports', field: 'branch', operator: 'eq' as FilterOperator, value: filters.branch, conjunction: 'AND' as FilterConjunction });
+                if (filters.airlines !== 'all') apiFilters.push({ table: 'reports', field: 'airline', operator: 'eq' as FilterOperator, value: filters.airlines, conjunction: 'AND' as FilterConjunction });
+                if (filters.maskapai !== 'all') apiFilters.push({ table: 'reports', field: 'airline_type', operator: 'eq' as FilterOperator, value: filters.maskapai, conjunction: 'AND' as FilterConjunction });
+                if (filters.category !== 'all') apiFilters.push({ table: 'reports', field: 'main_category', operator: 'eq' as FilterOperator, value: filters.category, conjunction: 'AND' as FilterConjunction });
+                if (filters.area !== 'all') apiFilters.push({ table: 'reports', field: 'area', operator: 'eq' as FilterOperator, value: filters.area, conjunction: 'AND' as FilterConjunction });
 
                 // 1. Case Category Donut
-                const caseCategoryQuery = {
+                const caseCategoryQuery: QueryDefinition = {
                     source: 'reports',
+                    joins: [],
                     dimensions: [{ table: 'reports', field: 'main_category', alias: 'name' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
+                    sorts: [],
                 };
 
                 // 2. Branch Bar
-                const branchQuery = {
+                const branchQuery: QueryDefinition = {
                     source: 'reports',
+                    joins: [],
                     dimensions: [{ table: 'reports', field: 'branch', alias: 'name' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
@@ -187,8 +200,9 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 };
 
                 // 3. Airlines Bar
-                const airlinesQuery = {
+                const airlinesQuery: QueryDefinition = {
                     source: 'reports',
+                    joins: [],
                     dimensions: [{ table: 'reports', field: 'airline', alias: 'name' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
@@ -197,11 +211,13 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 };
 
                 // 4. Monthly Trend
-                const monthlyQuery = {
+                const monthlyQuery: QueryDefinition = {
                     source: 'reports',
+                    joins: [],
                     dimensions: [{ table: 'reports', field: 'created_at', alias: 'name', dateGranularity: 'month' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
+                    sorts: [],
                     limit: 12
                 };
 
@@ -214,7 +230,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 ]);
 
                 // Map colors for donut
-                const coloredCaseCat = caseCat.map((item: Record<string, any>) => ({
+                const coloredCaseCat = caseCat.map((item: ChartDataItem) => ({
                     ...item,
                     color: item.name === 'Irregularity' ? COLORS.irregularity : 
                            item.name === 'Complaint' ? COLORS.complaint : COLORS.compliment
@@ -241,7 +257,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
     
     if (!data) return null;
 
-    const handleViewDetail = (chartTitle: string, chartData: Record<string, any>[], chartType: string, config?: { xAxis?: string, yAxis?: string[], metric?: string }) => {
+    const handleViewDetail = (chartTitle: string, chartData: ChartDataItem[], chartType: string, config?: { xAxis?: string, yAxis?: string[], metric?: string }) => {
         // Store data in sessionStorage for the detail page
         const detailData = {
             tile: {

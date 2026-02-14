@@ -133,16 +133,12 @@ PENTING — ATURAN ALIAS:
 - Alias measure HARUS cocok dengan sort alias dan yAxis
 - Alias dimensi HARUS cocok dengan xAxis
 
-ChartVisualization:
-{
-  "chartType": "bar|horizontal_bar|line|area|pie|donut|kpi|table|heatmap",
-  "xAxis": "Status",
-  "yAxis": ["Jumlah"],
-  "title": "Judul Chart — Bahasa Indonesia. Jika menampilkan peringkat, gunakan format 'Top 5 ...' (misal: 'Top 5 Maskapai')",
-  "showLegend": true,
-  "showLabels": true,
   "colors": ["#7cb342","#558b2f","#aed581","#33691e","#9ccc65","#689f38","#c5e1a5","#43a047"]
 }
+
+SANGAT PENTING — KONSISTENSI KEY:
+- xAxis, yAxis, dan colorField di "visualization" HARUS SAMA PERSIS dengan "alias" yang digunakan di "query.dimensions" atau "query.measures".
+- Contoh: Jika dimensions memiliki alias "Bulan", maka xAxis HARUS "Bulan". JANGAN gunakan field name database di visualization.
 
 TileLayout (grid 12 kolom):
 {

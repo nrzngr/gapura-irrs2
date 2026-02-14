@@ -47,7 +47,7 @@ export default function UQReportDetailPage() {
     const handleStatusUpdate = async (id: string, status: string, notes?: string, evidenceUrl?: string) => {
         setActionLoading(true);
         try {
-            const body: Record<string, any> = { reportId: id, status, notes };
+            const body: Record<string, string | undefined> = { reportId: id, status, notes };
             if (evidenceUrl) body.resolution_evidence_url = evidenceUrl;
             
             const res = await fetch('/api/admin/reports', {
