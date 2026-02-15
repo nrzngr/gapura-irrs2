@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
-
-// AI Configuration
-const AI_API_KEY = process.env.GROQ_API_KEY;
-const AI_BASE_URL = 'https://api.groq.com/openai/v1';
-const AI_MODEL = 'llama-3.1-8b-instant';
+import { callAI } from '@/lib/ai/openrouter';
 
 interface TileSummary {
   id: string;
@@ -115,44 +111,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Call AI API
-    if (!AI_API_KEY) {
-      return NextResponse.json({ error: 'AI API key belum dikonfigurasi' }, { status: 500 });
-    }
-
     const prompt = buildInsightsPrompt(body);
 
     let content;
     try {
-      const aiResponse = await fetch(`${AI_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AI_API_KEY}`,
+      content = await callAI([
+        {
+          role: "system",
+          content: "Kamu adalah Senior Analyst di Gapura Indonesia. Berikan insight yang kritis dan bernilai strategis."
         },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          messages: [
-            {
-              role: "system",
-              content: "Kamu adalah Senior Analyst di Gapura Indonesia. Berikan insight yang kritis dan bernilai strategis."
-            },
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          response_format: { type: "json_object" }
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error('[export-insights] AI API error:', errorText);
-        throw new Error(`AI API error: ${aiResponse.status}`);
-      }
-
-      const completion = await aiResponse.json() as { choices?: { message?: { content?: string } }[] };
-      content = completion.choices?.[0]?.message?.content;
+        {
+          role: "user",
+          content: prompt
+        }
+      ]);
     } catch (error) {
       console.error('[export-insights] AI error:', error);
       return NextResponse.json({ error: 'Gagal menghubungi AI' }, { status: 502 });

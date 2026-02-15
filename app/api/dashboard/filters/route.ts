@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const fields = ['hub', 'branch', 'airline', 'airline_type', 'main_category', 'area'];
+    const fields = ['hub', 'branch', 'airlines', 'jenis_maskapai', 'category', 'area'];
     
     // We fetch all distinct values in one go using a custom RPC or multiple queries.
     // For simplicity and speed, we'll use Promise.all with small queries since Supabase 

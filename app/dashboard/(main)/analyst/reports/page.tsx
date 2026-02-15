@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
     FileText, Search, Filter, ChevronDown,
     MapPin, AlertTriangle, Building2, Plane
@@ -10,10 +10,13 @@ import { Report } from '@/types';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { type TimePeriod } from '@/components/dashboard/TimePeriodFilter';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
+import { useReportsData } from '@/hooks/use-reports-cache';
 
 export default function AnalystReportsPage() {
-    const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Fetch all reports using L1/L2 cache
+    const { reports: allReports, isLoading: loading, refresh } = useReportsData('/api/admin/reports');
+    
+    // Local state for filters
     const [stationFilter, setStationFilter] = useState('all');
     const [filter, setFilter] = useState('all');
     const [severityFilter, setSeverityFilter] = useState('all');
@@ -33,36 +36,33 @@ export default function AnalystReportsPage() {
         }
     }, []);
 
-    const fetchReports = useCallback(async () => {
-        setLoading(true);
-        try {
-            const queryParams = new URLSearchParams();
-            if (filter !== 'all') queryParams.append('status', filter);
-            if (stationFilter !== 'all') queryParams.append('station', stationFilter);
-            const res = await fetch(`/api/admin/reports?${queryParams.toString()}`);
-            const data = await res.json();
-            setReports(Array.isArray(data) ? data : []);
-        } catch (error) {
-            console.error('Error:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [filter, stationFilter]);
-
-    useEffect(() => { fetchReports(); }, [fetchReports]);
     useEffect(() => { fetchStations(); }, [fetchStations]);
 
-    const filteredReports = reports.filter(report => {
-        const matchesSearch = report.title.toLowerCase().includes(search.toLowerCase()) ||
-            report.location?.toLowerCase().includes(search.toLowerCase()) ||
-            report.users?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-            report.stations?.name.toLowerCase().includes(search.toLowerCase()) ||
-            report.id.toLowerCase().includes(search.toLowerCase()) ||
-            report.reference_number?.toLowerCase().includes(search.toLowerCase()) ||
-            report.flight_number?.toLowerCase().includes(search.toLowerCase());
-        const matchesSeverity = severityFilter === 'all' || report.severity === severityFilter;
-        return matchesSearch && matchesSeverity;
-    });
+    // Client-side filtering
+    const filteredReports = useMemo(() => {
+        return allReports.filter(report => {
+            // Status filter
+            if (filter !== 'all' && report.status !== filter) return false;
+
+            // Station filter
+            if (stationFilter !== 'all' && report.station_id !== stationFilter) return false;
+
+            // Severity filter
+            if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
+
+            // Search filter
+            const matchesSearch = (report.title || '').toLowerCase().includes(search.toLowerCase()) ||
+                (report.description || '').toLowerCase().includes(search.toLowerCase()) ||
+                (report.location || '').toLowerCase().includes(search.toLowerCase()) ||
+                (report.users?.full_name || report.reporter_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                (report.stations?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                report.id.toLowerCase().includes(search.toLowerCase()) ||
+                (report.reference_number || '').toLowerCase().includes(search.toLowerCase()) ||
+                (report.flight_number || '').toLowerCase().includes(search.toLowerCase());
+            
+            return matchesSearch;
+        });
+    }, [allReports, filter, stationFilter, severityFilter, search]);
 
     // stats removed as it was unused
 
@@ -71,9 +71,9 @@ export default function AnalystReportsPage() {
             <DashboardHeader
                 title="Kelola Laporan"
                 subtitle="Monitoring dan validasi laporan Divisi Analyst"
-                totalReports={reports.length}
-                pendingReports={reports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length}
-                resolvedReports={reports.filter(r => r.status === 'SELESAI').length}
+                totalReports={filteredReports.length}
+                pendingReports={filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length}
+                resolvedReports={filteredReports.filter(r => r.status === 'SELESAI').length}
                 period={period}
                 onPeriodChange={(p) => setPeriod(p)}
             />
@@ -106,6 +106,8 @@ export default function AnalystReportsPage() {
                             <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
                             <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
                             <option value="SELESAI">Selesai</option>
+                            <option value="OPEN">Open</option>
+                            <option value="Closed">Closed</option>
                         </select>
                         <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
@@ -197,7 +199,7 @@ export default function AnalystReportsPage() {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.title}</p>
+                                                        <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.title || report.description || 'No Title'}</p>
                                                         {report.location && (
                                                             <p className="text-xs flex items-center gap-1 mt-1 truncate max-w-[250px]" style={{ color: 'var(--text-muted)' }}>
                                                                 <MapPin size={10} />
@@ -249,7 +251,7 @@ export default function AnalystReportsPage() {
                     report={selectedReport}
                     onClose={() => setSelectedReport(null)}
                     userRole="ANALYST"
-                    onRefresh={fetchReports}
+                    onRefresh={async () => { await refresh(); }}
                 />
             )}
         </div>

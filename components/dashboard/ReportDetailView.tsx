@@ -279,11 +279,11 @@ export function ReportDetailView({
               />
             ) : (
               <h1 className="text-base font-semibold text-gray-900 truncate">
-                {report.title || `${report.airline || ""} ${report.flight_number || ""}`.trim() || "Laporan"}
+                {report.title || `${report.airlines || ""} ${report.flight_number || ""}`.trim() || "Laporan"}
               </h1>
             )}
             <p className="text-xs text-gray-400 truncate">
-              {report.main_category || report.category || "Irregularity"} • #{report.id.slice(0, 8).toUpperCase()}
+              {report.category || "Irregularity"} • #{report.id.slice(0, 8).toUpperCase()}
             </p>
           </div>
 
@@ -369,13 +369,12 @@ export function ReportDetailView({
                 <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                   <DataField label="Flight" value={`${report.flight_number || ""}${report.aircraft_reg ? ` (${report.aircraft_reg})` : ""}`} icon={Plane} />
                   <DataField label="Route" value={report.route} icon={MapPin} />
-                  <DataField label="Airline" value={report.airline} icon={Building2} />
+                  <DataField label="Airline" value={report.airlines} icon={Building2} />
                   <DataField label="Area" value={AREA_LABELS[report.area || ""] || report.area} icon={Tag} />
-                  <DataField label="Area Category" value={report.area_category || report.sub_category} />
                   <DataField label="Target Divisi" value={report.target_division} />
                   <DataField label="Station" value={`${report.stations?.code || report.branch || ""}${report.stations?.name ? ` - ${report.stations.name}` : ""}`} icon={Building2} />
                   <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} />
-                  <DataField label="Tanggal Kejadian" value={report.incident_date || report.event_date || new Date(report.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} icon={Calendar} />
+                  <DataField label="Tanggal Kejadian" value={report.date_of_event || report.event_date || new Date(report.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} icon={Calendar} />
                 </dl>
               </SectionCard>
 
@@ -397,7 +396,7 @@ export function ReportDetailView({
               </SectionCard>
 
               {/* AKAR MASALAH & TINDAKAN */}
-              {(report.root_cause || report.action_taken || report.immediate_action) && (
+              {(report.root_caused || report.action_taken || report.immediate_action) && (
                 <SectionCard title="Analisis & Tindakan">
                   <div className="space-y-5">
                     {report.immediate_action && (
@@ -406,10 +405,10 @@ export function ReportDetailView({
                         <p className="text-[15px] text-emerald-800">{report.immediate_action}</p>
                       </div>
                     )}
-                    {report.root_cause && (
+                    {report.root_caused && (
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Akar Masalah</p>
-                        <p className="text-[15px] text-[var(--text-secondary)]">{report.root_cause}</p>
+                        <p className="text-[15px] text-[var(--text-secondary)]">{report.root_caused}</p>
                       </div>
                     )}
                     {report.action_taken && (

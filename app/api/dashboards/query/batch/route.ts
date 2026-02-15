@@ -1,13 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { validateQuery, buildQuery } from '@/lib/builder/sql-builder';
+import { validateQuery } from '@/lib/builder/sql-builder';
 import { normalizeQuery } from '@/lib/builder/normalization';
 import type { QueryDefinition } from '@/types/builder';
+import { executeQuery } from '@/lib/services/query-executor';
+import { reportsService } from '@/lib/services/reports-service';
 
 const MAX_BATCH_SIZE = 30;
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check - RELAXED for Public Access
+    const cookieStore = await cookies();
+    const session = cookieStore.get('session')?.value;
+    
+    let canViewAll = true; // Default to true to allow public access to all data
+    let userStationCode: string | null = null;
+
+    // Optional: Parse session if present just for context, but don't block
+    if (session) {
+        const payload = await verifySession(session);
+        if (payload) {
+             // We could extract user info here if needed for audit, 
+             // but we maintain canViewAll = true for everyone.
+        }
+    }
+
     const body = await request.json();
     const queries: { id: string; query: QueryDefinition }[] = body.queries;
 
@@ -36,39 +56,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Execute all queries in parallel, with internal memoization to avoid redundant DB calls for identical SQL
-    const startTime = Date.now();
-    const queryMemo = new Map<string, Promise<Record<string, unknown>>>();
+    // Optimization: Fetch reports ONCE if any query needs them
+    const needsReports = normalizedQueries.some(q => (q.query.source || 'reports').toLowerCase() === 'reports');
+    const preloadedReports = needsReports ? await reportsService.getReports() : undefined;
 
+    // Execute all queries in parallel
+    const startTime = Date.now();
+    
     const results = await Promise.all(
       normalizedQueries.map(async (q) => {
         try {
-          const { sql, params } = buildQuery(q.query);
-          const memoKey = JSON.stringify({ sql, params });
-
-          if (!queryMemo.has(memoKey)) {
-            const queryPromise = (async () => {
-              const { data, error } = await supabaseAdmin.rpc('run_analytics_query', {
-                query_text: sql,
-                query_params: params.map(String),
-              });
-
-              if (error) {
-                console.error(`[Batch] Query "${q.id}" failed:`, error.message, 'SQL:', sql);
-                return { error: error.message, columns: [], rows: [], rowCount: 0 };
-              }
-
-              const rows = Array.isArray(data) ? data : [];
-              const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-              return { columns, rows, rowCount: rows.length };
-            })();
-            queryMemo.set(memoKey, queryPromise);
-          }
-
-          const result = await queryMemo.get(memoKey);
+          const result = await executeQuery(q.query, {
+            canViewAll,
+            userStationCode,
+            preloadedReports
+          });
           return { id: q.id, ...result };
         } catch (err) {
-          return { id: q.id, error: err instanceof Error ? err.message : 'Unknown error', columns: [], rows: [], rowCount: 0 };
+          return { 
+            id: q.id, 
+            error: err instanceof Error ? err.message : 'Unknown error', 
+            columns: [], 
+            rows: [], 
+            rowCount: 0,
+            executionTimeMs: 0
+          };
         }
       })
     );
@@ -82,6 +94,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
+    console.error('Batch Query API error:', err);
     const message = err instanceof Error ? err.message : 'Internal error';
     return NextResponse.json({ error: message }, { status: 500 });
   }

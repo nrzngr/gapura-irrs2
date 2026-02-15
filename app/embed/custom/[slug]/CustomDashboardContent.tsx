@@ -8,6 +8,8 @@ import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink } from 'lucide-react';
 import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
+import { processQuery } from '@/lib/engine/query-processor';
+import { useReportsData } from '@/hooks/use-reports-cache';
 import type { ChartVisualization, QueryResult, QueryDefinition, ChartType } from '@/types/builder';
 
 // ─── Green Branding Palette ─────────────────────────────────────────────────
@@ -19,9 +21,9 @@ const GREEN_PALETTE = ['#7cb342', '#558b2f', '#aed581', '#33691e', '#9ccc65', '#
 const FILTER_FIELDS = [
   { key: 'hub', label: 'HUB', table: 'reports', field: 'hub' },
   { key: 'branch', label: 'Branch', table: 'reports', field: 'branch' },
-  { key: 'maskapai', label: 'Maskapai', table: 'reports', field: 'airline_type' },
-  { key: 'airline', label: 'Airlines', table: 'reports', field: 'airline' },
-  { key: 'main_category', label: 'Kategori', table: 'reports', field: 'main_category' },
+  { key: 'maskapai', label: 'Maskapai', table: 'reports', field: 'jenis_maskapai' },
+  { key: 'airline', label: 'Airlines', table: 'reports', field: 'airlines' },
+  { key: 'main_category', label: 'Kategori', table: 'reports', field: 'category' },
   { key: 'area', label: 'Area', table: 'reports', field: 'area' },
   { key: 'target_division', label: 'Divisi', table: 'reports', field: 'target_division' },
   { key: 'severity', label: 'Severity', table: 'reports', field: 'severity' },
@@ -96,6 +98,9 @@ export function CustomDashboardContent() {
   // Multi-page navigation
   const [activePage, setActivePage] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // L1 Cache: Fetch all reports for client-side processing
+  const { reports: allReports, isLoading: reportsLoading } = useReportsData('/api/admin/reports');
 
   // Interactive filters
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
@@ -239,11 +244,47 @@ export function CustomDashboardContent() {
     const queryCharts = charts.filter(c => c.query_config);
     const legacyCharts = charts.filter(c => !c.query_config);
 
-    // Batch fetch query-based charts in a single request
-    const batchPromise = queryCharts.length > 0
+    // Identify which charts can be processed client-side (L1 Cache) vs Server-side
+    const serverQueryCharts: typeof queryCharts = [];
+
+    // Process client-side queries if data is available
+    if (allReports.length > 0) {
+      for (const chart of queryCharts) {
+        const query = applyFiltersToQuery(chart.query_config!);
+        const source = (query.source || 'reports').toLowerCase();
+        
+        if (source === 'reports') {
+          try {
+            // Execute query against cached data
+            const result = processQuery(query, allReports);
+            dataMap.set(chart.id, { 
+              type: 'query', 
+              queryResult: result 
+            });
+          } catch (err) {
+            console.error(`[Dashboard] Client query "${chart.id}" failed:`, err);
+            // Fallback to server if client processing fails
+            serverQueryCharts.push(chart);
+          }
+        } else {
+          serverQueryCharts.push(chart);
+        }
+      }
+    } else {
+      // If reports not yet loaded, send all to server (or wait? better to fallback to server for first load if urgent)
+      // Actually, if we want to enforce cache usage, we should wait. 
+      // But for better UX, if cache is empty, we might want to fetch from server (which hits L2 cache).
+      // However, to strictly follow "70% reduction", let's prioritize client processing.
+      // If reportsLoading is true, we might just be waiting.
+      // If we push to serverQueryCharts here, we use L2 cache.
+      serverQueryCharts.push(...queryCharts);
+    }
+
+    // Batch fetch remaining query-based charts in a single request
+    const batchPromise = serverQueryCharts.length > 0
       ? (async () => {
           try {
-            const batchQueries = queryCharts.map(chart => ({
+            const batchQueries = serverQueryCharts.map(chart => ({
               id: chart.id,
               query: applyFiltersToQuery(chart.query_config!),
             }));
@@ -285,8 +326,13 @@ export function CustomDashboardContent() {
     );
 
     await Promise.all([batchPromise, legacyPromise]);
-    setChartsData(dataMap);
-  }, [range, applyFiltersToQuery]);
+    setChartsData(prev => {
+        // Merge with previous data to avoid flickering if we are just updating some charts
+        const next = new Map(prev);
+        dataMap.forEach((v, k) => next.set(k, v));
+        return next;
+    });
+  }, [range, applyFiltersToQuery, allReports]);
 
   /** Extract the charts for a specific page index from a dashboard */
   const getPageCharts = useCallback((dash: Dashboard, pageIdx: number): ChartData[] => {

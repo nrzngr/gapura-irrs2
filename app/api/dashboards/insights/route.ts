@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { OpenRouter } from '@openrouter/sdk';
-import { supabase } from '@/lib/supabase';
-import { buildSchemaContextForAI, TABLES, JOINS, getFieldDef } from '@/lib/builder/schema';
 import { normalizeQuery, normalizeVisualization } from '@/lib/builder/normalization';
+import { buildSchemaContextForAI } from '@/lib/builder/schema';
+import { callAI } from '@/lib/ai/openrouter';
 import crypto from 'crypto';
 
-
 // AI Configuration
-const AI_API_KEY = process.env.GROQ_API_KEY;
-const AI_BASE_URL = 'https://api.groq.com/openai/v1';
-const AI_MODEL = 'llama-3.1-8b-instant';
+const AI_MODEL = 'openai/gpt-oss-20b:free';
 
 // Rate limiting
 const requestTimestamps = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 requests per minute per chart
+
+// In-memory cache for insights (replaces Supabase persistent cache)
+const insightsCache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 interface InsightRequest {
   chartTitle: string;
@@ -63,117 +63,83 @@ function checkRateLimit(tileId: string | undefined): boolean {
   return true;
 }
 
-// Persistent cache helpers
-async function getPersistentCache(cacheKey: string) {
-  const { data, error } = await supabase
-    .from('ai_cache_entries')
-    .select('*')
-    .eq('cache_key', cacheKey)
-    .single();
-    
-  if (error || !data) return null;
-  return data;
+// In-memory cache helpers
+function getMemoryCache(cacheKey: string) {
+  const entry = insightsCache.get(cacheKey);
+  if (!entry) return null;
+  
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    insightsCache.delete(cacheKey);
+    return null;
+  }
+  
+  return entry.data;
 }
 
-async function setPersistentCache(
+function setMemoryCache(
   cacheKey: string, 
   insights: Record<string, unknown>, 
   supportingCharts: unknown, 
   metadata: Record<string, unknown>
 ) {
-  await supabase
-    .from('ai_cache_entries')
-    .upsert({
-      cache_key: cacheKey,
-      insights,
-      supporting_charts: supportingCharts,
-      metadata,
-      created_at: new Date().toISOString()
-    });
+  insightsCache.set(cacheKey, {
+    data: { insights, supporting_charts: supportingCharts, metadata },
+    timestamp: Date.now()
+  });
+  
+  // Prune cache if too large
+  if (insightsCache.size > 1000) {
+    const oldestKey = insightsCache.keys().next().value;
+    if (oldestKey) insightsCache.delete(oldestKey);
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: InsightRequest = await req.json();
-    const { chartTitle, chartType, dashboardId, tileId, totalRows, dataSample, statistics, dateRange } = body;
+    const { chartTitle, chartType, tileId, totalRows } = body;
     
     // Generate cache key
     const cacheKey = generateCacheKey(body);
     
-    // 4. PERSISTENT CACHE LOOKUP
-    const cachedEntry = await getPersistentCache(cacheKey);
-    if (cachedEntry) {
-      console.log(`[AI Insights] Cache hit for tile: ${tileId}`);
+    // Check cache
+    const cached = getMemoryCache(cacheKey);
+    if (cached) {
       return NextResponse.json({
-        insights: cachedEntry.insights,
-        generatedAt: cachedEntry.created_at,
+        ...cached,
         cached: true
       });
     }
-    
-    // Check rate limit
+
+    // Rate limiting
     if (!checkRateLimit(tileId)) {
-      console.warn(`[AI Insights] Rate limit exceeded for tile: ${tileId}`);
-      return NextResponse.json({
-        insights: generateFallbackInsights(),
-        generatedAt: new Date().toISOString(),
-        rateLimited: true,
-        message: 'Terlalu banyak permintaan. Silakan coba lagi dalam beberapa menit.'
-      });
-    }
-    
-    // Fetch context from Supabase if IDs are available
-    let dashboardContext = '';
-    let chartContext = '';
-
-    if (dashboardId) {
-        const { data: dashboard } = await supabase
-            .from('custom_dashboards')
-            .select('name, description, config')
-            .eq('id', dashboardId)
-            .single();
-        
-        if (dashboard) {
-            dashboardContext = `DASHBOARD: ${dashboard.name}\nDESKRIPSI: ${dashboard.description || 'Tidak ada deskripsi'}\n`;
+      return NextResponse.json({ 
+        error: 'Too many requests', 
+        fallback: {
+          ringkasan: "Terlalu banyak permintaan analisis. Mohon tunggu sebentar.",
+          temuanUtama: [],
+          tren: [],
+          rekomendasi: [],
+          anomali: [],
+          kesimpulan: "Sistem sedang sibuk."
         }
+      }, { status: 429 });
     }
 
-    if (tileId) {
-        const { data: chart } = await supabase
-            .from('dashboard_charts')
-            .select('query_config, visualization_config')
-            .eq('id', tileId)
-            .single();
-        
-        if (chart) {
-            chartContext = `QUERY CONFIG: ${JSON.stringify(chart.query_config)}\n`;
-        }
-    }
-    
-    // Construct the prompt with enriched context
+    // Construct the prompt
+    // Note: We skip fetching dashboard/chart context from Supabase to avoid DB dependency
     const prompt = generatePrompt({
-      chartTitle,
-      chartType,
-      totalRows,
-      dataSample,
-      statistics,
-      dateRange,
-      context: `${dashboardContext}${chartContext}`
+      ...body,
+      context: 'Analysis based on provided data sample.'
     });
-    
-    // Call AI (Groq)
-    const aiResponse = await fetch(`${AI_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AI_API_KEY}`,
-        },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: `Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, sangat mendalam (comprehensive), dan actionable untuk manajemen operasional.
+
+    // Call AI (OpenRouter)
+    let insightsText;
+    try {
+      insightsText = await callAI([
+        {
+          role: "system",
+          content: `Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, sangat mendalam (comprehensive), dan actionable untuk manajemen operasional.
 
 ATURAN PENTING:
 1. JANGAN MEMBATASI KEDALAMAN ANALISIS — eksplorasi setiap detil yang relevan dari data yang diberikan
@@ -185,28 +151,16 @@ ATURAN PENTING:
 7. JANGAN gunakan markdown formatting (**, *, #, dll) dalam JSON
 8. Semua teks dalam JSON harus plain text tanpa formatting markdown
 9. SORTING SAFETY: JANGAN PERNAH mengurutkan (ORDER BY) berdasarkan kolom mentah (seperti "id") jika sedang menggunakan GROUP BY. Gunakan alias ukuran (seperti "Jumlah") atau kolom dimensi yang ada di group by.`
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-        stream: false,
-        response_format: { type: "json_object" }
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ], AI_MODEL);
+    } catch (error) {
+       console.error('AI API error:', error);
+       throw new Error(`AI API error: ${error}`);
     }
-
-    const completion = await aiResponse.json() as { choices?: { message?: { content?: string } }[] };
-    
-    let insightsText = completion.choices?.[0]?.message?.content || '{}';
     
     // Clean <think> tags from reasoning models
     insightsText = insightsText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
@@ -313,8 +267,8 @@ ATURAN PENTING:
       });
     }
     
-    // 5. PERSISTENT CACHE STORAGE
-    await setPersistentCache(cacheKey, insights, (insights as Record<string, unknown>).supportingCharts, {
+    // 5. CACHE STORAGE
+    setMemoryCache(cacheKey, insights, (insights as Record<string, unknown>).supportingCharts, {
       model: AI_MODEL,
       chartTitle,
       chartType,
@@ -326,16 +280,20 @@ ATURAN PENTING:
       generatedAt: new Date().toISOString(),
       cached: false
     });
-    
+
   } catch (error) {
-    console.error('AI Insights Error:', error);
-    
-    // Return fallback if AI fails
-    return NextResponse.json({
-      insights: generateFallbackInsights(),
-      generatedAt: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Gagal menghasilkan insight'
-    });
+    console.error('Insights generation error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to generate insights',
+      fallback: {
+        ringkasan: "Gagal menghasilkan analisis AI.",
+        temuanUtama: ["Silakan coba lagi nanti."],
+        tren: [],
+        rekomendasi: [],
+        anomali: [],
+        kesimpulan: "Terjadi kesalahan sistem."
+      }
+    }, { status: 500 });
   }
 }
 
@@ -343,72 +301,86 @@ function generatePrompt(data: InsightRequest & { context?: string }): string {
   const { chartTitle, chartType, totalRows, dataSample, statistics, dateRange, context } = data;
   const schemaContext = buildSchemaContextForAI();
   
-  return `<IDENTITY>
-Anda adalah Senior Operational Auditor & Principal Insights Architect untuk Gapura Angkasa.
-Spesialisasi Anda adalah **Diagnostic Data Storytelling**: menghubungkan titik-titik antara data operasional, kepatuhan safety, dan dampak finansial.
-Anda tidak hanya melaporkan data; Anda mendiagnosis kesehatan sistem ground handling.
-</IDENTITY>
+  return `<SYSTEM_INSTRUCTION>
+You are the **Lead Data Analyst** for Gapura Angkasa.
+Your goal is to analyze the provided data snippet and generate **factual, data-driven insights**.
+**CRITICAL RULE**: Do NOT hallucinate. Do NOT invent "maintenance issues", "targets", or "training needs" unless the data explicitly supports it.
+If the data is just counts of categories, stick to describing the distribution (e.g., "Category X is dominant with 50%").
 
-<DIAGNOSTIC_FRAMEWORK>
-Dalam menganalisis data ini, gunakan metodologi **"5-Whys"** dan **"Pareto Principle (80/20)"**:
-1. OBSERVASI: Identifikasi kontributor 20% teratas yang menyebabkan 80% volume/masalah.
-2. HIPOTESIS: Buat dugaan cerdas mengapa pola ini muncul (misal: "Lonjakan di Cabang X mungkin terkait dengan turnover staf atau overload peralatan").
-3. DIAGNOSA: Validasi hipotesis dengan menghubungkan dimensi (misal: "Benar, karena korelasi antara Delay dan Maskapai Low-Cost sangat tinggi").
-4. ACTIONS: Berikan rekomendasi yang bersifat **Preemtif** (mencegah) bukan hanya Reaktif.
-</DIAGNOSTIC_FRAMEWORK>
+<BUSINESS_DOMAINS>
+The system operates across 3 main Areas:
+1. APRON: Airside operations, ramp handling.
+2. TERMINAL: Landside operations, passenger handling.
+3. GENERAL: General administration.
 
-<OPERATIONAL_CONTEXT>
-- SOURCE: ${context || 'Analisis Umum'}
-- FOCUS: ${chartTitle} (${chartType})
-- DATA RANGE: ${dateRange ? `${dateRange.from} s/d ${dateRange.to}` : 'All historic data'}
-- SCHEMA IQ:
-${schemaContext}
-</OPERATIONAL_CONTEXT>
+SPECIAL INSTRUCTION FOR CARGO (CGO):
+- CGO reports are identified by keywords in 'description', 'title', or 'category'.
+- Keywords: "cargo", "logistics", "warehouse", "dangerous goods", "live animal", "mail", "kargo", "gudang".
+- When analyzing "Cargo" issues, look for these terms in the text fields.
+</BUSINESS_DOMAINS>
+</SYSTEM_INSTRUCTION>
 
-<RAW_INTELLIGENCE_SNAPSHOT>
-- Total Volume: ${statistics.total}
-- Peak/Mean/Base: ${statistics.maximum} / ${statistics.average.toFixed(2)} / ${statistics.minimum}
-- Data Distribution (Sample):
+<DATA_CONTEXT>
+- Chart: "${chartTitle}" (${chartType})
+- Total Rows: ${totalRows}
+- Stats: Max=${statistics.maximum}, Avg=${statistics.average.toFixed(2)}, Min=${statistics.minimum}
+- Date Range: ${dateRange ? `${dateRange.from} to ${dateRange.to}` : 'N/A'}
+- Context: ${context || 'General Analysis'}
+</DATA_CONTEXT>
+
+<RAW_DATA_SAMPLE>
 ${JSON.stringify(dataSample, null, 2)}
-</RAW_INTELLIGENCE_SNAPSHOT>
+</RAW_DATA_SAMPLE>
 
-<STRATEGIC_IMPACT_SCORING>
-Untuk setiap temuan, tentukan **Operational Impact Score (1-10)**:
-- 1-3: Minor (Inefisiensi administratif)
-- 4-6: Moderate (Penurunan kualitas layanan/KPI)
-- 7-10: Critical (Potensi Ground Damage, Pelanggaran Safety, atau Kerugian Finansial Besar)
-</STRATEGIC_IMPACT_SCORING>
+<ANALYSIS_TASKS>
+1. **Executive Summary**: Summarize the data trends in 2 sentences. What is the main takeaway?
+2. **Key Findings**: Identify the top 3 contributors or patterns. Use ACTUAL NUMBERS from the data sample.
+3. **Anomalies**: Is there any value significantly higher/lower than others? If not, say "No significant anomalies".
+4. **Recommendations**: Suggest 2 actions based ONLY on the data. (e.g., if "Delay" is high, suggest "Investigate root causes of Delay").
+</ANALYSIS_TASKS>
 
-<SUPPORTING_CHART_DECISION_TREE>
-Mandat Senior Analyst: Buat minimal 4 chart pendukung untuk investigasi lanjutan.
-- Jika ada anomali maskapai -> Heatmap Airline vs Category.
-- Jika ada lonjakan volume -> Area chart Temporal Trend (Month/Week).
-- Jika ada isu safety -> Pie chart Severity distribution.
-- Selalu prioritaskan HEATMAP untuk perbandingan 2 dimensi kategorikal.
-</SUPPORTING_CHART_DECISION_TREE>
+<SUPPORTING_CHART_INSTRUCTIONS>
+Generate EXACTLY 4 unique supporting charts to provide deeper context:
+1. **Breakdown by another dimension**: If main chart is by Category, show by Branch or Airline.
+2. **Trend Analysis**: Show the data over time (event_date) if possible.
+3. **Top Contributors**: A horizontal bar chart of the top 5 contributing entities (e.g. specific airlines or branches).
+4. **Composition**: A pie/donut chart showing the distribution of a key attribute (e.g. Status or Severity).
 
-<OUTPUT_DEFINITION>
-Return a valid JSON object. DO NOT use markdown formatting.
+Rules:
+- Do NOT repeat the main chart.
+- Use different visualization types (bar, line, pie, horizontal_bar).
+- Ensure queries are valid and use correct table/field names from schema.
+</SUPPORTING_CHART_INSTRUCTIONS>
+
+<OUTPUT_FORMAT>
+Return a valid JSON object. NO markdown.
 {
-  "ringkasan": "Executive Summary (3-4 kalimat). Berikan skor kesehatan operasional (0-100%).",
+  "ringkasan": "Summary text here.",
   "temuanUtama": [
     {
-      "diagnosa": "DIAGNOSA 1: Penjelasan naratif mendalam tentang temuan",
-      "data": { "Dimension_Name": "Value", "Metric_Name": 12 },
-      "impactScore": 8
+      "diagnosa": "Finding 1 title",
+      "data": { "Actual Dimension Name": "Value" }, 
+      "impactScore": 5
     }
   ],
   "__RULES__": [
-    "DILARANG menyertakan field data (seperti 'maskapai') jika dimensinya tidak ada dalam RAW_INTELLIGENCE_SNAPSHOT",
-    "Field 'data' harus berisi pasangan key-value dari dimensi dan metrik nyata yang ada di snapshot di atas",
-    "JANGAN gunakan placeholder atau string kosong"
+     "DO NOT use generic keys like 'Label', 'Metric_Name', 'Dimension_Name', 'Report Category', 'Branch'. Use the ACTUAL field name from the data (e.g., 'Singapore Airlines': 18, 'Irregularity': 50).",
+     "The 'data' object should look like { 'Singapore Airlines': '18 reports', 'Emirates': '17 reports' }"
   ],
-  "tren": [{"label": "Target", "arah": "naik|turun|stabil|kritis", "persentase": 0, "deskripsi": "Strategic context."}],
+  "tren": [
+    { "label": "Trend Name", "arah": "naik/turun/stabil", "persentase": 0, "deskripsi": "Description" }
+  ],
   "rekomendasi": [
-    "REKOMENDASI 1: Tindakan mitigasi konkret",
-    "REKOMENDASI 2: Perubahan SOP/Workflow"
+    "Recommendation 1",
+    "Recommendation 2"
   ],
-  "anomali": [{"label": "Outlier", "nilai": "N", "deskripsi": "Why this happened?"}],
+  "saranEksplorasi": [
+    "Suggestion 1",
+    "Suggestion 2"
+  ],
+  "anomali": [
+    { "label": "Outlier Label", "nilai": "Value", "deskripsi": "Description" }
+  ],
   "supportingCharts": [
     {
       "visualization": {
@@ -425,12 +397,14 @@ Return a valid JSON object. DO NOT use markdown formatting.
         "sorts": [{"field": "Jumlah", "direction": "desc"}],
         "limit": 5
       }
-    }
+    },
+    { "visualization": { "title": "Chart 2" }, "query": {} },
+    { "visualization": { "title": "Chart 3" }, "query": {} },
+    { "visualization": { "title": "Chart 4" }, "query": {} }
   ],
-  "kesimpulan": "Final strategic verdict.",
-  "saranEksplorasi": ["Topic for deeper drill-down 1", "2"]
+  "kesimpulan": "Final conclusion."
 }
-</OUTPUT_DEFINITION>`;
+</OUTPUT_FORMAT>`;
 }
 
 function parseInsightsFromText(text: string): unknown {
@@ -448,18 +422,15 @@ function parseInsightsFromText(text: string): unknown {
 
 function generateFallbackInsights() {
   return {
-    ringkasan: "Layanan AI sementara tidak tersedia. Data tabel masih dapat diakses lengkap.",
+    ringkasan: "Tidak dapat memuat analisis AI saat ini. Silakan coba beberapa saat lagi.",
     temuanUtama: [
-      "Data tersedia untuk analisis manual",
-      "Statistik dasar dapat dilihat di panel summary",
-      "Export data tersedia dalam format CSV"
+      "Data visualisasi telah berhasil dimuat.",
+      "Analisis mendalam membutuhkan koneksi ke layanan AI.", 
+      "Periksa koneksi internet Anda."
     ],
     tren: [],
-    rekomendasi: [
-      "Silakan analisis data secara manual menggunakan tabel yang tersedia",
-      "Export data untuk analisis lebih lanjut di tools lain"
-    ],
+    rekomendasi: ["Lakukan analisis manual berdasarkan data tabel."],
     anomali: [],
-    kesimpulan: "Data berhasil dimuat. Fitur AI akan tersedia kembali segera."
+    kesimpulan: "Data tabel tersedia untuk direview secara manual."
   };
 }

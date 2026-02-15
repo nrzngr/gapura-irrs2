@@ -13,87 +13,179 @@ function mapReportsField(field: string): string {
   const fieldLower = field.toLowerCase().replace(/[\s\-_]/g, '');
   
   const mapping: Record<string, string> = {
-    'tipemaskapai': 'airline_type',
-    'maskapai': 'airline',
-    'masapai': 'airline',
-    'maskapaiid': 'airline_id',
-    'airline': 'airline',
-    'cabang': 'branch',
-    'branch': 'branch',
-    'unit': 'unit',
-    'total': 'id',
-    'volume': 'id',
-    'jumlah': 'id',
-    'count': 'id',
-    'tanggal': 'incident_date',
-    'date': 'incident_date',
-    'incidentdate': 'incident_date',
-    'tanggalinsiden': 'incident_date',
-    'tanggalkejadian': 'event_date',
-    'eventdate': 'event_date',
-    'kategori': 'main_category',
-    'category': 'main_category',
-    'maincategory': 'main_category',
-    'kategoriutama': 'main_category',
-    'subkategori': 'sub_category',
-    'subcategory': 'sub_category',
-    'stasiun': 'station_code',
-    'station': 'station_code',
-    'stationcode': 'station_code',
-    'kodestasiun': 'station_code',
-    'stationid': 'station_id',
-    'idstasiun': 'station_id',
-    'incidenttypeid': 'incident_type_id',
-    'idtipeinsiden': 'incident_type_id',
-    'tipeinsidenid': 'incident_type_id',
-    'locationid': 'location_id',
-    'idlokasi': 'location_id',
-    'userid': 'user_id',
-    'iduser': 'user_id',
-    'idpelapor': 'user_id',
-    'pelapor': 'reporter_name',
-    'reporter': 'reporter_name',
-    'reportername': 'reporter_name',
-    'namapelapor': 'reporter_name',
-    'hub': 'hub',
-    'waktuinsiden': 'incident_time',
-    'incidenttime': 'incident_time',
-    'jamkejadian': 'incident_time',
-    'jam': 'incident_time',
-    'lokasi': 'specific_location',
-    'location': 'specific_location',
-    'specificlocation': 'specific_location',
-    'lokasispesifik': 'specific_location',
-    'deskripsi': 'description',
-    'description': 'description',
-    'desc': 'description',
-    'isilaporan': 'description',
-    'waktu': 'event_date',
-    'time': 'event_date',
-    'idlaporan': 'id',
-    'uuid': 'id',
-    'id': 'id',
-    'severity': 'severity',
-    'tingkatkeparahan': 'severity',
-    'priority': 'priority',
-    'prioritas': 'priority',
-    'status': 'status',
-    'tujuan': 'target_division',
-    'devisi': 'target_division',
-    'divisi': 'target_division',
-    'targetdivision': 'target_division',
-    'rute': 'route',
-    'route': 'route',
+    'tipemaskapai': 'jenis_maskapai',
+    'airlinetype': 'jenis_maskapai',
+    'jenismaskapai': 'jenis_maskapai',
+    
+    'maskapai': 'airlines',
+    'masapai': 'airlines',
+    'maskapaiid': 'airlines',
+    'airline': 'airlines',
+    'airlines': 'airlines',
+    
     'flight': 'flight_number',
     'flightnumber': 'flight_number',
     'penerbangan': 'flight_number',
     'nomorpenerbangan': 'flight_number',
+    
+    'cabang': 'branch',
+    'branch': 'branch',
+    
+    'unit': 'unit_id',
+    
+    'total': 'id',
+    'volume': 'id',
+    'jumlah': 'id',
+    'count': 'id',
+    'total_laporan': 'id',
+    'totallaporan': 'id',
+    'jumlahlaporan': 'id',
+    'jumlah_laporan': 'id',
+    'jumlahdata': 'id',
+    'jumlah_data': 'id',
+    'idlaporan': 'id',
+    'uuid': 'id',
+    'id': 'id',
+    
+    'tanggal': 'date_of_event',
+    'date': 'date_of_event',
+    'incidentdate': 'date_of_event',
+    'tanggalinsiden': 'date_of_event',
+    
+    'tanggalkejadian': 'event_date',
+    'eventdate': 'event_date',
+    'waktu': 'event_date',
+    'time': 'event_date',
+    
+    'kategori': 'category',
+    'category': 'category',
+    'maincategory': 'category',
+    'kategoriutama': 'category',
+    'reportcategory': 'category',
+    
+    'subkategori': 'irregularity_complain_category',
+    'subcategory': 'irregularity_complain_category',
+    'irregularitycomplaincategory': 'irregularity_complain_category',
+    
+    'stasiun': 'station_code',
+    'station': 'station_code',
+    'stationcode': 'station_code',
+    'kodestasiun': 'station_code',
+    
+    'stationid': 'station_id',
+    'idstasiun': 'station_id',
+    
+    'incidenttypeid': 'incident_type_id',
+    'idtipeinsiden': 'incident_type_id',
+    'tipeinsidenid': 'incident_type_id',
+    
+    'locationid': 'location_id',
+    'idlokasi': 'location_id',
+    
+    'userid': 'user_id',
+    'iduser': 'user_id',
+    'idpelapor': 'user_id',
+    
+    'pelapor': 'reporter_name',
+    'reporter': 'reporter_name',
+    'reportername': 'reporter_name',
+    'namapelapor': 'reporter_name',
+    'reportby': 'reporter_name',
+    
+    'hub': 'hub',
+    
+    'waktuinsiden': 'incident_time',
+    'incidenttime': 'incident_time',
+    'jamkejadian': 'incident_time',
+    'jam': 'incident_time',
+
+    // Hallucination mappings
+    'monthly_compliments': 'id',
+    'compliments_count': 'id',
+    'total_compliments': 'id',
+    'compliments': 'id',
+    'jumlah_compliments': 'id',
+    'total_reports': 'id',  
+    'lokasi': 'specific_location',
+    'location': 'specific_location',
+    'specificlocation': 'specific_location',
+    'lokasispesifik': 'specific_location',
+    
+    'deskripsi': 'description',
+    'description': 'description',
+    'desc': 'description',
+    
+    'isilaporan': 'report',
+    'report': 'report',
+    'reportcontent': 'report',
+    
+    'severity': 'severity',
+    'tingkatkeparahan': 'severity',
+    
+    'priority': 'priority',
+    'prioritas': 'priority',
+    
+    'status': 'status',
+    
+    'rute': 'route',
+    'route': 'route',
+    
     'aircraft': 'aircraft_reg',
     'aircraftreg': 'aircraft_reg',
-    'registrasipesawat': 'aircraft_reg'
+    'registrasipesawat': 'aircraft_reg',
+    
+    'rootcause': 'root_caused',
+    'akaramsalah': 'root_caused',
+    'rootcaused': 'root_caused',
+    
+    'actiontaken': 'action_taken',
+    'gapurakpsactiontaken': 'gapura_kps_action_taken',
+    
+    'terminalareacategory': 'terminal_area_category',
+    'apronareacategory': 'apron_area_category',
+    'generalcategory': 'general_category',
+    
+    'uploadirregularityphoto': 'evidence_url',
+    
+    'sourcesheet': 'source_sheet',
+    'sheet': 'source_sheet',
+    'sumberdata': 'source_sheet',
+    'source_sheet': 'source_sheet',
+
+    // Virtual Fields (Time)
+    'bulan': 'month',
+    'month': 'month',
+    'tahun': 'year',
+    'year': 'year',
+    'hari': 'day',
+    'day': 'day',
+    'kuartal': 'quarter',
+    'quarter': 'quarter',
+    'minggu': 'week_in_month',
+    'week': 'week_in_month'
   };
 
   return mapping[fieldLower] || field;
+}
+
+function normalizeMonthValue(val: any): any {
+  if (typeof val !== 'string') return val;
+  const lower = val.toLowerCase().trim();
+  const months: Record<string, string> = {
+    'januari': '01', 'january': '01', 'jan': '01', '1': '01', '01': '01',
+    'februari': '02', 'february': '02', 'feb': '02', '2': '02', '02': '02',
+    'maret': '03', 'march': '03', 'mar': '03', '3': '03', '03': '03',
+    'april': '04', 'apr': '04', '4': '04', '04': '04',
+    'mei': '05', 'may': '05', '5': '05', '05': '05',
+    'juni': '06', 'june': '06', 'jun': '06', '6': '06', '06': '06',
+    'juli': '07', 'july': '07', 'jul': '07', '7': '07', '07': '07',
+    'agustus': '08', 'august': '08', 'aug': '08', '8': '08', '08': '08',
+    'september': '09', 'sep': '09', '9': '09', '09': '09',
+    'oktober': '10', 'october': '10', 'oct': '10', '10': '10',
+    'november': '11', 'nov': '11', '11': '11',
+    'desember': '12', 'december': '12', 'dec': '12', '12': '12'
+  };
+  return months[lower] || val;
 }
 
 /**
@@ -111,6 +203,11 @@ export function normalizeQuery(query: any): QueryDefinition {
   if (!normalized.source || !TABLES.some(t => t.name === normalized.source)) {
     normalized.source = 'reports';
   }
+  
+  // Force map legacy/AI-hallucinated table names to 'reports'
+  if (normalized.source === 'raw_data_sample' || normalized.source === 'raw_data' || normalized.source === 'data' || normalized.source === 'data_sample') {
+    normalized.source = 'reports';
+  }
 
   // 2. Initialize arrays if missing
   normalized.dimensions = Array.isArray(normalized.dimensions) ? normalized.dimensions : [];
@@ -121,19 +218,43 @@ export function normalizeQuery(query: any): QueryDefinition {
 
   const usedTables = new Set<string>([normalized.source]);
 
+  // Helper to normalize table name
+  const normalizeTableName = (t: string | undefined): string => {
+    if (!t) return normalized.source;
+    if (t === 'raw_data_sample' || t === 'raw_data' || t === 'data' || t === 'data_sample') return 'reports';
+    return t;
+  };
+
   // 3. Normalize dimensions
   normalized.dimensions = normalized.dimensions.map((d: any) => {
-    const table = d.table || normalized.source;
+    const table = normalizeTableName(d.table);
     usedTables.add(table);
     
     let field = d.field;
     let dateGranularity = d.dateGranularity;
 
-    if (table === 'reports' && field === 'month') {
-      field = 'incident_date';
-      dateGranularity = 'month';
-    } else if (table === 'reports') {
+    if (table === 'reports') {
       field = mapReportsField(field);
+    }
+
+    // Auto-map virtual time fields to date_of_event
+    if (table === 'reports') {
+      if (field === 'month') {
+        field = 'date_of_event';
+        dateGranularity = 'month';
+      } else if (field === 'day') {
+        field = 'date_of_event';
+        dateGranularity = 'day';
+      } else if (field === 'year') {
+        field = 'date_of_event';
+        dateGranularity = 'year';
+      } else if (field === 'quarter') {
+        field = 'date_of_event';
+        dateGranularity = 'quarter';
+      } else if (field === 'week_in_month' || field === 'week') {
+        field = 'date_of_event';
+        dateGranularity = 'week';
+      }
     }
     
     return { ...d, table, field, dateGranularity };
@@ -141,7 +262,7 @@ export function normalizeQuery(query: any): QueryDefinition {
 
   // 4. Normalize measures
   normalized.measures = normalized.measures.map((m: any) => {
-    const table = m.table || normalized.source;
+    const table = normalizeTableName(m.table);
     usedTables.add(table);
     
     let field = m.field;
@@ -202,18 +323,30 @@ export function normalizeQuery(query: any): QueryDefinition {
 
   // 6. Normalize filters
   normalized.filters = normalized.filters.map((f: any) => {
-    const table = f.table || normalized.source;
+    const table = normalizeTableName(f.table);
     usedTables.add(table); // Track tables used in filters too!
     
     let field = f.field;
+    let value = f.value;
+
     if (table === 'reports') {
       field = mapReportsField(field);
+      
+      // Normalize month values (names -> numbers)
+      if (field === 'month') {
+        if (Array.isArray(value)) {
+          value = value.map((v: any) => normalizeMonthValue(v));
+        } else {
+          value = normalizeMonthValue(value);
+        }
+      }
     }
 
     return {
       ...f,
       table,
       field,
+      value,
       conjunction: f.conjunction || 'AND',
       operator: f.operator || 'eq'
     };
@@ -221,7 +354,7 @@ export function normalizeQuery(query: any): QueryDefinition {
 
   // 7. Ensure sorts use aliases if available
   normalized.sorts = normalized.sorts.map((s: any) => {
-    const table = s.table || normalized.source;
+    const table = normalizeTableName(s.table);
     let field = s.field;
     if (table === 'reports') {
       field = mapReportsField(field);

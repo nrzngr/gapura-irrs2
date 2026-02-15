@@ -102,13 +102,12 @@ const deriveAirlineType = (jenisMaskapai: string | undefined | null): string | n
 
 const mapRowToReport = (row: ParsedRow) => {
   const mainCategory = row['Report Category'] || null;
-  const subCategory = row['Irregularity/Complain Category'] || row['Terminal Area Category'] || row['Apron Area Category'] || row['General Category'] || null;
   const area = normalizeArea(row.Area);
 
   return {
     reference_number: `IRR-${row.Id}`,
     title: mainCategory ? `${mainCategory} - ${row.Airlines || 'Unknown'}` : 'Incident Report',
-    description: row.Report || 'No description provided',
+    report: row.Report || 'No description provided',
 
     // Status & Priority (must match DB constraints)
     status: normalizeStatus(row.Status),
@@ -116,27 +115,24 @@ const mapRowToReport = (row: ParsedRow) => {
 
     // Dimensions
     branch: row['Branch (cth: CGK, UPG, DPS)'] || row['KODE CABANG (VLOOKUP)'] || null,
-    airline: row.Airlines || null,
-    airline_type: deriveAirlineType(row['Jenis Maskapai']),
+    airlines: row.Airlines || null,
+    jenis_maskapai: deriveAirlineType(row['Jenis Maskapai']),
     flight_number: row['Flight Number'] || null,
     route: row.Route || null,
     area: area,
-    area_category: subCategory,
     target_division: deriveTargetDivision(area),
 
     // Categorization
-    category: mainCategory?.toUpperCase() || 'OTHER',
-    main_category: mainCategory,
-    sub_category: subCategory,
+    category: mainCategory,
 
     // Dates
-    incident_date: parseDateOnly(row['Date of Event']),
+    date_of_event: parseDateOnly(row['Date of Event']),
     event_date: parseTimestamp(row['Date of Event']),
     form_submitted_at: parseTimestamp(row['Start time']),
     form_completed_at: parseTimestamp(row['Completion time']),
 
     // Actions & Notes
-    root_cause: row['Root Caused'] || null,
+    root_caused: row['Root Caused'] || null,
     action_taken: row['Action Taken'] || null,
     kps_remarks: row['Remarks Gapura KPS Action Taken'] || null,
 

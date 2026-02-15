@@ -57,6 +57,11 @@ export default function AnalystDashboard() {
         else setLoading(true);
 
         try {
+            if (isRefresh) {
+                // Invalidate server-side cache
+                await fetch('/api/reports/refresh', { method: 'POST' });
+            }
+
             const [reportsRes, analyticsRes] = await Promise.all([
                 fetch('/api/admin/reports'),
                 fetch('/api/admin/analytics')
@@ -153,9 +158,9 @@ export default function AnalystDashboard() {
 
     // ===== ANALYTICS DATA =====
     const caseCategoryData = useMemo(() => {
-        const irregularity = filteredReports.filter(r => r.main_category === 'Irregularity').length;
-        const complaint = filteredReports.filter(r => r.main_category === 'Complaint').length;
-        const compliment = filteredReports.filter(r => r.main_category === 'Compliment').length;
+        const irregularity = filteredReports.filter(r => r.category === 'Irregularity').length;
+        const complaint = filteredReports.filter(r => r.category === 'Complaint').length;
+        const compliment = filteredReports.filter(r => r.category === 'Compliment').length;
         return [
             { name: 'Irregularity', value: irregularity, fill: '#10b981' },
             { name: 'Complaint', value: complaint, fill: '#ec4899' },
@@ -182,9 +187,9 @@ export default function AnalystDashboard() {
         filteredReports.forEach(r => {
             const date = new Date(r.created_at);
             const month = months[date.getMonth()];
-            if (r.main_category === 'Irregularity') monthData[month].irregularity++;
-            else if (r.main_category === 'Complaint') monthData[month].complaint++;
-            else if (r.main_category === 'Compliment') monthData[month].compliment++;
+            if (r.category === 'Irregularity') monthData[month].irregularity++;
+            else if (r.category === 'Complaint') monthData[month].complaint++;
+            else if (r.category === 'Compliment') monthData[month].compliment++;
         });
         return months.map(month => ({ month, ...monthData[month] })).reverse();
     }, [filteredReports]);
@@ -207,9 +212,9 @@ export default function AnalystDashboard() {
         filteredReports.forEach(r => {
             const branch = r.stations?.code || 'Unknown';
             if (!branchData[branch]) branchData[branch] = { irregularity: 0, complaint: 0, compliment: 0 };
-            if (r.main_category === 'Irregularity') branchData[branch].irregularity++;
-            else if (r.main_category === 'Complaint') branchData[branch].complaint++;
-            else if (r.main_category === 'Compliment') branchData[branch].compliment++;
+            if (r.category === 'Irregularity') branchData[branch].irregularity++;
+            else if (r.category === 'Complaint') branchData[branch].complaint++;
+            else if (r.category === 'Compliment') branchData[branch].compliment++;
         });
         return Object.entries(branchData)
             .map(([branch, data]) => ({ branch, ...data }))
@@ -220,11 +225,11 @@ export default function AnalystDashboard() {
     const categoryByAirlinesData = useMemo(() => {
         const airlinesData: Record<string, { irregularity: number; complaint: number; compliment: number }> = {};
         filteredReports.forEach(r => {
-            const airline = r.airline || 'Unknown';
+            const airline = r.airlines || 'Unknown';
             if (!airlinesData[airline]) airlinesData[airline] = { irregularity: 0, complaint: 0, compliment: 0 };
-            if (r.main_category === 'Irregularity') airlinesData[airline].irregularity++;
-            else if (r.main_category === 'Complaint') airlinesData[airline].complaint++;
-            else if (r.main_category === 'Compliment') airlinesData[airline].compliment++;
+            if (r.category === 'Irregularity') airlinesData[airline].irregularity++;
+            else if (r.category === 'Complaint') airlinesData[airline].complaint++;
+            else if (r.category === 'Compliment') airlinesData[airline].compliment++;
         });
         return Object.entries(airlinesData)
             .map(([airline, data]) => ({ airline, ...data }))

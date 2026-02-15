@@ -14,9 +14,12 @@ interface ChartClickHandlerProps {
 export function ChartClickHandler({ tile, result, children, dashboardId }: ChartClickHandlerProps) {
   const router = useRouter();
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (!result) return;
 
+    // Check visualization config
+    const openInNewTab = tile.visualization.openLinkInNewTab;
+    
     // Store data in sessionStorage for the detail page
     const detailData = {
       tile,
@@ -27,12 +30,17 @@ export function ChartClickHandler({ tile, result, children, dashboardId }: Chart
     
     sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
     
-    // Navigate to detail page
+    // Construct URL
     const params = new URLSearchParams();
     if (dashboardId) params.set('dashboardId', dashboardId);
     params.set('tileId', tile.id);
-    
-    router.push(`/dashboard/chart-detail?${params.toString()}`);
+    const url = `/dashboard/chart-detail?${params.toString()}`;
+
+    if (openInNewTab) {
+      window.open(url, '_blank');
+    } else {
+      router.push(url);
+    }
   };
 
   return (

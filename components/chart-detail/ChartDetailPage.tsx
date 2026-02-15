@@ -164,10 +164,29 @@ export default function ChartDetailPage() {
         if (insights.supportingCharts && insights.supportingCharts.length > 0) {
           const suppPromises = insights.supportingCharts.map(async (sc, idx) => {
             try {
+              // CRITICAL FIX: Merge filters from the main tile to ensure data consistency
+              // This ensures AI charts respect the same Date Range, Status, etc. as the main chart
+              const parentFilters = detailData.tile.query.filters || [];
+              const aiFilters = sc.query.filters || [];
+              
+              // Deduplicate filters based on field and operator
+              const mergedFilters = [...aiFilters];
+              parentFilters.forEach(pf => {
+                const exists = mergedFilters.some(af => af.field === pf.field && af.operator === pf.operator);
+                if (!exists) {
+                  mergedFilters.push(pf);
+                }
+              });
+
+              const mergedQuery = {
+                ...sc.query,
+                filters: mergedFilters
+              };
+
               const res = await fetch('/api/dashboards/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: sc.query })
+                body: JSON.stringify({ query: mergedQuery })
               });
               if (res.ok) {
                 const result = await res.json();

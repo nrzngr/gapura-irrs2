@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { reportsService } from '@/lib/services/reports-service';
 
 interface ReportRow {
   id: string;
@@ -84,15 +84,26 @@ export async function GET(request: NextRequest) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - rangeDays);
     
-    const { data: reports, error } = await supabase
-      .from('reports')
-      .select('id, airline, main_category, status, severity, area, priority, target_division, station_code, incident_date, created_at')
-      .gte('created_at', startDate.toISOString())
-      .order('created_at', { ascending: false });
+    // Fetch from Google Sheets (cached)
+    const allReports = await reportsService.getReports();
     
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    // Filter by date
+    const filteredReports = allReports.filter(r => new Date(r.created_at) >= startDate);
+
+    // Map to ReportRow structure
+    const typedReports: ReportRow[] = filteredReports.map(r => ({
+        id: r.id,
+        airline: r.airline || r.airlines || null,
+        main_category: r.main_category || r.general_category || null,
+        status: r.status,
+        severity: r.severity || null,
+        area: r.area || null,
+        priority: r.priority || null,
+        target_division: r.target_division || null,
+        station_code: r.station_code || r.branch || null,
+        incident_date: r.incident_date || r.date_of_event || null,
+        created_at: r.created_at
+    }));
     
     const fieldMap: Record<string, keyof ReportRow> = {
       airline: 'airline',
@@ -105,7 +116,6 @@ export async function GET(request: NextRequest) {
     };
     
     const field = fieldMap[type] || 'airline';
-    const typedReports = reports as ReportRow[];
     
     const response: StatsResponse = {
       type,

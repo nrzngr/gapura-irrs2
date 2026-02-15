@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { validateStatusTransition, getTimestampFieldForStatus, getUserFieldForStatus } from '@/lib/utils/validate-transition';
+import { reportsService } from '@/lib/services/reports-service';
 
 // GET all reports (for admin)
 export async function GET(request: Request) {
@@ -15,59 +16,80 @@ export async function GET(request: Request) {
         const to = searchParams.get('to');
         const targetDivision = searchParams.get('target_division');
 
-        let query = supabase
-            .from('reports')
-            .select(`
-        *,
-        users:user_id (
-          full_name,
-          email
-        ),
-        stations:station_id (
-          code,
-          name
-        )
-      `)
-            .order('created_at', { ascending: false });
+        // Fetch all reports from Google Sheets
+        const reports = await reportsService.getReports();
+
+        // Fetch related data from Supabase for manual join
+        const { data: stations } = await supabase.from('stations').select('id, code, name');
+        const { data: users } = await supabase.from('users').select('id, full_name, email');
+        
+        // Enrich reports
+        const enrichedReports = reports.map(report => {
+            const stationObj = stations?.find(s => s.id === report.station_id) || 
+                               stations?.find(s => s.code === report.branch) || 
+                               stations?.find(s => s.code === report.station_code);
+            
+            const userObj = users?.find(u => u.id === report.user_id);
+
+            return {
+                ...report,
+                stations: stationObj ? { code: stationObj.code, name: stationObj.name } : null,
+                users: userObj ? { full_name: userObj.full_name, email: userObj.email } : null,
+                // Ensure station_id is populated for filtering if it was missing but matched by code
+                station_id: report.station_id || stationObj?.id
+            };
+        });
+
+        // Apply Filters
+        let filteredData = enrichedReports;
 
         if (status && status !== 'all') {
-            query = query.eq('status', status);
+            filteredData = filteredData.filter(r => r.status === status);
         }
 
         if (station && station !== 'all') {
-            query = query.eq('station_id', station);
+            // station filter is likely an ID from frontend dropdown
+            filteredData = filteredData.filter(r => r.station_id === station);
         }
 
         if (severity && severity !== 'all') {
-            query = query.eq('severity', severity);
+            filteredData = filteredData.filter(r => r.severity === severity);
         }
 
         if (mainCategory && mainCategory !== 'all') {
-            query = query.eq('main_category', mainCategory);
+             // 'category' in Sheet mapped to 'category' in Report
+            filteredData = filteredData.filter(r => r.category === mainCategory);
         }
 
         if (from) {
-            query = query.gte('created_at', from);
+            const fromDate = new Date(from).getTime();
+            filteredData = filteredData.filter(r => new Date(r.created_at).getTime() >= fromDate);
         }
 
         if (to) {
-            query = query.lte('created_at', to);
+            const toDate = new Date(to).getTime();
+            filteredData = filteredData.filter(r => new Date(r.created_at).getTime() <= toDate);
         }
 
-        if (targetDivision && targetDivision !== 'all') {
-            query = query.eq('target_division', targetDivision);
-        }
+        // target_division might not be in Sheet?
+        // if (targetDivision && targetDivision !== 'all') {
+        //    filteredData = filteredData.filter(r => r.target_division === targetDivision);
+        // }
 
         // Search by case number / title / reference_number / flight_number
         if (search) {
-            query = query.or(`title.ilike.%${search}%,reference_number.ilike.%${search}%,flight_number.ilike.%${search}%`);
+            const searchLower = search.toLowerCase();
+            filteredData = filteredData.filter(r => 
+                (r.title || '').toLowerCase().includes(searchLower) ||
+                (r.reference_number || '').toLowerCase().includes(searchLower) ||
+                (r.flight_number || '').toLowerCase().includes(searchLower) ||
+                (r.description || '').toLowerCase().includes(searchLower) ||
+                (r.reporter_name || '').toLowerCase().includes(searchLower) ||
+                (r.users?.full_name || '').toLowerCase().includes(searchLower)
+            );
         }
 
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        return NextResponse.json(data);
+        return NextResponse.json(filteredData);
     } catch (error) {
         console.error('Error fetching reports:', error);
         return NextResponse.json({ error: 'Gagal memuat laporan' }, { status: 500 });
@@ -85,13 +107,9 @@ export async function PATCH(request: Request) {
         }
 
         // Get current report
-        const { data: report, error: fetchError } = await supabase
-            .from('reports')
-            .select('status')
-            .eq('id', reportId)
-            .single();
+        const report = await reportsService.getReportById(reportId);
 
-        if (fetchError || !report) {
+        if (!report) {
             return NextResponse.json({ error: 'Laporan tidak ditemukan' }, { status: 404 });
         }
 
@@ -117,7 +135,7 @@ export async function PATCH(request: Request) {
         }
 
         const newStatus = validation.newStatus!;
-        const updateData: Record<string, unknown> = {
+        const updateData: any = {
             status: newStatus,
             updated_at: new Date().toISOString(),
         };
@@ -156,12 +174,11 @@ export async function PATCH(request: Request) {
             updateData.resolved_by = null;
         }
 
-        const { error } = await supabase
-            .from('reports')
-            .update(updateData)
-            .eq('id', reportId);
+        const updatedReport = await reportsService.updateReport(reportId, updateData);
 
-        if (error) throw error;
+        if (!updatedReport) {
+             return NextResponse.json({ error: 'Gagal mengupdate laporan' }, { status: 500 });
+        }
 
         return NextResponse.json({ success: true, newStatus });
     } catch (error) {

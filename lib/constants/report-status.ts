@@ -14,9 +14,13 @@ import {
 } from 'lucide-react';
 
 export const REPORT_STATUS = {
+    BARU: 'BARU',
+    DITOLAK: 'DITOLAK',
     MENUNGGU_FEEDBACK: 'MENUNGGU_FEEDBACK',     // Menunggu feedback dari analyst
     SUDAH_DIVERIFIKASI: 'SUDAH_DIVERIFIKASI',   // Sudah diverifikasi analyst
     SELESAI: 'SELESAI',                           // Kasus selesai
+    Closed: 'Closed',
+    OPEN: 'OPEN',
 } as const;
 
 export type ReportStatus = typeof REPORT_STATUS[keyof typeof REPORT_STATUS];
@@ -34,6 +38,26 @@ export const STATUS_CONFIG: Record<ReportStatus, {
     textClass?: string;
     borderClass?: string;
 }> = {
+    BARU: {
+        label: 'Baru',
+        color: 'oklch(0.65 0.20 240)',     // Blue
+        bgColor: 'oklch(0.65 0.20 240 / 0.1)',
+        icon: AlertCircle,
+        description: 'Laporan baru dibuat',
+        bgClass: 'bg-blue-50',
+        textClass: 'text-blue-700',
+        borderClass: 'border-blue-200',
+    },
+    DITOLAK: {
+        label: 'Ditolak',
+        color: 'oklch(0.55 0.20 20)',      // Red
+        bgColor: 'oklch(0.55 0.20 20 / 0.1)',
+        icon: AlertTriangle,
+        description: 'Laporan ditolak',
+        bgClass: 'bg-red-50',
+        textClass: 'text-red-700',
+        borderClass: 'border-red-200',
+    },
     MENUNGGU_FEEDBACK: {
         label: 'Menunggu Feedback',
         color: 'oklch(0.65 0.18 85)',      // Amber
@@ -63,6 +87,26 @@ export const STATUS_CONFIG: Record<ReportStatus, {
         bgClass: 'bg-green-50',
         textClass: 'text-green-700',
         borderClass: 'border-green-200',
+    },
+    Closed: {
+        label: 'Closed',
+        color: 'oklch(0.55 0.18 145)',     // Green
+        bgColor: 'oklch(0.55 0.18 145 / 0.1)',
+        icon: CheckCircle2,
+        description: 'Laporan ditutup (Imported)',
+        bgClass: 'bg-green-50',
+        textClass: 'text-green-700',
+        borderClass: 'border-green-200',
+    },
+    OPEN: {
+        label: 'Open',
+        color: 'oklch(0.65 0.18 85)',      // Amber
+        bgColor: 'oklch(0.65 0.18 85 / 0.1)',
+        icon: Clock,
+        description: 'Laporan baru (Imported)',
+        bgClass: 'bg-amber-50',
+        textClass: 'text-amber-700',
+        borderClass: 'border-amber-200',
     },
 };
 

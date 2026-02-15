@@ -86,6 +86,8 @@ export interface ChartVisualization {
   showLegend: boolean;
   showLabels: boolean;
   colors?: string[];
+  crossFiltering?: boolean;
+  openLinkInNewTab?: boolean;
 }
 
 // ===== Dashboard Types =====

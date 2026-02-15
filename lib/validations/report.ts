@@ -8,8 +8,8 @@ export const createReportSchema = z.object({
     // Step 1: Context
     incident_date: z.string().min(1, 'Tanggal kejadian wajib diisi'),
     incident_time: z.string().min(1, 'Waktu kejadian wajib diisi'),
-    area: z.enum(['APRON', 'TERMINAL', 'GENERAL']),
-    specific_location: z.string().min(3, 'Lokasi spesifik minimal 3 karakter'),
+    area: z.enum(['APRON', 'TERMINAL', 'GENERAL', 'Terminal Area', 'Apron Area']),
+    specific_location: z.string().optional(),
 
     // Step 2: Subject (conditional - validated separately)
     is_flight_related: z.boolean().default(false),
@@ -21,12 +21,12 @@ export const createReportSchema = z.object({
     // Step 3: The Case
     main_category: z.string().min(1, 'Kategori wajib dipilih'),
     sub_category: z.string().min(1, 'Sub-kategori wajib dipilih'),
-    title: z.string().min(5, 'Judul minimal 5 karakter').max(100, 'Judul maksimal 100 karakter'),
+    title: z.string().optional(),
     description: z.string().min(20, 'Kronologis minimal 20 karakter'),
     immediate_action: z.string().optional(),
 
     // Step 4: Evidence
-    evidence_urls: z.array(z.string().url()).min(1, 'Wajib isi minimal 1 link Google Drive'),
+    evidence_urls: z.array(z.string().url()).optional(),
 }).refine(
     (data) => {
         // If flight related, flight_number is required

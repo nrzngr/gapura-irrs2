@@ -229,6 +229,19 @@ export function buildQuery(def: QueryDefinition): BuildResult {
 // ===== Internal Helpers =====
 
 function qualifiedCol(table: string, field: string): string {
+  // Handle virtual time fields on reports table
+  if (table === 'reports') {
+    switch (field) {
+      case 'year':
+        return `EXTRACT(YEAR FROM "reports"."date_of_event")`;
+      case 'month':
+        return `TO_CHAR("reports"."date_of_event", 'MM')`;
+      case 'day':
+        return `TO_CHAR("reports"."date_of_event", 'FMDay')`;
+      case 'quarter':
+        return `TO_CHAR("reports"."date_of_event", 'Q')`;
+    }
+  }
   return `"${table}"."${field}"`;
 }
 

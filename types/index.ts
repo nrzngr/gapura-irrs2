@@ -1,6 +1,6 @@
 export type UserRole = 'SUPER_ADMIN' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'ANALYST' | 'CABANG';
 
-export type ReportStatus = 'MENUNGGU_FEEDBACK' | 'SUDAH_DIVERIFIKASI' | 'SELESAI';
+export type ReportStatus = 'BARU' | 'DITOLAK' | 'MENUNGGU_FEEDBACK' | 'SUDAH_DIVERIFIKASI' | 'SELESAI' | 'Closed' | 'OPEN';
 
 export type ReportPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -90,89 +90,65 @@ export interface Report {
     unit_id?: string;
     location_id?: string;
     incident_type_id?: string;
-    main_category?: string;
-    sub_category?: string;
-    target_division?: DivisionType | string;
+    category?: string;
+    main_category?: string; // Explicit field for dashboard compatibility
     
     // Details
     investigator_notes?: string;
     manager_notes?: string;
     partner_response_notes?: string;
     validation_notes?: string;
-    immediate_action?: string;
-    specific_location?: string;
-    incident_date?: string;
-    incident_time?: string;
-    reference_number?: string;
-    evidence_meta?: Record<string, unknown>;
-
-    // Workflow
+    partner_evidence_urls?: string[];
+    source_sheet?: string;
+    
+    // Timestamps
     created_at: string;
     updated_at: string;
     resolved_at?: string;
-    resolved_by?: string;
-    assigned_to?: string;
-    acknowledged_at?: string;
-    acknowledged_by?: string;
-    started_at?: string;
-    validated_at?: string;
-    validated_by?: string;
     sla_deadline?: string;
-    partner_evidence_urls?: string[];
+    incident_date?: string;
 
-    // Joined Relations
-    users?: User;     
-    stations?: Station;
-    incident_types?: IncidentType; 
-    
-    // Alternative Joined Relations (for consistency)
-    user?: User;
-    station?: Station;
-    incident_type?: IncidentType;
-    
-    // Frontend-specific props that might be added
-    comments?: Comment[];
-    
-    // Legacy / Alternative fields from API
-    category?: string;
-    root_cause?: string;
-    action_taken?: string;
-    airline?: string;
-    route?: string;
-    area?: string;
-    area_category?: string;
-    branch?: string;
-    reporter_name?: string;
-    event_date?: string;
-    station_code?: string;
-
-    // CSV-aligned fields
-    csv_id?: number;
-    hub?: string;
-    airline_type?: 'Lokal' | 'MPA';
-    report_content?: string;
-    kps_remarks?: string;
+    // Additional fields from Google Sheets / Reports Service
     reporting_branch?: string;
-    week_in_month?: number;
-    reporter_email?: string;
-    form_submitted_at?: string;
-    form_completed_at?: string;
-}
-
-export interface Comment {
-    id: string;
-    report_id: string;
-    user_id: string;
-    content: string;
-    created_at: string;
-    is_system_message?: boolean;
-    attachments?: string[];
-    users?: {
+    hub?: string;
+    route?: string;
+    target_division?: string;
+    branch?: string;
+    station_code?: string;
+    reporter_name?: string;
+    date_of_event?: string;
+    event_date?: string; // Alias
+    specific_location?: string;
+    airlines?: string;
+    airline?: string; // Alias
+    jenis_maskapai?: string;
+    reference_number?: string;
+    root_caused?: string;
+    action_taken?: string;
+    immediate_action?: string;
+    kps_remarks?: string;
+    gapura_kps_action_taken?: string;
+    area?: string;
+    terminal_area_category?: string;
+    apron_area_category?: string;
+    general_category?: string;
+    week_in_month?: string;
+    report?: string;
+    irregularity_complain_category?: string;
+    kode_cabang?: string;
+    kode_hub?: string;
+    maskapai_lookup?: string;
+    lokal_mpa_lookup?: string;
+    
+    // Joined data
+    stations?: { code: string; name: string };
+    users?: { full_name: string; email: string; role?: string };
+    comments?: {
         id: string;
-        full_name: string;
-        email?: string;
-        avatar_url?: string;
-        role?: string;
-        division?: string;
-    };
+        content: string;
+        created_at: string;
+        users: { full_name: string; avatar_url?: string };
+        attachments?: string[];
+        is_system_message?: boolean;
+    }[];
 }

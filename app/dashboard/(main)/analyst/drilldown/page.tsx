@@ -58,7 +58,7 @@ export default function AnalystDrilldownPage() {
         // Apply type-specific filter
         switch (type) {
             case 'category':
-                return filtered.filter(r => r.main_category === value);
+                return filtered.filter(r => r.category === value);
             case 'station':
                 return filtered.filter(r => r.stations?.code === value);
             case 'month': {
@@ -74,7 +74,7 @@ export default function AnalystDrilldownPage() {
             case 'status':
                 return filtered.filter(r => r.status === value);
             case 'airline':
-                return filtered.filter(r => r.airline === value);
+                return filtered.filter(r => r.airlines === value);
             case 'area':
                 return filtered.filter(r => (r.area || 'General') === value);
             case 'severity':

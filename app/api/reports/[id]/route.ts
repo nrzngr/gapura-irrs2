@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
+import { reportsService } from '@/lib/services/reports-service';
 
 /**
  * GET /api/reports/[id]
@@ -27,36 +28,43 @@ export async function GET(
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
-        const { data: report, error } = await supabase
-            .from('reports')
-            .select(`
-                *,
-                users:user_id (
-                    id,
-                    full_name,
-                    email
-                ),
-                stations:station_id (
-                    id,
-                    code,
-                    name
-                )
-            `)
-            .eq('id', id)
-            .single();
+        // Fetch report from Google Sheets
+        const report = await reportsService.getReportById(id);
 
-        if (error) {
-            console.error('Error fetching report:', error);
+        if (!report) {
             return NextResponse.json({ error: 'Report not found' }, { status: 404 });
         }
 
-        // SIMPLIFIED LOGIC:
-        // If the user can fetch the report (passed RLS in the query above),
-        // they are authorized to see the conversation history.
-        // We use supabaseAdmin to fetch comments because report_comments RLS might be stricter
-        // (e.g. blocking Branch Users from SELECTing but allowing INSERT? or just broken RLS).
-        // This ensures they get the history.
+        // Fetch related data from Supabase for manual join
+        let user = null;
+        if (report.user_id) {
+            const { data: u } = await supabase.from('users').select('id, full_name, email').eq('id', report.user_id).single();
+            user = u;
+        }
 
+        let station = null;
+        // Try to match station by ID, then code (branch)
+        if (report.station_id) {
+             const { data: s } = await supabase.from('stations').select('id, code, name').eq('id', report.station_id).single();
+             station = s;
+        } else if (report.branch || report.station_code) {
+             const code = report.branch || report.station_code;
+             const { data: s } = await supabase.from('stations').select('id, code, name').eq('code', code).single();
+             station = s;
+        }
+
+        // Enrich report
+        const enrichedReport = {
+            ...report,
+            users: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
+            stations: station || (report.branch ? { code: report.branch, name: report.branch } : null),
+            // Legacy / Frontend compatibility
+            user: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
+            station: station || (report.branch ? { code: report.branch, name: report.branch } : null),
+        };
+
+        // Try to fetch comments from Supabase (might return empty if no relation exists)
+        // Note: This relies on report_id existing in Supabase or not being enforced for SELECT
         const { data: comments, error: commentsError } = await supabaseAdmin
             .from('report_comments')
             .select(`
@@ -79,9 +87,10 @@ export async function GET(
             console.error('[DEBUG_API] Error fetching comments with admin:', commentsError);
         }
 
-        report.comments = comments || [];
+        // @ts-ignore
+        enrichedReport.comments = comments || [];
 
-        return NextResponse.json(report);
+        return NextResponse.json(enrichedReport);
     } catch (error) {
         console.error('Error in GET /api/reports/[id]:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -122,11 +131,12 @@ export async function PATCH(
             priority,
             location,
             station_id,
+            // Add other fields that might be updated
+            action_taken,
+            root_cause,
         } = body;
 
-        const updates: Record<string, unknown> = {
-            updated_at: new Date().toISOString(),
-        };
+        const updates: any = {};
 
         if (title !== undefined) updates.title = title;
         if (description !== undefined) updates.description = description;
@@ -140,20 +150,16 @@ export async function PATCH(
         if (priority !== undefined) updates.priority = priority;
         if (location !== undefined) updates.location = location;
         if (station_id !== undefined) updates.station_id = station_id;
+        if (action_taken !== undefined) updates.action_taken = action_taken;
+        if (root_cause !== undefined) updates.root_caused = root_cause;
 
-        // In a real app, strict RBAC check here: 
-        // e.g. Only Admin can update everything. Owner can only update limited fields or if pending.
-        // For now, assuming Super Admin / Admin access is checked by UI or implicit trust for this specific user flow request.
-        // But we should at least check if user is admin or owner.
+        const updatedReport = await reportsService.updateReport(id, updates);
 
-        const { error } = await supabase
-            .from('reports')
-            .update(updates)
-            .eq('id', id);
+        if (!updatedReport) {
+             return NextResponse.json({ error: 'Report not found or update failed' }, { status: 404 });
+        }
 
-        if (error) throw error;
-
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, data: updatedReport });
     } catch (error) {
         console.error('Error updating report:', error);
         return NextResponse.json({ error: 'Gagal mengupdate laporan' }, { status: 500 });

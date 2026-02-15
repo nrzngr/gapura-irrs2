@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import { normalizeQuery, normalizeVisualization } from '@/lib/builder/normalization';
-
-// AI Configuration
-const AI_API_KEY = process.env.GROQ_API_KEY;
-const AI_BASE_URL = 'https://api.groq.com/openai/v1';
-const AI_MODEL = 'llama-3.1-8b-instant';
+import { callAI } from '@/lib/ai/openrouter';
 import { TABLES, JOINS, getFieldDef } from '@/lib/builder/schema';
 import type { DashboardDefinition, DashboardTile } from '@/types/builder';
 
@@ -30,141 +25,228 @@ function buildSchemaContext(): string {
   return `DATABASE SCHEMA:\n\n${tableDescriptions}\n\nAVAILABLE JOINS:\n${joinDescriptions}`;
 }
 
-/** Query real DB to get actual distinct values and distributions */
+import { reportsService } from '@/lib/services/reports-service';
+
+/** Query Google Sheets to get actual distinct values and distributions */
 async function buildDataContext(): Promise<string> {
   try {
-    const { data: summaryData } = await supabaseAdmin.rpc('run_analytics_query', {
-      query_text: `SELECT
-        COUNT(*) as total_reports,
-        MIN(created_at)::text as earliest_date,
-        MAX(created_at)::text as latest_date
-      FROM reports`,
-      query_params: [],
-    });
-
-    const { data: distData } = await supabaseAdmin.rpc('run_analytics_query', {
-      query_text: `
-        SELECT 'main_category' as field, main_category as value, COUNT(*)::int as cnt FROM reports GROUP BY main_category
-        UNION ALL SELECT 'sub_category', sub_category, COUNT(*)::int FROM reports GROUP BY sub_category
-        UNION ALL SELECT 'area', area, COUNT(*)::int FROM reports GROUP BY area
-        UNION ALL SELECT 'target_division', target_division, COUNT(*)::int FROM reports GROUP BY target_division
-        UNION ALL SELECT 'severity', severity, COUNT(*)::int FROM reports GROUP BY severity
-        UNION ALL SELECT 'status', status, COUNT(*)::int FROM reports GROUP BY status
-        UNION ALL SELECT 'hub', hub, COUNT(*)::int FROM reports WHERE hub IS NOT NULL GROUP BY hub
-        UNION ALL SELECT 'airline_type', airline_type, COUNT(*)::int FROM reports WHERE airline_type IS NOT NULL GROUP BY airline_type
-        UNION ALL SELECT 'airline', airline, COUNT(*)::int FROM reports WHERE airline IS NOT NULL GROUP BY airline
-        UNION ALL SELECT 'branch', branch, COUNT(*)::int FROM reports WHERE branch IS NOT NULL GROUP BY branch
-        ORDER BY field, cnt DESC
-      `,
-      query_params: [],
-    });
-
-    const summary = Array.isArray(summaryData) && summaryData[0] ? summaryData[0] : {};
-    const distributions = Array.isArray(distData) ? distData : [];
-
-    // Group distributions by field
-    const grouped: Record<string, { value: string; cnt: number }[]> = {};
-    for (const row of distributions) {
-      const f = String(row.field);
-      if (!grouped[f]) grouped[f] = [];
-      grouped[f].push({ value: String(row.value), cnt: Number(row.cnt) });
+    const reports = await reportsService.getReports();
+    
+    if (reports.length === 0) {
+        return '\n(Tidak ada data laporan ditemukan)\n';
     }
 
-    let context = `\nDATA AKTUAL DARI DATABASE (gunakan ini untuk akurasi):\n`;
-    context += `- Total laporan: ${summary.total_reports || 0}\n`;
-    context += `- Rentang tanggal: ${summary.earliest_date || '?'} s/d ${summary.latest_date || '?'}\n\n`;
+    // Summary
+    const total_reports = reports.length;
+    // Sort by date to find range
+    const sortedDates = reports
+        .map(r => r.date_of_event || r.created_at)
+        .filter(d => d)
+        .sort();
+    const earliest_date = sortedDates[0] || '?';
+    const latest_date = sortedDates[sortedDates.length - 1] || '?';
 
-    for (const [field, values] of Object.entries(grouped)) {
-      context += `Field "${field}" — distribusi aktual:\n`;
-      for (const v of values) {
-        context += `  "${v.value}": ${v.cnt} laporan\n`;
+    // Distributions
+    const fieldsToAnalyze = [
+        'category', 'area', 'target_division', 'severity', 'status', 
+        'hub', 'jenis_maskapai', 'airlines', 'branch', 'station_code',
+        'terminal_area_category', 'apron_area_category', 'general_category',
+        'incident_type_id', 'root_caused',
+        'kode_cabang', 'kode_hub', 'maskapai_lookup', 'lokal_mpa_lookup'
+    ];
+    
+    const grouped: Record<string, Record<string, number>> = {};
+    
+    fieldsToAnalyze.forEach(field => {
+        grouped[field] = {};
+    });
+
+    reports.forEach(r => {
+        fieldsToAnalyze.forEach(field => {
+            // @ts-ignore
+            let val = r[field] || r[field === 'category' ? 'main_category' : '']; // Fallback for aliases
+            if (val) {
+                val = String(val);
+                grouped[field][val] = (grouped[field][val] || 0) + 1;
+            }
+        });
+    });
+
+    let context = `\nDATA AKTUAL DARI GOOGLE SHEETS (gunakan ini untuk akurasi):\n`;
+    context += `- Total laporan: ${total_reports}\n`;
+    context += `- Rentang tanggal: ${earliest_date} s/d ${latest_date}\n\n`;
+
+    for (const field of fieldsToAnalyze) {
+      const dist = grouped[field];
+      const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 20); // Top 20
+      
+      if (entries.length > 0) {
+          context += `Field "${field}" — distribusi aktual (Top 20):\n`;
+          for (const [val, count] of entries) {
+            context += `  "${val}": ${count} laporan\n`;
+          }
+          context += '\n';
       }
-      context += '\n';
     }
 
     return context;
   } catch (err) {
     console.error('Failed to build data context:', err);
-    return '\n(Gagal mengambil data konteks dari database)\n';
+    return '\n(Gagal mengambil data konteks dari Google Sheets)\n';
   }
 }
 
 function buildSystemPrompt(dataContext: string): string {
-  return `<IDENTITY>
-You are an Elite Aviation Operations Intel Lead and Senior Data Architect for Gapura Angkasa.
-Your DNA is a fusion of a Principal Data Scientist and a world-class Aviation Safety Auditor. 
-You don't just "build charts"; you design **Dynamic Operational Nervous Systems** that predict bottlenecks and visualize hidden risks in Ground Handling.
-</IDENTITY>
+  return `<SYSTEM_PROMPT>
+  <IDENTITY>
+    <ROLE>Senior Principal Data Architect & Visualization Engineer</ROLE>
+    <AFFILIATION>Gapura Angkasa (Aviation Ground Handling)</AFFILIATION>
+    <OBJECTIVE>Transform raw operational data into a high-fidelity, zero-error executive dashboard.</OBJECTIVE>
+  </IDENTITY>
 
-<COGNITIVE_REASONING>
-Before outputting JSON, you must internally perform a multi-dimensional analysis:
-1. IDENTIFY: Scan for anomalies in ${dataContext}. Look for variances > 20% from the mean.
-2. CORRELATE: Connect Volume to Severity. Connect Airline type to Status resolution.
-3. PRIORITIZE: Rank findings by "Operational Risk" (Safety > Compliance > SLA > Efficiency).
-4. PLAN: Architect a narrative flow for the 5-page dashboard that leads an executive from "What happened" to "Why it happened" to "What to do next".
-</COGNITIVE_REASONING>
-
-<DOMAIN_INTELLIGENCE_LAYER>
-- SLA CRITICALITY: "Status" indicates workflow health. Focus on unresolved irregularities.
-- SAFETY VECTOR: "Severity" and "Main Category" (Irregularity) are leading indicators of ground safety risk.
-- OPERATIONAL LOAD: "Area", "Target Division", and "Hub" represent resource pressure points.
-- FLEET ANALYTICS: "Airline" and "Airline Type" (Lokal vs MPA) reveal business partnership patterns.
-</DOMAIN_INTELLIGENCE_LAYER>
-
-<CORE_CONSTRAINTS>
-6. BRANDING: Exclusively use the provided Green palette for all tiles.
-7. SORTING SAFETY: NEVER sort (ORDER BY) by a raw field (like "id") if using dimensions/measures. Always sort by the alias of a dimension or measure.
-</CORE_CONSTRAINTS>
-
-<SCHEMA_CONTEXT>
+  <CONTEXT>
+    <SCHEMA_DEFINITION>
 ${buildSchemaContext()}
-</SCHEMA_CONTEXT>
+    </SCHEMA_DEFINITION>
+    
+    <BUSINESS_DOMAINS>
+      The system operates across 3 main Areas:
+      1. APRON: Airside operations, ramp handling, GSE (Ground Support Equipment).
+      2. TERMINAL: Landside operations, passenger handling, check-in, boarding.
+      3. GENERAL: General administration, support services, non-operational areas.
 
-<VISUALIZATION_MATRIX>
-| Analysis Case | Dimensions | Measures | Recommended Chart |
-| :--- | :--- | :--- | :--- |
-| Core KPI | None | 1 | kpi (Use sparingly) |
-| Performance Trend | 1 (Temporal) | 1-2 | line / area |
-| Pareto Analysis | 1 (Categoric) | 1 | bar / donut / pie |
-| Cross-Dimensional IQ| 2 (Categoric) | 1 | heatmap (MANDATORY for X vs Y) |
-| Structural Audit | 4-8 | None | table (Limit 50 rows) |
-</VISUALIZATION_MATRIX>
+      SPECIAL INSTRUCTION FOR CARGO (CGO):
+      - Cargo Ground Operations (CGO) reports are explicitly tagged.
+      - You MUST filter using the 'source_sheet' field.
+      - For CGO: filters: [{ field: 'source_sheet', operator: 'eq', value: 'CGO' }]
+      - For NON-CARGO: filters: [{ field: 'source_sheet', operator: 'neq', value: 'CGO' }]
+    </BUSINESS_DOMAINS>
 
-<ANALYTICAL_HEURISTICS>
-- USE HEATMAPS EXCLUSIVELY for any "Breakdown X per Y" (e.g., Category per Airline, Severity per Area). This is your primary diagnostic tool.
-- USE HORIZONTAL BAR for any dimension with labels > 15 chars (Sub-category, specific Airline names).
-- COMPACT MODE: If a tile width is < 4, simplify the chart logic.
-- NO HALLUCINATIONS: Use ONLY the enum values provided in the Data Grounding section.
-</ANALYTICAL_HEURISTICS>
+    <DATA_SNAPSHOT>
+${dataContext}
+    </DATA_SNAPSHOT>
+  </CONTEXT>
 
-<DASHBOARD_BLUEPRINT>
-1. PAGE 1: **"Operational Pulse"** (Overview). Focus on realtime health.
-2. PAGE 2: **"Risk & Safety Diagnostics"** (Severity vs Area/Category). Focus on Heatmaps.
-3. PAGE 3: **"Partner & Airline Performance"** (SLA by Carrier). Identify underperformers.
-4. PAGE 4: **"Infrastructure Load"** (Hub/Branch efficiency). Focus on resource allocation.
-5. PAGE 5: **"Evidence & Audit Trail"** (Table view). Transparency for incident response.
-</DASHBOARD_BLUEPRINT>
+  <PROTOCOLS>
+    <PROTOCOL id="SCHEMA_COMPLIANCE" priority="CRITICAL">
+      You MUST use ONLY fields explicitly defined in <SCHEMA_DEFINITION>. 
+      Hallucinating column names (e.g., 'revenue', 'profit', 'monthly_compliments', 'total_reports', 'jumlah_data') is STRICTLY FORBIDDEN.
+      
+      CRITICAL TABLE NAME RULE:
+      - The main table is named "reports".
+      - You MUST set "table": "reports" for all dimensions and measures coming from the main dataset.
+      - NEVER use "data", "data_sample", "raw_data", "dataset", "compliments", "laporan_bulanan", or any other alias.
+      - Queries with incorrect table names will be REJECTED immediately.
+      
+      CRITICAL FIELD RULE:
+      - To count total reports, use: {"table": "reports", "field": "id", "function": "COUNT", "alias": "total_reports"}
+      - NEVER invent fields like "total_laporan", "jumlah", "count", "record_count", "monthly_compliments". They do not exist.
+      - ALWAYS use "id" for counting rows.
+      - If you want to group by month, use "date_of_event" with "dateGranularity": "month".
+    </PROTOCOL>
 
-<OUTPUT_FORMAT>
-Return ONLY a valid JSON object. No markdown backticks.
-{
-  "name": "Dashboard Title",
-  "description": "Strategic metadata",
-  "pages": [
-    {
-      "name": "Logical Page Name",
-      "tiles": [
-        {
-          "id": "slug",
-          "query": QueryDefinition,
-          "visualization": ChartVisualization,
-          "layout": {"x": 0, "y": 0, "w": 6, "h": 2}
-        }
-      ]
-    }
-  ]
-}
-</OUTPUT_FORMAT>`;
+    <PROTOCOL id="MULTI_PAGE_STRUCTURE" priority="HIGH">
+      - If the user request implies a broad overview or multiple topics, YOU MUST CREATE MULTIPLE PAGES.
+      - Structure pages logically:
+        Page 1: "Executive Summary" (KPIs, high-level trends).
+        Page 2: "Operational Detail" (Breakdowns by station, airline, area).
+        Page 3: "Root Cause Analysis" (Deep dive into problems).
+      - Do NOT cram everything into one page.
+    </PROTOCOL>
+    
+    <PROTOCOL id="DATA_DRIVEN_DESIGN" priority="HIGH">
+      Analyze <DATA_SNAPSHOT> before selecting charts. 
+      - If a field has only 1 distinct value, DO NOT use it as a dimension for comparison.
+      - If a field has > 20 distinct values, ALWAYS use 'horizontal_bar' or 'table'.
+    </PROTOCOL>
+    
+    <PROTOCOL id="VISUAL_INTEGRITY" priority="HIGH">
+      - Titles must be business-relevant (e.g., "Top 10 Airlines by Incident Volume").
+      - Colors must use the provided Green palette.
+      - Sort order must be explicitly defined (Metric DESC for rankings, Time ASC for trends).
+      - CRITICAL: Charts like 'bar', 'line', 'pie', 'donut' MUST HAVE A DIMENSION. 
+        - Example WRONG: Bar chart with Measure=Count, Dimension=[]. Result: Single bar (Useless).
+        - Example CORRECT: Bar chart with Measure=Count, Dimension=['station_code']. Result: Bar per station.
+    </PROTOCOL>
+  </PROTOCOLS>
+
+  <CHART_LOGIC>
+    <RULE type="TIME_SERIES">
+      <CONDITION>X-axis is a Date/Time field</CONDITION>
+      <ACTION>Use 'line' or 'area' (if >12 points) OR 'bar' (if <=12 points).</ACTION>
+    </RULE>
+    
+    <RULE type="CATEGORICAL_RANKING">
+      <CONDITION>Comparing volumes across categories</CONDITION>
+      <ACTION>
+        - IF items > 8 OR labels > 12 chars: Use 'horizontal_bar'.
+        - IF items <= 8: Use 'bar' or 'donut'.
+      </ACTION>
+    </RULE>
+    
+    <RULE type="COMPOSITION">
+      <CONDITION>Showing part-to-whole (e.g., Status distribution)</CONDITION>
+      <ACTION>Use 'donut' or 'pie' (Max 5 slices). Use 'horizontal_bar' for more.</ACTION>
+    </RULE>
+    
+    <RULE type="CORRELATION">
+      <CONDITION>Analyzing Metric by 2 Dimensions (e.g., Airline vs Issue Type)</CONDITION>
+      <ACTION>Use 'heatmap' or 'pivot'.</ACTION>
+    </RULE>
+    
+    <RULE type="KPI">
+      <CONDITION>Single aggregate number needed</CONDITION>
+      <ACTION>Use 'kpi'.</ACTION>
+    </RULE>
+
+    <RULE type="MANDATORY_DIMENSION">
+      <CONDITION>Chart is NOT 'kpi'</CONDITION>
+      <ACTION>
+        You MUST provide at least one DIMENSION. 
+        If comparing "by Station", use dimension "station_code" or "branch".
+        If comparing "by Airline", use dimension "airlines".
+      </ACTION>
+    </RULE>
+  </CHART_LOGIC>
+
+  <OUTPUT_SPECIFICATION>
+    <FORMAT>JSON</FORMAT>
+    <CONSTRAINT>Return ONLY a single valid JSON object. No markdown backticks.</CONSTRAINT>
+    <STRUCTURE>
+      {
+        "name": "Dashboard Title",
+        "description": "Executive summary of insights.",
+        "pages": [
+          {
+            "name": "Page Name",
+            "tiles": [
+              {
+                "id": "unique_slug",
+                "query": {
+                  "source": "reports",
+                  "measures": [{"table": "reports", "field": "id", "function": "COUNT", "alias": "total_reports"}],
+                  "dimensions": [{"table": "reports", "field": "category", "alias": "category"}],
+                  "sorts": [{"field": "total_reports", "direction": "desc"}],
+                  "limit": 10,
+                  "filters": []
+                },
+                "visualization": {
+                  "chartType": "horizontal_bar",
+                  "title": "Reports by Category",
+                  "xAxis": "category",
+                  "yAxis": ["total_reports"],
+                  "showLegend": false,
+                  "showLabels": true
+                },
+                "layout": {"x": 0, "y": 0, "w": 6, "h": 2}
+              }
+            ]
+          }
+        ]
+      }
+    </STRUCTURE>
+  </OUTPUT_SPECIFICATION>
+</SYSTEM_PROMPT>`;
 }
 
 // Green color palettes matching Gapura branding
@@ -227,6 +309,60 @@ function processTile(tile: DashboardTile, idx: number): DashboardTile {
   if (!tile.query.joins) tile.query.joins = [];
   if (!tile.query.dimensions) tile.query.dimensions = [];
   if (!tile.query.measures) tile.query.measures = [];
+  
+  // FIX: Hallucination correction
+   // AI sometimes invents table names like "laporan_bulanan", "monthly_reports", "compliments", etc.
+   // We must map them back to "reports".
+   const VALID_TABLES = new Set(TABLES.map(t => t.name));
+   
+   const fixTable = (t: string | undefined) => {
+     if (!t) return 'reports';
+     // If it's a valid table, keep it
+     if (VALID_TABLES.has(t)) return t;
+     
+     // Otherwise, apply heuristic to map to 'reports'
+     const lower = t.toLowerCase();
+     if (lower.includes('laporan') || lower.includes('report') || lower.includes('data') || lower.includes('bulanan') || lower.includes('compliment')) {
+        // Special case: report_logs and report_comments are valid but might be caught here if not in VALID_TABLES (which they are)
+        return 'reports';
+     }
+     
+     // Default fallback for unknown tables in this context is usually 'reports'
+     return 'reports'; 
+   };
+
+   // FIX: Hallucinated fields
+   // "total_reports" is not a real field. If we see it in a count, map to 'id'.
+   const fixField = (f: string, func?: string) => {
+     if (f === 'total_reports' || f === 'jumlah_laporan' || f === 'total' || f === 'total_laporan' || f === 'jumlah' || f === 'jumlah_data' || f === 'monthly_compliments' || f === 'compliments_count' || f === 'total_compliments') return 'id';
+     return f;
+   };
+
+   if (tile.query.dimensions) {
+     tile.query.dimensions.forEach(d => {
+       d.table = fixTable(d.table);
+       // Also fix dimension fields if needed
+       if (d.field === 'bulan' || d.field === 'month') {
+          // AI might try to use 'bulan' as a field on 'reports' which doesn't exist directly but is a virtual field
+          // The query processor handles virtual fields 'month', 'year', etc. if they are requested.
+          // But we should ensure consistency.
+          if (d.field === 'bulan') d.field = 'month';
+       }
+     });
+   }
+
+   if (tile.query.measures) {
+     tile.query.measures.forEach(m => {
+       m.table = fixTable(m.table);
+       const originalField = m.field;
+       m.field = fixField(m.field, m.function);
+
+       // If we mapped to 'id' (meaning it was a count-like hallucination), ensure function is COUNT
+       if (m.field === 'id' && (originalField !== 'id' || m.function === 'SUM')) {
+           m.function = 'COUNT';
+       }
+     });
+   }
   
   // Standardize query normalization (Shared logic)
   tile.query = normalizeQuery(tile.query);
@@ -345,39 +481,13 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(dataContext);
 
     // Call AI API
-    if (!AI_API_KEY) {
-      return NextResponse.json({ error: 'AI API key belum dikonfigurasi' }, { status: 500 });
-    }
-
     let content;
 
     try {
-      const aiResponse = await fetch(`${AI_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prompt },
-          ],
-          max_tokens: 8000,
-          stream: false,
-          response_format: { type: "json_object" }
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error('AI API error:', errorText);
-        throw new Error(`AI API error: ${aiResponse.status}`);
-      }
-
-      const completion = await aiResponse.json() as { choices?: { message?: { content?: string } }[] };
-      content = completion.choices?.[0]?.message?.content;
+      content = await callAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ]);
     } catch (error) {
        console.error('AI API error:', error);
        return NextResponse.json(
@@ -426,69 +536,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert into database
-    const { data: dbDashboard, error: insertError } = await supabaseAdmin
-      .from('custom_dashboards')
-      .insert({
-        name: dashboard.name || 'Dashboard Tanpa Nama',
-        description: dashboard.description || 'Dihasilkan oleh AI',
-        slug: `ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        config: {
-          pages: dashboard.pages?.map(p => p.name) || ['Ringkasan Umum'],
-        },
-      })
-      .select()
-      .single();
-
-    if (insertError || !dbDashboard) {
-      console.error('Failed to insert dashboard:', insertError);
-      return NextResponse.json({ error: 'Gagal menyimpan dashboard' }, { status: 500 });
-    }
-
-    const allTiles = (dashboard.pages || []).flatMap((page) => 
-      (page.tiles || []).map((tile, tidx) => ({
-        dashboard_id: dbDashboard.id,
-        title: tile.visualization?.title || 'Untitled Chart',
-        chart_type: tile.visualization?.chartType || 'bar',
-        data_field: 'ai_custom', // Required by schema
-        query_config: tile.query,
-        visualization_config: tile.visualization,
-        layout: tile.layout,
-        position: tidx,
-        page_name: page.name,
-        _tileId: tile.id // Temp ID for deduplication
-      }))
-    );
-
-    // DEDUPLICATE tiles by their unique ID before inserting
-    const seenTileIds = new Set<string>();
-    const uniqueTiles = allTiles.filter(t => {
-      if (seenTileIds.has(t._tileId)) return false;
-      seenTileIds.add(t._tileId);
-      return true;
-    }).map((t) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { _tileId, ...rest } = t;
-      return rest;
-    }); // Remove temp ID before insert
-
-    if (uniqueTiles.length > 0) {
-      const { error: tileError } = await supabaseAdmin
-        .from('dashboard_charts')
-        .insert(uniqueTiles);
-      
-      if (tileError) {
-        console.error('Failed to insert tiles:', tileError);
-      }
-    } else {
-      console.warn('[AI Generate] No unique tiles to insert after deduplication');
-    }
+    // Return the dashboard definition directly without saving to Supabase
+    // This allows the frontend to load it into the builder for review/editing
+    const generatedId = `ai-${Date.now()}`;
+    const generatedSlug = `ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     return NextResponse.json({ 
       dashboard: {
         ...dashboard,
-        id: dbDashboard.id,
-        slug: dbDashboard.slug
+        id: generatedId,   // Temporary ID
+        slug: generatedSlug // Temporary Slug
       } 
     });
   } catch (err) {

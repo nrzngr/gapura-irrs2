@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Report } from '@/types';
+import { clientReportsService } from '@/lib/services/client-reports-service';
 
 interface UseReportsOptions {
     endpoint?: string;
@@ -19,36 +20,30 @@ interface UseReportsReturn {
 
 /**
  * useReports - Centralized hook for report fetching and status updates
- * Eliminates duplicate fetchReports/handleUpdateStatus logic across dashboards
- * Complexity: Time O(n) for fetch | Space O(n) for storing reports
+ * Uses ClientReportsService for caching and offline support.
  */
 export function useReports(options: UseReportsOptions = {}): UseReportsReturn {
-    const { endpoint = '/api/reports' } = options;
+    const { autoFetch = true } = options;
     
     const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(autoFetch);
     const [error, setError] = useState<string | null>(null);
 
     const fetchReports = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(endpoint);
-            if (res.ok) {
-                const data = await res.json();
-                setReports(Array.isArray(data) ? data : []);
-            } else {
-                setError('Failed to fetch reports');
-                setReports([]);
-            }
+            // Use client service which handles caching
+            const data = await clientReportsService.getReports();
+            setReports(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Fetch error:', err);
-            setError('Network error');
-            setReports([]);
+            setError('Failed to load reports. Using cached data if available.');
+            // Even on error, we might have stale data from service fallback
         } finally {
             setLoading(false);
         }
-    }, [endpoint]);
+    }, []);
 
     const updateStatus = useCallback(async (reportId: string, action: string): Promise<boolean> => {
         try {
@@ -59,6 +54,8 @@ export function useReports(options: UseReportsOptions = {}): UseReportsReturn {
             });
             
             if (res.ok) {
+                // Invalidate cache and refetch
+                clientReportsService.clearCache(); // Or optimistic update
                 await fetchReports();
                 return true;
             } else {
@@ -72,6 +69,12 @@ export function useReports(options: UseReportsOptions = {}): UseReportsReturn {
         }
     }, [fetchReports]);
 
+    useEffect(() => {
+        if (autoFetch) {
+            fetchReports();
+        }
+    }, [autoFetch, fetchReports]);
+
     return {
         reports,
         loading,
@@ -84,7 +87,6 @@ export function useReports(options: UseReportsOptions = {}): UseReportsReturn {
 
 /**
  * mapStatusToAction - Maps status string to API action
- * Complexity: Time O(1) | Space O(1)
  */
 export function mapStatusToAction(status: string): string | null {
     const actionMap: Record<string, string> = {

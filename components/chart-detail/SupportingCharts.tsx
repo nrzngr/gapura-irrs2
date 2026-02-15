@@ -87,6 +87,9 @@ export function SupportingCharts({ charts, dataMap, loading }: SupportingChartsP
         <h3 className="text-[10px] font-bold text-[#6b8e3d] uppercase tracking-[0.1em]">
           Eksplorasi Pendukung
         </h3>
+        <span className="ml-2 text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+          ✨ Dibuat oleh AI
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

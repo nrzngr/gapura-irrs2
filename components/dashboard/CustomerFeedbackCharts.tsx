@@ -173,16 +173,16 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 const apiFilters: QueryFilter[] = [];
                 if (filters.hub !== 'all') apiFilters.push({ table: 'reports', field: 'hub', operator: 'eq' as FilterOperator, value: filters.hub, conjunction: 'AND' as FilterConjunction });
                 if (filters.branch !== 'all') apiFilters.push({ table: 'reports', field: 'branch', operator: 'eq' as FilterOperator, value: filters.branch, conjunction: 'AND' as FilterConjunction });
-                if (filters.airlines !== 'all') apiFilters.push({ table: 'reports', field: 'airline', operator: 'eq' as FilterOperator, value: filters.airlines, conjunction: 'AND' as FilterConjunction });
-                if (filters.maskapai !== 'all') apiFilters.push({ table: 'reports', field: 'airline_type', operator: 'eq' as FilterOperator, value: filters.maskapai, conjunction: 'AND' as FilterConjunction });
-                if (filters.category !== 'all') apiFilters.push({ table: 'reports', field: 'main_category', operator: 'eq' as FilterOperator, value: filters.category, conjunction: 'AND' as FilterConjunction });
+                if (filters.airlines !== 'all') apiFilters.push({ table: 'reports', field: 'airlines', operator: 'eq' as FilterOperator, value: filters.airlines, conjunction: 'AND' as FilterConjunction });
+                if (filters.maskapai !== 'all') apiFilters.push({ table: 'reports', field: 'jenis_maskapai', operator: 'eq' as FilterOperator, value: filters.maskapai, conjunction: 'AND' as FilterConjunction });
+                if (filters.category !== 'all') apiFilters.push({ table: 'reports', field: 'category', operator: 'eq' as FilterOperator, value: filters.category, conjunction: 'AND' as FilterConjunction });
                 if (filters.area !== 'all') apiFilters.push({ table: 'reports', field: 'area', operator: 'eq' as FilterOperator, value: filters.area, conjunction: 'AND' as FilterConjunction });
 
                 // 1. Case Category Donut
                 const caseCategoryQuery: QueryDefinition = {
                     source: 'reports',
                     joins: [],
-                    dimensions: [{ table: 'reports', field: 'main_category', alias: 'name' }],
+                    dimensions: [{ table: 'reports', field: 'category', alias: 'name' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
                     sorts: [],
@@ -203,7 +203,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 const airlinesQuery: QueryDefinition = {
                     source: 'reports',
                     joins: [],
-                    dimensions: [{ table: 'reports', field: 'airline', alias: 'name' }],
+                    dimensions: [{ table: 'reports', field: 'airlines', alias: 'name' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
                     sorts: [{ field: 'value', direction: 'desc' }],

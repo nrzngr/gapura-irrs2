@@ -21,6 +21,7 @@ const REPORT_CATEGORIES = [
 const AREA_OPTIONS = [
     { id: 'TERMINAL', label: 'Terminal Area' },
     { id: 'APRON', label: 'Apron Area' },
+    { id: 'CARGO', label: 'Cargo Area' },
     { id: 'GENERAL', label: 'General' },
 ];
 
@@ -46,6 +47,15 @@ const AREA_CATEGORIES: Record<string, string[]> = {
         'Cleanliness of GSE',
         'Prompt Service and Certainty',
         'Specific Needs of Customers',
+        'Other'
+    ],
+    'CARGO': [
+        'Acceptance',
+        'Build Up',
+        'Break Down',
+        'Delivery',
+        'Documentation',
+        'Storage/Warehousing',
         'Other'
     ],
     'GENERAL': ['Other']
@@ -85,7 +95,7 @@ type FormData = {
     area: string;
 
     // Step 3: Area Category
-    area_category: string;
+    area_category: string; // Maps to incident_type_id and specific area columns
 
     // Step 4: Report Details
     description: string; // "Report"
@@ -243,17 +253,26 @@ export default function NewReportWizard() {
                     ...formData,
                     title: `${formData.airline} ${formData.flight_number} - ${formData.main_category}`,
                     station_id: selectedStationId,
-                    sub_category: formData.area_category,
+                    category: formData.main_category,
                     // New CSV-aligned fields
                     station_code: stationCode,
                     hub: getHubForStation(stationCode),
-                    airline_type: getAirlineType(formData.airline),
-                    report_content: formData.description,
+                    jenis_maskapai: getAirlineType(formData.airline),
+                    report: formData.description,
                     reporting_branch: stationCode,
                     week_in_month: getWeekInMonth(eventDate),
                     reporter_email: undefined,
                     form_submitted_at: new Date().toISOString(),
                     form_completed_at: new Date().toISOString(),
+                    
+                    // Explicitly pass area info for sheet routing
+                    area: formData.area,
+                    incident_type_id: formData.area_category, // Main category column
+                    
+                    // Pass area_category to be mapped to specific columns in backend
+                    terminal_area_category: formData.area === 'TERMINAL' ? formData.area_category : undefined,
+                    apron_area_category: formData.area === 'APRON' ? formData.area_category : undefined,
+                    general_category: (formData.area === 'GENERAL' || formData.area === 'CARGO') ? formData.area_category : undefined,
                 }),
             });
 

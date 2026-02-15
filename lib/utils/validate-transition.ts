@@ -5,7 +5,7 @@ import type { UserRole } from '@/types';
  * Status transition rules per role
  * Only ANALYST and SUPER_ADMIN can change statuses
  */
-const TRANSITION_RULES: Record<ReportStatus, Partial<Record<UserRole, ReportStatus[]>>> = {
+const TRANSITION_RULES: Partial<Record<ReportStatus, Partial<Record<UserRole, ReportStatus[]>>>> = {
     MENUNGGU_FEEDBACK: {
         ANALYST: ['SUDAH_DIVERIFIKASI'],
         SUPER_ADMIN: ['SUDAH_DIVERIFIKASI'],

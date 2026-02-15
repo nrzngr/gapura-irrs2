@@ -117,7 +117,14 @@ export function useDashboardState() {
   const loadDashboard = useCallback((def: DashboardDefinition) => {
     setName(def.name);
     setDescription(def.description || '');
-    setTiles(def.tiles);
+    
+    // Robustly handle tiles from pages if top-level tiles are missing
+    let allTiles = def.tiles || [];
+    if (allTiles.length === 0 && def.pages && def.pages.length > 0) {
+       allTiles = def.pages.flatMap(p => p.tiles || []);
+    }
+    
+    setTiles(allTiles);
     setPages(def.pages || []);
     setGlobalFilters(def.globalFilters || []);
   }, []);

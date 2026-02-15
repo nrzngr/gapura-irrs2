@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { REPORT_STATUS } from '@/lib/constants/report-status';
+import { reportsService } from '@/lib/services/reports-service';
 
 // GET reports for an employee
 export async function GET() {
@@ -19,20 +20,40 @@ export async function GET() {
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
 
-        const { data, error } = await supabase
-            .from('reports')
-            .select(`
-        *,
-        incident_types:incident_type_id (name),
-        stations:station_id (code, name),
-        locations:location_id (name, area)
-      `)
-            .eq('user_id', payload.id)
-            .order('created_at', { ascending: false });
+        // Fetch reports from Google Sheets
+        const reports = await reportsService.getReports(payload.id);
 
-        if (error) throw error;
+        // Fetch related data from Supabase for manual join
+        // We fetch all needed reference data once
+        // Note: In a real app with many records, we would optimize this
+        const { data: stations } = await supabase.from('stations').select('id, code, name');
+        const { data: incidentTypes } = await supabase.from('incident_types').select('id, name');
+        const { data: locations } = await supabase.from('locations').select('id, name, area');
 
-        return NextResponse.json(data);
+        // Manual Join
+        const enrichedReports = reports.map(report => {
+            const station = stations?.find(s => s.id === report.station_id) || 
+                            stations?.find(s => s.code === report.branch) || // Fallback to matching by code
+                            stations?.find(s => s.code === report.station_code);
+            
+            const incidentType = incidentTypes?.find(t => t.id === report.incident_type_id);
+            const location = locations?.find(l => l.id === report.location_id);
+            
+            // Fallback for incident type name (from CSV string if ID lookup fails)
+            const incidentTypeName = incidentType?.name || report.irregularity_complain_category;
+
+            return {
+                ...report,
+                stations: station ? { code: station.code, name: station.name } : null,
+                incident_types: incidentTypeName ? { name: incidentTypeName } : null,
+                locations: location ? { name: location.name, area: location.area } : null,
+                // Ensure we return these objects as expected by frontend
+                station: station ? { id: station.id, code: station.code, name: station.name } : undefined,
+                incident_type: incidentTypeName ? { id: incidentType?.id || 'manual', name: incidentTypeName, default_severity: 'low' } : undefined
+            };
+        });
+
+        return NextResponse.json(enrichedReports);
     } catch (error) {
         console.error('Error fetching reports:', error);
         return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });
@@ -103,69 +124,65 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Judul dan deskripsi wajib diisi' }, { status: 400 });
         }
 
-        // Get user's station and unit from their profile
+        // Get user's station and unit from their profile (Supabase)
         const { data: userData } = await supabase
             .from('users')
             .select('station_id, unit_id')
             .eq('id', payload.id)
             .single();
 
-        const { error: insertError } = await supabase
-            .from('reports')
-            .insert({
-                user_id: payload.id,
-                title,
-                description,
-                location: location || null,
-                station_id: station_id || userData?.station_id || null,
-                unit_id: userData?.unit_id || null,
-                location_id: location_id || null,
-                incident_type_id: incident_type_id || null,
-                severity: severity || 'low',
-                flight_number: flight_number || null,
-                aircraft_reg: aircraft_reg || null,
-                gse_number: gse_number || null,
-                evidence_url: evidence_url || (evidence_urls && evidence_urls.length > 0 ? evidence_urls[0] : null),
-                evidence_urls: evidence_urls || (evidence_url ? [evidence_url] : []) || [],
-                evidence_meta: evidence_meta || null,
-                status: REPORT_STATUS.MENUNGGU_FEEDBACK,
-                // Insert new fields
-                incident_date: incident_date || null,
-                incident_time: incident_time || null,
-                area: area || null,
-                specific_location: specific_location || null,
-                main_category: main_category || null,
-                sub_category: sub_category || null,
-                immediate_action: immediate_action || null,
-                priority: priority || 'medium', // Default to medium if not provided
-                is_flight_related: is_flight_related || false,
-                is_gse_related: is_gse_related || false,
-                // Insert New Fields
-                airline: airline || null,
-                route: route || null,
-                root_cause: root_cause || null,
-                action_taken: action_taken || null,
-                reporter_name: reporter_name || null,
-                area_category: area_category || null,
-                category: main_category || null,
-                // CSV-aligned fields
-                station_code: station_code || null,
-                hub: hub || null,
-                airline_type: airline_type || null,
-                report_content: report_content || description || null,
-                reporting_branch: reporting_branch || null,
-                week_in_month: week_in_month || null,
-                reporter_email: reporter_email || null,
-                form_submitted_at: form_submitted_at || null,
-                form_completed_at: form_completed_at || null,
-            });
+        // Construct report object for Google Sheets
+        const reportData: any = {
+            user_id: payload.id,
+            title,
+            description,
+            location: location || null,
+            station_id: station_id || userData?.station_id || null,
+            unit_id: userData?.unit_id || null,
+            location_id: location_id || null,
+            incident_type_id: incident_type_id || null,
+            severity: severity || 'low',
+            flight_number: flight_number || null,
+            aircraft_reg: aircraft_reg || null,
+            gse_number: gse_number || null,
+            evidence_url: evidence_url || (evidence_urls && evidence_urls.length > 0 ? evidence_urls[0] : null),
+            evidence_urls: evidence_urls || (evidence_url ? [evidence_url] : []) || [],
+            evidence_meta: evidence_meta || null,
+            status: REPORT_STATUS.MENUNGGU_FEEDBACK,
+            // Insert new fields
+            event_date: incident_date || null,
+            incident_time: incident_time || null,
+            area: area || null,
+            specific_location: specific_location || null,
+            category: main_category || null,
+            irregularity_complain_category: sub_category || incident_type_id || null,
+            immediate_action: immediate_action || null,
+            priority: priority || 'medium',
+            is_flight_related: is_flight_related || false,
+            is_gse_related: is_gse_related || false,
+            // Insert New Fields
+            airlines: airline || null,
+            route: route || null,
+            root_caused: root_cause || null,
+            action_taken: action_taken || null,
+            reporter_name: reporter_name || null,
+            // CSV-aligned fields
+            station_code: station_code || null,
+            hub: hub || null,
+            jenis_maskapai: airline_type || null,
+            report: report_content || description || null,
+            reporting_branch: reporting_branch || null,
+            week_in_month: week_in_month || null,
+            reporter_email: reporter_email || null,
+            form_submitted_at: form_submitted_at || null,
+            form_completed_at: form_completed_at || null,
+            // Ensure branch is populated if possible
+            branch: station_code || null, 
+        };
 
-        if (insertError) {
-            console.error('Insert error:', insertError);
-            return NextResponse.json({ error: 'Gagal menyimpan laporan' }, { status: 500 });
-        }
+        const newReport = await reportsService.createReport(reportData);
 
-        return NextResponse.json({ success: true, message: 'Laporan berhasil dikirim' });
+        return NextResponse.json({ success: true, message: 'Laporan berhasil dikirim', data: newReport });
     } catch (error) {
         console.error('Error creating report:', error);
         return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 });
