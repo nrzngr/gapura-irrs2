@@ -92,7 +92,7 @@ export function ResultsPanel({ result, loading, error, chartPreview }: ResultsPa
         {tab === 'table' ? (
           <DataTable columns={result.columns} rows={result.rows} />
         ) : (
-          <div className="p-4 h-full">
+          <div className="p-4 h-full overflow-auto custom-scrollbar">
             {chartPreview}
           </div>
         )}

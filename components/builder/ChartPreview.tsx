@@ -6,7 +6,8 @@ import {
   BarChart, Bar,
   LineChart, Line,
   AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip,
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import type { ChartVisualization, QueryResult, DashboardTile } from '@/types/builder';
 import { CustomPivotTable } from './CustomPivotTable';
@@ -39,29 +40,80 @@ const TOOLTIP_STYLE = {
   boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
 };
 
-function DateTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value: unknown }>; label?: string }) {
+function DateTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ color?: string; name?: string; value: unknown; payload?: any }>; label?: string }) {
   if (!active || !payload?.length) return null;
+  
+  // For Pie/Donut charts, the category name is often in payload[0].name or payload[0].payload.name
+  const title = label || payload[0]?.name || payload[0]?.payload?.name || '';
+  
   return (
     <div style={TOOLTIP_STYLE} className="px-3 py-2">
-      <p className="font-medium mb-1">{typeof label === 'string' && ISO_DATETIME_RE.test(label) ? formatDateValue(label) : String(label)}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color }}>
-          {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString('id-ID') : String(p.value)}
-        </p>
-      ))}
+      <p className="font-medium mb-1 border-b border-gray-100 pb-1">{typeof title === 'string' && ISO_DATETIME_RE.test(title) ? formatDateValue(title) : String(title)}</p>
+      {payload.map((p, i) => {
+        // For Pie charts, we want the measure name (dataKey) as the label, not the slice name (p.name)
+        // If measureDisplayName is provided in the payload, use it.
+        const entryLabel = p.payload?.measureDisplayName || p.name;
+        return (
+          <p key={i} className="flex items-center gap-2 mt-0.5" style={{ color: p.color }}>
+            <span className="opacity-70 text-[10px] uppercase font-bold">{entryLabel}:</span>
+            <span className="font-mono font-bold text-[12px]">{typeof p.value === 'number' ? p.value.toLocaleString('id-ID') : String(p.value)}</span>
+          </p>
+        );
+      })}
     </div>
   );
 }
 
 export function ChartPreview({ visualization, result, compact = false, tile, dashboardId }: ChartPreviewProps) {
-  const { chartType, colorField, showLabels, colors } = visualization;
+  const { colorField, showLabels, colors } = visualization;
+  let { chartType } = visualization;
+  
+  // Normalize chartType - default to 'bar' if not provided or invalid
+  const validChartTypes = ['bar', 'horizontal_bar', 'line', 'area', 'pie', 'donut', 'heatmap', 'table', 'pivot'];
+  if (!chartType || !validChartTypes.includes(chartType)) {
+    console.warn(`[ChartPreview] Invalid or missing chartType: "${chartType}", defaulting to 'bar'`);
+    chartType = 'bar';
+  }
+  
   const palette = (colors && colors.length > 0) ? colors : DEFAULT_COLORS;
   const rawData = result.rows as Record<string, unknown>[];
 
+  // Debug logging
+  console.log('[ChartPreview] Rendering:', {
+    chartType,
+    xAxis: visualization.xAxis,
+    yAxis: visualization.yAxis,
+    rowCount: rawData.length,
+    columns: result.columns,
+    sampleRow: rawData[0]
+  });
+
   if (rawData.length === 0) {
+    console.log('[ChartPreview] No data to display');
     return (
-      <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">
-        Tidak ada data untuk ditampilkan
+      <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center p-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
+          <span className="text-xl">📊</span>
+        </div>
+        <p className="text-[11px] font-bold text-slate-600 uppercase tracking-tight mb-1">Tidak Ada Data</p>
+        <p className="text-[10px] text-slate-400 max-w-[160px] mb-2">Belum ada data tersedia untuk visualisasi "{visualization.title || chartType}" ini.</p>
+        
+        {result.columns.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-1 mt-1 max-w-[200px]">
+            <p className="text-[8px] text-slate-400 w-full mb-1">Kolom tersedia:</p>
+            {result.columns.map(c => (
+              <span key={c} className="px-1.2 py-0.4 bg-slate-200/50 rounded text-[7px] text-slate-500 font-mono">
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+        
+        {compact && (
+          <div className="mt-3 px-2 py-1 bg-slate-100 rounded text-[9px] text-slate-500 font-mono">
+            {chartType}
+          </div>
+        )}
       </div>
     );
   }
@@ -80,10 +132,67 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   let activeXKey = visualization.xAxis || '';
   if (!result.columns.includes(activeXKey)) {
     // Try fuzzy match (case-insensitive or underscore-insensitive)
-    const fuzzyMatch = result.columns.find(c => 
-      c.toLowerCase().replace(/_/g, '') === activeXKey.toLowerCase().replace(/_/g, '')
-    );
-    activeXKey = fuzzyMatch || result.columns[0] || '';
+    const normalizedX = activeXKey.toLowerCase().replace(/[_\s]/g, '');
+    
+    // Use a scoring system for better fuzzy matching
+    const matches = result.columns.map(c => {
+      const normalizedC = c.toLowerCase().replace(/[_\s]/g, '');
+      let score = 0;
+      if (normalizedC === normalizedX) score = 100;
+      else if (normalizedC.startsWith(normalizedX) || normalizedX.startsWith(normalizedC)) score = 80;
+      else if (normalizedC.includes(normalizedX) || normalizedX.includes(normalizedC)) score = 50;
+      
+      // Bonus for name/label columns if the target suggests a name
+      if (normalizedX.includes('name') || normalizedX.includes('label') || normalizedX.includes('kategori')) {
+        if (normalizedC.includes('name') || normalizedC.includes('label') || normalizedC.includes('nama')) score += 10;
+      }
+      
+      // Bonus for date/time columns if the target suggests a trend/time
+      if (normalizedX.includes('date') || normalizedX.includes('time') || normalizedX.includes('bulan') || normalizedX.includes('month') || normalizedX.includes('tren') || normalizedX.includes('period')) {
+        if (normalizedC.includes('date') || normalizedC.includes('time') || normalizedC.includes('tgl') || normalizedC.includes('tanggal') || normalizedC.includes('month') || normalizedC.includes('bulan') || normalizedC.includes('period')) {
+          score += 20;
+        }
+      }
+      
+      return { col: c, score };
+    }).filter(m => m.score > 0).sort((a, b) => b.score - a.score);
+
+    if (matches.length > 0) {
+      activeXKey = matches[0].col;
+    } else {
+      // Fallback: Find first date column, then first string column
+      const firstDateCol = result.columns.find(c => {
+        const val = rawData[0]?.[c];
+        return typeof val === 'string' && ISO_DATETIME_RE.test(val);
+      });
+      
+      const firstStringCol = result.columns.find(c => {
+        const val = rawData[0]?.[c];
+        return typeof val === 'string' && isNaN(Number(val));
+      });
+      
+      activeXKey = firstDateCol || firstStringCol || result.columns[0] || '';
+    }
+  }
+
+  // Self-healing for swapped keys - only swap if both are strings (not numbers)
+  // This is important if the AI accidentally swapped dimensions and measures
+  if (rawData[0] && activeXKey && result.columns.length > 1) {
+    const xVal = rawData[0][activeXKey];
+    const firstOtherCol = result.columns.find(c => c !== activeXKey) || result.columns[1];
+    const otherVal = rawData[0][firstOtherCol];
+    
+    const xIsNumeric = typeof xVal === 'number' || (typeof xVal === 'string' && xVal.trim() !== '' && !isNaN(Number(xVal)));
+    const otherIsString = typeof otherVal === 'string' && (isNaN(Number(otherVal)) || otherVal.trim() === '');
+    
+    if (xIsNumeric && otherIsString) {
+      // Swapping might be needed as X-axis is usually categorical
+      console.log('[ChartPreview] Detected potential swapped keys, attempting swap');
+      // But only swap if it's not a date
+      if (!ISO_DATETIME_RE.test(String(xVal))) {
+        activeXKey = firstOtherCol;
+      }
+    }
   }
 
   const rawY = visualization.yAxis;
@@ -92,29 +201,56 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   // Resilient Y-Axis resolution
   let activeYKeys = rawYArray.filter(y => result.columns.includes(y));
   if (activeYKeys.length === 0) {
-    // Try fuzzy match for Y-axes
-    activeYKeys = rawYArray.map(y => result.columns.find(c => 
-      c.toLowerCase().replace(/_/g, '') === y.toLowerCase().replace(/_/g, '')
-    )).filter((y): y is string => !!y);
+    // Try fuzzy match for Y-axes with scoring
+    activeYKeys = rawYArray.map(y => {
+      const normalizedY = y.toLowerCase().replace(/[_\s]/g, '');
+      const matches = result.columns.map(c => {
+        const normalizedC = c.toLowerCase().replace(/[_\s]/g, '');
+        let score = 0;
+        if (normalizedC === normalizedY) score = 100;
+        else if (normalizedC.startsWith(normalizedY) || normalizedY.startsWith(normalizedC)) score = 80;
+        else if (normalizedC.includes(normalizedY) || normalizedY.includes(normalizedC)) score = 50;
+        
+        // Bonus for numeric indicators
+        if (normalizedY.includes('total') || normalizedY.includes('count') || normalizedY.includes('jumlah') || normalizedY.includes('insiden') || normalizedY.includes('value')) {
+          if (normalizedC.includes('total') || normalizedC.includes('count') || normalizedC.includes('jumlah') || normalizedC.includes('insiden') || normalizedC.includes('value')) score += 10;
+        }
+        
+        return { col: c, score };
+      }).filter(m => m.score > 0).sort((a, b) => b.score - a.score);
+      
+      return matches.length > 0 ? matches[0].col : null;
+    }).filter((y): y is string => !!y);
   }
 
   // Final fallback for Y-Axis: all numeric columns except activeXKey
   if (activeYKeys.length === 0) {
     activeYKeys = result.columns.filter(c => {
       if (c === activeXKey) return false;
-      return rawData.some(r => typeof r[c] === 'number' && isFinite(r[c] as number));
+      // Check for numeric values including strings that can be parsed as numbers
+      return rawData.some(r => {
+        const val = r[c];
+        if (typeof val === 'number' && isFinite(val)) return true;
+        if (typeof val === 'string' && val.trim() !== '' && !isNaN(Number(val))) return true;
+        return false;
+      });
     });
   }
 
-  // Self-healing for swapped keys
-  if (activeYKeys.length > 0 && typeof rawData[0][activeXKey] === 'number' && typeof rawData[0][activeYKeys[0]] === 'string') {
-    const temp = activeXKey;
-    activeXKey = activeYKeys[0];
-    activeYKeys = [temp, ...activeYKeys.slice(1)];
+  // If still no Y-axis, use the last column that isn't the X-axis
+  if (activeYKeys.length === 0 && result.columns.length > 1) {
+    const lastCol = result.columns[result.columns.length - 1];
+    if (lastCol !== activeXKey) {
+      activeYKeys = [lastCol];
+    } else {
+      activeYKeys = [result.columns[result.columns.length - 2] || result.columns[0]];
+    }
   }
 
-  if (activeYKeys.length === 0 && result.columns.length > 1) {
-    activeYKeys = [result.columns.find(c => c !== activeXKey) || result.columns[1]];
+  // Final sanity check: ensure activeXKey and activeYKeys are distinct if possible
+  if (activeYKeys.length === 1 && activeYKeys[0] === activeXKey && result.columns.length > 1) {
+    const fallbackY = result.columns.find(c => c !== activeXKey);
+    if (fallbackY) activeYKeys = [fallbackY];
   }
 
   const data = processChartData(rawData, activeXKey);
@@ -122,20 +258,39 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   // HEATMAP
   if (chartType === 'heatmap') {
     const cols = result.columns;
-    if (cols.length < 3) return <div className="p-4 text-xs text-center text-muted-foreground">Heatmap requires 3 columns</div>;
+    if (cols.length < 3) return <div className="p-4 text-xs text-center text-muted-foreground bg-gray-50 rounded border border-dashed">Heatmap memerlukan minimal 3 kolom (2 dimensi, 1 nilai)</div>;
 
     // Robustly detect numeric vs categorical columns
     const numericCols = cols.filter(c => {
-      const vals = rawData.slice(0, 10).map(r => r[c]);
-      return vals.some(v => typeof v === 'number' && isFinite(v));
+      const vals = rawData.slice(0, 20).map(r => r[c]);
+      // Check if it's a number type or a string that looks like a number
+      return vals.some(v => (typeof v === 'number' && isFinite(v)) || (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))));
     });
     const categCols = cols.filter(c => !numericCols.includes(c));
 
     // Value (measure) should be the first numeric column
-    const valueKey = colorField && cols.includes(colorField) ? colorField : (numericCols[0] || activeYKeys[0] || cols[cols.length - 1]);
+    // If multiple numeric columns, try to find one that isn't in activeXKey or likely a dimension
+    let valueKey = colorField && cols.includes(colorField) ? colorField : '';
     
-    // Dimensions should be the categorical ones
-    const dimKeys = categCols.length >= 2 ? categCols.slice(0, 2) : cols.filter(c => c !== valueKey).slice(0, 2);
+    if (!valueKey) {
+      // Prioritize numeric columns that are NOT the activeXKey
+      const candidateValues = numericCols.filter(c => c !== activeXKey);
+      if (candidateValues.length > 0) {
+        // Prefer columns with names like 'jumlah', 'total', 'count', 'value', 'score'
+        const preferred = candidateValues.find(c => 
+          /jumlah|total|count|nilai|score|value|qty|amount/i.test(c)
+        );
+        valueKey = preferred || candidateValues[0];
+      } else {
+        valueKey = numericCols[0] || activeYKeys[0] || cols[cols.length - 1];
+      }
+    }
+    
+    // Dimensions should be the categorical ones, excluding the valueKey
+    const availableDims = categCols.filter(c => c !== valueKey);
+    const dimKeys = availableDims.length >= 2 
+      ? availableDims.slice(0, 2) 
+      : cols.filter(c => c !== valueKey).slice(0, 2);
 
     // Prefer activeXKey for colKey (X-axis/Horizontal)
     const colKey = activeXKey && dimKeys.includes(activeXKey) ? activeXKey : dimKeys[0];
@@ -144,48 +299,91 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     const rowLabels = [...new Set(rawData.map(d => String(d[rowKey] ?? '')))];
     const colLabels = [...new Set(rawData.map(d => String(d[colKey] ?? '')))];
     
+    // Limit labels in compact mode for better performance/readability
+    const displayRowLabels = compact ? rowLabels.slice(0, 10) : rowLabels;
+    const displayColLabels = compact ? colLabels.slice(0, 8) : colLabels;
+    
+    // Dynamic cell sizing for better proportion
+    // Use a fixed width for columns in compact mode to prevent massive stretching
+    const cellWidth = compact ? 'minmax(45px, 1fr)' : 'minmax(64px, 1fr)';
+    const cellHeight = compact ? 'h-7' : 'h-10';
+    const rowHeaderWidth = compact ? 'w-20' : 'w-28';
+    
     return (
-      <div className="w-full h-full overflow-auto p-2 custom-scrollbar">
-        <div className="grid gap-px bg-slate-100 p-px rounded-lg overflow-hidden" 
-             style={{ gridTemplateColumns: `auto repeat(${colLabels.length}, minmax(64px, 1fr))` }}>
-          <div className="bg-slate-50/50" /> 
-          {colLabels.map(cl => (
-            <div key={cl} className="bg-slate-50/50 p-2 text-[9px] text-center font-bold text-slate-500 uppercase tracking-tight truncate border-b border-slate-200">
-              {cl}
+      <div className="w-full h-full overflow-auto p-1 custom-scrollbar bg-white">
+        <div className="grid gap-px bg-slate-200 p-px rounded-lg overflow-hidden min-w-full shadow-sm" 
+             style={{ gridTemplateColumns: `auto repeat(${displayColLabels.length}, ${cellWidth})` }}>
+          <div className="bg-slate-50/80 sticky left-0 z-20" /> 
+          {displayColLabels.map(cl => (
+            <div key={cl} className={`bg-slate-50/80 p-1.5 ${compact ? 'text-[8px]' : 'text-[9px]'} text-center font-bold text-slate-500 uppercase tracking-tight border-b border-slate-200 flex items-center justify-center`}>
+              <span className="truncate w-full" title={cl}>
+                {cl.length > 10 && compact ? cl.substring(0, 8) + '..' : cl}
+              </span>
             </div>
           ))}
-          {rowLabels.map(rl => (
+          {displayRowLabels.map(rl => (
             <React.Fragment key={rl}>
-              <div className="bg-white p-2 text-[9px] text-right font-bold text-slate-600 uppercase tracking-tight truncate self-center border-r border-slate-200">
-                {rl}
+              <div className={`bg-slate-50/80 p-1.5 ${compact ? 'text-[8px]' : 'text-[9px]'} text-right font-bold text-slate-600 uppercase tracking-tight self-center border-r border-slate-200 ${rowHeaderWidth} sticky left-0 z-10 flex items-center justify-end`}>
+                <span className="truncate w-full" title={rl}>
+                  {rl.length > 12 && compact ? rl.substring(0, 10) + '..' : rl}
+                </span>
               </div>
-              {colLabels.map(cl => {
+              {displayColLabels.map(cl => {
                 const row = rawData.find(r => String(r[rowKey]) === rl && String(r[colKey]) === cl);
-                const val = Number(row?.[valueKey] ?? 0);
-                const intensity = Math.min(100, (val * 25) + (val > 0 ? 10 : 0));
+                const rawVal = row?.[valueKey];
+                const val = (typeof rawVal === 'number') ? rawVal : (rawVal ? Number(rawVal) : 0);
+                const displayVal = isNaN(val) ? '0' : val.toLocaleString('id-ID');
+                
+                // Calculate intensity more smoothly
+                const maxVal = Math.max(...rawData.map(r => {
+                  const v = r[valueKey];
+                  const num = (typeof v === 'number') ? v : Number(v);
+                  return isNaN(num) ? 0 : num;
+                }), 1);
+                
+                const intensity = !isNaN(val) && val > 0 ? Math.max(10, (val / maxVal) * 100) : 0;
+                
                 return (
                   <div 
                     key={cl} 
-                    className="group relative h-10 flex items-center justify-center text-[10px] bg-white transition-all hover:z-10 hover:scale-[1.05] hover:shadow-lg"
+                    className={`group relative ${cellHeight} flex items-center justify-center ${compact ? 'text-[8px]' : 'text-[10px]'} bg-white transition-all hover:z-30 hover:scale-[1.1] hover:shadow-xl cursor-default border-r border-b border-slate-100 last:border-r-0`}
                   >
                     <div 
-                      className="absolute inset-0 transition-opacity"
+                      className="absolute inset-0 transition-all duration-300"
                       style={{ 
                         backgroundColor: palette[0],
-                        opacity: val > 0 ? (intensity / 100) : 0.03
+                        opacity: !isNaN(val) && val > 0 ? (intensity / 100) : 0.03
                       }}
                     />
-                    <span className={`relative font-mono font-bold ${val > 0 ? 'text-slate-900' : 'text-slate-200'}`}>
-                      {val || '0'}
+                    <span className={`relative font-mono font-bold transition-colors ${!isNaN(val) && val > 0 ? (intensity > 50 ? 'text-white' : 'text-slate-900') : 'text-slate-300'}`}>
+                      {!isNaN(val) && val !== 0 ? displayVal : '0'}
                     </span>
                     
                     {/* Interactive Tooltip Replacement */}
-                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-50 pointer-events-none">
-                      <div className="bg-slate-900 text-white text-[9px] py-1.5 px-2.5 rounded shadow-xl whitespace-nowrap">
-                        <div className="font-bold opacity-70 mb-0.5">{rl} × {cl}</div>
-                        <div className="text-[11px]">{valueKey}: <span className="text-emerald-400">{val}</span></div>
+                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-50 pointer-events-none transition-all animate-in fade-in slide-in-from-bottom-1">
+                      <div className="bg-slate-900/95 backdrop-blur-sm text-white text-[10px] py-2 px-3 rounded-lg shadow-2xl border border-white/10 min-w-[120px]">
+                        <div className="flex items-center justify-between mb-1.5 border-b border-white/10 pb-1">
+                          <span className="font-bold text-white/50 uppercase text-[8px] tracking-wider">Detail</span>
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: palette[0] }} />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-white/60">{rowKey}:</span>
+                            <span className="font-bold text-right">{rl}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-white/60">{colKey}:</span>
+                            <span className="font-bold text-right">{cl}</span>
+                          </div>
+                          <div className="flex justify-between gap-4 pt-1 mt-1 border-t border-white/5">
+                            <span className="text-emerald-400/80 font-medium">{valueKey}:</span>
+                            <span className="font-bold text-emerald-400 text-sm">
+                              {displayVal}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-2 h-2 bg-slate-900 rotate-45 mx-auto -mt-1" />
+                      <div className="w-2.5 h-2.5 bg-slate-900/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/10" />
                     </div>
                   </div>
                 );
@@ -193,6 +391,11 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
             </React.Fragment>
           ))}
         </div>
+        {compact && (rowLabels.length > 10 || colLabels.length > 8) && (
+          <div className="text-[8px] text-slate-400 mt-1 text-center italic italic">
+            Menampilkan {displayRowLabels.length} dari {rowLabels.length} baris...
+          </div>
+        )}
       </div>
     );
   }
@@ -224,20 +427,204 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     );
   }
 
+  // PIE / DONUT CHART
+  if (chartType === 'pie' || chartType === 'donut') {
+    const isDonut = chartType === 'donut';
+    
+    // Improved nameKey resolution (X-axis/Dimension)
+    let nameKey = activeXKey;
+    if (!nameKey || !result.columns.includes(nameKey)) {
+      const stringCols = result.columns.filter(c => {
+        const val = rawData[0]?.[c];
+        return typeof val === 'string' && isNaN(Number(val));
+      });
+      nameKey = stringCols[0] || result.columns[0];
+    }
+    
+    // Find the best data column for pie chart values (dataKey)
+    // Priority: colorField > activeYKeys[0] > numeric columns > fallback
+    let dataKey = visualization.colorField || activeYKeys[0];
+    
+    // If current dataKey is actually the same as nameKey, it's a configuration error
+    if (dataKey === nameKey) dataKey = '';
+
+    // If still no dataKey, search through all columns for the best numeric candidate
+    if (!dataKey || !result.columns.includes(dataKey)) {
+      const numericMatches = result.columns.map(c => {
+        if (c === nameKey) return { col: c, score: -1 };
+        
+        const normalizedC = c.toLowerCase().replace(/[_\s]/g, '');
+        let score = 0;
+        
+        // Check actual data types
+        const samples = rawData.slice(0, 5).map(r => r[c]);
+        const isNumeric = samples.some(v => typeof v === 'number' || (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))));
+        
+        if (isNumeric) {
+          score += 50;
+          // Bonus for common aggregation names
+          if (normalizedC.includes('total') || normalizedC.includes('count') || normalizedC.includes('jumlah') || normalizedC.includes('value')) {
+            score += 30;
+          }
+          // Bonus for "insiden" or specific metrics if relevant
+          if (normalizedC.includes('insiden') || normalizedC.includes('incident')) {
+            score += 10;
+          }
+        }
+        
+        return { col: c, score };
+      }).filter(m => m.score > 0).sort((a, b) => b.score - a.score);
+
+      if (numericMatches.length > 0) {
+        dataKey = numericMatches[0].col;
+      }
+    }
+    
+    // Ultimate fallback: just use any column that isn't nameKey
+    if (!dataKey && result.columns.length >= 2) {
+      dataKey = result.columns.find(c => c !== nameKey) || result.columns[1];
+    }
+    
+    console.log('[ChartPreview] Pie chart debug:', {
+      chartType,
+      nameKey,
+      dataKey,
+      visualizationX: visualization.xAxis,
+      visualizationY: visualization.yAxis,
+      columns: result.columns,
+    });
+    
+  if (!dataKey) {
+    console.warn('[ChartPreview] No data column found for pie chart');
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center p-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
+          <span className="text-lg">🥧</span>
+        </div>
+        <p className="text-[11px] font-bold text-slate-600 uppercase tracking-tight mb-1">Gagal Memuat Pie Chart</p>
+        <p className="text-[10px] text-slate-400 mb-2">Kolom data numerik tidak ditemukan dalam hasil query.</p>
+        <div className="flex flex-wrap justify-center gap-1 mt-1">
+          {result.columns.map(c => (
+            <span key={c} className="px-1.5 py-0.5 bg-slate-200/50 rounded text-[8px] text-slate-500 font-mono">
+              {c}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+    // Generate descriptive names for segments by combining all dimensions if there are multiples
+    const stringCols = result.columns.filter(c => {
+      // Exclude the data key (measure)
+      if (c === dataKey) return false;
+      const val = rawData[0]?.[c];
+      return typeof val === 'string' && isNaN(Number(val));
+    });
+
+    const pieData = rawData.map(row => {
+      // Build a descriptive name by joining all string columns present in the result
+      // This handles cases like "Citilink - Irregularity"
+      const descriptiveName = stringCols
+        .map(c => String(row[c] ?? ''))
+        .filter(v => v !== '')
+        .join(' - ');
+
+      return {
+        name: descriptiveName || 'Unknown',
+        value: Number(row[dataKey]) || 0,
+        measureDisplayName: dataKey,
+        payload: row
+      };
+    }).filter(d => d.value > 0);
+    
+    // Sort data for better visualization in small charts
+    if (compact) {
+      pieData.sort((a, b) => b.value - a.value);
+    }
+
+    console.log('[ChartPreview] Pie data:', pieData);
+
+    // For compact mode (supporting charts), use legend at bottom and center pie
+    // For full mode, use legend at right side
+    const pieProps = compact
+      ? { cx: '50%', cy: '40%', innerRadius: isDonut ? 35 : 0, outerRadius: 50 }
+      : { cx: '40%', cy: '50%', innerRadius: isDonut ? 60 : 0, outerRadius: 80 };
+
+    // Use fixed height for pie charts to ensure they render properly
+    const pieHeight = compact ? 220 : 380; // Slightly increased for compact
+    
+    return wrap(
+      <div style={{ width: '100%', height: pieHeight }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <PieChart margin={{ bottom: compact ? 10 : 0 }}>
+            <Tooltip content={<DateTooltip />} />
+            <Legend 
+              verticalAlign={compact ? "bottom" : "middle"}
+              align={compact ? "center" : "right"}
+              layout={compact ? "horizontal" : "vertical"}
+              iconSize={compact ? 8 : 10}
+              wrapperStyle={{ 
+                fontSize: compact ? '9px' : '12px', 
+                paddingTop: compact ? '4px' : '0px',
+                paddingLeft: compact ? '0px' : '20px',
+                maxHeight: compact ? '40px' : 'none',
+                overflow: 'hidden'
+              }}
+              formatter={(value: string) => value.length > (compact ? 12 : 25) ? value.substring(0, compact ? 10 : 22) + '...' : value}
+            />
+            <Pie
+              data={pieData}
+              {...pieProps}
+              paddingAngle={2}
+              dataKey="value"
+              nameKey="name"
+              label={showLabels ? (props: any) => {
+                const name = props.name || '';
+                const percent = props.percent || 0;
+                // For long names (especially combined ones), truncate more gracefully
+                const displayName = name.length > 20 ? name.substring(0, 18) + '..' : name;
+                return `${displayName} (${(percent * 100).toFixed(0)}%)`;
+              } : false}
+            >
+              {pieData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={palette[index % palette.length]} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
   const commonProps = {
     tick: { fontSize: 10, fill: '#888' },
     axisLine: { stroke: '#eee' },
     tickLine: false,
   };
 
+  const chartHeight = compact ? 220 : 400;
+
+  // Calculate margins based on rotation and labels for all charts except pie/heatmap
+  const isXLong = data.some(d => String(d[activeXKey] ?? '').length > (compact ? 6 : 10));
+  const shouldRotateX = !(['pie', 'donut', 'heatmap', 'horizontal_bar'] as string[]).includes(chartType) && (isXLong || data.length > (compact ? 4 : 8));
+  const bottomMargin = shouldRotateX ? (compact ? 45 : 65) : (compact ? 30 : 20);
+
   // BAR / HORIZONTAL_BAR
   if (chartType === 'bar' || chartType === 'horizontal_bar') {
     const horizontal = chartType === 'horizontal_bar';
     
-    // Compact adjustments
-    const fontSize = compact ? 8 : 10;
-    const itemHeight = compact ? 34 : 54; // Increased from 44
+    // Compact adjustments for supporting charts
+    const fontSize = compact ? 8 : 10; // Slightly smaller font for compact
+    // Smaller item height for compact mode to fit in supporting charts
+    const itemHeight = compact ? 26 : (data.length > 20 ? 30 : (data.length > 10 ? 40 : 55));
     const dynamicMinH = horizontal ? (data.length * itemHeight + (compact ? 40 : 100)) : '100%';
+    
+    // For vertical bar charts in compact mode:
+    // - Use auto-calculated bar size (don't set barSize)
+    // - Use smaller height
+    // - Use larger gap between categories for better proportion
+    const containerHeight = horizontal ? dynamicMinH : chartHeight;
     
     let yAxisWidth = 80;
     if (horizontal) {
@@ -245,19 +632,24 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       const longestWord = Math.max(...labels.flatMap(l => l.split(' ').map(w => w.length)), 0);
       
       // Calculate width based on longest word or wrapped lines
-      const effectiveCharLen = Math.min(Math.max(longestWord, 12), 25);
-      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 5 : 7.5), compact ? 60 : 120), 220);
+      const effectiveCharLen = Math.min(Math.max(longestWord, compact ? 10 : 12), 25);
+      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 4.5 : 7.5), compact ? 50 : 120), 220);
     }
 
     return wrap(
-      <div style={{ width: '100%', height: '100%', minHeight: horizontal ? dynamicMinH : undefined, overflowY: horizontal ? 'auto' : 'visible' }}>
-        <ResponsiveContainer width="100%" height={horizontal ? dynamicMinH : "100%"}>
+      <div className="bg-white rounded-lg p-1" style={{ width: '100%', height: horizontal ? 'auto' : chartHeight, minHeight: horizontal ? dynamicMinH : undefined, overflow: 'hidden' }}>
+        <ResponsiveContainer width="100%" height={containerHeight} minWidth={0} minHeight={0}>
           <BarChart 
             data={data} 
             layout={horizontal ? 'vertical' : 'horizontal'}
-            margin={{ top: 10, right: horizontal ? (compact ? 35 : 60) : 10, left: horizontal ? (compact ? 0 : 0) : 0, bottom: 10 }}
-            barCategoryGap={compact ? "10%" : "20%"}
-            barSize={compact ? 12 : 20}
+            margin={{ 
+              top: 10, 
+              right: horizontal ? (compact ? 25 : 60) : 10, 
+              left: 0, 
+              bottom: bottomMargin
+            }}
+            barCategoryGap={compact ? "35%" : "20%"}
+            {...(horizontal && compact ? { barSize: 18 } : {})}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={!horizontal} horizontal={horizontal} stroke="#f1f5f9" />
             {horizontal ? (
@@ -271,28 +663,36 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                   interval={0} 
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const words = String(payload.value).split(' ');
+                    const label = String(payload.value);
+                    const words = label.split(' ');
                     const lines = [];
                     let cur = words[0];
+                    const maxChars = compact ? 10 : 20;
+                    
                     for(let i=1; i<words.length; i++) {
-                      if ((cur + ' ' + words[i]).length < (compact ? 12 : 20)) cur += ' ' + words[i];
+                      if ((cur + ' ' + words[i]).length < maxChars) cur += ' ' + words[i];
                       else { lines.push(cur); cur = words[i]; }
                     }
                     lines.push(cur);
+                    
+                    // Truncate total lines for compact
+                    const displayLines = compact ? lines.slice(0, 2) : lines;
+                    const isTruncated = lines.length > displayLines.length;
+
                     return (
                       <g transform={`translate(${x},${y})`}>
-                        {lines.map((l, i) => (
+                        {displayLines.map((l, i) => (
                           <text 
                             key={i} 
                             x={-8} 
                             y={0} 
-                            dy={i * (fontSize + 2) + 4 - ((lines.length - 1) * (fontSize/1.5))} 
+                            dy={i * (fontSize + 2) + 4 - ((displayLines.length - 1) * (fontSize/1.5))} 
                             textAnchor="end" 
                             fontSize={fontSize} 
                             fill="#444"
                             fontWeight={500}
                           >
-                            {l}
+                            {l}{i === displayLines.length - 1 && isTruncated ? '..' : ''}
                           </text>
                         ))}
                       </g>
@@ -305,13 +705,22 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 <XAxis 
                   dataKey={activeXKey} 
                   {...commonProps} 
-                  height={compact ? 40 : 60}
-                  interval={0} 
+                  height={shouldRotateX ? (compact ? 55 : 75) : (compact ? 35 : 30)}
+                  interval={data.length > (compact ? 10 : 20) ? 'preserveStartEnd' : 0} 
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const label = String(payload.value);
-                    const isLong = label.length > 10;
-                    const shouldRotate = isLong || data.length > 6;
+                    let label = String(payload.value);
+                    
+                    // Handle long date labels more gracefully
+                    if (label.includes(' ') && label.length > 10) {
+                      const parts = label.split(' ');
+                      if (parts.length >= 2) {
+                        // For compact mode or many data points, use "DD MMM" instead of "DD MMM YYYY"
+                        if (compact || data.length > 10) {
+                          label = `${parts[0]} ${parts[1]}`;
+                        }
+                      }
+                    }
                     
                     return (
                       <g transform={`translate(${x},${y})`}>
@@ -319,19 +728,19 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                           x={0}
                           y={0}
                           dy={10}
-                          textAnchor={shouldRotate ? "end" : "middle"}
+                          textAnchor={shouldRotateX ? "end" : "middle"}
                           fill="#666"
                           fontSize={fontSize}
-                          transform={shouldRotate ? "rotate(-35)" : undefined}
+                          transform={shouldRotateX ? "rotate(-45)" : undefined} 
                           fontWeight={500}
                         >
-                          {label.length > (compact ? 15 : 25) ? label.substring(0, compact ? 12 : 22) + '...' : label}
+                          {label.length > (compact ? 12 : 25) ? label.substring(0, compact ? 10 : 22) + '...' : label}
                         </text>
                       </g>
                     );
                   }}
                 />
-                <YAxis {...commonProps} allowDecimals={false} domain={[0, 'auto']} />
+                <YAxis {...commonProps} width={compact ? 25 : 40} allowDecimals={false} />
               </>
             )}
             <Tooltip content={<DateTooltip />} />
@@ -340,8 +749,8 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 key={key} 
                 dataKey={key} 
                 fill={palette[i % palette.length]} 
-                radius={horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0]} 
-                minPointSize={2}
+                radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} 
+                animationDuration={1000}
                 label={showLabels ? { 
                   position: horizontal ? 'right' : 'top', 
                   fontSize: fontSize, 
@@ -357,26 +766,162 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     );
   }
 
+  // Fallback: If axis configuration is completely broken
+  if (!activeXKey || activeYKeys.length === 0) {
+    console.error('[ChartPreview] Cannot render chart - missing axis configuration:', {
+      chartType,
+      activeXKey,
+      activeYKeys,
+      columns: result.columns
+    });
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center p-6 bg-red-50/50 rounded-xl border border-dashed border-red-200">
+        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
+          <span className="text-lg">⚠️</span>
+        </div>
+        <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight mb-1">Konfigurasi Tidak Valid</p>
+        <p className="text-[10px] text-red-400 max-w-[160px]">Tidak dapat menemukan kolom yang sesuai untuk sumbu X atau Y.</p>
+        <div className="mt-3 px-2 py-1 bg-red-100/50 rounded text-[8px] text-red-500 font-mono">
+          X: {activeXKey || '?'}, Y: {activeYKeys.join(', ') || '?'}
+        </div>
+      </div>
+    );
+  }
+
   // LINE/AREA (Minimal for remaining)
+  console.log('[ChartPreview] Rendering line/area chart with:', { chartType, activeXKey, activeYKeys });
+  
   return wrap(
-    <ResponsiveContainer width="100%" height="100%">
-      {chartType === 'line' ? (
-        <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey={activeXKey} {...commonProps} />
-          <YAxis {...commonProps} />
-          <Tooltip content={<DateTooltip />} />
-          {activeYKeys.map((key, i) => <Line key={key} type="monotone" dataKey={key} stroke={palette[i % palette.length]} strokeWidth={2} dot={{r: 3}} />)}
-        </LineChart>
-      ) : (
-        <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey={activeXKey} {...commonProps} />
-          <YAxis {...commonProps} />
-          <Tooltip content={<DateTooltip />} />
-          {activeYKeys.map((key, i) => <Area key={key} type="monotone" dataKey={key} stroke={palette[i % palette.length]} fill={palette[i % palette.length]} fillOpacity={0.2} />)}
-        </AreaChart>
-      )}
-    </ResponsiveContainer>
+    <div className="bg-white rounded-lg p-1" style={{ width: '100%', height: chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        {chartType === 'line' ? (
+          <LineChart 
+            data={data} 
+            margin={{ 
+              top: 10, 
+              right: 10, 
+              left: 0, 
+              bottom: bottomMargin 
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis 
+              dataKey={activeXKey} 
+              {...commonProps} 
+              height={shouldRotateX ? (compact ? 55 : 75) : (compact ? 35 : 30)}
+              interval={data.length > (compact ? 10 : 20) ? 'preserveStartEnd' : 0}
+              tick={(props) => {
+                const { x, y, payload } = props;
+                let label = String(payload.value);
+                
+                // Handle long date labels more gracefully
+                if (label.includes(' ') && label.length > 10) {
+                  const parts = label.split(' ');
+                  if (parts.length >= 2) {
+                    // For compact mode or many data points, use "DD MMM" instead of "DD MMM YYYY"
+                    if (compact || data.length > 10) {
+                      label = `${parts[0]} ${parts[1]}`;
+                    }
+                  }
+                }
+                
+                return (
+                  <g transform={`translate(${x},${y})`}>
+                    <text
+                      x={0}
+                      y={0}
+                      dy={10}
+                      textAnchor={shouldRotateX ? "end" : "middle"}
+                      fill="#666"
+                      fontSize={compact ? 8 : 10}
+                      transform={shouldRotateX ? "rotate(-45)" : undefined} 
+                      fontWeight={500}
+                    >
+                      {label.length > (compact ? 12 : 25) ? label.substring(0, compact ? 10 : 22) + '...' : label}
+                    </text>
+                  </g>
+                );
+              }}
+            />
+            <YAxis {...commonProps} width={compact ? 25 : 40} allowDecimals={false} />
+            <Tooltip content={<DateTooltip />} />
+            {activeYKeys.map((key, i) => (
+              <Line 
+                key={key} 
+                type="monotone" 
+                dataKey={key} 
+                stroke={palette[i % palette.length]} 
+                strokeWidth={2} 
+                dot={compact ? {r: 2} : {r: 3}} 
+                animationDuration={1000}
+              />
+            ))}
+          </LineChart>
+        ) : (
+          <AreaChart 
+            data={data} 
+            margin={{ 
+              top: 10, 
+              right: 10, 
+              left: 0, 
+              bottom: bottomMargin 
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis 
+              dataKey={activeXKey} 
+              {...commonProps} 
+              height={shouldRotateX ? (compact ? 55 : 75) : (compact ? 35 : 30)}
+              interval={data.length > (compact ? 10 : 20) ? 'preserveStartEnd' : 0}
+              tick={(props) => {
+                const { x, y, payload } = props;
+                let label = String(payload.value);
+                
+                // Handle long date labels more gracefully
+                if (label.includes(' ') && label.length > 10) {
+                  const parts = label.split(' ');
+                  if (parts.length >= 2) {
+                    // For compact mode or many data points, use "DD MMM" instead of "DD MMM YYYY"
+                    if (compact || data.length > 10) {
+                      label = `${parts[0]} ${parts[1]}`;
+                    }
+                  }
+                }
+                
+                return (
+                  <g transform={`translate(${x},${y})`}>
+                    <text
+                      x={0}
+                      y={0}
+                      dy={10}
+                      textAnchor={shouldRotateX ? "end" : "middle"}
+                      fill="#666"
+                      fontSize={compact ? 8 : 10}
+                      transform={shouldRotateX ? "rotate(-45)" : undefined} 
+                      fontWeight={500}
+                    >
+                      {label.length > (compact ? 12 : 25) ? label.substring(0, compact ? 10 : 22) + '...' : label}
+                    </text>
+                  </g>
+                );
+              }}
+            />
+            <YAxis {...commonProps} width={compact ? 25 : 40} allowDecimals={false} />
+            <Tooltip content={<DateTooltip />} />
+            {activeYKeys.map((key, i) => (
+              <Area 
+                key={key} 
+                type="monotone" 
+                dataKey={key} 
+                stroke={palette[i % palette.length]} 
+                fill={palette[i % palette.length]} 
+                fillOpacity={0.2} 
+                animationDuration={1000}
+              />
+            ))}
+          </AreaChart>
+        )}
+      </ResponsiveContainer>
+    </div>
   );
 }

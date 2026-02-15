@@ -30,7 +30,7 @@ export async function GET() {
                 isCurrent: u.id === bundle.active_uid
             }))
         });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Failed to fetch bundle' }, { status: 500 });
     }
 }

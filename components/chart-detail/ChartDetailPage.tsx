@@ -60,14 +60,22 @@ export default function ChartDetailPage() {
 
   const fetchFullData = useCallback(async (tile: DashboardTile): Promise<QueryResult> => {
     try {
+      // Normalize query before sending
+      const normalizedQuery = {
+        ...tile.query,
+        dimensions: tile.query.dimensions || [],
+        measures: tile.query.measures || [],
+        filters: tile.query.filters || [],
+        joins: tile.query.joins || [],
+        sorts: tile.query.sorts || [],
+        limit: 100000 // Unlimited
+      };
+
       const response = await fetch('/api/dashboards/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: {
-            ...tile.query,
-            limit: 100000 // Unlimited
-          }
+          query: normalizedQuery
         })
       });
       
@@ -100,7 +108,7 @@ export default function ChartDetailPage() {
         metricCol = result.columns.find(c => 
           c !== x && 
           !y.includes(c) && 
-          typeof result.rows[0][c] === 'number'
+          (typeof result.rows[0][c] === 'number' || (!isNaN(Number(result.rows[0][c])) && result.rows[0][c] !== ''))
         );
       }
       
@@ -334,14 +342,16 @@ export default function ChartDetailPage() {
         <SummaryCards data={displayData} />
 
         {/* Chart Section */}
-        <section ref={chartRef} className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] p-6 mb-6">
+        <section ref={chartRef} className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] p-6 mb-6 overflow-hidden">
           <h2 className="text-sm font-semibold text-[#6b8e3d] mb-4 uppercase tracking-wide">
             Visualisasi Data
           </h2>
-          <EnlargedChart 
-            tile={tile} 
-            result={displayData}
-          />
+          <div className="w-full">
+            <EnlargedChart 
+              tile={tile} 
+              result={displayData}
+            />
+          </div>
         </section>
 
 

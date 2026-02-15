@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FileText, Search, Filter, ChevronDown, RefreshCw, Eye, X,
-    MapPin, AlertTriangle, Plane,
-    Clock, CheckCircle2
+    MapPin, AlertTriangle, Plane, Clock, 
+    CheckCircle2, LucideIcon
 } from 'lucide-react';
 import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/report-status';
 import { Report } from '@/types';
@@ -119,11 +119,11 @@ export default function OPReportsPage() {
     );
 }
 
-function StatCard({ icon: Icon, value, label, color }: { icon: any; value: number; label: string; color?: string }) {
+function StatCard({ icon: Icon, value, label, color }: { icon: LucideIcon; value: number; label: string; color?: string }) {
     return (<div className="card-solid flex items-center gap-4" style={{ background: color ? `${color}10` : undefined }}><div className="p-3 rounded-xl" style={{ background: color ? `${color}20` : 'var(--surface-3)' }}><Icon size={22} style={{ color: color || 'var(--text-primary)' }} /></div><div><p className="text-2xl font-bold" style={{ color: color || 'var(--text-primary)' }}>{value}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p></div></div>);
 }
 
-function FilterSelect({ value, onChange, icon: Icon, options }: { value: string; onChange: (v: string) => void; icon: any; options: { value: string; label: string }[] }) {
+function FilterSelect({ value, onChange, icon: Icon, options }: { value: string; onChange: (v: string) => void; icon: LucideIcon; options: { value: string; label: string }[] }) {
     return (<div className="relative flex-1 min-w-[140px]"><select value={value} onChange={(e) => onChange(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>{options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select><Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} /><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} /></div>);
 }
 

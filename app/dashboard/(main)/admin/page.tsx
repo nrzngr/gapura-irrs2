@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-    FileText, CheckCircle, Users, RefreshCw, TrendingUp,
-    MapPin, ArrowRight, AlertTriangle, AlertCircle, Shield, Zap, Clock
+    FileText, Users, TrendingUp,
+    MapPin, ArrowRight, AlertTriangle, AlertCircle, Shield, Zap
 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { type TimePeriod } from '@/components/dashboard/TimePeriodFilter';
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     const [period, setPeriod] = useState<TimePeriod>(null);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const url = period ? `/api/admin/stats?period=${period}` : '/api/admin/stats';
@@ -57,9 +57,9 @@ export default function AdminDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [period]);
 
-    useEffect(() => { fetchData(); }, [period]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     if (loading) {
         return (

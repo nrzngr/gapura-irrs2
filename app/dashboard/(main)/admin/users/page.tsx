@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
     Users, Search, RefreshCw, Check, X, Shield, User,
-    Filter, ChevronDown, Mail, Calendar, Building2, Briefcase, Phone,
+    Filter, ChevronDown, Mail, Building2,
     Eye, Wrench, Star, Edit2, Save
 } from 'lucide-react';
 import type { UserRole, DivisionType } from '@/types';
@@ -126,7 +126,7 @@ export default function AdminUsersPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/admin/users?status=${filter === 'all' ? '' : filter}`);
@@ -137,11 +137,11 @@ export default function AdminUsersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter]);
 
     useEffect(() => {
         fetchUsers();
-    }, [filter]);
+    }, [fetchUsers]);
 
     const updateUserStatus = async (userId: string, status: string) => {
         setActionLoading(userId);
@@ -152,7 +152,7 @@ export default function AdminUsersPage() {
                 body: JSON.stringify({ userId, status }),
             });
             fetchUsers();
-        } catch (error) {
+        } catch {
             alert('Gagal mengubah status');
         } finally {
             setActionLoading(null);
@@ -178,7 +178,7 @@ export default function AdminUsersPage() {
             
             setEditingUser(null);
             fetchUsers();
-        } catch (error) {
+        } catch {
             alert('Gagal menyimpan perubahan user');
         } finally {
             setActionLoading(null);

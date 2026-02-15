@@ -188,11 +188,11 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                     sorts: [],
                 };
 
-                // 2. Branch Bar
+                // 2. Branch Bar - Join with stations to get actual station codes
                 const branchQuery: QueryDefinition = {
                     source: 'reports',
-                    joins: [],
-                    dimensions: [{ table: 'reports', field: 'branch', alias: 'name' }],
+                    joins: [{ from: 'reports', to: 'stations', joinKey: 'reports_stations' }],
+                    dimensions: [{ table: 'stations', field: 'code', alias: 'name' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
                     sorts: [{ field: 'value', direction: 'desc' }],

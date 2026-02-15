@@ -3,7 +3,12 @@ import { ChartVisualization, QueryDefinition } from '@/types/builder';
 
 interface AIInsight {
   ringkasan: string;
-  temuanUtama: string[];
+  temuanUtama: Array<string | { 
+    diagnosa: string; 
+    data?: any; 
+    impactScore?: number;
+    kategori?: string;
+  }>;
   tren: Array<{
     label: string;
     arah: string;
@@ -28,6 +33,17 @@ interface AIInsight {
 interface AIInsightsPanelProps {
   insights: AIInsight | null;
   loading: boolean;
+}
+
+/**
+ * Defensive helper to ensure React doesn't crash when trying to render an object as a child.
+ */
+function safeRender(value: any): React.ReactNode {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') {
+    return value.label || value.text || JSON.stringify(value);
+  }
+  return String(value);
 }
 
 export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
@@ -90,7 +106,7 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
             </h4>
           </div>
           <p className="text-sm text-[#333] leading-relaxed">
-            {insights.ringkasan}
+            {safeRender(insights.ringkasan)}
           </p>
         </section>
 
@@ -103,16 +119,54 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
                 Temuan Utama
               </h4>
             </div>
-            <ul className="space-y-2">
-              {insights.temuanUtama.map((temuan, idx) => (
-                <li 
-                  key={idx}
-                  className="flex items-start gap-2 text-sm text-[#444] bg-[#f9f9f9] p-3 rounded-lg"
-                >
-                  <CheckCircle className="w-4 h-4 text-[#6b8e3d] mt-0.5 flex-shrink-0" />
-                  <span>{temuan}</span>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {insights.temuanUtama.map((temuan, idx) => {
+                const isObject = typeof temuan === 'object' && temuan !== null;
+                const diagnosa = isObject ? (temuan as any).diagnosa : String(temuan);
+                const impactScore = isObject ? (temuan as any).impactScore : null;
+                const metadata = isObject ? (temuan as any).data : null;
+
+                return (
+                  <li 
+                    key={idx}
+                    className="group flex flex-col gap-2 bg-[#f9f9f9] p-4 rounded-xl border border-transparent hover:border-[#c8e6c9] hover:bg-white transition-all duration-300 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 p-1 bg-[#e8f5e9] rounded-full group-hover:bg-[#6b8e3d] group-hover:text-white transition-colors">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-4">
+                          <span className="text-sm font-medium text-[#2d3436] leading-relaxed">
+                            {diagnosa}
+                          </span>
+                          {impactScore !== null && (
+                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${
+                              impactScore >= 8 ? 'bg-[#ffebee] border-[#ffcdd2] text-[#c62828]' :
+                              impactScore >= 5 ? 'bg-[#fff3e0] border-[#ffe0b2] text-[#ef6c00]' :
+                              'bg-[#f1f8e9] border-[#dcedc8] text-[#33691e]'
+                            }`}>
+                              <span className="text-[10px] font-bold uppercase tracking-tighter">Impact</span>
+                              <span className="text-xs font-black">{impactScore}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {metadata && typeof metadata === 'object' && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {Object.entries(metadata).map(([key, val], i) => (
+                              <div key={i} className="flex flex-col px-2.5 py-1 bg-white border border-[#eee] rounded-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                                <span className="text-[9px] uppercase font-bold text-[#999] tracking-widest">{key}</span>
+                                <span className="text-xs font-semibold text-[#555]">{String(val)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}
@@ -151,7 +205,7 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
                         {tren.persentase}%
                       </span>
                     </div>
-                    <p className="text-xs text-[#666] mt-1">{tren.deskripsi}</p>
+                    <p className="text-xs text-[#666] mt-1">{safeRender(tren.deskripsi)}</p>
                   </div>
                 </div>
               ))}
@@ -175,7 +229,7 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
                   className="flex items-start gap-2 text-sm text-[#444] bg-[#fff8e1] p-3 rounded-lg border border-[#ffecb3]"
                 >
                   <Lightbulb className="w-4 h-4 text-[#ff8f00] mt-0.5 flex-shrink-0" />
-                  <span>{rekomendasi}</span>
+                  <span>{safeRender(rekomendasi)}</span>
                 </li>
               ))}
             </ul>
@@ -199,12 +253,12 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
                 >
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-[#c62828]" />
-                    <span className="text-sm font-medium text-[#c62828]">{anomali.label}</span>
+                    <span className="text-sm font-medium text-[#c62828]">{safeRender(anomali.label)}</span>
                     <span className="text-sm font-bold text-[#c62828]">
-                      {anomali.nilai.toLocaleString('id-ID')}
+                      {typeof anomali.nilai === 'number' ? anomali.nilai.toLocaleString('id-ID') : safeRender(anomali.nilai)}
                     </span>
                   </div>
-                  <p className="text-xs text-[#666] mt-1">{anomali.deskripsi}</p>
+                  <p className="text-xs text-[#666] mt-1">{safeRender(anomali.deskripsi)}</p>
                 </div>
               ))}
             </div>
@@ -215,7 +269,7 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
         {insights.kesimpulan && (
           <section className="pt-4 border-t border-[#e0e0e0]">
             <p className="text-sm text-[#333] font-medium text-center italic mb-4">
-              &quot;{insights.kesimpulan}&quot;
+              &quot;{safeRender(insights.kesimpulan)}&quot;
             </p>
             
             {insights.saranEksplorasi && insights.saranEksplorasi.length > 0 && (
@@ -225,7 +279,7 @@ export function AIInsightsPanel({ insights, loading }: AIInsightsPanelProps) {
                     key={idx}
                     className="text-[10px] bg-white border border-[#e0e0e0] text-[#666] px-3 py-1 rounded-full hover:border-[#6b8e3d] hover:text-[#6b8e3d] transition-all"
                   >
-                    {saran}
+                    {safeRender(saran)}
                   </button>
                 ))}
               </div>

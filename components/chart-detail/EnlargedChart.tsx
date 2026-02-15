@@ -15,15 +15,43 @@ export function EnlargedChart({ tile, result }: EnlargedChartProps) {
   const { title, chartType: rawChartType } = tile.visualization;
 
   // Force heatmap for specific titles if needed
-  const chartType = title === 'Case Report by Area' || title === 'Case Category by Branch' || title === 'Case Category by Airlines' 
+  let chartType = title === 'Case Report by Area' || title === 'Case Category by Branch' || title === 'Case Category by Airlines' 
     ? 'heatmap' 
     : rawChartType;
+  
+  // Default to 'bar' if chartType is not provided
+  if (!chartType) {
+    console.warn(`[EnlargedChart] chartType not provided for "${title}", defaulting to 'bar'`);
+    chartType = 'bar';
+  }
 
 
 
   const renderChart = () => {
+    const isHorizontalBar = chartType === 'horizontal_bar';
+    const isPieOrDonut = chartType === 'pie' || chartType === 'donut';
+    
+    // Ensure container has proper dimensions
+    const containerStyle: React.CSSProperties = {
+      width: '100%',
+      height: isHorizontalBar ? 'auto' : '500px', // Increased from 400px for better visibility
+      minHeight: '400px',
+      maxHeight: isHorizontalBar ? '600px' : 'none', // Use fixed maxHeight for horizontal bars
+      overflowY: isHorizontalBar ? 'auto' : 'visible',
+      paddingRight: isHorizontalBar ? '8px' : '0', // Space for scrollbar
+    };
+    
+    console.log('[EnlargedChart] Rendering:', {
+      chartType,
+      title,
+      isHorizontalBar,
+      isPieOrDonut,
+      rowCount: result.rows.length,
+      columns: result.columns
+    });
+    
     return (
-      <div className="w-full">
+      <div style={containerStyle}>
         <ChartPreview 
           visualization={{
             ...tile.visualization,
@@ -37,10 +65,8 @@ export function EnlargedChart({ tile, result }: EnlargedChartProps) {
   };
 
   return (
-    <div ref={chartRef} className="relative">
-      <div className="pt-2">
-        {renderChart()}
-      </div>
+    <div ref={chartRef} className="relative" style={{ width: '100%' }}>
+      {renderChart()}
     </div>
   );
 }

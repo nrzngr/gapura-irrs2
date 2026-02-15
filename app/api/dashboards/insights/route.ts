@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenRouter } from '@openrouter/sdk';
 import { supabase } from '@/lib/supabase';
-import { buildSchemaContextForAI } from '@/lib/builder/schema';
+import { buildSchemaContextForAI, TABLES, JOINS, getFieldDef } from '@/lib/builder/schema';
+import { normalizeQuery, normalizeVisualization } from '@/lib/builder/normalization';
 import crypto from 'crypto';
 
-// OpenRouter Configuration
-const openrouter = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+
+// AI Configuration
+const AI_API_KEY = process.env.GROQ_API_KEY;
+const AI_BASE_URL = 'https://api.groq.com/openai/v1';
+const AI_MODEL = 'llama-3.1-8b-instant';
 
 // Rate limiting
 const requestTimestamps = new Map<string, number[]>();
@@ -73,7 +75,12 @@ async function getPersistentCache(cacheKey: string) {
   return data;
 }
 
-async function setPersistentCache(cacheKey: string, insights: any, supportingCharts: any, metadata: any) {
+async function setPersistentCache(
+  cacheKey: string, 
+  insights: Record<string, unknown>, 
+  supportingCharts: unknown, 
+  metadata: Record<string, unknown>
+) {
   await supabase
     .from('ai_cache_entries')
     .upsert({
@@ -154,16 +161,30 @@ export async function POST(req: NextRequest) {
       context: `${dashboardContext}${chartContext}`
     });
     
-    // Call AI without timeout (model takes time to respond)
-    const completion: any = await openrouter.chat.send({
-      httpReferer: 'https://gapura.id',
-      xTitle: 'Gapura Dashboard',
-      chatGenerationParams: {
-        model: "arcee-ai/trinity-large-preview:free",
+    // Call AI (Groq)
+    const aiResponse = await fetch(`${AI_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AI_API_KEY}`,
+        },
+      body: JSON.stringify({
+        model: AI_MODEL,
         messages: [
           {
             role: "system",
-            content: "Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, sangat mendalam (comprehensive), dan actionable untuk manajemen operasional. JANGAN MEMBATASI KEDALAMAN ANALISIS — eksplorasi setiap detil yang relevan dari data yang diberikan. Fokus pada integritas data, tren keselamatan/kualitas, efisiensi operasional, dan korelasi antar dimensi. JANGAN gunakan emoji. Gunakan bahasa Indonesia yang profesional namun tegas. Target Anda adalah memberikan 'Data Storytelling' yang mengubah angka menjadi narasi strategi bisnis."
+            content: `Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, sangat mendalam (comprehensive), dan actionable untuk manajemen operasional.
+
+ATURAN PENTING:
+1. JANGAN MEMBATASI KEDALAMAN ANALISIS — eksplorasi setiap detil yang relevan dari data yang diberikan
+2. Fokus pada integritas data, tren keselamatan/kualitas, efisiensi operasional, dan korelasi antar dimensi
+3. JANGAN gunakan emoji
+4. Gunakan bahasa Indonesia yang profesional namun tegas
+5. Target Anda adalah memberikan 'Data Storytelling' yang mengubah angka menjadi narasi strategi bisnis
+6. PENTING: Selalu kembalikan respons dalam format JSON yang valid sesuai dengan format yang diminta user
+7. JANGAN gunakan markdown formatting (**, *, #, dll) dalam JSON
+8. Semua teks dalam JSON harus plain text tanpa formatting markdown
+9. SORTING SAFETY: JANGAN PERNAH mengurutkan (ORDER BY) berdasarkan kolom mentah (seperti "id") jika sedang menggunakan GROUP BY. Gunakan alias ukuran (seperti "Jumlah") atau kolom dimensi yang ada di group by.`
           },
           {
             role: "user",
@@ -171,13 +192,19 @@ export async function POST(req: NextRequest) {
           }
         ],
         temperature: 0.7,
-        maxTokens: 4000,
+        max_tokens: 4000,
         stream: false,
-        provider: {
-          dataCollection: "allow"
-        }
-      }
+        response_format: { type: "json_object" }
+      }),
     });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI API error:', errorText);
+      throw new Error(`AI API error: ${aiResponse.status}`);
+    }
+
+    const completion = await aiResponse.json() as { choices?: { message?: { content?: string } }[] };
     
     let insightsText = completion.choices?.[0]?.message?.content || '{}';
     
@@ -209,12 +236,77 @@ export async function POST(req: NextRequest) {
       insights = parseInsightsFromText(insightsText);
     }
     
-    // 4.5 DEDUPLICATE SUPPORTING CHARTS
-    if (insights && Array.isArray(insights.supportingCharts)) {
+    // 4. VALIDATE AND ENFORCE DATA TYPES (Prevent React "Objects not valid as child" errors)
+    if (insights && typeof insights === 'object') {
+      const insightsObj = insights as any;
+      
+      // Ensure specific arrays contain only strings
+      const stringArrays = ['temuanUtama', 'rekomendasi', 'saranEksplorasi'];
+      stringArrays.forEach(key => {
+        if (Array.isArray(insightsObj[key])) {
+          insightsObj[key] = insightsObj[key].map((item: any) => {
+            if (typeof item === 'object' && item !== null) {
+              // PRESERVE STRUCTURED FINDINGS: If it has 'diagnosa', it's a "Genius Tier" finding
+              if (item.diagnosa) return item;
+              
+              // Fallback for other objects
+              return item.label || item.deskripsi || JSON.stringify(item);
+            }
+            return String(item || '');
+          });
+        } else {
+          insightsObj[key] = [];
+        }
+      });
+
+      // Ensure 'anomali' and 'tren' fields are safe
+      if (Array.isArray(insightsObj.anomali)) {
+        insightsObj.anomali = insightsObj.anomali.map((a: any) => ({
+          label: String(a?.label || 'Anomali'),
+          nilai: (typeof a?.nilai === 'object') ? JSON.stringify(a.nilai) : (a?.nilai ?? 0),
+          deskripsi: String(a?.deskripsi || '')
+        }));
+      } else {
+        insightsObj.anomali = [];
+      }
+
+      if (Array.isArray(insightsObj.tren)) {
+        insightsObj.tren = insightsObj.tren.map((t: any) => ({
+          label: String(t?.label || 'Tren'),
+          arah: String(t?.arah || 'stabil').toLowerCase(),
+          persentase: Number(t?.persentase || 0),
+          deskripsi: String(t?.deskripsi || '')
+        }));
+      } else {
+        insightsObj.tren = [];
+      }
+
+      // Initialize supportingCharts if missing or not an array
+      if (!Array.isArray(insightsObj.supportingCharts)) {
+        insightsObj.supportingCharts = [];
+      }
+
+      // Deduplicate by title
       const seenTitles = new Set<string>();
-      insights.supportingCharts = (insights.supportingCharts as any[]).filter(chart => {
+      const rawCharts = insightsObj.supportingCharts as Array<{
+        visualization?: { title?: string; chartType?: string };
+        query?: unknown;
+      }>;
+
+      insightsObj.supportingCharts = rawCharts.filter(chart => {
         if (!chart || !chart.visualization || !chart.visualization.title) return false;
+        // Basic validation of chart structure
+        if (!chart.visualization.chartType || !chart.query) return false;
+        
+        // NORMALIZE QUERY
+        chart.query = normalizeQuery(chart.query);
+        if (!chart.query) return false;
+
         const normalizedTitle = chart.visualization.title.trim().toLowerCase();
+        
+        // APPLY SHARED VISUALIZATION RULES (Fail-safes, Axis syncing)
+        chart = normalizeVisualization(chart as any);
+
         if (seenTitles.has(normalizedTitle)) return false;
         seenTitles.add(normalizedTitle);
         return true;
@@ -222,8 +314,8 @@ export async function POST(req: NextRequest) {
     }
     
     // 5. PERSISTENT CACHE STORAGE
-    await setPersistentCache(cacheKey, insights, insights.supportingCharts, {
-      model: "arcee-ai/trinity-large-preview:free",
+    await setPersistentCache(cacheKey, insights, (insights as Record<string, unknown>).supportingCharts, {
+      model: AI_MODEL,
       chartTitle,
       chartType,
       totalRows
@@ -251,85 +343,94 @@ function generatePrompt(data: InsightRequest & { context?: string }): string {
   const { chartTitle, chartType, totalRows, dataSample, statistics, dateRange, context } = data;
   const schemaContext = buildSchemaContextForAI();
   
-  return `
-Analisis data ground handling berikut dan berikan insight strategis serta visualisasi pendukung.
+  return `<IDENTITY>
+Anda adalah Senior Operational Auditor & Principal Insights Architect untuk Gapura Angkasa.
+Spesialisasi Anda adalah **Diagnostic Data Storytelling**: menghubungkan titik-titik antara data operasional, kepatuhan safety, dan dampak finansial.
+Anda tidak hanya melaporkan data; Anda mendiagnosis kesehatan sistem ground handling.
+</IDENTITY>
 
+<DIAGNOSTIC_FRAMEWORK>
+Dalam menganalisis data ini, gunakan metodologi **"5-Whys"** dan **"Pareto Principle (80/20)"**:
+1. OBSERVASI: Identifikasi kontributor 20% teratas yang menyebabkan 80% volume/masalah.
+2. HIPOTESIS: Buat dugaan cerdas mengapa pola ini muncul (misal: "Lonjakan di Cabang X mungkin terkait dengan turnover staf atau overload peralatan").
+3. DIAGNOSA: Validasi hipotesis dengan menghubungkan dimensi (misal: "Benar, karena korelasi antara Delay dan Maskapai Low-Cost sangat tinggi").
+4. ACTIONS: Berikan rekomendasi yang bersifat **Preemtif** (mencegah) bukan hanya Reaktif.
+</DIAGNOSTIC_FRAMEWORK>
+
+<OPERATIONAL_CONTEXT>
+- SOURCE: ${context || 'Analisis Umum'}
+- FOCUS: ${chartTitle} (${chartType})
+- DATA RANGE: ${dateRange ? `${dateRange.from} s/d ${dateRange.to}` : 'All historic data'}
+- SCHEMA IQ:
 ${schemaContext}
+</OPERATIONAL_CONTEXT>
 
-KONTEKS DASHBOARD:
-${context || 'Analisis Umum'}
-
-DETAIL CHART UTAMA:
-- Judul: ${chartTitle}
-- Tipe Visualisasi: ${chartType}
-- Total Data: ${totalRows} baris
-${dateRange ? `- Periode: ${dateRange.from} s/d ${dateRange.to}` : ''}
-
-RINGKASAN STATISTIK:
-- Total Volume: ${statistics.total.toLocaleString('id-ID')}
-- Rata-rata per entitas: ${statistics.average.toLocaleString('id-ID', { maximumFractionDigits: 2 })}
-- Nilai Tertinggi: ${statistics.maximum.toLocaleString('id-ID')}
-- Nilai Terendah: ${statistics.minimum.toLocaleString('id-ID')}
-
-SAMPEL DATA (Top 50 Rows):
+<RAW_INTELLIGENCE_SNAPSHOT>
+- Total Volume: ${statistics.total}
+- Peak/Mean/Base: ${statistics.maximum} / ${statistics.average.toFixed(2)} / ${statistics.minimum}
+- Data Distribution (Sample):
 ${JSON.stringify(dataSample, null, 2)}
+</RAW_INTELLIGENCE_SNAPSHOT>
 
-INSTRUKSI ANALISIS (BEBAS BATASAN):
-1. Identifikasi SETIAP pola dominan (pareto) yang muncul pada data. JANGAN membatasi jumlah temuan jika data memang kompleks.
-2. Cari anomali spesifik dan berikan analisis 'root cause' berdasarkan data (misal: cabang/maskapai dengan performa jauh di bawah rata-rata).
-3. Hubungkan data dengan potensi isu operasional secara luas (Safety, Quality, Efficiency, Financial Impact).
-5. Berikan rekomendasi perbaikan proses yang konkret, bertingkat, dan komprehensif.
-6. Buat minimal 4 VISUALISASI PENDUKUNG (supportingCharts). Jika dimensi kategorikal memiliki kemungkinan nama yang panjang (seperti sub-kategori, maskapai, station), gunakan 'horizontal_bar' atau 'pie' agar visualisasi lebih rapi. Susunlah seperti sebuah DASHBOARD EKSEKUTIF pendukung untuk memberikan gambaran komprehensif (360-degree view).
+<STRATEGIC_IMPACT_SCORING>
+Untuk setiap temuan, tentukan **Operational Impact Score (1-10)**:
+- 1-3: Minor (Inefisiensi administratif)
+- 4-6: Moderate (Penurunan kualitas layanan/KPI)
+- 7-10: Critical (Potensi Ground Damage, Pelanggaran Safety, atau Kerugian Finansial Besar)
+</STRATEGIC_IMPACT_SCORING>
 
-JANGAN BERIKAN SARAN GENERIK. BERIKAN ANALISIS YANG SANGAT SPESIFIK. TIDAK ADA BATASAN PANJANG ANALISIS — PRIORITASKAN KELENGKAPAN DAN KEDALAMAN (INSIGHTFULNESS).
+<SUPPORTING_CHART_DECISION_TREE>
+Mandat Senior Analyst: Buat minimal 4 chart pendukung untuk investigasi lanjutan.
+- Jika ada anomali maskapai -> Heatmap Airline vs Category.
+- Jika ada lonjakan volume -> Area chart Temporal Trend (Month/Week).
+- Jika ada isu safety -> Pie chart Severity distribution.
+- Selalu prioritaskan HEATMAP untuk perbandingan 2 dimensi kategorikal.
+</SUPPORTING_CHART_DECISION_TREE>
 
-FORMAT OUTPUT (JSON):
+<OUTPUT_DEFINITION>
+Return a valid JSON object. DO NOT use markdown formatting.
 {
-  "ringkasan": "Paragraph pendek (3-4 kalimat) executive summary yang menhighlight isu paling kritis.",
-  "temuanUtama": ["Point-point spesifik dengan data pendukung (angka/%)", "JANGAN gunakan emoji", "Fokus pada 'Why' dan 'So What'"],
-  "tren": [
+  "ringkasan": "Executive Summary (3-4 kalimat). Berikan skor kesehatan operasional (0-100%).",
+  "temuanUtama": [
     {
-      "label": "Nama Cabang/Maskapai/Kategori",
-      "arah": "naik/turun/stabil/kritis",
-      "persentase": 0,
-      "deskripsi": "Penjelasan konteks kenapa ini trend penting"
+      "diagnosa": "DIAGNOSA 1: Penjelasan naratif mendalam tentang temuan",
+      "data": { "Dimension_Name": "Value", "Metric_Name": 12 },
+      "impactScore": 8
     }
   ],
-  "rekomendasi": ["Saran spesifik 1 (Taktis/Jangka Pendek)", "Saran spesifik 2 (Strategis/Jangka Panjang)"],
-  "anomali": [
-    {
-      "label": "Entitas yang outlier",
-      "nilai": "string",
-      "deskripsi": "Kenapa ini anomali? (Misal: 3x lipat rata-rata)"
-    }
+  "__RULES__": [
+    "DILARANG menyertakan field data (seperti 'maskapai') jika dimensinya tidak ada dalam RAW_INTELLIGENCE_SNAPSHOT",
+    "Field 'data' harus berisi pasangan key-value dari dimensi dan metrik nyata yang ada di snapshot di atas",
+    "JANGAN gunakan placeholder atau string kosong"
   ],
-  "kesimpulan": "Satu kalimat penutup yang merangkum status kesehatan operasional berdasarkan data ini.",
-  "saranEksplorasi": ["Pertanyaan atau topik lanjutan untuk dieksplorasi 1", "Pertanyaan atau topik lanjutan untuk dieksplorasi 2"],
+  "tren": [{"label": "Target", "arah": "naik|turun|stabil|kritis", "persentase": 0, "deskripsi": "Strategic context."}],
+  "rekomendasi": [
+    "REKOMENDASI 1: Tindakan mitigasi konkret",
+    "REKOMENDASI 2: Perubahan SOP/Workflow"
+  ],
+  "anomali": [{"label": "Outlier", "nilai": "N", "deskripsi": "Why this happened?"}],
   "supportingCharts": [
     {
       "visualization": {
         "chartType": "bar|line|area|pie|donut|heatmap",
-        "title": "Judul Chart Pendukung (Bahasa Indonesia)",
-        "xAxis": "Field Dimensi (Horizontal)",
-        "yAxis": ["Field Measure (untuk Bar/Line) ATAU Dimensi Kedua (khusus Heatmap)"],
-        "colorField": "Field Measure Utamanya (khusus Heatmap)"
+        "title": "Indonesian Insightful Title",
+        "xAxis": "Alias mapper",
+        "yAxis": ["Alias mapper"],
+        "colorField": "For Heatmaps"
       },
       "query": {
         "source": "reports",
-        "dimensions": [{"table": "reports", "field": "field_name", "alias": "Alias"}],
+        "dimensions": [{"table": "reports", "field": "f", "alias": "A"}],
         "measures": [{"table": "reports", "field": "id", "function": "COUNT", "alias": "Jumlah"}],
-        "sorts": [{"field": "Jumlah", "direction": "desc", "alias": "Jumlah"}],
+        "sorts": [{"field": "Jumlah", "direction": "desc"}],
         "limit": 5
-      },
-      "explanation": "Alasan kenapa chart ini penting untuk mendukung analisis chart utama."
+      }
     }
-  ]
+  ],
+  "kesimpulan": "Final strategic verdict.",
+  "saranEksplorasi": ["Topic for deeper drill-down 1", "2"]
 }
-
-PENTING:
-1. Nilai "xAxis", "yAxis", dan "colorField" dalam object "visualization" HARUS SAMA PERSIS dengan string "alias" yang Anda definisikan di dalam object "query.dimensions" atau "query.measures".
-2. Jika Anda memberikan alias "Kategori", maka xAxis HARUS "Kategori", bukan nama field databasenya.
-3. Pastikan semua nilai di dalam JSON valid. Nilai yang mengandung ":" (rasio), "%", atau teks harus diapit tanda kutip ganda (quoted string).`;
+</OUTPUT_DEFINITION>`;
 }
 
 function parseInsightsFromText(text: string): unknown {

@@ -3,14 +3,27 @@
 import { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { PrismSelect } from '@/components/ui/PrismSelect';
-import { PrismButton as Button } from '@/components/ui/PrismButton';
-import { RotateCcw, Share2, MoreVertical, Calendar } from 'lucide-react';
+import { RotateCcw, MoreVertical, Calendar } from 'lucide-react';
 
 // Initial static options (will be populated dynamicly)
 const allOption = { value: 'all', label: 'All' };
 const initialOptions = [allOption];
 
 import { CustomerFeedbackDashboardCharts } from '@/components/dashboard/CustomerFeedbackCharts';
+
+interface Option {
+    value: string;
+    label: string;
+}
+
+interface FilterOptions {
+    hub: Option[];
+    branch: Option[];
+    airline: Option[];
+    airline_type: Option[];
+    main_category: Option[];
+    area: Option[];
+}
 
 export default function CustomerFeedbackPage() {
     // Filter states
@@ -22,7 +35,7 @@ export default function CustomerFeedbackPage() {
     const [selectedArea, setSelectedArea] = useState('all');
 
     // Options states
-    const [options, setOptions] = useState<any>({
+    const [options, setOptions] = useState<FilterOptions>({
         hub: initialOptions,
         branch: initialOptions,
         airline: initialOptions,

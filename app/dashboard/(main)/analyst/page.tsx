@@ -4,16 +4,16 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    BarChart3, PieChart as PieChartIcon, TrendingUp, Clock, CheckCircle2, AlertCircle,
-    FileText, RefreshCw, Loader2, Building2, Calendar, Plus, Download,
-    FileSpreadsheet, Eye, ArrowRight, Shield, Zap, Search, Filter,
-    Target, Users, Activity, Timer, AlertTriangle, ArrowUp, ArrowDown,
-    ArrowLeft, TrendingDown, Gauge, CalendarDays, LayoutDashboard
+    BarChart3, PieChart as PieChartIcon, TrendingUp, Clock, CheckCircle2,
+    FileText, RefreshCw, Loader2, Building2, Plus,
+    FileSpreadsheet, Eye, ArrowRight, Shield,
+    Target, Users, Activity, AlertTriangle, ArrowUp,
+    CalendarDays, LayoutDashboard
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart as RechartsPie, Pie, Cell, Legend, BarChart, Bar, LineChart,
-    Line, RadialBarChart, RadialBar, ComposedChart, LabelList
+    PieChart as RechartsPie, Pie, Cell, BarChart, Bar,
+    ComposedChart, LabelList, Line
 } from 'recharts';
 // xlsx, jspdf, jspdf-autotable are loaded dynamically on export click to reduce initial bundle
 
@@ -467,13 +467,26 @@ export default function AnalystDashboard() {
     const pendingFeedback = filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK');
     const todayCases = filteredReports.filter(r => new Date(r.created_at).toDateString() === new Date().toDateString());
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
+    interface CustomTooltipProps {
+        active?: boolean;
+        payload?: Array<{
+            name?: string;
+            value?: number;
+            color?: string;
+            fill?: string;
+            dataKey?: string;
+            payload?: Record<string, unknown>;
+        }>;
+        label?: string;
+    }
+
+    const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
         if (active && payload && payload.length) {
-            const isPieChart = !label && payload[0]?.payload?.name || payload[0]?.payload?.division;
+            const isPieChart = !label && (payload[0]?.payload?.name || payload[0]?.payload?.division);
 
             if (isPieChart) {
                 const data = payload[0];
-                const displayName = data.name || data.payload?.name || data.payload?.division || data.payload?.category || 'Unknown';
+                const displayName = (data.name || data.payload?.name || data.payload?.division || data.payload?.category || 'Unknown') as string;
                 const displayValue = data.value;
                 const color = data.fill || data.color || '#10b981';
 
@@ -483,7 +496,7 @@ export default function AnalystDashboard() {
                             <div className="w-3 h-3 rounded-full" style={{ background: color }} />
                             <p className="text-sm font-bold text-gray-900">{displayName}</p>
                         </div>
-                        <p className="text-2xl font-bold" style={{ color }}>{displayValue}</p>
+                        <p className="text-2xl font-bold" style={{ color }}>{displayValue as number}</p>
                         <p className="text-xs text-gray-500">laporan</p>
                     </div>
                 );
@@ -492,7 +505,7 @@ export default function AnalystDashboard() {
                     <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[160px]">
                         <p className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">{label}</p>
                         <div className="space-y-2">
-                            {payload.map((entry: any, idx: number) => (
+                            {payload.map((entry, idx) => (
                                 <div key={idx} className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-2">
                                         <div className="w-2.5 h-2.5 rounded-full" style={{ background: entry.color || entry.fill }} />
@@ -693,8 +706,9 @@ export default function AnalystDashboard() {
                                 <AreaChart
                                     data={analytics?.trendData?.length ? analytics.trendData : monthlyReportData}
                                     margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                    onClick={(state: any) => {
-                                        const label = state?.activeLabel || (state?.activePayload?.[0]?.payload?.month);
+                                    onClick={(state) => {
+                                        const s = state as { activeLabel?: string; activePayload?: Array<{ payload?: { month?: string } }> };
+                                        const label = s?.activeLabel || (s?.activePayload?.[0]?.payload?.month);
                                         if (label) {
                                             router.push(drilldownUrl('month', String(label)));
                                         }
@@ -807,8 +821,9 @@ export default function AnalystDashboard() {
                                         name="Laporan"
                                         fill="#10b981"
                                         radius={[4, 4, 0, 0]}
-                                        onClick={(data: any) => {
-                                            if (data?.station) router.push(drilldownUrl('station', data.station));
+                                        onClick={(data) => {
+                                            const d = data as { station?: string };
+                                            if (d?.station) router.push(drilldownUrl('station', d.station));
                                         }}
                                         style={{ cursor: 'pointer' }}
                                     >
@@ -840,7 +855,8 @@ export default function AnalystDashboard() {
                                     layout="vertical"
                                     margin={{ left: 30, right: 10 }}
                                     onClick={(state) => {
-                                        if (state?.activeLabel) router.push(drilldownUrl('month', String(state.activeLabel)));
+                                        const s = state as { activeLabel?: string };
+                                        if (s?.activeLabel) router.push(drilldownUrl('month', String(s.activeLabel)));
                                     }}
                                     style={{ cursor: 'pointer' }}
                                 >
@@ -1252,7 +1268,7 @@ export default function AnalystDashboard() {
 }
 
 // Icon helper
-const ShieldCheckCode = ({ size, style }: { size: number, style: any }) => (
+const ShieldCheckCode = ({ size, style }: { size: number, style: React.CSSProperties }) => (
     <Shield size={size} style={style} />
 );
 
@@ -1267,7 +1283,7 @@ function StatCard({
 }: {
     title: string;
     value: string | number;
-    icon: any;
+    icon: React.ElementType;
     color: 'blue' | 'green' | 'purple' | 'red' | 'amber' | 'emerald';
     trend?: string;
     onClick?: () => void;

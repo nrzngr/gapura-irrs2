@@ -117,7 +117,7 @@ export async function PATCH(request: Request) {
         }
 
         const newStatus = validation.newStatus!;
-        const updateData: Record<string, any> = {
+        const updateData: Record<string, unknown> = {
             status: newStatus,
             updated_at: new Date().toISOString(),
         };

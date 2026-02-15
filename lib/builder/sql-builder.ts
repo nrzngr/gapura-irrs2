@@ -110,7 +110,17 @@ export function buildQuery(def: QueryDefinition): BuildResult {
   for (const m of measures) {
     const col = qualifiedCol(m.table, m.field);
     const alias = m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`;
-    const aggExpr = buildAggregate(m.function, col);
+    
+    // Defensive check: prevent SUM/AVG on non-numeric fields as a final safety layer
+    let func = m.function;
+    if (func === 'SUM' || func === 'AVG') {
+      const fieldDef = getFieldDef(m.table, m.field);
+      if (fieldDef && ['uuid', 'string', 'date', 'datetime', 'boolean'].includes(fieldDef.type)) {
+        func = 'COUNT' as any;
+      }
+    }
+    
+    const aggExpr = buildAggregate(func, col);
     selectParts.push(`${aggExpr} AS "${alias}"`);
   }
 
@@ -159,13 +169,23 @@ export function buildQuery(def: QueryDefinition): BuildResult {
 
   // === ORDER BY ===
   const orderByParts: string[] = [];
+  const validSortAliases = new Set([
+    ...dimensions.map(d => d.alias || `${d.table}_${d.field}`),
+    ...measures.map(m => m.alias || `${m.function.toLowerCase()}_${m.table}_${m.field}`)
+  ]);
+
   for (const s of sorts) {
     const dir = s.direction === 'desc' ? 'DESC' : 'ASC';
-    if (s.alias) {
+    if (s.alias && validSortAliases.has(s.alias)) {
       orderByParts.push(`"${s.alias}" ${dir}`);
-    } else {
+    } else if (validSortAliases.has(s.field)) {
+      // Fallback: If s.field is actually an alias of a select column, use it
+      orderByParts.push(`"${s.field}" ${dir}`);
+    } else if (groupByParts.length === 0) {
+      // Only allow sorting by raw fields if NOT grouping
       orderByParts.push(`"${s.field}" ${dir}`);
     }
+    // If grouped and field is not a valid alias, we skip it to prevent 500
   }
 
   // Default sort: first measure desc, or first dimension asc

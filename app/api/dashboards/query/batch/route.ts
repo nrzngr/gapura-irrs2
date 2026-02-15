@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { validateQuery, buildQuery } from '@/lib/builder/sql-builder';
+import { normalizeQuery } from '@/lib/builder/normalization';
 import type { QueryDefinition } from '@/types/builder';
 
 const MAX_BATCH_SIZE = 30;
@@ -18,8 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Maksimal ${MAX_BATCH_SIZE} queries per batch` }, { status: 400 });
     }
 
-    // Validate all queries first
-    for (const q of queries) {
+    // Normalize all queries first
+    const normalizedQueries = queries.map(q => ({
+      ...q,
+      query: normalizeQuery(q.query)
+    }));
+
+    // Validate all normalized queries
+    for (const q of normalizedQueries) {
       const errors = validateQuery(q.query);
       if (errors.length > 0) {
         return NextResponse.json(
@@ -31,10 +38,10 @@ export async function POST(request: NextRequest) {
 
     // Execute all queries in parallel, with internal memoization to avoid redundant DB calls for identical SQL
     const startTime = Date.now();
-    const queryMemo = new Map<string, Promise<any>>();
+    const queryMemo = new Map<string, Promise<Record<string, unknown>>>();
 
     const results = await Promise.all(
-      queries.map(async (q) => {
+      normalizedQueries.map(async (q) => {
         try {
           const { sql, params } = buildQuery(q.query);
           const memoKey = JSON.stringify({ sql, params });

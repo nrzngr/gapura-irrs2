@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { validateQuery, buildQuery } from '@/lib/builder/sql-builder';
+import { normalizeQuery } from '@/lib/builder/normalization';
 import type { QueryDefinition } from '@/types/builder';
 
 export async function POST(request: NextRequest) {
@@ -24,17 +25,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: hanya Analyst dan Admin' }, { status: 403 });
     }
 
-    // Parse body
+    // Parse and Normalize
     const body = await request.json();
-    const query: QueryDefinition = body.query;
+    let query: QueryDefinition = body.query;
 
     if (!query) {
       return NextResponse.json({ error: 'Query definition diperlukan' }, { status: 400 });
     }
 
+    // Apply normalization (Type-aware fixes, default source, etc.)
+    query = normalizeQuery(query);
+
     // Validate
     const errors = validateQuery(query);
     if (errors.length > 0) {
+      console.warn('[Query API] Validation failed:', {
+        errors,
+        query: JSON.stringify(query, null, 2)
+      });
       return NextResponse.json({ error: 'Query tidak valid', details: errors }, { status: 400 });
     }
 
@@ -52,11 +60,16 @@ export async function POST(request: NextRequest) {
     const executionTimeMs = Date.now() - startTime;
 
     if (error) {
-      console.error('Query execution error:', error);
-      return NextResponse.json(
-        { error: 'Gagal menjalankan query', details: error.message },
-        { status: 500 }
-      );
+      console.error('❌ [Query API] Execution failed:', {
+        message: error.message,
+        sql,
+        params,
+        queryId: (query as any).id || 'unknown'
+      });
+      return NextResponse.json({
+        error: error.message,
+        details: 'Terjadi kesalahan saat mengeksekusi query database.'
+      }, { status: 500 });
     }
 
     const rows = Array.isArray(data) ? data : [];
@@ -67,6 +80,11 @@ export async function POST(request: NextRequest) {
       rows,
       rowCount: rows.length,
       executionTimeMs,
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'CDN-Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      }
     });
   } catch (err) {
     console.error('Query API error:', err);

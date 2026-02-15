@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BuilderLayout } from '@/components/builder/BuilderLayout';
+import { BuilderLayout, type SaveTile, type SaveConfig } from '@/components/builder/BuilderLayout';
 import { Trash2, ExternalLink, Clock, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 
 interface SavedDashboard {
@@ -30,7 +30,7 @@ export default function DashboardBuilderPage() {
     } catch { /* ignore */ }
   };
 
-  const handleSave = async (name: string, description: string, tiles: any[], config?: any) => {
+  const handleSave = async (name: string, description: string, tiles: SaveTile[], config?: SaveConfig) => {
     try {
       const response = await fetch('/api/dashboards', {
         method: 'POST',

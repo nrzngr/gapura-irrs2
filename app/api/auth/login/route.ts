@@ -102,13 +102,13 @@ export async function POST(request: Request) {
         await registerSession(user.id, sid, getClientIp(request), request.headers.get('user-agent'));
 
         // 2. Multi-Account Management (Auth Bundle)
-        let bundle = { active_uid: user.id, sessions: {} as Record<string, string> };
+        const bundle = { active_uid: user.id, sessions: {} as Record<string, string> };
         const existingBundle = cookieStore.get('auth_bundle')?.value;
         if (existingBundle) {
             try {
                 const parsed = JSON.parse(existingBundle);
                 bundle.sessions = parsed.sessions || {};
-            } catch (e) { /* ignore parse errors */ }
+            } catch { /* ignore parse errors */ }
         }
         
         bundle.active_uid = user.id;

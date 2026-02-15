@@ -18,9 +18,9 @@ interface ChartConfig {
   dataField: string;
   width: 'full' | 'half' | 'third';
   position: number;
-  query_config?: any;
-  visualization_config?: any;
-  layout?: any;
+  query_config?: Record<string, unknown>;
+  visualization_config?: Record<string, unknown>;
+  layout?: Record<string, unknown>;
   page_name?: string;
 }
 

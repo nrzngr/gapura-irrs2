@@ -55,7 +55,7 @@ export async function POST(request: Request) {
             latency_ms: latency 
         });
 
-    } catch (err: any) {
+    } catch (err) {
         console.error('Ingestion pipeline failure', err);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

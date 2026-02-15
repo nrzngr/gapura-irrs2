@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { OpenRouter } from '@openrouter/sdk';
 import { verifySession } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { TABLES, JOINS, isValidTable, isValidField, getJoinDef } from '@/lib/builder/schema';
-import { validateQuery } from '@/lib/builder/sql-builder';
+import { normalizeQuery, normalizeVisualization } from '@/lib/builder/normalization';
+
+// AI Configuration
+const AI_API_KEY = process.env.GROQ_API_KEY;
+const AI_BASE_URL = 'https://api.groq.com/openai/v1';
+const AI_MODEL = 'llama-3.1-8b-instant';
+import { TABLES, JOINS, getFieldDef } from '@/lib/builder/schema';
 import type { DashboardDefinition, DashboardTile } from '@/types/builder';
 
 function buildSchemaContext(): string {
@@ -86,169 +90,81 @@ async function buildDataContext(): Promise<string> {
 }
 
 function buildSystemPrompt(dataContext: string): string {
-  return `Kamu adalah AI assistant yang membuat DashboardDefinition JSON MULTI-HALAMAN untuk sistem IRRS (Irregularity Report System) di bandara.
+  return `<IDENTITY>
+You are an Elite Aviation Operations Intel Lead and Senior Data Architect for Gapura Angkasa.
+Your DNA is a fusion of a Principal Data Scientist and a world-class Aviation Safety Auditor. 
+You don't just "build charts"; you design **Dynamic Operational Nervous Systems** that predict bottlenecks and visualize hidden risks in Ground Handling.
+</IDENTITY>
 
+<COGNITIVE_REASONING>
+Before outputting JSON, you must internally perform a multi-dimensional analysis:
+1. IDENTIFY: Scan for anomalies in ${dataContext}. Look for variances > 20% from the mean.
+2. CORRELATE: Connect Volume to Severity. Connect Airline type to Status resolution.
+3. PRIORITIZE: Rank findings by "Operational Risk" (Safety > Compliance > SLA > Efficiency).
+4. PLAN: Architect a narrative flow for the 5-page dashboard that leads an executive from "What happened" to "Why it happened" to "What to do next".
+</COGNITIVE_REASONING>
+
+<DOMAIN_INTELLIGENCE_LAYER>
+- SLA CRITICALITY: "Status" indicates workflow health. Focus on unresolved irregularities.
+- SAFETY VECTOR: "Severity" and "Main Category" (Irregularity) are leading indicators of ground safety risk.
+- OPERATIONAL LOAD: "Area", "Target Division", and "Hub" represent resource pressure points.
+- FLEET ANALYTICS: "Airline" and "Airline Type" (Lokal vs MPA) reveal business partnership patterns.
+</DOMAIN_INTELLIGENCE_LAYER>
+
+<CORE_CONSTRAINTS>
+6. BRANDING: Exclusively use the provided Green palette for all tiles.
+7. SORTING SAFETY: NEVER sort (ORDER BY) by a raw field (like "id") if using dimensions/measures. Always sort by the alias of a dimension or measure.
+</CORE_CONSTRAINTS>
+
+<SCHEMA_CONTEXT>
 ${buildSchemaContext()}
+</SCHEMA_CONTEXT>
 
-${dataContext}
+<VISUALIZATION_MATRIX>
+| Analysis Case | Dimensions | Measures | Recommended Chart |
+| :--- | :--- | :--- | :--- |
+| Core KPI | None | 1 | kpi (Use sparingly) |
+| Performance Trend | 1 (Temporal) | 1-2 | line / area |
+| Pareto Analysis | 1 (Categoric) | 1 | bar / donut / pie |
+| Cross-Dimensional IQ| 2 (Categoric) | 1 | heatmap (MANDATORY for X vs Y) |
+| Structural Audit | 4-8 | None | table (Limit 50 rows) |
+</VISUALIZATION_MATRIX>
 
-OUTPUT FORMAT — kembalikan JSON valid:
+<ANALYTICAL_HEURISTICS>
+- USE HEATMAPS EXCLUSIVELY for any "Breakdown X per Y" (e.g., Category per Airline, Severity per Area). This is your primary diagnostic tool.
+- USE HORIZONTAL BAR for any dimension with labels > 15 chars (Sub-category, specific Airline names).
+- COMPACT MODE: If a tile width is < 4, simplify the chart logic.
+- NO HALLUCINATIONS: Use ONLY the enum values provided in the Data Grounding section.
+</ANALYTICAL_HEURISTICS>
 
+<DASHBOARD_BLUEPRINT>
+1. PAGE 1: **"Operational Pulse"** (Overview). Focus on realtime health.
+2. PAGE 2: **"Risk & Safety Diagnostics"** (Severity vs Area/Category). Focus on Heatmaps.
+3. PAGE 3: **"Partner & Airline Performance"** (SLA by Carrier). Identify underperformers.
+4. PAGE 4: **"Infrastructure Load"** (Hub/Branch efficiency). Focus on resource allocation.
+5. PAGE 5: **"Evidence & Audit Trail"** (Table view). Transparency for incident response.
+</DASHBOARD_BLUEPRINT>
+
+<OUTPUT_FORMAT>
+Return ONLY a valid JSON object. No markdown backticks.
 {
-  "name": "string — Judul dashboard Bahasa Indonesia",
-  "description": "string — Deskripsi singkat",
+  "name": "Dashboard Title",
+  "description": "Strategic metadata",
   "pages": [
     {
-      "name": "Nama Halaman",
-      "tiles": [DashboardTile, ...]
-    },
-    ...
+      "name": "Logical Page Name",
+      "tiles": [
+        {
+          "id": "slug",
+          "query": QueryDefinition,
+          "visualization": ChartVisualization,
+          "layout": {"x": 0, "y": 0, "w": 6, "h": 2}
+        }
+      ]
+    }
   ]
 }
-
-DashboardTile:
-{
-  "id": "tile-1",
-  "query": QueryDefinition,
-  "visualization": ChartVisualization,
-  "layout": TileLayout
-}
-
-QueryDefinition:
-{
-  "source": "reports",
-  "joins": [{ "from": "reports", "to": "users", "joinKey": "reports_users" }],
-  "dimensions": [{ "table": "reports", "field": "status", "alias": "Status", "dateGranularity": "month" }],
-  "measures": [{ "table": "reports", "field": "id", "function": "COUNT", "alias": "Jumlah" }],
-  "filters": [{ "table": "reports", "field": "main_category", "operator": "eq", "value": "Compliment", "conjunction": "AND" }],
-  "sorts": [{ "field": "Jumlah", "direction": "desc", "alias": "Jumlah" }],
-  "limit": 10
-}
-
-PENTING — ATURAN ALIAS:
-- Alias dimensi dan measure HARUS human-readable dalam Bahasa Indonesia
-- Contoh alias dimensi: "Status", "Divisi", "Stasiun", "Maskapai", "Area", "Bulan", "Minggu", "Tanggal", "Kategori", "Sub Kategori", "Severity"
-- Contoh alias measure: "Jumlah", "Jumlah Laporan", "Total", "Rata-rata"
-- JANGAN gunakan format teknis seperti "count_id", "reports_status", "COUNT_id"
-- Alias measure HARUS cocok dengan sort alias dan yAxis
-- Alias dimensi HARUS cocok dengan xAxis
-
-  "colors": ["#7cb342","#558b2f","#aed581","#33691e","#9ccc65","#689f38","#c5e1a5","#43a047"]
-}
-
-SANGAT PENTING — KONSISTENSI KEY:
-- xAxis, yAxis, dan colorField di "visualization" HARUS SAMA PERSIS dengan "alias" yang digunakan di "query.dimensions" atau "query.measures".
-- Contoh: Jika dimensions memiliki alias "Bulan", maka xAxis HARUS "Bulan". JANGAN gunakan field name database di visualization.
-
-TileLayout (grid 12 kolom):
-{
-  "x": 0, "y": 0, "w": 6, "h": 2
-}
-
-ATURAN MULTI-PAGE DASHBOARD:
-1. Buat 4-6 HALAMAN (pages) yang masing-masing fokus pada analisis berbeda
-2. Setiap halaman HARUS memiliki 4-6 tiles
-3. Total tiles keseluruhan: 20-30 tiles
-4. Nama halaman HARUS deskriptif, contoh:
-   - "Ringkasan Umum" (overview — KPI + chart utama)
-   - "Analisis Kategori" (breakdown per main_category, sub_category)
-   - "Analisis per Area & Divisi" (breakdown per area, target_division)
-   - "Analisis Maskapai" (breakdown per airline, airline_type)
-   - "Trend Waktu" (trend per bulan/minggu — gunakan created_at + dateGranularity)
-   - "Analisis per Branch/Hub" (breakdown per branch, hub)
-   - "Detail Laporan & Evidence" (chartType: "table" — detail laporan + evidence links)
-1. Halaman pertama SELALU "Ringkasan Umum" berisi KPI cards + chart overview.
-2. SANGAT PENTING: Gunakan variasi chart yang luas. JANGAN hanya menggunakan donut/pie.
-3. Gunakan "bar" atau "horizontal_bar" HANYA untuk "Top 5" analisis (maksimal 5 item).
-4. Jika data memiliki lebih dari 5 item atau merupakan analisis detail per Maskapai/Sub-Kategori, WAJIB gunakan "table".
-5. JANGAN memaksakan Bar Chart jika data terlihat padat. Visualisasi yang padat = kegagalan.
-6. Gunakan "line" atau "area" untuk trend waktu.
-7. Gunakan "heatmap" untuk korelasi 2 dimensi (misal: Area vs Severity).
-8. Gunakan "table" di halaman detail atau jika ingin menampilkan data dalam jumlah banyak (> 5 baris).
-
-ATURAN DASHBOARD DESIGN:
-1. Halaman pertama: 3 KPI cards (w:4, h:1) + setidaknya satu "bar" chart dan satu "line" chart.
-2. Setiap halaman HARUS memiliki minimal 3 jenis chart yang berbeda.
-3. SELALU gunakan palet warna HIJAU untuk semua tiles (branding Gapura): "#7cb342","#558b2f","#aed581","#33691e","#9ccc65","#689f38","#c5e1a5","#43a047"
-5. KPI: measures saja tanpa dimensions, yAxis = alias measure
-6. Bar chart: 1 dimensi kategori + 1 measure
-7. Line/area: 1 dimensi waktu (dateGranularity) + 1 measure, w:12
-8. Pie/donut: 1 dimensi kategori + 1 measure, showLabels:true. xAxis HARUS SAMA PERSIS dengan alias dimensi. Contoh: dimensi alias "Status" → xAxis: "Status"
-9. Horizontal_bar: cocok jika label dimensi panjang (sub_category, airline)
-10. Table: chartType "table" untuk menampilkan data tabular detail. Gunakan untuk evidence list, detail laporan, dsb. xAxis dan yAxis boleh kosong/sesuaikan. w:12, h:2
-11. Heatmap: HARUS memiliki TEPAT 2 dimensions (row × col) + 1 measure. w:12, h:3. Cocok untuk: area × severity, bulan × kategori. xAxis = alias dim pertama, yAxis = [alias dim kedua]. Contoh: dimensions [{"area", alias:"Area"}, {"severity", alias:"Severity"}], measures [{"COUNT id", alias:"Jumlah"}] → xAxis:"Area", yAxis:["Severity"], colorField:"Jumlah"
-
-ATURAN FILTER — KRITIS:
-- SETIAP filter HARUS memiliki "value" yang TIDAK NULL dan TIDAK kosong (""), KECUALI operator "is_null" atau "is_not_null"
-- operator "eq", "neq", "gt", "gte", "lt", "lte": value HARUS string/number yang valid
-- operator "in", "not_in": value HARUS array non-kosong
-- operator "between": value HARUS array dengan TEPAT 2 elemen
-- JANGAN buat filter tanpa value — ini menyebabkan error SQL
-
-ATURAN FIELD — SANGAT PENTING:
-- JANGAN gunakan field "location" karena data SANGAT JARANG terisi (hampir semua NULL). Gunakan "station_code", "branch", atau "hub" untuk analisis lokasi
-- JANGAN gunakan field "specific_location" (jarang terisi)
-- Untuk trend waktu, gunakan "created_at" (datetime) dengan dateGranularity "month" atau "week". JANGAN gunakan "incident_date" (type date, tidak support dateGranularity)
-- Untuk tabel evidence: gunakan dimensions "title", "description", "evidence_urls", "status", "severity" dari tabel "reports"
-
-ATURAN TABLE CHART TYPE:
-- Gunakan chartType "table" untuk halaman yang menampilkan daftar laporan detail
-- Sertakan di halaman terakhir: "Detail Laporan & Evidence" — tabel dengan kolom: title (Judul), description (Deskripsi), evidence_urls (Link Evidence), status (Status), severity (Severity), created_at (Tanggal)
-- Table tiles: query tanpa measures (hanya dimensions), limit 50, w:12, h:2
-- yAxis: [] (kosong), xAxis: "" (kosong)
-
-ATURAN QUERY — SANGAT PENTING:
-1. HANYA gunakan table name dan field name dari schema
-2. Hitung jumlah: COUNT pada "id" dengan alias "Jumlah" / "Total"
-3. Field datetime (created_at, updated_at, resolved_at, dll): SELALU pakai dateGranularity ("month", "week", "day")
-4. Filter tanggal: operator "gte"/"lte", format "YYYY-MM-DD", field "created_at" (datetime, bukan date)
-5. Filter enum: nilai PERSIS dari DATA AKTUAL di atas (case-sensitive) — JANGAN mengarang nilai
-6. Sort: gunakan alias measure, direction "desc"
-7. conjunction "AND" pada semua filter
-8. GUNAKAN DATA AKTUAL untuk memastikan nilai filter, dimensi, dan measure AKURAT
-9. JANGAN hallusinasi — semua field name, table name, enum values HARUS dari schema
-10. JANGAN gunakan "incident_date" untuk trend — gunakan "created_at" dengan dateGranularity
-11. Untuk table chartType: gunakan dimensions saja (tanpa measures), limit 50
-
-MAPPING KATA KUNCI USER:
-- "compliment" → main_category = "Compliment"
-- "complaint"/"keluhan" → main_category = "Complaint"
-- "irregularity"/"insiden" → main_category = "Irregularity"
-- "januari"→01, "februari"→02, "maret"→03, "april"→04, "mei"→05, "juni"→06
-- "juli"→07, "agustus"→08, "september"→09, "oktober"→10, "november"→11, "desember"→12
-
-CONTOH LAYOUT PER HALAMAN:
-Halaman "Ringkasan Umum":
-Row 0: [KPI w:4 h:1] [KPI w:4 h:1] [KPI w:4 h:1]
-Row 1: [Bar w:6 h:2] [Donut w:6 h:2]
-Row 3: [Line w:12 h:2]
-
-Halaman "Analisis Kategori":
-Row 0: [Bar w:6 h:2] [Donut w:6 h:2]
-Row 2: [Horizontal Bar w:12 h:2]
-Row 4: [Bar w:6 h:2] [Pie w:6 h:2]
-
-CONTOH — prompt: "dashboard lengkap semua data"
-Pages:
-1. "Ringkasan Umum": KPI Total, KPI Irregularity, KPI Complaint, Bar per Kategori, Donut per Status, Line Trend Bulanan (created_at, dateGranularity:"month")
-2. "Detail Kategori": Bar Sub Kategori, Horizontal Bar Sub Kategori per Kategori, Donut per Kategori, Bar per Severity
-3. "Analisis Area & Divisi": Bar per Area, Donut per Divisi, Horizontal Bar Sub Kategori per Divisi, Bar Severity per Area
-4. "Analisis Maskapai": Horizontal Bar Top Maskapai, Donut Lokal vs MPA, Bar per Maskapai dan Kategori
-5. "Trend & Waktu": Line Trend Bulanan (created_at, dateGranularity:"month"), Area Trend Mingguan (created_at, dateGranularity:"week"), Bar per Hub
-6. "Analisis per Hub/Branch": Bar per Hub, Horizontal Bar per Branch, Donut per Hub, Bar Branch vs Kategori
-7. "Detail Laporan & Evidence": Table (chartType:"table") — dimensions: title, description, evidence_urls, status, severity, created_at. Limit 50. w:12
-
-PENTING — ANALISIS KRUSIAL YANG WAJIB ADA:
-- KPI: Total Laporan, Total Irregularity, Total Complaint, Total Compliment
-- SLA compliance: Laporan SELESAI vs belum
-- Severity distribution: high/medium/low breakdown
-- Top 5 maskapai bermasalah (filter Irregularity, group by airline)
-- Trend waktu: apakah naik/turun per bulan
-- Division workload: distribusi per target_division
-- Detail evidence: tabel dengan link evidence untuk setiap laporan
-- Cross Analysis (Heatmap): Maskapai vs Kategori, Area vs Divisi, Status vs Severity
-
-Jawab HANYA dengan JSON, tanpa markdown backtick atau penjelasan.`;
+</OUTPUT_FORMAT>`;
 }
 
 // Green color palettes matching Gapura branding
@@ -275,11 +191,21 @@ function postProcessDashboard(def: DashboardDefinition): DashboardDefinition {
       });
       return page;
     });
-    // Flatten pages into tiles for backwards compat
-    def.tiles = def.pages.flatMap(p => p.tiles || []);
+    // Flatten pages into tiles for backwards compat - DEDUPLICATE by tile ID
+    const seenIds = new Set<string>();
+    def.tiles = def.pages.flatMap(p => p.tiles || []).filter(tile => {
+      if (seenIds.has(tile.id)) return false;
+      seenIds.add(tile.id);
+      return true;
+    });
   } else if (def.tiles && def.tiles.length > 0) {
-    // Legacy: single page
-    def.tiles = def.tiles.map((tile, idx) => processTile(tile, idx));
+    // Legacy: single page - DEDUPLICATE by tile ID
+    const seenIds = new Set<string>();
+    def.tiles = def.tiles.filter(tile => {
+      if (seenIds.has(tile.id)) return false;
+      seenIds.add(tile.id);
+      return true;
+    }).map((tile, idx) => processTile(tile, idx));
     def.pages = [{ name: 'Ringkasan Umum', tiles: def.tiles }];
   }
 
@@ -294,42 +220,28 @@ function processTile(tile: DashboardTile, idx: number): DashboardTile {
   tile.id = tile.id || `tile-${Date.now()}-${idx + 1}`;
 
   // Property safety guards (ensure properties exist before access)
-  if (!tile.query) (tile as any).query = {};
+  if (!tile.query) {
+    (tile as unknown as { query: Record<string, unknown> }).query = {};
+  }
   if (!tile.query.source) tile.query.source = 'reports';
   if (!tile.query.joins) tile.query.joins = [];
   if (!tile.query.dimensions) tile.query.dimensions = [];
   if (!tile.query.measures) tile.query.measures = [];
+  
+  // Standardize query normalization (Shared logic)
+  tile.query = normalizeQuery(tile.query);
+
   if (!tile.query.sorts) tile.query.sorts = [];
   if (!tile.query.filters) tile.query.filters = [];
-  if (!tile.visualization) (tile as any).visualization = {};
-  if (!tile.layout) (tile as any).layout = { x: 0, y: 0, w: 6, h: 4 };
-
-  // Sync visualization axes with query configuration
-  if (tile.visualization.chartType === 'heatmap') {
-    // Heatmaps need 2 dimensions. If the AI only sent 1, try to find another categorical field
-    if (tile.query.dimensions.length === 1) {
-      // Common second dimensions: month, branch, area
-      const existingDim = tile.query.dimensions[0].field;
-      const fallbackDim = existingDim === 'month' ? 'branch' : 'month';
-      tile.query.dimensions.push({ table: 'reports', field: fallbackDim, alias: formatColumnLabel(fallbackDim) });
-    }
-    
-    if (tile.query.dimensions.length >= 2) {
-      tile.visualization.xAxis = tile.query.dimensions[0].alias || tile.query.dimensions[0].field;
-      tile.visualization.yAxis = [tile.query.dimensions[1].alias || tile.query.dimensions[1].field];
-    }
-    if (tile.query.measures.length > 0) {
-      tile.visualization.colorField = tile.query.measures[0].alias || tile.query.measures[0].field;
-    }
-  } else {
-    if (tile.query.dimensions.length > 0) {
-      const dim = tile.query.dimensions[0];
-      tile.visualization.xAxis = dim.alias || dim.field;
-    }
-    if (tile.query.measures.length > 0) {
-      tile.visualization.yAxis = tile.query.measures.map(m => m.alias || m.field);
-    }
+  if (!tile.visualization) {
+    (tile as unknown as { visualization: Record<string, unknown> }).visualization = {};
   }
+  if (!tile.layout) {
+    (tile as unknown as { layout: Record<string, unknown> }).layout = { x: 0, y: 0, w: 6, h: 4 };
+  }
+
+  // Sync visualization configuration with shared normalization logic
+  tile = normalizeVisualization(tile as any);
 
   // Visualization defaults
   if (tile.visualization.chartType === 'pie' || tile.visualization.chartType === 'donut') {
@@ -432,36 +344,42 @@ export async function POST(request: NextRequest) {
     // Build system prompt with real data
     const systemPrompt = buildSystemPrompt(dataContext);
 
-    // Call OpenRouter
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'OpenRouter API key belum dikonfigurasi' }, { status: 500 });
+    // Call AI API
+    if (!AI_API_KEY) {
+      return NextResponse.json({ error: 'AI API key belum dikonfigurasi' }, { status: 500 });
     }
 
-    const openrouter = new OpenRouter({ apiKey });
     let content;
 
     try {
-      const completion: any = await openrouter.chat.send({
-        httpReferer: 'https://gapura.id',
-        xTitle: 'Gapura Dashboard',
-        chatGenerationParams: {
-          model: "arcee-ai/trinity-large-preview:free",
+      const aiResponse = await fetch(`${AI_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
-          maxTokens: 16384,
+          max_tokens: 8000,
           stream: false,
-          provider: {
-            dataCollection: "allow"
-          }
-        }
+          response_format: { type: "json_object" }
+        }),
       });
-      
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error('AI API error:', errorText);
+        throw new Error(`AI API error: ${aiResponse.status}`);
+      }
+
+      const completion = await aiResponse.json() as { choices?: { message?: { content?: string } }[] };
       content = completion.choices?.[0]?.message?.content;
-    } catch (error: any) {
-       console.error('OpenRouter API error:', error);
+    } catch (error) {
+       console.error('AI API error:', error);
        return NextResponse.json(
         { error: 'Gagal menghubungi AI. Coba lagi nanti.' },
         { status: 502 }
@@ -537,18 +455,33 @@ export async function POST(request: NextRequest) {
         visualization_config: tile.visualization,
         layout: tile.layout,
         position: tidx,
-        page_name: page.name
+        page_name: page.name,
+        _tileId: tile.id // Temp ID for deduplication
       }))
     );
 
-    if (allTiles.length > 0) {
+    // DEDUPLICATE tiles by their unique ID before inserting
+    const seenTileIds = new Set<string>();
+    const uniqueTiles = allTiles.filter(t => {
+      if (seenTileIds.has(t._tileId)) return false;
+      seenTileIds.add(t._tileId);
+      return true;
+    }).map((t) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _tileId, ...rest } = t;
+      return rest;
+    }); // Remove temp ID before insert
+
+    if (uniqueTiles.length > 0) {
       const { error: tileError } = await supabaseAdmin
         .from('dashboard_charts')
-        .insert(allTiles);
+        .insert(uniqueTiles);
       
       if (tileError) {
         console.error('Failed to insert tiles:', tileError);
       }
+    } else {
+      console.warn('[AI Generate] No unique tiles to insert after deduplication');
     }
 
     return NextResponse.json({ 

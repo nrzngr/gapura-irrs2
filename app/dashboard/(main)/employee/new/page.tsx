@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    Plane, MapPin, Building2, AlertTriangle, CheckCircle, ChevronRight, ArrowLeft,
-    Loader2, Wrench, Package, MessageSquare, Clock, Calendar,
-    ToggleLeft, ToggleRight, FileText, Gauge, Link, Plus, X
+    AlertTriangle, CheckCircle, ChevronRight, ArrowLeft,
+    Loader2, Calendar,
+    FileText, Plus, X, Link
 } from 'lucide-react';
 import { WizardStep } from '@/components/ui/WizardStep';
-import { IRREGULARITY_CATEGORIES, AREA_TYPES, routeReportToDivision } from '@/lib/constants/irregularity-types';
+
 import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-status';
 import { AIRLINES } from '@/lib/constants/airlines';
 
@@ -104,7 +104,6 @@ export default function NewReportWizard() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
-    const [userStation, setUserStation] = useState<{ id: string; code: string; name: string } | null>(null);
     const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
     const [selectedStationId, setSelectedStationId] = useState<string>('');
     const [newLinkInput, setNewLinkInput] = useState('');
@@ -144,9 +143,8 @@ export default function NewReportWizard() {
                 const userRes = await fetch('/api/auth/me');
                 if (userRes.ok) {
                     const userData = await userRes.json();
-                    if (userData.station) {
-                        setUserStation(userData.station);
-                        setSelectedStationId(userData.station.id); // Set default to user's station
+                    if (userData.station?.id) {
+                        setSelectedStationId(userData.station.id);
                     }
                 }
             } catch (err) {
@@ -268,14 +266,13 @@ export default function NewReportWizard() {
             setTimeout(() => {
                 router.push('/dashboard/employee');
             }, 3000);
-        } catch (err: any) {
-            setError(err.message || 'Terjadi kesalahan');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Terjadi kesalahan';
+            setError(message);
         } finally {
             setLoading(false);
         }
     };
-
-    const selectedCategory = IRREGULARITY_CATEGORIES.find(c => c.id === 'IRREGULARITY'); // Dummy default to allow build
 
     if (success) {
         return (
@@ -714,7 +711,7 @@ export default function NewReportWizard() {
 
                 {/* Step Indicator */}
                 <div className="fixed top-20 md:top-24 right-4 md:right-6 z-[100] bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border shadow-sm flex items-center gap-2">
-                    <span className="text-sm font-bold">Langkah {step}/4</span>
+                    <span className="text-sm font-bold">Langkah {step}/5</span>
                 </div>
             </form>
         </div>

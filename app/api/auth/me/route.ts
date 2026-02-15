@@ -81,9 +81,9 @@ export async function GET(request: Request) {
             status: userData.status,
             station_id: userData.station_id,
             station: userData.stations ? {
-                id: (userData.stations as any).id,
-                code: (userData.stations as any).code,
-                name: (userData.stations as any).name,
+                id: (userData.stations as unknown as { id: string }).id,
+                code: (userData.stations as unknown as { code: string }).code,
+                name: (userData.stations as unknown as { name: string }).name,
             } : null,
         };
 

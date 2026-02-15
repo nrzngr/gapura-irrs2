@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
-import { UserRole } from '@/types';
 
 /**
  * GET /api/reports/[id]
@@ -125,7 +124,7 @@ export async function PATCH(
             station_id,
         } = body;
 
-        const updates: Record<string, any> = {
+        const updates: Record<string, unknown> = {
             updated_at: new Date().toISOString(),
         };
 

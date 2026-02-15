@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-    } catch (err: any) {
+    } catch (err) {
         console.error('[IP CONTROL] Failure:', err);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

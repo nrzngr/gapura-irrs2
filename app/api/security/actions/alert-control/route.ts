@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({ success: true, status: targetStatus });
-    } catch (err: any) {
+    } catch (err) {
         console.error('[ALERT CONTROL] Failure:', err);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

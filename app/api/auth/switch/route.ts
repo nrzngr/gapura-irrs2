@@ -35,6 +35,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true });
     } catch (err) {
+        console.error('Switch error:', err);
         return NextResponse.json({ error: 'Switch failed' }, { status: 500 });
     }
 }

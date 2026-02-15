@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
-    FileText, Search, Filter, ChevronDown, RefreshCw,
-    MapPin, Calendar, User, AlertTriangle,
+    FileText, Search, Filter, ChevronDown,
+    MapPin, AlertTriangle,
     Plane, Building2
 } from 'lucide-react';
 import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/report-status';
@@ -23,7 +23,7 @@ export default function AdminReportsPage() {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [period, setPeriod] = useState<TimePeriod>(null);
 
-    const fetchStations = async () => {
+    const fetchStations = useCallback(async () => {
         try {
             const res = await fetch('/api/master-data?type=stations');
             const data = await res.json();
@@ -32,9 +32,9 @@ export default function AdminReportsPage() {
         } catch (error) {
             console.error('Error fetching stations:', error);
         }
-    };
+    }, []);
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async () => {
         setLoading(true);
         try {
             const queryParams = new URLSearchParams();
@@ -48,10 +48,10 @@ export default function AdminReportsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter, stationFilter]);
 
-    useEffect(() => { fetchReports(); }, [filter, stationFilter]);
-    useEffect(() => { fetchStations(); }, []);
+    useEffect(() => { fetchReports(); }, [fetchReports]);
+    useEffect(() => { fetchStations(); }, [fetchStations]);
 
     const filteredReports = reports.filter(report => {
         const matchesSearch = report.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -64,13 +64,6 @@ export default function AdminReportsPage() {
         const matchesSeverity = severityFilter === 'all' || report.severity === severityFilter;
         return matchesSearch && matchesSeverity;
     });
-
-    const stats = {
-        total: reports.length,
-        high: reports.filter(r => r.severity === 'high').length,
-        pending: reports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length,
-        resolved: reports.filter(r => r.status === 'SELESAI').length,
-    };
 
     return (
         <div className="space-y-8 stagger-children">
@@ -170,7 +163,7 @@ export default function AdminReportsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredReports.map((report, idx) => {
+                                {filteredReports.map((report) => {
                                     const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
                                     const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
                                     const SevIcon = severity.icon;

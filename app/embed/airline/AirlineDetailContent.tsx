@@ -7,7 +7,7 @@ import { DateRangeFilter } from '@/components/embed/DateRangeFilter';
 import { EmbedCard } from '@/components/embed/EmbedCard';
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
 
 interface Report {
@@ -101,11 +101,6 @@ export function AirlineDetailContent() {
   const categoryBarData = Array.from(categoryAggregation.entries())
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
-  
-  const statusData = Object.entries(data?.summary.byStatus || {}).map(([name, count]) => ({
-    name: STATUS_MAP[name]?.label || name,
-    count
-  }));
   
   const title = airlineName ? `Detail: ${airlineName}` : 'Distribusi per Airline';
   

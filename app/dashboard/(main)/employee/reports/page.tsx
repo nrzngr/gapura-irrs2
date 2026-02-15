@@ -5,7 +5,7 @@ import { type Report } from '@/types';
 import { ReportMasterDetail } from '@/components/dashboard/ReportMasterDetail';
 
 export default function EmployeeReportsPage() {
-    const [reports, setReports] = useState([]);
+    const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchReports = async () => {

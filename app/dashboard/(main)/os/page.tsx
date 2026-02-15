@@ -71,12 +71,12 @@ export default function OSDashboard() {
         setPeriod(newPeriod);
     };
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
+    const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string | number }) => {
         if (active && payload && payload.length) {
             return (
                 <div className="bg-white/95 backdrop-blur-md p-3 border border-gray-200 rounded-xl shadow-xl">
                     <p className="text-xs font-bold text-gray-900 mb-1">{label}</p>
-                    {payload.map((entry: any, idx: number) => (
+                    {payload.map((entry, idx) => (
                         <p key={idx} className="text-xs" style={{ color: entry.color }}>
                             {entry.name}: <span className="font-bold">{entry.value}</span>
                         </p>

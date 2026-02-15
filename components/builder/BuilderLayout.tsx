@@ -45,7 +45,7 @@ interface BuilderLayoutProps {
   onSaveDashboard: (name: string, description: string, tiles: SaveTile[], config?: SaveConfig) => Promise<{ embedUrl: string } | null>;
 }
 
-interface SaveTile {
+export interface SaveTile {
   title: string;
   chartType: ChartType;
   dataField: string;
@@ -57,7 +57,7 @@ interface SaveTile {
   page_name: string;
 }
 
-interface SaveConfig {
+export interface SaveConfig {
   dateRange: string;
   autoRefresh: boolean;
   pages: string[];

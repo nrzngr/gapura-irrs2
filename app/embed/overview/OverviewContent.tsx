@@ -8,7 +8,7 @@ import Link from 'next/link';
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  LineChart, Line, Area, AreaChart
+  Area, AreaChart
 } from 'recharts';
 
 interface DistributionItem {

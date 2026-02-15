@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { OpenRouter } from '@openrouter/sdk';
 import { verifySession } from '@/lib/auth-utils';
+
+// AI Configuration
+const AI_API_KEY = process.env.GROQ_API_KEY;
+const AI_BASE_URL = 'https://api.groq.com/openai/v1';
+const AI_MODEL = 'llama-3.1-8b-instant';
 
 interface TileSummary {
   id: string;
@@ -110,36 +114,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak ada data tile' }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'OpenRouter API key belum dikonfigurasi' }, { status: 500 });
+    // Call AI API
+    if (!AI_API_KEY) {
+      return NextResponse.json({ error: 'AI API key belum dikonfigurasi' }, { status: 500 });
     }
 
-    const openrouter = new OpenRouter({ apiKey });
     const prompt = buildInsightsPrompt(body);
 
     let content;
     try {
-      const completion: any = await openrouter.chat.send({
-        httpReferer: 'https://gapura.id',
-        xTitle: 'Gapura Dashboard',
-        chatGenerationParams: {
-          model: "arcee-ai/trinity-large-preview:free",
+      const aiResponse = await fetch(`${AI_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
           messages: [
-            { role: 'system', content: 'Kamu analis data profesional. Kembalikan HANYA JSON valid tanpa markdown code fences.' },
-            { role: 'user', content: prompt },
+            {
+              role: "system",
+              content: "Kamu adalah Senior Analyst di Gapura Indonesia. Berikan insight yang kritis dan bernilai strategis."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
           ],
-          maxTokens: 4096,
-          temperature: 0.4,
-          stream: false,
-          provider: {
-            dataCollection: "allow"
-          }
-        }
+          response_format: { type: "json_object" }
+        }),
       });
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error('[export-insights] AI API error:', errorText);
+        throw new Error(`AI API error: ${aiResponse.status}`);
+      }
+
+      const completion = await aiResponse.json() as { choices?: { message?: { content?: string } }[] };
       content = completion.choices?.[0]?.message?.content;
-    } catch (error: any) {
-      console.error('[export-insights] OpenRouter error:', error);
+    } catch (error) {
+      console.error('[export-insights] AI error:', error);
       return NextResponse.json({ error: 'Gagal menghubungi AI' }, { status: 502 });
     }
 

@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Loader2, Shield } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { Report, User } from '@/types';
 import { ReportDetailView } from '@/components/dashboard/ReportDetailView';
 
-const DIVISION = { code: 'UQ', name: 'Quality (Safety)', color: '#ec4899' };
+const DIVISION = { code: 'UQ', name: 'Quality & Safety', color: '#8b5cf6' };
 
 export default function UQReportDetailPage() {
     const params = useParams();
@@ -16,21 +15,32 @@ export default function UQReportDetailPage() {
 
     const [report, setReport] = useState<Report | null>(null);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState('');
     const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) setUser(await res.json());
+            } catch (err) { console.error('Error fetching user:', err); }
+        };
+
+        const fetchReport = async () => {
+            try {
+                const res = await fetch(`/api/reports/${reportId}`);
+                if (!res.ok) throw new Error('Failed to load report');
+                setReport(await res.json());
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Unknown error');
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchUser();
         fetchReport();
     }, [reportId]);
-
-    const fetchUser = async () => {
-        try {
-            const res = await fetch('/api/auth/me');
-            if (res.ok) setUser(await res.json());
-        } catch (err) { console.error('Error fetching user:', err); }
-    };
 
     const fetchReport = async () => {
         try {
@@ -44,16 +54,12 @@ export default function UQReportDetailPage() {
         }
     };
 
-    const handleStatusUpdate = async (id: string, status: string, notes?: string, evidenceUrl?: string) => {
-        setActionLoading(true);
+    const handleStatusUpdate = async (id: string, status: string, notes?: string) => {
         try {
-            const body: Record<string, string | undefined> = { reportId: id, status, notes };
-            if (evidenceUrl) body.resolution_evidence_url = evidenceUrl;
-            
             const res = await fetch('/api/admin/reports', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify({ reportId: id, status, notes }),
             });
 
             if (res.ok) {
@@ -64,8 +70,6 @@ export default function UQReportDetailPage() {
         } catch (error) {
             console.error('Error updating status:', error);
             alert('Terjadi kesalahan sistem');
-        } finally {
-            setActionLoading(false);
         }
     };
 

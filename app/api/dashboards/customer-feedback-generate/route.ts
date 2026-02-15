@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert all tiles
-    const allTiles = (dashboard.pages || []).flatMap((page, pageIdx) => 
+    const allTiles = (dashboard.pages || []).flatMap((page) => 
       (page.tiles || []).map((tile, tidx) => ({
         dashboard_id: dbDashboard.id,
         title: tile.visualization?.title || 'Untitled Chart',

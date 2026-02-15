@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { createClient } from '@/lib/supabase-admin';
 import { logSecurityAudit } from '@/lib/security/audit-logger';
-import { SecurityStats, SecurityAlert, AuthMetrics, NetworkStatus } from '@/types/security';
+import { SecurityStats, SecurityAlert, AuthMetrics, NetworkStatus, ThreatActor } from '@/types/security';
 
 /**
  * GET /api/security/dashboard-data
@@ -98,8 +98,8 @@ export async function GET(request: Request) {
         id: a.id,
         title: a.title,
         description: a.description,
-        severity: a.severity as any,
-        status: a.status as any,
+        severity: a.severity as SecurityAlert['severity'],
+        status: a.status as SecurityAlert['status'],
         created_at: a.created_at,
         updated_at: a.updated_at
     }));
@@ -126,7 +126,7 @@ export async function GET(request: Request) {
 
     // --- Threat Actor Aggregation ---
     const blockedSet = new Set((blockedIpsData || []).map(b => b.ip_address));
-    const actorsMap = new Map<string, any>();
+    const actorsMap = new Map<string, ThreatActor>();
 
     (threatEvents || []).forEach(e => {
         const entry = actorsMap.get(e.ip_address) || {
@@ -134,7 +134,7 @@ export async function GET(request: Request) {
             eventCount: 0,
             riskScore: 0,
             lastSeen: e.created_at,
-            status: blockedSet.has(e.ip_address) ? 'BLOCKED' : 'ACTIVE'
+            status: (blockedSet.has(e.ip_address) ? 'BLOCKED' : 'ACTIVE') as 'BLOCKED' | 'ACTIVE'
         };
 
         entry.eventCount += 1;

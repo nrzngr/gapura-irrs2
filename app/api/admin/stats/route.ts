@@ -204,6 +204,7 @@ async function fallbackStats(request: Request) {
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const applyDateFilter = (query: any) => {
         if (dateFrom) query = query.gte('created_at', dateFrom);
         if (dateTo) query = query.lte('created_at', dateTo);
@@ -245,9 +246,15 @@ async function fallbackStats(request: Request) {
         applyDateFilter(supabase.from('reports').select('location, stations:station_id(code)')),
     ]);
 
+    interface LocationStat {
+        location: string | null;
+        stations: { code: string } | { code: string }[] | null;
+    }
+
     const locationBreakdown: Record<string, number> = {};
-    locationStats?.forEach((report: any) => {
-        const station = Array.isArray(report.stations) ? report.stations[0] : report.stations;
+    (locationStats as unknown as LocationStat[] | null)?.forEach((report) => {
+        const stationData = report.stations;
+        const station = Array.isArray(stationData) ? stationData[0] : stationData;
         const loc = station?.code || report.location || 'Tidak Diketahui';
         locationBreakdown[loc] = (locationBreakdown[loc] || 0) + 1;
     });

@@ -2,14 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Clock, CheckCircle2, AlertCircle, FileText, RefreshCw, Loader2, Building2, 
-    Wrench, ArrowUpRight, Zap, Eye, ClipboardList
+    Clock, CheckCircle2, FileText, RefreshCw, Loader2, 
+    Wrench, ClipboardList
 } from 'lucide-react';
-import { 
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell
-} from 'recharts';
-
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
 import { NoiseTexture } from '@/components/ui/NoiseTexture';
 import { cn } from '@/lib/utils';

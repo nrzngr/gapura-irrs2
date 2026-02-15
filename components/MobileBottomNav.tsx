@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, PlusCircle, User } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 

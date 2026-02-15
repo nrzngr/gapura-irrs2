@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft, AlertCircle, Loader2
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { Report, User } from '@/types';
 import { ReportDetailView } from '@/components/dashboard/ReportDetailView';
 
@@ -16,26 +15,38 @@ export default function OSReportDetailPage() {
 
     const [report, setReport] = useState<Report | null>(null);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState('');
     const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    setUser(data);
+                }
+            } catch (err) {
+                console.error('Error fetching user:', err);
+            }
+        };
+
+        const fetchReport = async () => {
+            try {
+                const res = await fetch(`/api/reports/${reportId}`);
+                if (!res.ok) throw new Error('Failed to load report');
+                const data = await res.json();
+                setReport(data);
+                setLoading(false);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Unknown error');
+                setLoading(false);
+            }
+        };
+
         fetchUser();
         fetchReport();
     }, [reportId]);
-
-    const fetchUser = async () => {
-        try {
-            const res = await fetch('/api/auth/me');
-            if (res.ok) {
-                const data = await res.json();
-                setUser(data);
-            }
-        } catch (err) {
-            console.error('Error fetching user:', err);
-        }
-    };
 
     const fetchReport = async () => {
         try {
@@ -52,7 +63,6 @@ export default function OSReportDetailPage() {
 
     const handleStatusUpdate = async (id: string, status: string, notes?: string) => {
         // OS Admin typically shouldn't be updating status? Use API if allowed.
-        setActionLoading(true);
         try {
             const res = await fetch('/api/admin/reports', {
                 method: 'PATCH',
@@ -68,8 +78,6 @@ export default function OSReportDetailPage() {
         } catch (error) {
             console.error('Error updating status:', error);
             alert('Terjadi kesalahan sistem');
-        } finally {
-            setActionLoading(false);
         }
     };
 

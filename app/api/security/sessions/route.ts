@@ -5,7 +5,7 @@ import { verifySession } from '@/lib/auth-utils';
 import { logSecurityEvent } from '@/lib/security/event-service';
 import { getClientIp } from '@/lib/security/utils';
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const cookieStore = await cookies();
         const sessionToken = cookieStore.get('session')?.value;
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({ success: true });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Revocation failed' }, { status: 500 });
     }
 }

@@ -2,7 +2,6 @@
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
 
 export default async function DashboardLayout({
     children,

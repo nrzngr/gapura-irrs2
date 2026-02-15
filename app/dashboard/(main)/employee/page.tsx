@@ -1,16 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+
 import { 
-    Plus, MapPin, Clock, FileText, RefreshCw, 
+    Plus, MapPin, FileText, 
     ArrowUpRight, CheckCircle2, AlertCircle, 
-    Search, ChevronRight, LayoutDashboard, History
+    Search, LayoutDashboard, History
 } from 'lucide-react';
 
-import { PrismButton } from '@/components/ui/PrismButton';
 import { cn } from '@/lib/utils';
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
 import { CreateReportModal } from '@/components/dashboard/CreateReportModal';
@@ -18,26 +16,22 @@ import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { Report } from '@/types';
 
 export default function EmployeeDashboard() {
-    const router = useRouter();
     const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [greeting, setGreeting] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-    useEffect(() => {
+    const getGreeting = () => {
         const hour = new Date().getHours();
-        if (hour < 12) setGreeting('Selamat Pagi');
-        else if (hour < 15) setGreeting('Selamat Siang');
-        else if (hour < 18) setGreeting('Selamat Sore');
-        else setGreeting('Selamat Malam');
+        if (hour < 12) return 'Selamat Pagi';
+        if (hour < 15) return 'Selamat Siang';
+        if (hour < 18) return 'Selamat Sore';
+        return 'Selamat Malam';
+    };
 
-        fetchReports();
-    }, []);
+    const greeting = getGreeting();
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async () => {
         try {
-            setLoading(true);
             const res = await fetch('/api/reports');
             if (res.ok) {
                 const data = await res.json();
@@ -46,15 +40,20 @@ export default function EmployeeDashboard() {
         } catch (error) {
             console.error('Error:', error);
             setReports([]);
-        } finally {
-            setLoading(false);
         }
-    };
-    
-    const fetchStats = async () => {
+    }, []);
+
+    const fetchStats = useCallback(async () => {
         // re-fetch to update stats
         await fetchReports();
-    }
+    }, [fetchReports]);
+
+    useEffect(() => {
+        const init = async () => {
+            await fetchReports();
+        };
+        init();
+    }, [fetchReports]);
 
     const handleReportClick = (report: Report) => {
         setSelectedReport(report);

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft, AlertCircle, Loader2
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { Report, User } from '@/types';
 import { ReportDetailView } from '@/components/dashboard/ReportDetailView';
 
@@ -16,18 +15,11 @@ export default function ReportDetailPage() {
 
     const [report, setReport] = useState<Report | null>(null);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState(false);
+    const [, setActionLoading] = useState(false);
     const [error, setError] = useState('');
     const [user, setUser] = useState<User | null>(null);
 
-
-
-    useEffect(() => {
-        fetchUser();
-        fetchReport();
-    }, [reportId]);
-
-    const fetchUser = async () => {
+    const fetchUser = useCallback(async () => {
         try {
             const res = await fetch('/api/auth/me');
             if (res.ok) {
@@ -37,9 +29,9 @@ export default function ReportDetailPage() {
         } catch (err) {
             console.error('Error fetching user:', err);
         }
-    };
+    }, []);
 
-    const fetchReport = async () => {
+    const fetchReport = useCallback(async () => {
         try {
             const res = await fetch(`/api/reports/${reportId}`);
             if (!res.ok) throw new Error('Failed to load report');
@@ -50,7 +42,12 @@ export default function ReportDetailPage() {
             setError(err instanceof Error ? err.message : 'Unknown error');
             setLoading(false);
         }
-    };
+    }, [reportId]);
+
+    useEffect(() => {
+        fetchUser();
+        fetchReport();
+    }, [fetchUser, fetchReport]);
 
     const handleStatusUpdate = async (id: string, status: string, notes?: string) => {
         setActionLoading(true);

@@ -20,15 +20,15 @@ export async function GET() {
         if (error) throw error;
         
         // Manual distinct filter since PostgREST select distinct is tricky with just one col
-        const uniqueValues = Array.from(new Set(data.map((item: any) => item[field])));
+        const uniqueValues = Array.from(new Set((data as unknown as Record<string, unknown>[]).map((item) => item[field])));
         return { field, values: uniqueValues };
       })
     );
 
-    const filterOptions = results.reduce((acc: any, curr) => {
+    const filterOptions = results.reduce((acc: Record<string, unknown[]>, curr) => {
       acc[curr.field] = curr.values.map(val => ({
-        value: val,
-        label: val === '#N/A' ? 'N/A' : val
+        value: val as string,
+        label: val === '#N/A' ? 'N/A' : String(val)
       }));
       return acc;
     }, {});

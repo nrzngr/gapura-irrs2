@@ -35,7 +35,7 @@ export async function POST() {
                     cookieStore.delete('session');
                 }
             }
-        } catch (e) {
+        } catch {
             cookieStore.delete('auth_bundle');
             cookieStore.delete('session');
         }

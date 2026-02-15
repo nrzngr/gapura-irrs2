@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Type Definitions ---
 interface ParsedRow {
+  [key: string]: unknown;
   Id: string | number;
   'Start time': string | number;
   'Completion time': string | number;
@@ -157,7 +158,7 @@ const mapRowToReport = (row: ParsedRow) => {
 
 export default function ImportDataPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<ParsedRow[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -187,7 +188,7 @@ export default function ImportDataPage() {
       const workbook = XLSX.read(data, { type: 'binary' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      const jsonData = XLSX.utils.sheet_to_json(sheet) as ParsedRow[];
       setPreviewData(jsonData);
       setUploadStatus('idle'); // Reset status on new file
     };
@@ -204,7 +205,7 @@ export default function ImportDataPage() {
 
     try {
       // 1. Map Data
-      const mappedData = previewData.map((row: any) => mapRowToReport(row));
+      const mappedData = previewData.map((row) => mapRowToReport(row));
 
       // 2. Batch Insert (Supabase Limit is usually handled, but good to batch if huge)
       // We'll insert in chunks of 50
@@ -227,10 +228,11 @@ export default function ImportDataPage() {
 
       setSuccessCount(totalInserted);
       setUploadStatus('success');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Import Error:', error);
       setUploadStatus('error');
-      setErrorMessage(error.message || 'Gagal mengimport data.');
+      const message = error instanceof Error ? error.message : 'Gagal mengimport data.';
+      setErrorMessage(message);
     } finally {
       setIsUploading(false);
     }

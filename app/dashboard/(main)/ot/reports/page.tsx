@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    FileText, Search, Filter, ChevronDown, RefreshCw, Eye, X,
-    MapPin, Calendar, User, AlertTriangle, Wrench,
-    Plane, Clock, Building2, Tag, CheckCircle2, Image
+    FileText, Search, Filter, ChevronDown, RefreshCw,
+    MapPin, AlertTriangle, Wrench, Clock, CheckCircle2,
+    LucideIcon
 } from 'lucide-react';
 import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/report-status';
 import { Report } from '@/types';
@@ -25,9 +25,8 @@ export default function OTReportsPage() {
     const [filter, setFilter] = useState('all');
     const [severityFilter, setSeverityFilter] = useState('all');
     const [search, setSearch] = useState('');
-    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/reports');
@@ -39,9 +38,9 @@ export default function OTReportsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    useEffect(() => { fetchReports(); }, []);
+    useEffect(() => { fetchReports(); }, [fetchReports]);
 
     const filteredReports = reports.filter(report => {
         const matchesSearch = report.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -209,21 +208,13 @@ export default function OTReportsPage() {
                 )}
             </div>
 
-            {/* Modal - Quick View */}
-            {selectedReport && (
-                <QuickViewModal 
-                    report={selectedReport} 
-                    onClose={() => setSelectedReport(null)} 
-                    divisionColor={DIVISION.color}
-                    detailPath={`/dashboard/ot/reports/${selectedReport.id}`}
-                />
-            )}
+
         </div>
     );
 }
 
 // --- Reusable Components ---
-function StatCard({ icon: Icon, value, label, color }: { icon: any; value: number; label: string; color?: string }) {
+function StatCard({ icon: Icon, value, label, color }: { icon: LucideIcon; value: number; label: string; color?: string }) {
     return (
         <div className="card-solid flex items-center gap-4" style={{ background: color ? `${color}10` : undefined }}>
             <div className="p-3 rounded-xl" style={{ background: color ? `${color}20` : 'var(--surface-3)' }}>
@@ -237,7 +228,7 @@ function StatCard({ icon: Icon, value, label, color }: { icon: any; value: numbe
     );
 }
 
-function FilterSelect({ value, onChange, icon: Icon, options }: { value: string; onChange: (v: string) => void; icon: any; options: { value: string; label: string }[] }) {
+function FilterSelect({ value, onChange, icon: Icon, options }: { value: string; onChange: (v: string) => void; icon: LucideIcon; options: { value: string; label: string }[] }) {
     return (
         <div className="relative flex-1 min-w-[140px]">
             <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>
@@ -249,37 +240,4 @@ function FilterSelect({ value, onChange, icon: Icon, options }: { value: string;
     );
 }
 
-function QuickViewModal({ report, onClose, divisionColor, detailPath }: { report: Report; onClose: () => void; divisionColor: string; detailPath: string }) {
-    const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
-    const StatusIcon = status.icon;
 
-    return (
-        <>
-            <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden animate-scale-in pointer-events-auto">
-                    <div className="p-6 text-white" style={{ background: severity.color }}>
-                        <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-xl"><X size={20} /></button>
-                        <h2 className="text-xl font-bold">{report.title}</h2>
-                        <p className="text-white/70 text-sm mt-1">ID: {report.id.slice(0, 8)}</p>
-                    </div>
-                    <div className="p-6 space-y-4 overflow-y-auto max-h-[50vh]">
-                        <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: status.bgColor, color: status.color }}>
-                                <StatusIcon size={16} /> {status.label}
-                            </span>
-                        </div>
-                        <p className="text-gray-700">{report.description}</p>
-                    </div>
-                    <div className="p-5 flex justify-end gap-3 bg-gray-50 border-t">
-                        <button onClick={onClose} className="px-6 py-2.5 rounded-xl text-gray-600 font-semibold hover:bg-gray-100">Tutup</button>
-                        <button onClick={() => window.location.href = detailPath} className="px-6 py-2.5 rounded-xl text-white font-semibold flex items-center gap-2" style={{ background: divisionColor }}>
-                            <Eye size={18} /> Detail
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-}

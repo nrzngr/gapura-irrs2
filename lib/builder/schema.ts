@@ -45,11 +45,13 @@ export const TABLES: TableDef[] = [
       { name: 'route', label: 'Rute', type: 'string' },
       { name: 'flight_number', label: 'Nomor Penerbangan', type: 'string' },
       { name: 'aircraft_reg', label: 'Registrasi Pesawat', type: 'string' },
+      { name: 'gse_number', label: 'Nomor GSE', type: 'string' },
       { name: 'location', label: 'Lokasi (jarang terisi)', type: 'string' },
       { name: 'specific_location', label: 'Lokasi Spesifik', type: 'string' },
       { name: 'description', label: 'Deskripsi Insiden', type: 'string' },
       { name: 'root_cause', label: 'Akar Masalah', type: 'string' },
       { name: 'action_taken', label: 'Tindakan yang Diambil', type: 'string' },
+      { name: 'immediate_action', label: 'Tindakan Segera', type: 'string' },
       { name: 'evidence_urls', label: 'Link Evidence (Google Drive)', type: 'string' },
       { name: 'evidence_url', label: 'Evidence URL (Legacy)', type: 'string' },
       { name: 'reporter_name', label: 'Nama Pelapor', type: 'string' },
@@ -57,6 +59,7 @@ export const TABLES: TableDef[] = [
       { name: 'is_flight_related', label: 'Terkait Penerbangan', type: 'boolean' },
       { name: 'is_gse_related', label: 'Terkait GSE', type: 'boolean' },
       { name: 'incident_date', label: 'Tanggal Insiden', type: 'date' },
+      { name: 'incident_time', label: 'Waktu Insiden', type: 'string' },
       { name: 'event_date', label: 'Tanggal Kejadian', type: 'datetime' },
       { name: 'created_at', label: 'Tanggal Dibuat', type: 'datetime' },
       { name: 'updated_at', label: 'Tanggal Diperbarui', type: 'datetime' },
@@ -75,6 +78,11 @@ export const TABLES: TableDef[] = [
       { name: 'reporter_email', label: 'Email Pelapor', type: 'string' },
       { name: 'form_submitted_at', label: 'Waktu Submit Form', type: 'datetime' },
       { name: 'form_completed_at', label: 'Waktu Selesai Form', type: 'datetime' },
+      { name: 'user_id', label: 'ID User Pelapor', type: 'uuid' },
+      { name: 'station_id', label: 'ID Stasiun', type: 'uuid' },
+      { name: 'unit_id', label: 'ID Unit', type: 'uuid' },
+      { name: 'incident_type_id', label: 'ID Tipe Insiden', type: 'uuid' },
+      { name: 'location_id', label: 'ID Lokasi', type: 'uuid' },
     ],
   },
   {
@@ -105,20 +113,25 @@ export const TABLES: TableDef[] = [
     label: 'Log Laporan',
     fields: [
       { name: 'id', label: 'ID Log', type: 'uuid' },
+      { name: 'report_id', label: 'ID Laporan', type: 'uuid' },
+      { name: 'user_id', label: 'ID User', type: 'uuid' },
       { name: 'action', label: 'Aksi', type: 'string' },
+      { name: 'note', label: 'Catatan', type: 'string' },
       { name: 'previous_status', label: 'Status Sebelumnya', type: 'string' },
       { name: 'new_status', label: 'Status Baru', type: 'string' },
-      { name: 'created_at', label: 'Tanggal', type: 'datetime' },
+      { name: 'created_at', label: 'Waktu Dibuat', type: 'datetime' },
     ],
   },
   {
     name: 'report_comments',
-    label: 'Komentar',
+    label: 'Komentar Laporan',
     fields: [
       { name: 'id', label: 'ID Komentar', type: 'uuid' },
-      { name: 'content', label: 'Isi Komentar', type: 'string' },
+      { name: 'report_id', label: 'ID Laporan', type: 'uuid' },
+      { name: 'user_id', label: 'ID User', type: 'uuid' },
+      { name: 'content', label: 'Konten', type: 'string' },
       { name: 'is_system_message', label: 'Pesan Sistem', type: 'boolean' },
-      { name: 'created_at', label: 'Tanggal', type: 'datetime' },
+      { name: 'created_at', label: 'Waktu Dibuat', type: 'datetime' },
     ],
   },
   {
@@ -137,6 +150,24 @@ export const TABLES: TableDef[] = [
       { name: 'id', label: 'ID Lokasi', type: 'uuid' },
       { name: 'name', label: 'Nama Lokasi', type: 'string' },
       { name: 'area', label: 'Area', type: 'string' },
+    ],
+  },
+  {
+    name: 'units',
+    label: 'Unit',
+    fields: [
+      { name: 'id', label: 'ID Unit', type: 'uuid' },
+      { name: 'name', label: 'Nama Unit', type: 'string' },
+      { name: 'description', label: 'Deskripsi Unit', type: 'string' },
+    ],
+  },
+  {
+    name: 'positions',
+    label: 'Jabatan',
+    fields: [
+      { name: 'id', label: 'ID Jabatan', type: 'uuid' },
+      { name: 'name', label: 'Nama Jabatan', type: 'string' },
+      { name: 'level', label: 'Level', type: 'number' },
     ],
   },
 ];
@@ -159,6 +190,14 @@ export const JOINS: JoinDef[] = [
     to: 'stations',
     toField: 'id',
     label: 'Stasiun',
+  },
+  {
+    key: 'reports_units',
+    from: 'reports',
+    fromField: 'unit_id',
+    to: 'units',
+    toField: 'id',
+    label: 'Unit',
   },
   {
     key: 'reports_incident_types',
@@ -229,9 +268,9 @@ export function getJoinDef(key: string): JoinDef | undefined {
 
 /** Validate a table.field exists in the schema */
 export function isValidField(table: string, field: string): boolean {
-  const t = tableMap.get(table);
-  if (!t) return false;
-  return t.fields.some(f => f.name === field);
+  if (table === 'reports' && field === 'month') return true;
+  const t = TABLES.find(t => t.name === table);
+  return !!t?.fields.some(f => f.name === field);
 }
 
 /** Validate a table exists */
@@ -256,8 +295,8 @@ export function buildSchemaContextForAI(): string {
   }).join('\n\n');
 
   const joinDescriptions = JOINS.map(j =>
-    `  - key: "${j.key}" — ${j.from}.${j.fromField} → ${j.to}.${j.toField} (label: "${j.label}")`
+    `  - key: "${j.key}" — ${j.from}.${j.fromField} (FK) → ${j.to}.${j.toField} (PK) (label: "${j.label}")`
   ).join('\n');
 
-  return `DATABASE SCHEMA:\n\n${tableDescriptions}\n\nAVAILABLE JOINS:\n${joinDescriptions}`;
+  return `DATABASE SCHEMA (GROUND TRUTH):\n\n${tableDescriptions}\n\nRELATIONAL GRAPH (JOINS):\n${joinDescriptions}\n\nRULES:\n1. Use "reports"."id" for counting report volume (BIGINT).\n2. Use JOINS to fetch readable names for stations, units, etc.\n3. Always prefer "created_at" for time-series analysis.`;
 }

@@ -26,7 +26,7 @@ export default function SecurityDashboardPage() {
         alerts: SecurityAlert[];
         auth: AuthMetrics;
         network: NetworkStatus;
-        threatActors: any[];
+        threatActors: ThreatActor[];
         isDemo?: boolean;
     } | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -92,8 +92,8 @@ export default function SecurityDashboardPage() {
         // 2. Real-Time Subscription
         const channel = supabase
             .channel('security-realtime')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'security_alerts' }, (payload: { new: SecurityAlert }) => {
-                const newAlert = payload.new;
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'security_alerts' }, (payload) => {
+                const newAlert = payload.new as SecurityAlert;
                 setData(prev => prev ? {
                     ...prev,
                     alerts: [newAlert, ...prev.alerts].slice(0, 10),
@@ -108,12 +108,13 @@ export default function SecurityDashboardPage() {
                     window.dispatchEvent(new CustomEvent('security-pulse', { detail: 'critical' }));
                 }
             })
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'security_events' }, (payload: { new: SecurityEvent }) => {
-                const event = payload.new;
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'security_events' }, (payload) => {
+                const event = payload.new as SecurityEvent;
                 setData(prev => {
                     if (!prev) return null;
                     
-                    const isFailedLogin = event.event_type === 'login' && (event.payload as any).success === false;
+                    const eventPayload = event.payload as Record<string, unknown>;
+                    const isFailedLogin = event.event_type === 'login' && eventPayload.success === false;
                     
                     return {
                         ...prev,
@@ -127,7 +128,7 @@ export default function SecurityDashboardPage() {
                         },
                         network: {
                             ...prev.network,
-                            trafficIn: event.event_type === 'traffic' ? (prev.network.trafficIn + ((event.payload as any).bytes || 0)) : prev.network.trafficIn,
+                            trafficIn: event.event_type === 'traffic' ? (prev.network.trafficIn + ((eventPayload.bytes as number) || 0)) : prev.network.trafficIn,
                             activeConnections: event.event_type === 'login' ? prev.network.activeConnections + 1 : prev.network.activeConnections
                         }
                     };

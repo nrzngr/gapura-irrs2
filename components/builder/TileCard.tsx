@@ -106,7 +106,7 @@ export function TileCard({ tile, result, error, onEdit, onRemove, onResize, dash
       </div>
 
       {/* Body */}
-      <div className={`flex-1 ${isTable ? 'overflow-hidden' : 'min-h-[150px]'} p-4`}>
+      <div className={`flex-1 ${isTable ? 'overflow-hidden' : 'min-h-[150px] overflow-y-auto'} p-4 custom-scrollbar`}>
         {!isConfigured ? (
           <div
             className="flex items-center justify-center h-full cursor-pointer rounded hover:bg-[#f5f5f5] transition-colors"

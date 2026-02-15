@@ -5,7 +5,7 @@ import { verifySession } from '@/lib/auth-utils';
 import { REPORT_STATUS } from '@/lib/constants/report-status';
 
 // GET reports for an employee
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('session')?.value;

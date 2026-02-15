@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft, AlertCircle, Loader2
@@ -16,9 +16,34 @@ export default function AnalystReportDetailPage() {
 
     const [report, setReport] = useState<Report | null>(null);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState(false);
+    const [, setActionLoading] = useState(false);
     const [error, setError] = useState('');
     const [user, setUser] = useState<User | null>(null);
+
+    const fetchUser = useCallback(async () => {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                setUser(data);
+            }
+        } catch (err) {
+            console.error('Error fetching user:', err);
+        }
+    }, []);
+
+    const fetchReport = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/reports/${reportId}`);
+            if (!res.ok) throw new Error('Failed to load report');
+            const data = await res.json();
+            setReport(data);
+            setLoading(false);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Unknown error');
+            setLoading(false);
+        }
+    }, [reportId]);
 
     useEffect(() => {
         fetchUser();
@@ -39,37 +64,12 @@ export default function AnalystReportDetailPage() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [reportId]);
-
-    const fetchUser = async () => {
-        try {
-            const res = await fetch('/api/auth/me');
-            if (res.ok) {
-                const data = await res.json();
-                setUser(data);
-            }
-        } catch (err) {
-            console.error('Error fetching user:', err);
-        }
-    };
-
-    const fetchReport = async () => {
-        try {
-            const res = await fetch(`/api/reports/${reportId}`);
-            if (!res.ok) throw new Error('Failed to load report');
-            const data = await res.json();
-            setReport(data);
-            setLoading(false);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Unknown error');
-            setLoading(false);
-        }
-    };
+    }, [reportId, fetchReport, fetchUser]);
 
     const handleStatusUpdate = async (id: string, status: string, notes?: string, evidenceUrl?: string) => {
         setActionLoading(true);
         try {
-            const body: Record<string, any> = { reportId: id, status, notes };
+            const body: Record<string, string | undefined> = { reportId: id, status, notes };
             if (evidenceUrl) body.resolution_evidence_url = evidenceUrl;
             
             // Analyst uses same endpoint as Admin for status updates

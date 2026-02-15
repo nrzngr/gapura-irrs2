@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
     FileText, Search, Filter, ChevronDown, RefreshCw,
     MapPin, AlertTriangle,
@@ -24,7 +24,7 @@ export default function OSReportsPage() {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [period, setPeriod] = useState<TimePeriod>(null);
 
-    const fetchStations = async () => {
+    const fetchStations = useCallback(async () => {
         try {
             const res = await fetch('/api/master-data?type=stations');
             const data = await res.json();
@@ -33,9 +33,9 @@ export default function OSReportsPage() {
         } catch (error) {
             console.error('Error fetching stations:', error);
         }
-    };
+    }, []);
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async () => {
         setLoading(true);
         try {
             const queryParams = new URLSearchParams();
@@ -49,10 +49,15 @@ export default function OSReportsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter, stationFilter]);
 
-    useEffect(() => { fetchReports(); }, [filter, stationFilter]);
-    useEffect(() => { fetchStations(); }, []);
+    useEffect(() => {
+        fetchReports();
+    }, [fetchReports]);
+
+    useEffect(() => {
+        fetchStations();
+    }, [fetchStations]);
 
     const filteredReports = reports.filter(report => {
         const matchesSearch = report.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -179,7 +184,7 @@ export default function OSReportsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredReports.map((report, idx) => {
+                                {filteredReports.map((report) => {
                                     const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
                                     const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
                                     const SevIcon = severity.icon;

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-    ArrowLeft, MapPin, Calendar, Clock, Plane, Wrench, User, Building2,
+    ArrowLeft, Plane, Wrench,
     AlertCircle, CheckCircle, Loader2, Send, MessageSquare, Link, ExternalLink
 } from 'lucide-react';
+import Image from 'next/image';
 import { STATUS_CONFIG, canPerformAction, type ReportStatus } from '@/lib/constants/report-status';
 
 import { supabase } from '@/lib/supabase';
@@ -66,13 +67,42 @@ export default function EmployeeReportDetailPage() {
 
     const [report, setReport] = useState<Report | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [, setError] = useState('');
     const [user, setUser] = useState<UserSession | null>(null);
 
     // Comment state
     const [newComment, setNewComment] = useState('');
     const [sendingComment, setSendingComment] = useState(false);
     const commentsEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [report?.comments]);
+
+    const fetchUser = useCallback(async () => {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                setUser({ id: data.id, role: data.role, division: data.division });
+            }
+        } catch (err) {
+            console.error('Failed to fetch user:', err);
+        }
+    }, []);
+
+    const fetchReport = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/reports/${reportId}`);
+            if (!res.ok) throw new Error('Failed to fetch report');
+            const data = await res.json();
+            setReport(data);
+        } catch {
+            setError('Gagal memuat laporan');
+        } finally {
+            setLoading(false);
+        }
+    }, [reportId]);
 
     useEffect(() => {
         fetchReport();
@@ -97,36 +127,7 @@ export default function EmployeeReportDetailPage() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [reportId]);
-
-    useEffect(() => {
-        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [report?.comments]);
-
-    const fetchUser = async () => {
-        try {
-            const res = await fetch('/api/auth/me');
-            if (res.ok) {
-                const data = await res.json();
-                setUser({ id: data.id, role: data.role, division: data.division });
-            }
-        } catch (err) {
-            console.error('Failed to fetch user:', err);
-        }
-    };
-
-    const fetchReport = async () => {
-        try {
-            const res = await fetch(`/api/reports/${reportId}`);
-            if (!res.ok) throw new Error('Failed to fetch report');
-            const data = await res.json();
-            setReport(data);
-        } catch (err) {
-            setError('Gagal memuat laporan');
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [reportId, fetchReport, fetchUser]);
 
     const sendComment = async () => {
         if (!newComment.trim()) return;
@@ -205,7 +206,6 @@ export default function EmployeeReportDetailPage() {
                 <h3 className="font-bold mb-4">Status Laporan</h3>
                 <div className="flex items-center gap-2">
                     {['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS', 'WAITING_VALIDATION', 'CLOSED'].map((s, idx) => {
-                        const isActive = s === report.status;
                         const isPassed = ['OPEN', 'ACKNOWLEDGED', 'ON_PROGRESS', 'WAITING_VALIDATION', 'CLOSED']
                             .indexOf(report.status) >= idx;
                         return (
@@ -413,7 +413,15 @@ export default function EmployeeReportDetailPage() {
                                     <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none text-sm leading-relaxed">
                                         {comment.content}
                                         {comment.attachments?.map((url, idx) => (
-                                            <img key={idx} src={url} className="mt-2 rounded-lg max-h-32 border" />
+                                            <div key={idx} className="relative mt-2 rounded-lg max-h-32 border overflow-hidden aspect-video">
+                                                <Image 
+                                                    src={url} 
+                                                    alt={`Attachment ${idx + 1}`} 
+                                                    fill
+                                                    className="object-cover"
+                                                    unoptimized={true} // For external Supabase URLs
+                                                />
+                                            </div>
                                         ))}
                                     </div>
                                 </div>

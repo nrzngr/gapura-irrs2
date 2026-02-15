@@ -990,8 +990,8 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
           <span>Detail</span>
         </button>
       </div>
-      <div style={{ padding: '12px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ width: '100%', flex: 1, minHeight: 400 }}>
+      <div style={{ padding: '12px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: '100%', flex: 1, minHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
           <ChartPreview visualization={viz} result={result} />
         </div>
       </div>
