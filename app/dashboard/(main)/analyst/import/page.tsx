@@ -4,157 +4,182 @@ import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
-import { Upload, FileUp, AlertCircle, CheckCircle, Loader2, X } from 'lucide-react';
+import { Upload, FileUp, AlertCircle, CheckCircle, Loader2, X, Database, Truck, Plane } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Type Definitions ---
-interface ParsedRow {
-  [key: string]: unknown;
-  Id: string | number;
-  'Start time': string | number;
-  'Completion time': string | number;
-  Email: string;
-  Name: string;
-  'Date of Event': string | number;
-  'Jenis Maskapai': string;
-  Airlines: string;
-  'Flight Number': string;
-  'Reporting Branch': string;
-  'Branch (cth: CGK, UPG, DPS)': string;
-  HUB: string;
-  Route: string;
-  'Report Category': string;
-  'Irregularity/Complain Category': string;
-  Report: string; // Description
-  'Root Caused': string;
-  'Action Taken': string;
-  'Remarks Gapura KPS Action Taken': string;
-  'Report By': string;
-  'Upload Irregularity Photo': string; // URL
-  Area: string;
-  'Terminal Area Category': string;
-  'Apron Area Category': string;
-  'General Category': string;
-  Status: string;
-  'KODE CABANG (VLOOKUP)': string;
-  // ... other fields if needed
-}
+type ImportType = 'NON_CARGO' | 'CARGO' | 'HUB';
 
-// Map CSV columns to Reports table columns
+// Define strict mapping based on reports-service.ts
+// Key = CSV Header, Value = DB Column
+const HEADER_MAPPING: Record<string, string> = {
+  // Common
+  'Date of Event': 'date_of_event',
+  'Date': 'date_of_event',
+  'Tanggal': 'date_of_event',
+  'Month': 'date_of_event', // Sometimes used for month aggregations, handle with care
+  'Incident Date': 'date_of_event',
+  
+  // Airline Info
+  'Jenis Maskapai': 'jenis_maskapai',
+  'Airlines': 'airline',
+  'Airline': 'airline',
+  'Flight Number': 'flight_number',
+  'Route': 'route',
+  
+  // Location
+  'Reporting Branch': 'reporting_branch',
+  'Branch': 'branch',
+  'Station': 'branch',
+  'HUB': 'hub',
+  'KODE CABANG (VLOOKUP)': 'kode_cabang',
+  'KODE HUB (VLOOKUP)': 'kode_hub',
+
+  // Categorization
+  'Report Category': 'main_category', // Irregularity, Complaint, Compliment
+  'Irregularity/Complain Category': 'irregularity_complain_category', // Sub-category
+  'Main Category': 'main_category',
+  
+  // Details
+  'Report': 'description',
+  'Description': 'description',
+  'Root Caused': 'root_caused',
+  'Action Taken': 'action_taken',
+  'Gapura KPS Remarks': 'kps_remarks',
+  'Gapura KPS Action Taken': 'gapura_kps_action_taken',
+  
+  // Meta
+  'Report By': 'reporter_name',
+  'Upload Irregularity Photo': 'evidence_url',
+  'Status': 'status',
+  'Per Week in Month': 'week_in_month',
+  
+  // Area Specific
+  'Area': 'area',
+  'Terminal Area Category': 'terminal_area_category',
+  'Apron Area Category': 'apron_area_category',
+  'General Category': 'general_category',
+};
 
 // Convert Excel serial number to JS Date
 const excelSerialToDate = (val: string | number): Date | null => {
   if (!val || val === '#N/A' || val === 'N/A') return null;
   if (typeof val === 'number') {
+    // Excel base date is Dec 30 1899
     return new Date((val - 25569) * 86400 * 1000);
   }
   const d = new Date(val);
   return isNaN(d.getTime()) ? null : d;
 };
 
-// Returns ISO timestamp string
-const parseTimestamp = (val: string | number): string | null => {
-  const d = excelSerialToDate(val);
-  return d ? d.toISOString() : null;
-};
-
-// Returns date-only string (YYYY-MM-DD) for date columns
+// Returns date-only string (YYYY-MM-DD) for DB
 const parseDateOnly = (val: string | number): string | null => {
+  // If explicitly string DD/MM/YYYY
+  if (typeof val === 'string' && val.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
+      const parts = val.split('/');
+      // Assume DD/MM/YYYY or MM/DD/YYYY? Standard is usually MDY in US or DMY in ID. 
+      // Let's safe guess: if part[0] > 12 it must be day.
+      // Ideally we use a robust parser. For now, assume common Excel export format (often MDY or YMD).
+      // Actually, let's try date constructor first.
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+
   const d = excelSerialToDate(val);
   if (!d) return null;
   return d.toISOString().split('T')[0];
 };
 
-// Map CSV Area values to DB constraint: APRON | TERMINAL | GENERAL | null
-const normalizeArea = (raw: string | undefined | null): string | null => {
-  if (!raw) return null;
-  const upper = raw.toUpperCase().trim();
-  if (upper.includes('APRON')) return 'APRON';
-  if (upper.includes('TERMINAL')) return 'TERMINAL';
-  if (upper.includes('GENERAL')) return 'GENERAL';
-  return null;
-};
-
-// Map CSV Status to DB constraint: MENUNGGU_FEEDBACK | SUDAH_DIVERIFIKASI | SELESAI
+// Map CSV Status to DB constraint
 const normalizeStatus = (raw: string | undefined | null): string => {
   if (!raw) return 'MENUNGGU_FEEDBACK';
   const upper = raw.toUpperCase().trim();
-  if (upper === 'SELESAI' || upper === 'CLOSED' || upper === 'DONE' || upper === 'RESOLVED') return 'SELESAI';
-  if (upper === 'SUDAH_DIVERIFIKASI' || upper === 'VERIFIED') return 'SUDAH_DIVERIFIKASI';
+  if (['SELESAI', 'CLOSED', 'DONE', 'RESOLVED', 'CLOSE'].includes(upper)) return 'SELESAI';
+  if (['SUDAH_DIVERIFIKASI', 'VERIFIED', 'OPEN', 'ON PROGRESS'].includes(upper)) return 'SUDAH_DIVERIFIKASI';
   return 'MENUNGGU_FEEDBACK';
 };
 
-// Determine target_division from Area: APRON→OT, TERMINAL→OP, GENERAL→GENERAL
-const deriveTargetDivision = (area: string | null): string => {
-  if (area === 'APRON') return 'OT';
-  if (area === 'TERMINAL') return 'OP';
-  return 'GENERAL';
-};
+// Main Helper: Map a single CSV row to a Report object
+const mapRowToReport = (row: any, importType: ImportType) => {
+  const report: any = {};
+  
+  // 1. Map known columns
+  Object.keys(row).forEach((csvHeader) => {
+    // Try exact match
+    let dbKey = HEADER_MAPPING[csvHeader.trim()];
+    
+    // Check fuzzy/normalized if needed (e.g. case insensitive)
+    if (!dbKey) {
+       const norm = csvHeader.trim().toLowerCase();
+       const found = Object.keys(HEADER_MAPPING).find(k => k.toLowerCase() === norm);
+       if (found) dbKey = HEADER_MAPPING[found];
+    }
 
-// Determine airline_type: Lokal or MPA
-const deriveAirlineType = (jenisMaskapai: string | undefined | null): string | null => {
-  if (!jenisMaskapai || jenisMaskapai === '#N/A' || jenisMaskapai === 'N/A') return null;
-  const upper = jenisMaskapai.toUpperCase().trim();
-  if (upper.includes('LOKAL') || upper.includes('LOCAL') || upper.includes('DOMESTIK')) return 'Lokal';
-  if (upper.includes('MPA') || upper.includes('ASING') || upper.includes('INTERNATIONAL')) return 'MPA';
-  return null;
-};
+    if (dbKey) {
+        report[dbKey] = row[csvHeader];
+    }
+  });
 
-const mapRowToReport = (row: ParsedRow) => {
-  const mainCategory = row['Report Category'] || null;
-  const area = normalizeArea(row.Area);
+  // 2. Normalize & Defaults
+  
+  // Date
+  if (report.date_of_event) {
+      report.date_of_event = parseDateOnly(report.date_of_event);
+  }
+  if (!report.date_of_event) {
+      // Fallback: created_at = now
+      report.created_at = new Date().toISOString(); 
+      // If we really need a date_of_event, maybe leave null or set to today?
+      // Let's leave it null if missing, types usually allow it or defaulted in DB
+  } else {
+      report.created_at = new Date(report.date_of_event).toISOString();
+  }
+  
+  report.updated_at = new Date().toISOString();
 
-  return {
-    reference_number: `IRR-${row.Id}`,
-    title: mainCategory ? `${mainCategory} - ${row.Airlines || 'Unknown'}` : 'Incident Report',
-    report: row.Report || 'No description provided',
+  // Status
+  report.status = normalizeStatus(report.status);
+  
+  // Import Type Specific Logic
+  if (importType === 'CARGO') {
+      report.area = 'CARGO';
+      report.source_sheet = 'CGO'; // Tag source
+      // If category is missing but we have general/terminal/apron cols? 
+      // Cargo usually uses 'general_category' or specific cargo columns if mapped
+  } else if (importType === 'NON_CARGO') {
+      report.source_sheet = 'NON CARGO';
+      // Ensure area is set if possible
+      if (!report.area && report.terminal_area_category) report.area = 'TERMINAL';
+      if (!report.area && report.apron_area_category) report.area = 'APRON';
+  } else if (importType === 'HUB') {
+      report.source_sheet = 'HUB';
+      report.hub = report.hub || 'CGK'; // Default to CGK if missing for Hub report?
+  }
 
-    // Status & Priority (must match DB constraints)
-    status: normalizeStatus(row.Status),
-    priority: 'medium',
+  // Generate a robust reference number if ID exists
+  if (row['Id'] || row['ID'] || row['No']) {
+      const id = row['Id'] || row['ID'] || row['No'];
+      report.reference_number = `IMP-${importType}-${id}`;
+      report.csv_id = Number(id) || null;
+  } else {
+      // Generate random ref
+      report.reference_number = `IMP-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+  }
 
-    // Dimensions
-    branch: row['Branch (cth: CGK, UPG, DPS)'] || row['KODE CABANG (VLOOKUP)'] || null,
-    airlines: row.Airlines || null,
-    jenis_maskapai: deriveAirlineType(row['Jenis Maskapai']),
-    flight_number: row['Flight Number'] || null,
-    route: row.Route || null,
-    area: area,
-    target_division: deriveTargetDivision(area),
+  // Title fallback
+  if (!report.title) {
+      report.title = `${report.main_category || 'Report'} - ${report.airline || 'Unknown'}`;
+  }
 
-    // Categorization
-    category: mainCategory,
-
-    // Dates
-    date_of_event: parseDateOnly(row['Date of Event']),
-    event_date: parseTimestamp(row['Date of Event']),
-    form_submitted_at: parseTimestamp(row['Start time']),
-    form_completed_at: parseTimestamp(row['Completion time']),
-
-    // Actions & Notes
-    root_caused: row['Root Caused'] || null,
-    action_taken: row['Action Taken'] || null,
-    kps_remarks: row['Remarks Gapura KPS Action Taken'] || null,
-
-    // People
-    reporter_name: row['Report By'] || row.Name || null,
-    reporter_email: row.Email || null,
-    reporting_branch: row['Reporting Branch'] || null,
-
-    // Meta
-    hub: row.HUB || null,
-    csv_id: Number(row.Id) || null,
-    evidence_url: row['Upload Irregularity Photo'] || null,
-
-    // System
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  return report;
 };
 
 export default function ImportDataPage() {
+  const [importType, setImportType] = useState<ImportType>('NON_CARGO');
   const [file, setFile] = useState<File | null>(null);
-  const [previewData, setPreviewData] = useState<ParsedRow[]>([]);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -180,13 +205,27 @@ export default function ImportDataPage() {
   const parseFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const data = e.target?.result;
-      const workbook = XLSX.read(data, { type: 'binary' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet) as ParsedRow[];
-      setPreviewData(jsonData);
-      setUploadStatus('idle'); // Reset status on new file
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0]; // Always take first sheet
+        const sheet = workbook.Sheets[sheetName];
+        
+        // Use header:1 to get raw array of arrays first to inspect headers
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+        if (rawRows.length === 0) throw new Error("File kosong");
+        
+        const fileHeaders = rawRows[0] as string[];
+        setHeaders(fileHeaders);
+
+        // Parse object data
+        const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
+        setPreviewData(jsonData);
+        setUploadStatus('idle');
+      } catch (err) {
+        setErrorMessage("Gagal membaca file. Pastikan format Excel/CSV valid.");
+        setUploadStatus('error');
+      }
     };
     reader.readAsBinaryString(file);
   };
@@ -201,19 +240,31 @@ export default function ImportDataPage() {
 
     try {
       // 1. Map Data
-      const mappedData = previewData.map((row) => mapRowToReport(row));
+      const mappedData = previewData.map((row) => mapRowToReport(row, importType));
 
-      // 2. Batch Insert (Supabase Limit is usually handled, but good to batch if huge)
-      // We'll insert in chunks of 50
+      // 2. Batch Insert
       const chunkSize = 50;
       let totalInserted = 0;
 
       for (let i = 0; i < mappedData.length; i += chunkSize) {
         const chunk = mappedData.slice(i, i + chunkSize);
         
+        // Removing undefined/null keys that might violate DB constraints if DB expects default
+        // Supabase/Postgres is usually fine with missing keys (defaults apply), but explicit undefined might be weird.
+        const cleanChunk = chunk.map(r => {
+            const clean: any = {};
+            Object.keys(r).forEach(k => {
+                if (r[k] !== undefined && r[k] !== null && r[k] !== '') clean[k] = r[k];
+                // Allow explicit nulls if needed? Usually empty string -> null in robust apps, but here let's stick to truthy or explicit
+            });
+            // Ensure mandatory fields
+            if (!clean.title) clean.title = 'Untitled Report';
+            return clean;
+        });
+
         const { error } = await supabase
           .from('reports')
-          .insert(chunk); // 'upsert' if we want to update based on csv_id/reference_number
+          .insert(cleanChunk);
           
         if (error) {
            console.error('Batch Insert Error:', error);
@@ -228,7 +279,8 @@ export default function ImportDataPage() {
       console.error('Import Error:', error);
       setUploadStatus('error');
       const message = error instanceof Error ? error.message : 'Gagal mengimport data.';
-      setErrorMessage(message);
+      const detail = (error as any)?.details || (error as any)?.message || '';
+      setErrorMessage(`${message} ${detail}`);
     } finally {
       setIsUploading(false);
     }
@@ -237,23 +289,82 @@ export default function ImportDataPage() {
   const reset = () => {
       setFile(null);
       setPreviewData([]);
+      setHeaders([]);
       setUploadStatus('idle');
       setSuccessCount(0);
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 pb-32">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Import Data Laporan</h1>
-        <p className="text-gray-500 mt-1">Upload file CSV atau Excel untuk memasukkan data laporan secara massal.</p>
+        <p className="text-gray-500 mt-1">
+            Mode Administrator untuk import data massal dari Google Sheets/Excel.
+        </p>
+      </div>
+
+      {/* Configuration Card */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Database size={18} className="text-blue-600" />
+                1. Pilih Tipe Data
+            </h3>
+            <div className="grid md:grid-cols-3 gap-4">
+                <button
+                    onClick={() => setImportType('NON_CARGO')}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        importType === 'NON_CARGO' ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${importType === 'NON_CARGO' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            <Plane size={16} />
+                        </div>
+                        <span className="font-bold text-gray-900">Non Cargo</span>
+                    </div>
+                    <p className="text-xs text-gray-500">Laporan reguler (Terminal, Apron, General). Sheet: 'NON CARGO'</p>
+                </button>
+
+                <button
+                    onClick={() => setImportType('CARGO')}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        importType === 'CARGO' ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                >
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${importType === 'CARGO' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            <Truck size={16} />
+                        </div>
+                        <span className="font-bold text-gray-900">Cargo</span>
+                    </div>
+                    <p className="text-xs text-gray-500">Laporan khusus Cargo. Sheet: 'CGO'</p>
+                </button>
+
+                <button
+                    onClick={() => setImportType('HUB')}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        importType === 'HUB' ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                >
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${importType === 'HUB' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            <Database size={16} />
+                        </div>
+                        <span className="font-bold text-gray-900">HUB Data</span>
+                    </div>
+                    <p className="text-xs text-gray-500">Data rekapitulasi HUB. Sheet: 'HUB'</p>
+                </button>
+            </div>
+          </div>
       </div>
 
       {/* Upload Logic Area */}
       {!file ? (
          <div 
             {...getRootProps()} 
-            className={`border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center cursor-pointer transition-colors
+            className={`border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center cursor-pointer transition-colors bg-white
                 ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}
             `}
          >
@@ -265,6 +376,9 @@ export default function ImportDataPage() {
                 {isDragActive ? 'Lepaskan file di sini...' : 'Drag & drop file di sini'}
             </p>
             <p className="text-sm text-gray-500 mt-2">atau klik untuk memilih file (.csv, .xlsx)</p>
+            <p className="text-xs text-blue-600 mt-4 font-medium px-3 py-1 bg-blue-50 rounded-full">
+                Target: {importType}
+            </p>
          </div>
       ) : (
           <div className="space-y-6">
@@ -304,42 +418,34 @@ export default function ImportDataPage() {
               {previewData.length > 0 && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
                       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                          <h3 className="font-semibold text-gray-700">Preview Data (Top 5)</h3>
+                          <h3 className="font-semibold text-gray-700">Preview Mapping (Top 5)</h3>
                           <span className="text-xs bg-gray-200 px-2 py-1 rounded text-gray-600">Total: {previewData.length}</span>
                       </div>
                       <div className="overflow-x-auto">
                           <table className="w-full text-sm text-left">
                               <thead className="bg-gray-50 text-gray-500">
                                   <tr>
-                                      {Object.keys(previewData[0]).slice(0, 8).map((header) => (
-                                          <th key={header} className="px-6 py-3 font-medium whitespace-nowrap">{header}</th>
-                                      ))}
+                                      <th className="px-6 py-3 font-medium">Original Header</th>
+                                      <th className="px-6 py-3 font-medium">Mapped To DB Field</th>
+                                      <th className="px-6 py-3 font-medium">Preview Value</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
-                                  {previewData.slice(0, 5).map((row, i) => {
-                                      const keys = Object.keys(row).slice(0, 8);
+                                  {/* Show mapping preview based on first row headers */}
+                                  {headers.slice(0, 10).map((header, i) => {
+                                      const dbField = HEADER_MAPPING[header] || HEADER_MAPPING[header.trim()] || '-';
+                                      const val = previewData[0][header];
                                       return (
                                           <tr key={i} className="hover:bg-gray-50/50">
-                                              {keys.map((key, j) => {
-                                                  const val = row[key];
-                                                  // Format Excel serial dates for date columns
-                                                  const isDateCol = ['Start time', 'Completion time', 'Date of Event'].includes(key);
-                                                  let display = String(val);
-                                                  if (isDateCol && typeof val === 'number') {
-                                                      const d = excelSerialToDate(val);
-                                                      display = d ? d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : String(val);
-                                                  } else if (isDateCol && (!val || val === '#N/A')) {
-                                                      display = '-';
-                                                  }
-                                                  return (
-                                                      <td key={j} className="px-6 py-3 max-w-[200px] truncate text-gray-600">
-                                                          {display}
-                                                      </td>
-                                                  );
-                                              })}
+                                              <td className="px-6 py-3 text-gray-900 font-medium">{header}</td>
+                                              <td className="px-6 py-3 text-blue-600 font-mono text-xs">
+                                                  {dbField !== '-' ? dbField : <span className="text-red-400">Not Mapped</span>}
+                                              </td>
+                                              <td className="px-6 py-3 text-gray-500 max-w-[200px] truncate">
+                                                  {String(val || '')}
+                                              </td>
                                           </tr>
-                                      );
+                                      )
                                   })}
                               </tbody>
                           </table>

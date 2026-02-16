@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChartPreview } from '@/components/builder/ChartPreview';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink, Menu } from 'lucide-react';
 import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import { processQuery } from '@/lib/engine/query-processor';
@@ -98,6 +98,7 @@ export function CustomDashboardContent() {
   // Multi-page navigation
   const [activePage, setActivePage] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // L1 Cache: Fetch all reports for client-side processing
   const { reports: allReports, isLoading: reportsLoading } = useReportsData('/api/admin/reports');
@@ -547,12 +548,12 @@ export function CustomDashboardContent() {
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
               {[1,2,3,4,5,6].map(i => (
-                <div key={i} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{ width: 120, height: 14, background: '#f0f0f0', borderRadius: 4 }} className="animate-pulse" />
+                <div key={i} className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="w-32 h-4 bg-gray-100 rounded animate-pulse" />
                   </div>
-                  <div style={{ padding: 16, height: 200 }}>
-                    <div style={{ width: '100%', height: '100%', background: '#f8f8f8', borderRadius: 6 }} className="animate-pulse" />
+                  <div className="p-4 h-[200px]">
+                    <div className="w-full h-full bg-gray-50 rounded-md animate-pulse" />
                   </div>
                 </div>
               ))}
@@ -565,10 +566,16 @@ export function CustomDashboardContent() {
 
   if (error || !dashboard) {
     return (
-      <div style={S.loadingWrap}>
-        <AlertCircle size={40} style={{ color: '#ccc', marginBottom: 16 }} />
-        <p style={{ color: '#666', fontWeight: 600 }}>Dashboard tidak ditemukan</p>
-        <p style={{ color: '#999', fontSize: 12, marginTop: 4 }}>{slug}</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center p-6">
+        <AlertCircle size={48} className="text-gray-300 mb-4" />
+        <h3 className="text-lg font-bold text-gray-700">Dashboard tidak ditemukan</h3>
+        <p className="text-xs text-gray-400 mt-1">{slug}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-6 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+        >
+          Muat Ulang
+        </button>
       </div>
     );
   }
@@ -576,100 +583,142 @@ export function CustomDashboardContent() {
   const hasMultiplePages = pages.length > 1;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="flex min-h-screen font-sans bg-gray-50 text-gray-900 overflow-x-hidden">
       {/* ── SIDEBAR (only if multi-page) ── */}
+      {/* ── SIDEBAR (Responsive) ── */}
       {hasMultiplePages && (
-        <div style={S.sidebarWrap(sidebarCollapsed)}>
-          {/* Sidebar Header */}
-          <div style={S.sidebarHeader(sidebarCollapsed)}>
-            {!sidebarCollapsed && (
-              <Image src="/logo.png" alt="Gapura" width={48} height={48} style={{ height: 48, objectFit: 'contain' }} />
-            )}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#999', flexShrink: 0 }}
-            >
-              {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
-          </div>
+        <>
+          {/* Mobile Overlay */}
+          <div 
+            className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 md:hidden ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={() => setMobileMenuOpen(false)}
+          />
 
-          {/* Page Navigation */}
-          <div style={S.sidebarNav(sidebarCollapsed)}>
-            {!sidebarCollapsed && (
-              <div style={S.sidebarSectionLabel}>
-                Halaman
-              </div>
-            )}
-            {pages.map((page, idx) => {
-              const isActive = activePage === idx;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setActivePage(idx)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    width: '100%',
-                    padding: sidebarCollapsed ? '10px 8px' : '10px 12px',
-                    marginBottom: 2,
-                    borderRadius: 6,
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: isActive ? GAPURA_GREEN : 'transparent',
-                    color: isActive ? '#fff' : '#555',
-                    fontSize: 12,
-                    fontWeight: isActive ? 700 : 500,
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease',
-                    borderLeft: isActive ? `3px solid #fff` : '3px solid transparent',
-                  }}
-                  className={!isActive ? 'embed-sidebar-btn' : undefined}
-                >
-                  <span style={{
-                    width: 22, height: 22, borderRadius: 4,
-                    background: isActive ? 'rgba(255,255,255,0.2)' : '#e8e8e8',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700, flexShrink: 0,
-                    color: isActive ? '#fff' : '#888',
-                    transition: 'all 0.2s ease',
-                  }}>
-                    {idx + 1}
-                  </span>
-                  {!sidebarCollapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{page.name}</span>}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Filters Summary in Sidebar */}
-          {!sidebarCollapsed && activeFilterCount > 0 && (
-            <div style={{ padding: '8px 16px 12px', borderTop: '1px solid #e8e8e8' }}>
-              <div style={{ ...S.sidebarSectionLabel, padding: 0, marginBottom: 6 }}>
-                Filter Aktif ({activeFilterCount})
-              </div>
+          <div
+            className={`
+              fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 flex flex-col
+              transform transition-all duration-300 ease-in-out shadow-xl md:shadow-none
+              md:translate-x-0 md:static md:h-screen md:sticky md:top-0
+              ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+              ${sidebarCollapsed ? 'md:w-[60px]' : 'md:w-64'}
+              w-64
+            `}
+          >
+            {/* Sidebar Header */}
+            <div className={`
+              flex items-center gap-2 border-b border-gray-100
+              ${sidebarCollapsed ? 'p-3 justify-center' : 'p-4'}
+            `}>
+              {(!sidebarCollapsed || mobileMenuOpen) && (
+                <div className="relative h-8 w-8 shrink-0">
+                  <Image src="/logo.png" alt="Gapura" fill style={{ objectFit: 'contain' }} />
+                </div>
+              )}
+              {(!sidebarCollapsed || mobileMenuOpen) && (
+                <span className="font-bold text-gray-700 text-sm whitespace-nowrap overflow-hidden">
+                  Gapura IRRS
+                </span>
+              )}
               <button
-                onClick={() => { setActiveFilters({}); setDateFrom(''); setDateTo(''); }}
-                style={{ fontSize: 10, color: '#e53935', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="hidden md:flex ml-auto text-gray-400 hover:text-gray-600 p-1"
               >
-                Reset Filter
+                {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="md:hidden ml-auto text-gray-400 hover:text-gray-600 p-1"
+              >
+                <ChevronLeft size={20} />
               </button>
             </div>
-          )}
-        </div>
+
+            {/* Page Navigation */}
+            <div className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'}`}>
+              {(!sidebarCollapsed || mobileMenuOpen) && (
+                <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Halaman
+                </div>
+              )}
+              <div className="space-y-1">
+                {pages.map((page, idx) => {
+                  const isActive = activePage === idx;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setActivePage(idx);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`
+                        w-full flex items-center gap-3 rounded-lg text-left transition-all duration-200 group
+                        ${sidebarCollapsed ? 'p-2 justify-center' : 'px-3 py-2.5'}
+                        ${isActive 
+                          ? 'bg-[#6b8e3d] text-white shadow-sm' 
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }
+                      `}
+                      title={page.name}
+                    >
+                      <span className={`
+                        flex items-center justify-center w-6 h-6 rounded text-[10px] font-bold shrink-0 transition-colors
+                        ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'}
+                      `}>
+                        {idx + 1}
+                      </span>
+                      {(!sidebarCollapsed || mobileMenuOpen) && (
+                        <span className="text-sm font-medium truncate">{page.name}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Active Filters Summary in Sidebar */}
+            {(!sidebarCollapsed || mobileMenuOpen) && activeFilterCount > 0 && (
+              <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Filter Aktif ({activeFilterCount})
+                </div>
+                <button
+                  onClick={() => { setActiveFilters({}); setDateFrom(''); setDateTo(''); }}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                >
+                  <X size={12} /> Reset Filter
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* ── MAIN CONTENT ── */}
-      <div style={S.mainContent}>
+      <div className="flex-1 min-w-0 bg-gray-50 flex flex-col">
         {/* ── HEADER ── */}
-        <div style={S.headerWrap}>
-          <div style={S.headerInner}>
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm md:shadow-none">
+          <div className="px-4 py-4 md:px-6">
             {/* Logo + Title + Date */}
-            <div style={S.titleRow}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                {!hasMultiplePages && <Image src="/logo.png" alt="Gapura Airport Services" width={60} height={60} style={{ height: 60, objectFit: 'contain' }} />}
-                <div>
-                  <h1 style={S.title}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                {/* Mobile Toggle */}
+                {hasMultiplePages && (
+                  <button 
+                    onClick={() => setMobileMenuOpen(true)}
+                    className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Menu size={24} />
+                  </button>
+                )}
+                
+                {!hasMultiplePages && (
+                  <div className="relative h-12 w-12 shrink-0">
+                    <Image src="/logo.png" alt="Gapura Airport Services" fill style={{ objectFit: 'contain' }} />
+                  </div>
+                )}
+                
+                <div className="min-w-0">
+                  <h1 className="text-lg md:text-2xl font-bold text-gray-800 leading-tight truncate">
                     {(() => {
                       const pName = pages[activePage]?.name || '';
                       const cfFrom = dateFrom || dashboard?.config?.dateFrom;
@@ -700,48 +749,78 @@ export function CustomDashboardContent() {
                     })()}
                   </h1>
                   {hasMultiplePages && pages[activePage] && (
-                    <span style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{pages[activePage].name}</span>
+                    <span className="text-sm text-gray-500 font-medium block mt-1 truncate">{pages[activePage].name}</span>
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              
+              <div className="flex items-center gap-2 self-end md:self-auto">
                 {/* Export dropdown */}
-                <div style={{ position: 'relative' }}>
+                <div className="relative">
                   <button
                     onClick={() => setShowExportMenu(!showExportMenu)}
                     disabled={exportingFormat !== null}
-                    style={S.exportBtn}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-all shadow-sm active:scale-95"
                   >
-                    {exportingFormat ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    {exportingFormat ? 'Exporting...' : 'Export'}
-                    <ChevronDownIcon size={10} />
+                    {exportingFormat ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                    <span className="hidden sm:inline">{exportingFormat ? 'Exporting...' : 'Export'}</span>
+                    <ChevronDownIcon size={14} className="text-gray-400" />
                   </button>
                   {showExportMenu && (
-                    <div style={S.exportMenu}>
-                      <button onClick={() => handleExport('xlsx')} style={S.exportMenuItem}>
-                        <FileSpreadsheet size={14} style={{ color: '#1b7a3d' }} />
-                        <span>Export ke Excel (.xlsx)</span>
+                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[220px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <button 
+                        onClick={() => handleExport('xlsx')} 
+                        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-green-50 text-gray-700 transition-colors border-b border-gray-50"
+                      >
+                        <FileSpreadsheet size={16} className="text-green-600" />
+                        <span className="text-sm font-medium">Export ke Excel (.xlsx)</span>
                       </button>
-                      <button onClick={() => handleExport('pptx')} style={S.exportMenuItem}>
-                        <Presentation size={14} style={{ color: '#c43e1c' }} />
-                        <span>Export ke PowerPoint (.pptx)</span>
+                      <button 
+                        onClick={() => handleExport('pptx')} 
+                        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-orange-50 text-gray-700 transition-colors"
+                      >
+                        <Presentation size={16} className="text-orange-600" />
+                        <span className="text-sm font-medium">Export ke PowerPoint (.pptx)</span>
                       </button>
                     </div>
                   )}
                 </div>
+                
                 {/* Date range */}
-                <div style={{ position: 'relative' }}>
-                  <button onClick={() => setShowDatePicker(!showDatePicker)} style={S.dateBtn}>
-                    {formatDateRange()}
-                    <ChevronDownIcon size={12} />
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowDatePicker(!showDatePicker)} 
+                    className="flex items-center gap-2 px-3 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium hover:bg-[#5a7a3a] transition-all shadow-sm active:scale-95 border border-transparent"
+                  >
+                    <span className="truncate max-w-[120px] sm:max-w-xs">{formatDateRange()}</span>
+                    <ChevronDownIcon size={14} className="text-white/80" />
                   </button>
                   {showDatePicker && (
-                    <div style={S.datePicker}>
-                      <label style={S.dateLabel}>From</label>
-                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={S.dateInput} />
-                      <label style={S.dateLabel}>To</label>
-                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={S.dateInput} />
-                      <button onClick={() => setShowDatePicker(false)} style={S.dateApply}>Apply</button>
+                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-4 shadow-2xl z-50 min-w-[280px] flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">From</label>
+                        <input 
+                          type="date" 
+                          value={dateFrom} 
+                          onChange={e => setDateFrom(e.target.value)} 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">To</label>
+                        <input 
+                          type="date" 
+                          value={dateTo} 
+                          onChange={e => setDateTo(e.target.value)} 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
+                        />
+                      </div>
+                      <button 
+                        onClick={() => setShowDatePicker(false)} 
+                        className="mt-1 w-full py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-bold hover:bg-[#5a7a3a] transition-colors"
+                      >
+                        Apply Filters
+                      </button>
                     </div>
                   )}
                 </div>
@@ -749,11 +828,11 @@ export function CustomDashboardContent() {
             </div>
 
             {/* Banner with Interactive Filters */}
-            <div style={S.banner}>
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
+            <div className="bg-[#5a7a3a] rounded-xl p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm ring-1 ring-black/5">
+              <span className="text-white font-bold text-sm block tracking-wide">
                 Irregularity, Complain & Compliment Report
               </span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="flex gap-2 flex-wrap items-center">
                 <DynamicFilterHeader 
                   onFilterChange={setActiveFilters}
                   initialFilters={activeFilters}
@@ -762,9 +841,9 @@ export function CustomDashboardContent() {
                 {(dateFrom || dateTo) && (
                   <button
                     onClick={() => { setDateFrom(''); setDateTo(''); }}
-                    style={{ ...S.filterPill, background: 'rgba(229,57,53,0.3)', borderColor: 'rgba(229,57,53,0.5)' }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white text-xs font-medium border border-white/20 hover:bg-white/20 transition-all active:scale-95"
                   >
-                    <X size={10} /> Reset Date
+                    <X size={12} /> Reset Date
                   </button>
                 )}
               </div>
@@ -772,7 +851,7 @@ export function CustomDashboardContent() {
 
             {/* KPI Stats Row */}
             {kpiTiles.length > 0 && (
-              <div style={{ ...S.statsRow, gridTemplateColumns: `repeat(${Math.min(kpiTiles.length, 5)}, 1fr)` }}>
+              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-6">
                 {kpiTiles.slice(0, 5).map(tile => {
                   const cr = chartsData.get(tile.id);
                   let value: string | number = '-';
@@ -784,9 +863,9 @@ export function CustomDashboardContent() {
                     }
                   }
                   return (
-                    <div key={tile.id} style={{ textAlign: 'center' }}>
-                      <div style={S.statLabel}>{tile.title}</div>
-                      <div style={S.statValue}>{typeof value === 'number' ? value.toLocaleString('id-ID') : value}</div>
+                    <div key={tile.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1 hover:shadow-md transition-shadow">
+                      <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider text-center">{tile.title}</div>
+                      <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{typeof value === 'number' ? value.toLocaleString('id-ID') : value}</div>
                     </div>
                   );
                 })}
@@ -794,22 +873,22 @@ export function CustomDashboardContent() {
             )}
 
             {kpiTiles.length === 0 && (
-              <div style={{ ...S.statsRow, gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={S.statLabel}>Total Report</div>
-                  <div style={S.statValue}>{totalReport > 0 ? totalReport.toLocaleString('id-ID') : '-'}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
+                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Total Report</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{totalReport > 0 ? totalReport.toLocaleString('id-ID') : '-'}</div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={S.statLabel}>Halaman</div>
-                  <div style={S.statValue}>{pages.length}</div>
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
+                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Halaman</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{pages.length}</div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={S.statLabel}>Total Chart</div>
-                  <div style={S.statValue}>{dashboard.dashboard_charts.length}</div>
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
+                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Total Chart</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{dashboard.dashboard_charts.length}</div>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={S.statLabel}>Filter Aktif</div>
-                  <div style={S.statValue}>{activeFilterCount || '-'}</div>
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
+                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Filter Aktif</div>
+                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{activeFilterCount || '-'}</div>
                 </div>
               </div>
             )}
@@ -817,22 +896,27 @@ export function CustomDashboardContent() {
         </div>
 
         {/* ── CONTENT: Chart + Detail Table Groups ── */}
-        <div style={S.contentWrap}>
-          <div style={S.chartGrid}>
+        <div className="p-4 md:p-6 pb-24">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-min">
             {contentTiles.map(chart => {
               const cr = chartsData.get(chart.id);
               if (!cr) return null;
               const layout = chart.layout || { w: 6, h: 2 };
               const colSpan = layout.w || 6;
               const isTableType = chart.visualization_config?.chartType === 'table';
+              
+              // Map legacy 12-col grid width to Tailwind classes
+              // Default to spanning full width on mobile (col-span-1 in a 1-col grid), 
+              // and specific span on desktop (md:col-span-X)
+              let mdColSpan = 'md:col-span-6';
+              if (colSpan === 12) mdColSpan = 'md:col-span-12';
+              else if (colSpan >= 8) mdColSpan = 'md:col-span-8';
+              else if (colSpan >= 6) mdColSpan = 'md:col-span-6';
+              else if (colSpan >= 4) mdColSpan = 'md:col-span-4';
+              else if (colSpan >= 3) mdColSpan = 'md:col-span-3';
 
               return (
-                <div key={chart.id} style={{ 
-                  gridColumn: `span ${colSpan}`, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: 2,
-                }}>
+                <div key={chart.id} className={`col-span-1 ${mdColSpan} flex flex-col gap-0.5`}>
                   {/* HEATMAP (specific handling) */}
                   {cr.type === 'query' && cr.queryResult && chart.visualization_config?.chartType === 'heatmap' ? (
                     <HeatmapChart
@@ -856,10 +940,12 @@ export function CustomDashboardContent() {
 
                   {/* For table type: show title header + detail table directly */}
                   {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
-                    <div style={{ ...S.card, borderRadius: '8px 8px 0 0' }}>
-                      <div style={S.cardTitle}>
-                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#333' }}>{chart.title}</h3>
-                        <span style={{ fontSize: 11, color: '#999' }}>{cr.queryResult.rowCount} baris</span>
+                    <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 overflow-hidden shadow-sm">
+                      <div className="px-5 py-4 flex items-center justify-between">
+                        <div>
+                          <h3 className="m-0 text-sm font-bold text-gray-800">{chart.title}</h3>
+                          <span className="text-xs text-gray-400">{cr.queryResult.rowCount} baris</span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -886,24 +972,29 @@ export function CustomDashboardContent() {
 
         {/* ── PAGE NAVIGATION (bottom) ── */}
         {hasMultiplePages && (
-          <div style={{
-            padding: '0 24px 16px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}>
+          <div className="px-6 pb-4 flex items-center justify-center gap-2">
             <button
               onClick={() => setActivePage(p => Math.max(0, p - 1))}
               disabled={activePage === 0}
-              style={{ ...S.navBtn, opacity: activePage === 0 ? 0.4 : 1 }}
+              className={`
+                flex items-center gap-1 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 text-xs font-semibold
+                hover:bg-gray-50 active:scale-95 transition-all
+                ${activePage === 0 ? 'opacity-40 cursor-not-allowed' : 'shadow-sm'}
+              `}
             >
               <ChevronLeft size={16} /> Sebelumnya
             </button>
-            <span style={{ fontSize: 12, color: '#888', padding: '0 12px' }}>
+            <span className="text-xs text-gray-400 px-3 font-medium">
               Halaman {activePage + 1} / {pages.length}
             </span>
             <button
               onClick={() => setActivePage(p => Math.min(pages.length - 1, p + 1))}
               disabled={activePage >= pages.length - 1}
-              style={{ ...S.navBtn, opacity: activePage >= pages.length - 1 ? 0.4 : 1 }}
+              className={`
+                flex items-center gap-1 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 text-xs font-semibold
+                hover:bg-gray-50 active:scale-95 transition-all
+                ${activePage >= pages.length - 1 ? 'opacity-40 cursor-not-allowed' : 'shadow-sm'}
+              `}
             >
               Selanjutnya <ChevronRight size={16} />
             </button>
@@ -911,18 +1002,18 @@ export function CustomDashboardContent() {
         )}
 
         {/* ── FOOTER ── */}
-        <div style={S.footer}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Image src="/logo.png" alt="Gapura" width={24} height={24} style={{ height: 24, objectFit: 'contain', opacity: 0.7 }} />
-            <span style={{ color: '#666', fontWeight: 500, letterSpacing: 0.3 }}>Gapura IRRS</span>
+        <div className="sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-gray-200 px-6 py-3 flex flex-wrap items-center justify-between gap-4 text-xs shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Gapura" width={20} height={20} style={{ height: 20, objectFit: 'contain', opacity: 0.6 }} />
+            <span className="text-gray-500 font-semibold tracking-wide">Gapura IRRS</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#888' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#43a047', display: 'inline-block', boxShadow: '0 0 4px rgba(67,160,71,0.5)' }} />
-              Data otomatis diperbarui
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5 text-gray-400">
+              <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)] animate-pulse" />
+              Live Data
             </span>
-            <span style={{ color: '#bbb' }}>|</span>
-            <span style={{ color: '#aaa' }}>&copy; {new Date().getFullYear()} PT Gapura Angkasa</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-400">&copy; {new Date().getFullYear()} PT Gapura Angkasa</span>
           </div>
         </div>
       </div>
@@ -930,7 +1021,7 @@ export function CustomDashboardContent() {
       {/* Click outside to close dropdowns */}
       {showExportMenu && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 29 }}
+          className="fixed inset-0 z-40"
           onClick={() => { setShowExportMenu(false); }}
         />
       )}
@@ -987,36 +1078,20 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
   };
 
   return (
-    <div style={S.card}>
-      <div style={{...S.cardTitle, justifyContent: 'space-between'}}>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#333' }}>{chart.title}</h3>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden h-full">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100/50">
+        <h3 className="text-sm font-bold text-gray-800 m-0">{chart.title}</h3>
         <button
           onClick={handleViewDetail}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 8px',
-            fontSize: '11px',
-            fontWeight: 600,
-            color: '#fff',
-            backgroundColor: '#6b8e3d',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-[#6b8e3d] hover:bg-[#5a7a3a] rounded transition-colors shadow-sm active:scale-95"
           title="Lihat Detail"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
+          <ExternalLink size={12} />
           <span>Detail</span>
         </button>
       </div>
-      <div style={{ padding: '12px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ width: '100%', height: 400, overflowY: 'auto' }} className="custom-scrollbar">
+      <div className="p-4 flex-1 min-h-0 flex flex-col overflow-hidden bg-white/50 relative">
+        <div className="w-full h-[400px] overflow-y-auto custom-scrollbar">
           <ChartPreview visualization={viz} result={result} />
         </div>
       </div>
@@ -1037,9 +1112,15 @@ function renderEvidenceCell(val: unknown): React.ReactNode {
   }
   if (urls.length === 0) return str || '-';
   return (
-    <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <span className="flex flex-col gap-1">
       {urls.map((url, i) => (
-        <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#1565c0', textDecoration: 'underline', fontSize: 11 }}>
+        <a 
+          key={i} 
+          href={url} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-blue-600 hover:text-blue-800 underline text-[11px] transition-colors"
+        >
           Evidence {urls.length > 1 ? i + 1 : ''}
         </a>
       ))}
@@ -1051,20 +1132,23 @@ function renderEvidenceCell(val: unknown): React.ReactNode {
 
 function LegacyCard({ chart, stats }: { chart: ChartData; stats: ChartResult['stats'] & {} }) {
   return (
-    <div style={S.card}>
-      <div style={S.cardTitle}>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#333' }}>{chart.title}</h3>
-        <span style={{ fontSize: 11, color: '#999' }}>{stats.totalCount} total</span>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden h-full">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100">
+        <h3 className="text-sm font-bold text-gray-800 m-0">{chart.title}</h3>
+        <span className="text-[11px] text-gray-400 font-medium">{stats.totalCount} total</span>
       </div>
-      <div style={{ padding: '8px 16px 12px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="p-4 pb-5">
+        <div className="flex flex-col gap-2">
           {stats.distribution.slice(0, 10).map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: '#999', width: 20, textAlign: 'right', flexShrink: 0 }}>{idx + 1}.</span>
-              <span style={{ fontSize: 12, color: '#333', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#333', flexShrink: 0 }}>{item.count}</span>
-              <div style={{ width: 80, height: 14, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
-                <div style={{ width: `${item.percentage}%`, height: '100%', background: GAPURA_GREEN, borderRadius: 2 }} />
+            <div key={idx} className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 w-5 text-right shrink-0 font-medium">{idx + 1}.</span>
+              <span className="text-xs text-gray-700 flex-1 truncate">{item.name}</span>
+              <span className="text-xs font-bold text-gray-800 shrink-0">{item.count}</span>
+              <div className="w-20 h-3.5 bg-gray-100 rounded overflow-hidden shrink-0 relative">
+                <div 
+                  className="h-full bg-[#6b8e3d] rounded transition-all duration-500 ease-out" 
+                  style={{ width: `${item.percentage}%` }} 
+                />
               </div>
             </div>
           ))}
@@ -1134,26 +1218,15 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
   const hasNumericTotal = Object.keys(grandTotal).length > 0;
 
   return (
-    <div style={S.detailCard}>
-      <div style={S.detailHeader}>
-        <span style={S.detailTitle}>Detail: {title}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 11, color: '#999' }}>{rows.length} baris</span>
+    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden shadow-sm">
+      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b8e3d]">Detail: {title}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] sm:text-[11px] text-gray-400 font-medium">{rows.length} baris</span>
           {onViewDetail && (
             <button
               onClick={onViewDetail}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 8px',
-                background: '#fff',
-                border: '1px solid #ddd',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontSize: 10,
-                color: '#666'
-              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-300 rounded text-[10px] sm:text-[11px] font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
               title="View Full Detail"
             >
               <ExternalLink size={12} />
@@ -1162,16 +1235,20 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
           )}
         </div>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={S.table}>
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full border-collapse text-xs sm:text-[13px]">
           <thead>
             <tr>
-              <th style={S.th}>#</th>
+              <th className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap sticky left-0 z-10 w-12">#</th>
               {result.columns.map(col => (
-                <th key={col} onClick={() => handleSort(col)} style={{ ...S.th, cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <th 
+                  key={col} 
+                  onClick={() => handleSort(col)} 
+                  className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap cursor-pointer select-none hover:bg-[#4d6932] transition-colors"
+                >
+                  <span className="flex items-center gap-1">
                     {formatColumnLabel(col)}
-                    {sortCol === col && <span style={{ fontSize: 9 }}>{sortDir === 'asc' ? '\u25B2' : '\u25BC'}</span>}
+                    {sortCol === col && <span className="text-[9px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
                   </span>
                 </th>
               ))}
@@ -1179,13 +1256,13 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
           </thead>
           <tbody>
             {pagedRows.map((row, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <td style={{ ...S.td, color: '#999', fontSize: 11 }}>{page * PAGE_SIZE + idx + 1}.</td>
+              <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <td className="px-3 py-2 text-gray-400 text-[11px] whitespace-nowrap sticky left-0 bg-inherit">{page * PAGE_SIZE + idx + 1}.</td>
                 {result.columns.map(col => {
                   const val = row[col];
                   const isEvidenceCol = col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link');
                   if (isEvidenceCol) {
-                    return <td key={col} style={{ ...S.td }}>{renderEvidenceCell(val)}</td>;
+                    return <td key={col} className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{renderEvidenceCell(val)}</td>;
                   }
                   const numVal = Number(val);
                   const isNum = !isNaN(numVal) && val !== null && val !== '' && typeof val !== 'boolean';
@@ -1196,7 +1273,11 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
                     cellBg = `rgba(107, 142, 61, ${alpha})`;
                   }
                   return (
-                    <td key={col} style={{ ...S.td, background: cellBg, textAlign: isNum ? 'center' : 'left', fontWeight: isNum ? 600 : 400 }}>
+                    <td 
+                      key={col} 
+                      className={`px-3 py-2 text-gray-700 text-xs whitespace-nowrap ${isNum ? 'text-center font-semibold' : 'text-left'}`}
+                      style={{ backgroundColor: cellBg }}
+                    >
                       {formatCellValue(val)}
                     </td>
                   );
@@ -1205,15 +1286,10 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
             ))}
             {/* Grand Total Row */}
             {hasNumericTotal && (
-              <tr style={{ borderTop: '2px solid ' + GAPURA_GREEN, background: '#f0f7e8' }}>
-                <td style={{ ...S.td, fontWeight: 700, color: GAPURA_GREEN }}>∑</td>
+              <tr className="border-t-2 border-[#6b8e3d] bg-[#f0f7e8]">
+                <td className="px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap sticky left-0 bg-[#f0f7e8]">∑</td>
                 {result.columns.map(col => (
-                  <td key={col} style={{
-                    ...S.td,
-                    fontWeight: 700,
-                    color: GAPURA_GREEN,
-                    textAlign: grandTotal[col] !== undefined ? 'center' : 'left',
-                  }}>
+                  <td key={col} className={`px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap ${grandTotal[col] !== undefined ? 'text-center' : 'text-left'}`}>
                     {grandTotal[col] !== undefined ? grandTotal[col].toLocaleString('id-ID') : 'Grand Total'}
                   </td>
                 ))}
@@ -1224,12 +1300,20 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
       </div>
       {/* Pagination */}
       {rows.length > PAGE_SIZE && (
-        <div style={S.pagination}>
-          <span>{page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, rows.length)} / {rows.length}</span>
-          <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={S.pageBtn(page === 0)}>
+        <div className="flex items-center justify-end px-4 py-2 gap-2 text-xs text-gray-500 border-t border-gray-100 bg-white">
+          <span className="font-medium mr-2">{page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, rows.length)} / {rows.length}</span>
+          <button 
+            onClick={() => setPage(p => Math.max(0, p - 1))} 
+            disabled={page === 0} 
+            className={`p-1 rounded hover:bg-gray-100 transition-colors ${page === 0 ? 'text-gray-300 cursor-default' : 'text-gray-600 cursor-pointer'}`}
+          >
             <ChevronLeft size={16} />
           </button>
-          <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={S.pageBtn(page >= totalPages - 1)}>
+          <button 
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} 
+            disabled={page >= totalPages - 1} 
+            className={`p-1 rounded hover:bg-gray-100 transition-colors ${page >= totalPages - 1 ? 'text-gray-300 cursor-default' : 'text-gray-600 cursor-pointer'}`}
+          >
             <ChevronRight size={16} />
           </button>
         </div>
@@ -1242,35 +1326,35 @@ function DetailTable({ title, result, onViewDetail }: { title: string; result: Q
 
 function LegacyDetailTable({ title, stats }: { title: string; stats: NonNullable<ChartResult['stats']> }) {
   return (
-    <div style={S.detailCard}>
-      <div style={S.detailHeader}>
-        <span style={S.detailTitle}>Detail: {title}</span>
-        <span style={{ fontSize: 11, color: '#999' }}>{stats.totalCount} total</span>
+    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden shadow-sm">
+      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b8e3d]">Detail: {title}</span>
+        <span className="text-[11px] text-gray-400 font-medium">{stats.totalCount} total</span>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={S.table}>
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full border-collapse text-xs sm:text-[13px]">
           <thead>
             <tr>
-              <th style={S.th}>#</th>
-              <th style={S.th}>Nama</th>
-              <th style={{ ...S.th, textAlign: 'center' }}>Jumlah</th>
-              <th style={{ ...S.th, textAlign: 'center' }}>Persentase</th>
+              <th className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap w-12 sticky left-0 z-10">#</th>
+              <th className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap">Nama</th>
+              <th className="px-3 py-2 text-center font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap">Jumlah</th>
+              <th className="px-3 py-2 text-center font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap">Persentase</th>
             </tr>
           </thead>
           <tbody>
             {stats.distribution.map((item, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <td style={{ ...S.td, color: '#999', fontSize: 11 }}>{idx + 1}.</td>
-                <td style={S.td}>{item.name}</td>
-                <td style={{ ...S.td, textAlign: 'center', fontWeight: 600 }}>{item.count.toLocaleString('id-ID')}</td>
-                <td style={{ ...S.td, textAlign: 'center', color: '#666' }}>{item.percentage}%</td>
+              <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <td className="px-3 py-2 text-gray-400 text-[11px] whitespace-nowrap sticky left-0 bg-inherit">{idx + 1}.</td>
+                <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{item.name}</td>
+                <td className="px-3 py-2 text-center font-semibold text-gray-800 text-xs whitespace-nowrap">{item.count.toLocaleString('id-ID')}</td>
+                <td className="px-3 py-2 text-center text-gray-500 text-xs whitespace-nowrap">{item.percentage}%</td>
               </tr>
             ))}
-            <tr style={{ borderTop: '2px solid ' + GAPURA_GREEN, background: '#f0f7e8' }}>
-              <td style={{ ...S.td, fontWeight: 700, color: GAPURA_GREEN }}>∑</td>
-              <td style={{ ...S.td, fontWeight: 700, color: GAPURA_GREEN }}>Grand Total</td>
-              <td style={{ ...S.td, textAlign: 'center', fontWeight: 700, color: GAPURA_GREEN }}>{stats.totalCount.toLocaleString('id-ID')}</td>
-              <td style={{ ...S.td, textAlign: 'center', fontWeight: 700, color: GAPURA_GREEN }}>100%</td>
+            <tr className="border-t-2 border-[#6b8e3d] bg-[#f0f7e8]">
+              <td className="px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap sticky left-0 bg-[#f0f7e8]">∑</td>
+              <td className="px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap">Grand Total</td>
+              <td className="px-3 py-2 text-center font-bold text-[#6b8e3d] whitespace-nowrap">{stats.totalCount.toLocaleString('id-ID')}</td>
+              <td className="px-3 py-2 text-center font-bold text-[#6b8e3d] whitespace-nowrap">100%</td>
             </tr>
           </tbody>
         </table>
@@ -1298,362 +1382,3 @@ function formatCellValue(val: unknown): string {
   if (str.length > 60) return str.substring(0, 57) + '...';
   return str;
 }
-
-// ─── INLINE STYLES ──────────────────────────────────────────────────────────
-
-const S = {
-  sidebarWrap: (collapsed: boolean) => ({
-    width: collapsed ? 48 : 240,
-    background: '#fff',
-    borderRight: '1px solid #e0e0e0',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'width 0.2s ease',
-    flexShrink: 0,
-    position: 'sticky',
-    top: 0,
-    height: '100vh',
-    overflowY: 'auto',
-    zIndex: 20,
-  }) as React.CSSProperties,
-
-  sidebarHeader: (collapsed: boolean) => ({
-    padding: collapsed ? '12px 8px' : '16px 12px',
-    borderBottom: '1px solid #e8e8e8',
-    display: 'flex',
-    flexDirection: collapsed ? 'row' : 'column',
-    alignItems: 'center',
-    gap: 8,
-  }) as React.CSSProperties,
-
-  sidebarNav: (collapsed: boolean) => ({
-    padding: collapsed ? '8px 4px' : '8px',
-    flex: 1,
-  }) as React.CSSProperties,
-
-  sidebarSectionLabel: {
-    fontSize: 9,
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    color: '#999',
-    padding: '8px 8px 4px',
-    marginBottom: 2,
-  } as React.CSSProperties,
-
-  loadingWrap: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#f5f5f5',
-  } as React.CSSProperties,
-
-  mainContent: {
-    flex: 1,
-    minWidth: 0,
-    background: '#f5f5f5',
-  } as React.CSSProperties,
-
-  headerWrap: {
-    background: '#fff',
-    borderBottom: '1px solid #e0e0e0',
-  } as React.CSSProperties,
-
-  headerInner: {
-    padding: '16px 24px',
-  } as React.CSSProperties,
-
-  titleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  } as React.CSSProperties,
-
-  title: {
-    fontSize: 24,
-    fontWeight: 700,
-    color: '#333',
-    margin: 0,
-    lineHeight: 1.2,
-  } as React.CSSProperties,
-
-  dateBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 16px',
-    borderRadius: 6,
-    background: GAPURA_GREEN,
-    color: '#fff',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-  } as React.CSSProperties,
-
-  datePicker: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: 4,
-    background: '#fff',
-    border: '1px solid #e0e0e0',
-    borderRadius: 8,
-    padding: 16,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    zIndex: 50,
-    minWidth: 280,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  } as React.CSSProperties,
-
-  dateLabel: { fontSize: 11, fontWeight: 600, color: '#666' } as React.CSSProperties,
-  dateInput: { padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13 } as React.CSSProperties,
-  dateApply: {
-    marginTop: 4, padding: '6px 12px', background: GAPURA_GREEN,
-    color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-  } as React.CSSProperties,
-
-  banner: {
-    background: GAPURA_BANNER,
-    borderRadius: 6,
-    padding: '14px 20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-  } as React.CSSProperties,
-
-  filterPill: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '4px 10px',
-    borderRadius: 4,
-    background: 'rgba(255,255,255,0.15)',
-    color: '#fff',
-    border: '1px solid rgba(255,255,255,0.3)',
-    fontSize: 11,
-    fontWeight: 500,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  } as React.CSSProperties,
-
-  dropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    marginTop: 4,
-    background: '#fff',
-    border: '1px solid #e0e0e0',
-    borderRadius: 6,
-    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-    zIndex: 30,
-    minWidth: 160,
-    maxHeight: 240,
-    overflowY: 'auto',
-    padding: 4,
-  } as React.CSSProperties,
-
-  dropdownItem: (active: boolean) => ({
-    display: 'block',
-    width: '100%',
-    padding: '7px 10px',
-    border: 'none',
-    background: active ? '#f0f7e8' : 'transparent',
-    color: active ? GAPURA_GREEN : '#333',
-    fontSize: 12,
-    fontWeight: active ? 700 : 400,
-    textAlign: 'left',
-    cursor: 'pointer',
-    borderRadius: 3,
-    whiteSpace: 'nowrap',
-  }) as React.CSSProperties,
-
-  statsRow: {
-    display: 'grid',
-    gap: 16,
-    marginTop: 16,
-  } as React.CSSProperties,
-
-  statLabel: { fontSize: 12, fontWeight: 600, color: GAPURA_GREEN } as React.CSSProperties,
-  statValue: { fontSize: 32, fontWeight: 700, color: GAPURA_GREEN } as React.CSSProperties,
-
-  contentWrap: {
-    padding: '20px 24px 24px',
-  } as React.CSSProperties,
-
-  chartGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(12, 1fr)',
-    gap: 20,
-    alignItems: 'stretch',
-  } as React.CSSProperties,
-
-  card: {
-    background: '#fff',
-    borderRadius: '10px 10px 0 0',
-    border: '1px solid #e0e0e0',
-    borderBottom: 'none',
-    overflow: 'hidden',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-    display: 'flex',
-    flexDirection: 'column',
-  } as React.CSSProperties,
-
-  cardTitle: {
-    padding: '14px 18px 10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  } as React.CSSProperties,
-
-  detailCard: {
-    background: '#fff',
-    borderRadius: '0 0 10px 10px',
-    border: '1px solid #e0e0e0',
-    overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as React.CSSProperties,
-
-  detailHeader: {
-    padding: '8px 16px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTop: `2px solid ${GAPURA_GREEN}`,
-    background: '#fafafa',
-  } as React.CSSProperties,
-
-  detailTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: GAPURA_GREEN,
-  } as React.CSSProperties,
-
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: 13,
-  } as React.CSSProperties,
-
-  th: {
-    padding: '8px 12px',
-    textAlign: 'left',
-    fontWeight: 700,
-    background: GAPURA_BANNER,
-    color: '#fff',
-    fontSize: 11,
-    whiteSpace: 'nowrap',
-  } as React.CSSProperties,
-
-  td: {
-    padding: '7px 12px',
-    color: '#333',
-    fontSize: 12,
-    whiteSpace: 'nowrap',
-  } as React.CSSProperties,
-
-  pagination: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    padding: '8px 16px',
-    gap: 8,
-    fontSize: 12,
-    color: '#666',
-    borderTop: '1px solid #f0f0f0',
-  } as React.CSSProperties,
-
-  pageBtn: (disabled: boolean) => ({
-    background: 'none',
-    border: 'none',
-    cursor: disabled ? 'default' : 'pointer',
-    padding: 2,
-    color: disabled ? '#ddd' : '#666',
-  }) as React.CSSProperties,
-
-  navBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '8px 16px',
-    border: '1px solid #e0e0e0',
-    borderRadius: 6,
-    background: '#fff',
-    color: '#555',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  } as React.CSSProperties,
-
-  footer: {
-    position: 'sticky',
-    bottom: 0,
-    zIndex: 10,
-    background: '#ffffff',
-    borderTop: '1px solid #e0e0e0',
-    padding: '10px 28px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: 11,
-    color: '#999',
-    boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
-  } as React.CSSProperties,
-
-  exportBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 14px',
-    borderRadius: 6,
-    background: '#fff',
-    color: '#555',
-    border: '1px solid #d0d0d0',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    transition: 'all 0.15s ease',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-  } as React.CSSProperties,
-
-  exportMenu: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: 4,
-    background: '#fff',
-    border: '1px solid #e0e0e0',
-    borderRadius: 8,
-    boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
-    zIndex: 50,
-    minWidth: 220,
-    padding: 4,
-    overflow: 'hidden',
-  } as React.CSSProperties,
-
-  exportMenuItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
-    padding: '10px 14px',
-    border: 'none',
-    background: 'transparent',
-    color: '#333',
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-    borderRadius: 6,
-    transition: 'background 0.15s ease',
-    textAlign: 'left',
-  } as React.CSSProperties,
-};

@@ -291,98 +291,77 @@ export default function AnalystDashboard() {
             <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
                 <div className="space-y-6">
                     {/* Header */}
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 animate-fade-in-up">
-                        <div className="flex-1">
-                            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-[var(--text-primary)]">
-                                Dashboard Analyst
+                    {/* Header */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in-up">
+                        <div className="flex-1 space-y-1">
+                            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+                                Pusat Komando & Analytics
                             </h1>
-                            <p className="text-[var(--text-secondary)] mt-1">
-                                Pusat Komando & Analytics Divisi Operational Services Center
+                            <p className="text-[var(--text-secondary)] font-medium">
+                                Divisi Operational Services Center
                             </p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex bg-[var(--surface-2)] rounded-xl p-1 border border-[var(--surface-4)]">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                           {/* Refresh Button first for visibility or last? User said "positioning both". 
+                               Let's keep controls grouped but aligned nicely.
+                           */}
+                           
+                            <div className="flex bg-[var(--surface-2)] rounded-xl p-1 border border-[var(--surface-4)] w-full sm:w-auto overflow-x-auto">
                                 {(['all', 'month', 'week'] as const).map((range) => (
                                     <button
                                         key={range}
                                         onClick={() => setDateRange(range)}
                                         className={cn(
-                                            "px-4 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap",
+                                            "flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap",
                                             dateRange === range
                                                 ? "bg-[var(--brand-primary)] text-white shadow-sm"
                                                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                                         )}
                                     >
-                                        {range === 'all' ? 'Semua Waktu' : range === 'month' ? '30 Hari Terakhir' : '7 Hari Terakhir'}
+                                        {range === 'all' ? 'Semua' : range === 'month' ? '30 Hari' : '7 Hari'}
                                     </button>
                                 ))}
                             </div>
 
-                            <button 
-                                onClick={handleCustomerFeedbackShortcut}
-                                disabled={cfLoading}
-                                className={cn(
-                                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                                    "bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:shadow-lg hover:shadow-emerald-500/25",
-                                    cfLoading && "opacity-70 cursor-not-allowed"
-                                )}
-                            >
-                                {cfLoading ? <Loader2 size={16} className="animate-spin" /> : <LayoutDashboard size={16} />}
-                                Customer Feedback Dashboard
-                            </button>
-                            <button onClick={() => router.push('/dashboard/employee/new')} className="btn-primary">
-                                <Plus size={16} /> Buat Laporan
-                            </button>
-                            <button
-                                onClick={() => fetchData(true)}
-                                disabled={refreshing}
-                                className={cn(
-                                    "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all",
-                                    "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]",
-                                    refreshing && "opacity-50"
-                                )}
-                            >
-                                <RefreshCw size={14} className={cn(refreshing && "animate-spin")} />
-                                {refreshing ? 'Memuat...' : 'Refresh'}
-                            </button>
+                            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                                <button 
+                                    onClick={handleCustomerFeedbackShortcut}
+                                    disabled={cfLoading}
+                                    className={cn(
+                                        "hidden xl:inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all",
+                                        "bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:shadow-lg hover:shadow-emerald-500/25",
+                                        cfLoading && "opacity-70 cursor-not-allowed"
+                                    )}
+                                    title="Customer Feedback Dashboard"
+                                >
+                                    {cfLoading ? <Loader2 size={14} className="animate-spin" /> : <LayoutDashboard size={14} />}
+                                    <span className="hidden 2xl:inline">Feedback</span>
+                                </button>
+
+                                <button onClick={() => router.push('/dashboard/employee/new')} className="btn-primary py-2 text-xs">
+                                    <Plus size={16} /> <span className="hidden sm:inline">Laporan</span>
+                                </button>
+                                
+                                <div className="h-8 w-px bg-[var(--surface-4)] mx-1 hidden sm:block"></div>
+
+                                <button
+                                    onClick={() => fetchData(true)}
+                                    disabled={refreshing}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all border",
+                                        "bg-white border-[var(--surface-4)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]",
+                                        refreshing && "opacity-50"
+                                    )}
+                                >
+                                    <RefreshCw size={14} className={cn(refreshing && "animate-spin")} />
+                                    {refreshing ? '...' : 'Refresh'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Pending Feedback Alert */}
-                    {pendingFeedback.length > 0 && (
-                        <div
-                            className="card-solid flex items-center gap-4 animate-fade-in-up cursor-pointer"
-                            style={{
-                                background: 'oklch(0.60 0.15 250 / 0.08)',
-                                border: '1px solid oklch(0.60 0.15 250 / 0.2)',
-                                padding: 'var(--space-lg)'
-                            }}
-                            onClick={() => router.push(drilldownUrl('status', 'MENUNGGU_FEEDBACK'))}
-                        >
-                            <div className="p-3 rounded-xl" style={{ background: 'oklch(0.60 0.15 250 / 0.15)' }}>
-                                <ShieldCheckCode size={24} style={{ color: 'oklch(0.50 0.15 250)' }} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="font-bold" style={{ color: 'oklch(0.40 0.15 250)' }}>
-                                    {pendingFeedback.length} Laporan Menunggu Feedback
-                                </p>
-                                <p className="text-sm" style={{ color: 'oklch(0.55 0.12 250)' }}>
-                                    Perlu verifikasi dari analyst
-                                </p>
-                            </div>
-                            <div
-                                className="btn-primary"
-                                style={{
-                                    background: 'oklch(0.55 0.15 250)',
-                                    boxShadow: '0 4px 16px oklch(0.55 0.15 250 / 0.3)'
-                                }}
-                            >
-                                Review
-                                <ArrowRight size={16} />
-                            </div>
-                        </div>
-                    )}
+
 
                     {/* Summary Stats */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
