@@ -305,7 +305,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true, colors: ['#81c784'] },
-      layout: { x: 0, y: 5, w: 12, h: 2 }, // WIDTH 12, HEIGHT 2 (Standardized)
+      layout: { x: 0, y: 5, w: 6, h: 2 },
     },
     // Table: Detail Report Landside & Airside
     {
@@ -321,6 +321,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
           { table: 'reports', field: 'description', alias: 'Report' }, // Updated to 'description'
           { table: 'reports', field: 'root_caused', alias: 'Root Caused' }, // Updated to 'root_caused'
           { table: 'reports', field: 'action_taken', alias: 'Action Taken' },
+          { table: 'reports', field: 'evidence_url', alias: 'Evidence Link' },
         ],
         measures: [],
         filters: [...baseFilters],
@@ -644,7 +645,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'terminal_area_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'TERMINAL', conjunction: 'AND' as const }],
+        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'Terminal Area', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Terminal Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'] },
@@ -657,7 +658,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'apron_area_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'APRON', conjunction: 'AND' as const }],
+        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'Apron Area', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'] },
@@ -670,7 +671,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'general_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'GENERAL', conjunction: 'AND' as const }],
+        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'General', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'] },
@@ -690,7 +691,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
       },
       visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true, colors: ['#81c784'] },
-      layout: { x: 0, y: 4, w: 12, h: 2 }, // WIDTH 12, HEIGHT 2, Row 3
+      layout: { x: 0, y: 4, w: 6, h: 2 },
     },
     // 6. Detail Report Landside & Airside
     {
@@ -706,6 +707,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
           { table: 'reports', field: 'description', alias: 'Report' }, // Updated
           { table: 'reports', field: 'root_caused', alias: 'Root Caused' }, // Updated
           { table: 'reports', field: 'action_taken', alias: 'Action Taken' },
+          { table: 'reports', field: 'evidence_url', alias: 'Evidence Link' },
         ],
         measures: [],
         filters: [...df, cgoFilter],

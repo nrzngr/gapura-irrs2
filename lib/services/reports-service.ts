@@ -2,7 +2,47 @@ import { getGoogleSheets } from '@/lib/google-sheets';
 import { Report, ReportStatus } from '@/types';
 import { calculateSlaDeadline } from '@/lib/constants/report-status';
 import { v4 as uuidv4 } from 'uuid';
-import { cacheManager } from './cache-manager';
+// ─── Inline TTL Cache ──────────────────────────────────────────────────────
+// Complexity: Time O(1) per get/set | Space O(entries)
+interface CacheEntry { data: unknown; ts: number }
+const ttlCache = new Map<string, CacheEntry>();
+const MAX_CACHE_ENTRIES = 100;
+let cacheHits = 0;
+let cacheMisses = 0;
+
+function getCache<T>(key: string, ttl: number): T | null {
+  const entry = ttlCache.get(key);
+  if (!entry) { cacheMisses++; return null; }
+  if (Date.now() - entry.ts > ttl) {
+    ttlCache.delete(key);
+    cacheMisses++;
+    return null;
+  }
+  cacheHits++;
+  return entry.data as T;
+}
+
+function setCache(key: string, data: unknown): void {
+  if (ttlCache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = ttlCache.keys().next().value;
+    if (oldest) ttlCache.delete(oldest);
+  }
+  ttlCache.set(key, { data, ts: Date.now() });
+}
+
+function invalidateCache(key: string): void {
+  ttlCache.delete(key);
+}
+
+export function getCacheStats() {
+  const total = cacheHits + cacheMisses;
+  return {
+    hits: cacheHits,
+    misses: cacheMisses,
+    keys: ttlCache.size,
+    hitRatio: total > 0 ? cacheHits / total : 0,
+  };
+}
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '1CUCvW2OYtocJR3dEE9NHtxFtmf9_17rkcUaMA_ZBHXA';
 const REPORT_SHEETS = ['NON CARGO', 'CGO'];
@@ -153,7 +193,7 @@ export class ReportsService {
   }
 
   public invalidateCache() {
-    cacheManager.invalidate(CACHE_KEY_ALL_REPORTS);
+    invalidateCache(CACHE_KEY_ALL_REPORTS);
     console.log('[ReportsService] Cache invalidated');
   }
 
@@ -166,7 +206,7 @@ export class ReportsService {
   async getReports(userId?: string, options?: { refresh?: boolean }): Promise<Report[]> {
     // Check cache first
     if (!options?.refresh) {
-      const cached = cacheManager.get<Report[]>(CACHE_KEY_ALL_REPORTS, CACHE_TTL);
+      const cached = getCache<Report[]>(CACHE_KEY_ALL_REPORTS, CACHE_TTL);
       if (cached) {
         return cached;
       }
@@ -247,7 +287,7 @@ export class ReportsService {
         return dateB - dateA;
     });
 
-    cacheManager.set(CACHE_KEY_ALL_REPORTS, sorted, { ttl: CACHE_TTL });
+    setCache(CACHE_KEY_ALL_REPORTS, sorted);
     
     return sorted;
   }
@@ -297,7 +337,7 @@ export class ReportsService {
     const updatedRange = appendRes.data.updates?.updatedRange;
     if (updatedRange) {
         // Invalidate cache
-    cacheManager.invalidate(CACHE_KEY_ALL_REPORTS);
+    invalidateCache(CACHE_KEY_ALL_REPORTS);
 
     // updatedRange format: "'Sheet Name'!A10:Z10"
         const match = updatedRange.match(/!A(\d+)/);
@@ -353,7 +393,7 @@ export class ReportsService {
     });
     
     // Invalidate cache
-    cacheManager.invalidate(CACHE_KEY_ALL_REPORTS);
+    invalidateCache(CACHE_KEY_ALL_REPORTS);
 
     return updatedReport;
   }
@@ -388,7 +428,7 @@ export class ReportsService {
     });
 
     // Invalidate cache
-    cacheManager.invalidate(CACHE_KEY_ALL_REPORTS);
+    invalidateCache(CACHE_KEY_ALL_REPORTS);
 
     return true;
   }

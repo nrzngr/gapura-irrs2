@@ -611,7 +611,7 @@ export default function NewReportWizard() {
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
                             <h2 className="text-2xl font-bold">Evidence</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Lampirkan link Google Drive sebagai bukti</p>
+                            <p style={{ color: 'var(--text-secondary)' }}>Lampirkan link evidence sebagai bukti</p>
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
@@ -630,7 +630,7 @@ export default function NewReportWizard() {
 
                             {/* Google Drive Link */}
                             <div className="space-y-4">
-                                <label className="label">13. Link Google Drive Evidence <span className="text-red-500">*</span></label>
+                                <label className="label">13. Link Evidence <span className="text-red-500">*</span></label>
 
                                 {/* Added Links */}
                                 {formData.evidence_urls.length > 0 && (
@@ -680,7 +680,7 @@ export default function NewReportWizard() {
                                             </button>
                                         </div>
                                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                            Paste link Google Drive (maks. {3 - formData.evidence_urls.length} lagi)
+                                            Paste link evidence (maks. {3 - formData.evidence_urls.length} lagi)
                                         </p>
                                     </div>
                                 )}

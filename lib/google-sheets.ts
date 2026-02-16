@@ -2,7 +2,12 @@ import { google } from 'googleapis';
 
 export const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
+// Singleton instance to prevent memory leaks from multiple Auth clients
+let authClient: any = null;
+
 export function getGoogleAuth() {
+  if (authClient) return authClient;
+
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
@@ -10,13 +15,13 @@ export function getGoogleAuth() {
     throw new Error('Missing Google Service Account credentials');
   }
 
-  const auth = new google.auth.JWT({
+  authClient = new google.auth.JWT({
     email,
     key: privateKey,
     scopes: SCOPES,
   });
 
-  return auth;
+  return authClient;
 }
 
 export async function getGoogleSheets() {

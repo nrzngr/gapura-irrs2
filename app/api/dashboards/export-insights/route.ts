@@ -44,50 +44,47 @@ function buildInsightsPrompt(req: InsightRequest): string {
     ${sampleStr}`;
   }).join('\n\n');
 
-  return `Kamu adalah seorang analis profesional di Gapura Indonesia (ground handling bandara).
-Tugasmu: buat insight presentasi dari data dashboard berikut.
+  return `Anda adalah Senior Data Analyst di Gapura Angkasa (40+ tahun pengalaman).
+Tugas Anda: Analisis data dashboard ini untuk presentasi Level Eksekutif.
 
 Dashboard: "${req.dashboardName}"
 ${req.subtitle ? `Subtitle: "${req.subtitle}"` : ''}
 
-DATA PER CHART:
+DATA FAKTUAL (JANGAN MENGARANG):
 ${tileSections}
 
 KEMBALIKAN JSON PERSIS dengan format ini:
 {
   "executiveSummary": [
-    "Poin ringkasan eksekutif 1 — singkat, padat, data-driven",
-    "Poin ringkasan eksekutif 2",
-    "Poin ringkasan eksekutif 3",
-    "Poin ringkasan eksekutif 4 (opsional)",
-    "Poin ringkasan eksekutif 5 (opsional)"
+    "Poin 1... (Fokus pada dampak operasional/finansial/safety)",
+    "Poin 2... (Sertakan angka)",
+    "Poin 3...",
+    "Poin 4 (opsional)",
+    "Poin 5 (opsional)"
   ],
   "tileInsights": [
     {
       "tileId": "tile-id-xxx",
       "keyFindings": [
-        "Temuan kunci 1 — spesifik, sebutkan angka",
-        "Temuan kunci 2"
+        "Temuan 1 (Sebutkan angka spesifik)",
+        "Temuan 2"
       ],
-      "narrative": "Paragraf singkat 1-2 kalimat yang menjelaskan insight utama dari chart ini dari sudut pandang analis ground handling."
+      "narrative": "Analisis mendalam 1-2 kalimat. Jelaskan 'Why' (mengapa ini terjadi) dan 'So What' (apa dampaknya)."
     }
   ],
   "recommendations": [
-    "Rekomendasi aksi 1 — konkret dan actionable",
-    "Rekomendasi aksi 2",
-    "Rekomendasi aksi 3"
+    "Rekomendasi Strategis 1 (Jangka Panjang)",
+    "Rekomendasi Taktis 2 (Quick Fix)",
+    "Rekomendasi 3"
   ],
-  "closingStatement": "Kalimat penutup profesional 1-2 kalimat."
+  "closingStatement": "Kalimat penutup yang berwibawa."
 }
 
-ATURAN:
-1. Setiap tileInsight.tileId HARUS cocok dengan id tile yang diberikan
-2. Gunakan Bahasa Indonesia profesional
-3. Sebutkan angka/persentase spesifik dari data
-4. Insight harus relevan dengan konteks ground handling bandara
-5. Recommendations harus actionable dan konkret
-6. Executive summary maksimal 5 poin
-7. JANGAN buat insight yang tidak didukung oleh data`;
+ATURAN KRUSIAL:
+1.  **NO HALLUCINATION**: Gunakan HANYA data yang ada di "DATA FAKTUAL". Jangan mengarang external factors jika tidak ada datanya.
+2.  **SENIOR TONE**: Gunakan bahasa Indonesia profesional, tajam, dan tidak bertele-tele.
+3.  **DATA INTEGRITY**: Wajib menyertakan angka/persentase aktual di dalam narasi.
+4.  **RELEVANCE**: Fokus pada Safety, Security, Services (3S) dan On-Time Performance (OTP).`;
 }
 
 // Complexity: Time O(1) — single API call | Space O(response)
@@ -118,7 +115,7 @@ export async function POST(request: NextRequest) {
       content = await callAI([
         {
           role: "system",
-          content: "Kamu adalah Senior Analyst di Gapura Indonesia. Berikan insight yang kritis dan bernilai strategis."
+          content: "Anda adalah Senior Data Analyst Gapura Angkasa. Berikan insight yang kritis, akurat, dan bernilai strategis bagi Direksi."
         },
         {
           role: "user",

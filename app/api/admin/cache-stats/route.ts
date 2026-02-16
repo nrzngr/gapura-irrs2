@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
-import { cacheManager } from '@/lib/services/cache-manager';
+import { getCacheStats } from '@/lib/services/reports-service';
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -16,7 +16,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const stats = cacheManager.getStats();
+  const stats = getCacheStats();
   
   return NextResponse.json({
     stats,

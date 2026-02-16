@@ -237,7 +237,7 @@ export function CustomDashboardContent() {
     };
   }, [activeFilters, dateFrom, dateTo]);
 
-  const fetchChartData = useCallback(async (charts: ChartData[]) => {
+  const fetchChartData = useCallback(async (charts: ChartData[]): Promise<Map<string, ChartResult>> => {
     const dataMap = new Map<string, ChartResult>();
 
     // Separate query-based charts from legacy charts
@@ -327,11 +327,11 @@ export function CustomDashboardContent() {
 
     await Promise.all([batchPromise, legacyPromise]);
     setChartsData(prev => {
-        // Merge with previous data to avoid flickering if we are just updating some charts
         const next = new Map(prev);
         dataMap.forEach((v, k) => next.set(k, v));
         return next;
     });
+    return dataMap;
   }, [range, applyFiltersToQuery, allReports]);
 
   /** Extract the charts for a specific page index from a dashboard */
@@ -475,19 +475,34 @@ export function CustomDashboardContent() {
     setExportingFormat(format);
     setShowExportMenu(false);
     try {
+      // Pre-fetch ALL pages' chart data (unvisited pages may lack data)
+      const allCharts = pages.flatMap(p => p.tiles);
+      const missingCharts = allCharts.filter(t => !chartsData.has(t.id));
+
+      // Build complete chart data map: current state + newly fetched
+      let completeChartsData = chartsData;
+      if (missingCharts.length > 0) {
+        const freshData = await fetchChartData(missingCharts);
+        completeChartsData = new Map(chartsData);
+        freshData.forEach((v, k) => completeChartsData.set(k, v));
+      }
+
       const exportPages = pages.map(p => ({
         name: p.name,
         tiles: p.tiles.map(t => ({
           id: t.id,
           title: t.title,
           chartType: t.visualization_config?.chartType || t.chart_type || 'bar',
+          yAxis: t.visualization_config?.yAxis,
         })),
       }));
       const payload = {
         dashboardName: dashboard.name,
         subtitle: dashboard.description || dashboard.config?.subtitle,
+        dashboardId: dashboard.id,
+        baseUrl: typeof window !== 'undefined' ? window.location.origin : '',
         pages: exportPages,
-        chartsData,
+        chartsData: completeChartsData,
       };
       if (format === 'xlsx') await exportToXlsx(payload);
       else await exportToPptx(payload);
@@ -496,7 +511,7 @@ export function CustomDashboardContent() {
     } finally {
       setExportingFormat(null);
     }
-  }, [dashboard, pages, chartsData]);
+  }, [dashboard, pages, chartsData, fetchChartData]);
 
   // ─── Loading / Error ────────────────────────────────────────────────────────
   if (loading) {
@@ -807,52 +822,16 @@ export function CustomDashboardContent() {
             {contentTiles.map(chart => {
               const cr = chartsData.get(chart.id);
               if (!cr) return null;
-              let layout = chart.layout || { w: 6, h: 2 };
-
-              // --- "GENIUS FIX" OVERRIDE ---
-              // Correctly access title from visualization object
-              const title = chart.visualization_config?.title || chart.title;
-              
-              if (title === 'Case Report by Area') layout = { ...layout, w: 8 };
-              if (title === 'General Category') layout = { ...layout, w: 4 }; // Force order to stick next to Heatmap
-              if (title === 'Terminal Area Category') layout = { ...layout, w: 6 };
-              if (title === 'Apron Area Category') layout = { ...layout, w: 6 };
-              
-              // Apply explicit order via CSS `order` property
-              const orderStyle = title === 'Case Report by Area' ? 1 
-                               : title === 'General Category' ? 2 
-                               : title === 'Terminal Area Category' ? 3 
-                               : title === 'Apron Area Category' ? 4 
-                               : 10;
-              
+              const layout = chart.layout || { w: 6, h: 2 };
               const colSpan = layout.w || 6;
               const isTableType = chart.visualization_config?.chartType === 'table';
 
-              // Apply explicit order via flex/grid order if needed, but here reliable DOM order is better.
-              // Since sorting the array directly might cause re-renders if not stable, we rely on layout config.
-              // Actually, to fix strict ordering visually (Row 1: Heatmap+General), we use 'order' CSS property if the container is flex/grid.
-              // But standard CSS Grid auto-placement follows DOM order.
-              // Let's rely on width for now, assuming typical DB order: Heatmap -> Terminal -> Apron -> General.
-              
-              // If the DB order is H -> T -> A -> G:
-              // H(8) [Row 1]
-              // T(6) -> Row 2
-              // A(6) -> Row 2
-              // G(4) -> Row 3? No, G(4) might fill the empty space in Row 1 if dense packing is on?
-              // The container likely uses `grid-auto-flow: dense`? If not, G(4) stays in Row 3.
-              
-              // We NEED to reorder the tiles in the map function? impossible inside map.
-              // We should sort contentTiles BEFORE mapping.
-              // BUT I can't easily change the hook logic above.
-              
-              // ALTERNATIVE: Use `order` style property! CSS Grid items respect `order`.
               return (
                 <div key={chart.id} style={{ 
                   gridColumn: `span ${colSpan}`, 
                   display: 'flex', 
                   flexDirection: 'column', 
                   gap: 2,
-                  order: orderStyle // Force visual order
                 }}>
                   {/* HEATMAP (specific handling) */}
                   {cr.type === 'query' && cr.queryResult && chart.visualization_config?.chartType === 'heatmap' ? (
@@ -1037,7 +1016,7 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
         </button>
       </div>
       <div style={{ padding: '12px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ width: '100%', flex: 1, minHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
+        <div style={{ width: '100%', height: 400, overflowY: 'auto' }} className="custom-scrollbar">
           <ChartPreview visualization={viz} result={result} />
         </div>
       </div>

@@ -1,19 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { normalizeQuery, normalizeVisualization } from '@/lib/builder/normalization';
-import { buildSchemaContextForAI } from '@/lib/builder/schema';
-import { callAI } from '@/lib/ai/openrouter';
-import crypto from 'crypto';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  normalizeQuery,
+  normalizeVisualization,
+} from "@/lib/builder/normalization";
+import { buildSchemaContextForAI } from "@/lib/builder/schema";
+import { callAI } from "@/lib/ai/openrouter";
+import crypto from "crypto";
 
 // AI Configuration
-const AI_MODEL = 'openai/gpt-oss-20b:free';
+const AI_MODEL = "openai/gpt-oss-20b:free";
 
 // Rate limiting
 const requestTimestamps = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 requests per minute per chart
 
+// Memory Cleanup Configuration
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+let lastCleanup = Date.now();
+
 // In-memory cache for insights (replaces Supabase persistent cache)
-const insightsCache = new Map<string, { data: any, timestamp: number }>();
+const insightsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 interface InsightRequest {
@@ -46,17 +53,53 @@ function generateCacheKey(body: InsightRequest): string {
     statistics: body.statistics,
     dateRange: body.dateRange,
     // Use first 50 rows for better uniqueness
-    dataSample: body.dataSample.slice(0, 50)
+    dataSample: body.dataSample.slice(0, 50),
   };
-  return crypto.createHash('sha256').update(JSON.stringify(keyData)).digest('hex');
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(keyData))
+    .digest("hex");
+}
+
+// Perform cleanup of expired rate limit data and cache entries
+// Complexity: O(N + M) where N is rate limit keys and M is cache keys
+function performCleanup() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL) return;
+
+  // 1. Cleanup Request Timestamps
+  for (const [key, timestamps] of requestTimestamps.entries()) {
+    const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
+    if (validTimestamps.length === 0) {
+      requestTimestamps.delete(key);
+    } else {
+      requestTimestamps.set(key, validTimestamps);
+    }
+  }
+
+  // 2. Cleanup Insights Cache
+  for (const [key, entry] of insightsCache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      insightsCache.delete(key);
+    }
+  }
+
+  // Update last cleanup time
+  lastCleanup = now;
 }
 
 // Check rate limit
 function checkRateLimit(tileId: string | undefined): boolean {
   if (!tileId) return true;
+
+  // Trigger cleanup periodically
+  performCleanup();
+
   const now = Date.now();
   const timestamps = requestTimestamps.get(tileId) || [];
-  const validTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW);
+  const validTimestamps = timestamps.filter(
+    (ts) => now - ts < RATE_LIMIT_WINDOW,
+  );
   if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) return false;
   validTimestamps.push(now);
   requestTimestamps.set(tileId, validTimestamps);
@@ -67,26 +110,26 @@ function checkRateLimit(tileId: string | undefined): boolean {
 function getMemoryCache(cacheKey: string) {
   const entry = insightsCache.get(cacheKey);
   if (!entry) return null;
-  
+
   if (Date.now() - entry.timestamp > CACHE_TTL) {
     insightsCache.delete(cacheKey);
     return null;
   }
-  
+
   return entry.data;
 }
 
 function setMemoryCache(
-  cacheKey: string, 
-  insights: Record<string, unknown>, 
-  supportingCharts: unknown, 
-  metadata: Record<string, unknown>
+  cacheKey: string,
+  insights: Record<string, unknown>,
+  supportingCharts: unknown,
+  metadata: Record<string, unknown>,
 ) {
   insightsCache.set(cacheKey, {
     data: { insights, supporting_charts: supportingCharts, metadata },
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
-  
+
   // Prune cache if too large
   if (insightsCache.size > 1000) {
     const oldestKey = insightsCache.keys().next().value;
@@ -98,115 +141,137 @@ export async function POST(req: NextRequest) {
   try {
     const body: InsightRequest = await req.json();
     const { chartTitle, chartType, tileId, totalRows } = body;
-    
+
     // Generate cache key
     const cacheKey = generateCacheKey(body);
-    
+
     // Check cache
     const cached = getMemoryCache(cacheKey);
     if (cached) {
       return NextResponse.json({
         ...cached,
-        cached: true
+        cached: true,
       });
     }
 
     // Rate limiting
     if (!checkRateLimit(tileId)) {
-      return NextResponse.json({ 
-        error: 'Too many requests', 
-        fallback: {
-          ringkasan: "Terlalu banyak permintaan analisis. Mohon tunggu sebentar.",
-          temuanUtama: [],
-          tren: [],
-          rekomendasi: [],
-          anomali: [],
-          kesimpulan: "Sistem sedang sibuk."
-        }
-      }, { status: 429 });
+      return NextResponse.json(
+        {
+          error: "Too many requests",
+          fallback: {
+            ringkasan:
+              "Terlalu banyak permintaan analisis. Mohon tunggu sebentar.",
+            temuanUtama: [],
+            tren: [],
+            rekomendasi: [],
+            anomali: [],
+            kesimpulan: "Sistem sedang sibuk.",
+          },
+        },
+        { status: 429 },
+      );
     }
 
     // Construct the prompt
     // Note: We skip fetching dashboard/chart context from Supabase to avoid DB dependency
     const prompt = generatePrompt({
       ...body,
-      context: 'Analysis based on provided data sample.'
+      context: "Analysis based on provided data sample.",
     });
 
     // Call AI (OpenRouter)
     let insightsText;
     try {
-      insightsText = await callAI([
-        {
-          role: "system",
-          content: `Anda adalah Senior Aviation Quality Assurance Analyst untuk Gapura Angkasa (Ground Handling). Tugas Anda adalah memberikan analisis kritis, sangat mendalam (comprehensive), dan actionable untuk manajemen operasional.
+      insightsText = await callAI(
+        [
+          {
+            role: "system",
+            content: `Anda adalah Senior Data Analyst di PT Gapura Angkasa Indonesia dengan pengalaman lebih dari 40 tahun dalam operasional ground handling. 
+Tugas Anda adalah memberikan analisis yang sangat kritis, akurat, dan berbasis data (data-driven) untuk Board of Directors.
 
-ATURAN PENTING:
-1. JANGAN MEMBATASI KEDALAMAN ANALISIS — eksplorasi setiap detil yang relevan dari data yang diberikan
-2. Fokus pada integritas data, tren keselamatan/kualitas, efisiensi operasional, dan korelasi antar dimensi
-3. JANGAN gunakan emoji
-4. Gunakan bahasa Indonesia yang profesional namun tegas
-5. Target Anda adalah memberikan 'Data Storytelling' yang mengubah angka menjadi narasi strategi bisnis
-6. PENTING: Selalu kembalikan respons dalam format JSON yang valid sesuai dengan format yang diminta user
-7. JANGAN gunakan markdown formatting (**, *, #, dll) dalam JSON
-8. Semua teks dalam JSON harus plain text tanpa formatting markdown
-9. SORTING SAFETY: JANGAN PERNAH mengurutkan (ORDER BY) berdasarkan kolom mentah (seperti "id") jika sedang menggunakan GROUP BY. Gunakan alias ukuran (seperti "Jumlah") atau kolom dimensi yang ada di group by.`
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ], AI_MODEL);
+IDENTITY & PRINCIPLES:
+1.  **NO HALLUCINATION**: Haram hukumnya mengarang data. Jika data tidak ada, katakan tidak ada. Jangan pernah berasumsi atau membuat angka fiktif.
+2.  **STRICT SCHEMA ADHERRENCE**: Gunakan hanya istilah dan field yang ada dalam schema database Gapura.
+3.  **ROOT CAUSE FOCUS**: Jangan hanya melaporkan "apa" yang terjadi, tapi analisis "mengapa" dan dampaknya terhadap On-Time Performance (OTP) dan SLA.
+4.  **SENIORITY**: Gunakan bahasa Indonesia yang profesional, tegas, langsung pada inti (no fluff), dan berwibawa. Hindari bahasa yang terlalu "robotik" atau "generik".
+5.  **DATA INTEGRITY**: Angka adalah suci. Validasi setiap klaim dengan angka dari data yang diberikan.
+
+ATURAN OUTPUT:
+1.  JANGAN gunakan emoji.
+2.  Kembalikan HANYA JSON valid.
+3.  JANGAN gunakan markdown block (seperti \`\`\`json) di dalam value JSON.
+4.  JANGAN PERNAH mengurutkan (ORDER BY) berdasarkan kolom mentah yang tidak ada di SELECT/GROUP BY.
+
+Business Context:
+- **Laporan/Reports**: Data operasional harian (irregularity, complaint, compliment).
+- **Areas**: APRON (Sisi udara), TERMINAL (Sisi darat), GENERAL.
+- **Severity**: Low, Medium, High.`,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        AI_MODEL,
+      );
     } catch (error) {
-       console.error('AI API error:', error);
-       throw new Error(`AI API error: ${error}`);
+      console.error("AI API error:", error);
+      throw new Error(`AI API error: ${error}`);
     }
-    
+
     // Clean <think> tags from reasoning models
-    insightsText = insightsText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    insightsText = insightsText.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
     // Parse the JSON response
     let insights;
     try {
       // 1. Try cleaning markdown code blocks
-      let jsonContent = insightsText.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
-      
+      let jsonContent = insightsText
+        .replace(/^```json\s*/, "")
+        .replace(/^```\s*/, "")
+        .replace(/\s*```$/, "")
+        .trim();
+
       // 2. If that fails or if there's extra text, try finding the first '{' and last '}'
-      const firstBrace = jsonContent.indexOf('{');
-      const lastBrace = jsonContent.lastIndexOf('}');
-      
+      const firstBrace = jsonContent.indexOf("{");
+      const lastBrace = jsonContent.lastIndexOf("}");
+
       if (firstBrace !== -1 && lastBrace !== -1) {
         jsonContent = jsonContent.substring(firstBrace, lastBrace + 1);
       }
 
       // 3. SEC-OPS: Sanitize common malformed JSON values (unquoted ratios, etc.)
-      jsonContent = jsonContent.replace(/:\s*([0-9]+\s*:\s*[0-9]+)\b/g, ': "$1"');
+      jsonContent = jsonContent.replace(
+        /:\s*([0-9]+\s*:\s*[0-9]+)\b/g,
+        ': "$1"',
+      );
       jsonContent = jsonContent.replace(/:\s*([0-9.]+\s*%)\b/g, ': "$1"');
 
       insights = JSON.parse(jsonContent);
     } catch (parseError) {
-      console.warn('JSON Parse Warning:', parseError);
-      console.log('Raw Insights Text:', insightsText);
+      console.warn("JSON Parse Warning:", parseError);
+      console.log("Raw Insights Text:", insightsText);
       insights = parseInsightsFromText(insightsText);
     }
-    
+
     // 4. VALIDATE AND ENFORCE DATA TYPES (Prevent React "Objects not valid as child" errors)
-    if (insights && typeof insights === 'object') {
+    if (insights && typeof insights === "object") {
       const insightsObj = insights as any;
-      
+
       // Ensure specific arrays contain only strings
-      const stringArrays = ['temuanUtama', 'rekomendasi', 'saranEksplorasi'];
-      stringArrays.forEach(key => {
+      const stringArrays = ["temuanUtama", "rekomendasi", "saranEksplorasi"];
+      stringArrays.forEach((key) => {
         if (Array.isArray(insightsObj[key])) {
           insightsObj[key] = insightsObj[key].map((item: any) => {
-            if (typeof item === 'object' && item !== null) {
+            if (typeof item === "object" && item !== null) {
               // PRESERVE STRUCTURED FINDINGS: If it has 'diagnosa', it's a "Genius Tier" finding
               if (item.diagnosa) return item;
-              
+
               // Fallback for other objects
               return item.label || item.deskripsi || JSON.stringify(item);
             }
-            return String(item || '');
+            return String(item || "");
           });
         } else {
           insightsObj[key] = [];
@@ -216,9 +281,12 @@ ATURAN PENTING:
       // Ensure 'anomali' and 'tren' fields are safe
       if (Array.isArray(insightsObj.anomali)) {
         insightsObj.anomali = insightsObj.anomali.map((a: any) => ({
-          label: String(a?.label || 'Anomali'),
-          nilai: (typeof a?.nilai === 'object') ? JSON.stringify(a.nilai) : (a?.nilai ?? 0),
-          deskripsi: String(a?.deskripsi || '')
+          label: String(a?.label || "Anomali"),
+          nilai:
+            typeof a?.nilai === "object"
+              ? JSON.stringify(a.nilai)
+              : (a?.nilai ?? 0),
+          deskripsi: String(a?.deskripsi || ""),
         }));
       } else {
         insightsObj.anomali = [];
@@ -226,10 +294,10 @@ ATURAN PENTING:
 
       if (Array.isArray(insightsObj.tren)) {
         insightsObj.tren = insightsObj.tren.map((t: any) => ({
-          label: String(t?.label || 'Tren'),
-          arah: String(t?.arah || 'stabil').toLowerCase(),
+          label: String(t?.label || "Tren"),
+          arah: String(t?.arah || "stabil").toLowerCase(),
           persentase: Number(t?.persentase || 0),
-          deskripsi: String(t?.deskripsi || '')
+          deskripsi: String(t?.deskripsi || ""),
         }));
       } else {
         insightsObj.tren = [];
@@ -247,17 +315,18 @@ ATURAN PENTING:
         query?: unknown;
       }>;
 
-      insightsObj.supportingCharts = rawCharts.filter(chart => {
-        if (!chart || !chart.visualization || !chart.visualization.title) return false;
+      insightsObj.supportingCharts = rawCharts.filter((chart) => {
+        if (!chart || !chart.visualization || !chart.visualization.title)
+          return false;
         // Basic validation of chart structure
         if (!chart.visualization.chartType || !chart.query) return false;
-        
+
         // NORMALIZE QUERY
         chart.query = normalizeQuery(chart.query);
         if (!chart.query) return false;
 
         const normalizedTitle = chart.visualization.title.trim().toLowerCase();
-        
+
         // APPLY SHARED VISUALIZATION RULES (Fail-safes, Axis syncing)
         chart = normalizeVisualization(chart as any);
 
@@ -266,46 +335,65 @@ ATURAN PENTING:
         return true;
       });
     }
-    
+
     // 5. CACHE STORAGE
-    setMemoryCache(cacheKey, insights, (insights as Record<string, unknown>).supportingCharts, {
-      model: AI_MODEL,
-      chartTitle,
-      chartType,
-      totalRows
-    });
-    
+    setMemoryCache(
+      cacheKey,
+      insights,
+      (insights as Record<string, unknown>).supportingCharts,
+      {
+        model: AI_MODEL,
+        chartTitle,
+        chartType,
+        totalRows,
+      },
+    );
+
     return NextResponse.json({
       insights,
       generatedAt: new Date().toISOString(),
-      cached: false
+      cached: false,
     });
-
   } catch (error) {
-    console.error('Insights generation error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to generate insights',
-      fallback: {
-        ringkasan: "Gagal menghasilkan analisis AI.",
-        temuanUtama: ["Silakan coba lagi nanti."],
-        tren: [],
-        rekomendasi: [],
-        anomali: [],
-        kesimpulan: "Terjadi kesalahan sistem."
-      }
-    }, { status: 500 });
+    console.error("Insights generation error:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to generate insights",
+        fallback: {
+          ringkasan: "Gagal menghasilkan analisis AI.",
+          temuanUtama: ["Silakan coba lagi nanti."],
+          tren: [],
+          rekomendasi: [],
+          anomali: [],
+          kesimpulan: "Terjadi kesalahan sistem.",
+        },
+      },
+      { status: 500 },
+    );
   }
 }
 
 function generatePrompt(data: InsightRequest & { context?: string }): string {
-  const { chartTitle, chartType, totalRows, dataSample, statistics, dateRange, context } = data;
+  const {
+    chartTitle,
+    chartType,
+    totalRows,
+    dataSample,
+    statistics,
+    dateRange,
+    context,
+  } = data;
   const schemaContext = buildSchemaContextForAI();
-  
+
   return `<SYSTEM_INSTRUCTION>
-You are the **Lead Data Analyst** for Gapura Angkasa.
-Your goal is to analyze the provided data snippet and generate **factual, data-driven insights**.
-**CRITICAL RULE**: Do NOT hallucinate. Do NOT invent "maintenance issues", "targets", or "training needs" unless the data explicitly supports it.
-If the data is just counts of categories, stick to describing the distribution (e.g., "Category X is dominant with 50%").
+You are a **Senior Data Analyst (40+ years exp)** at Gapura Angkasa.
+Your goal is to analyze the provided data snippet and generate **factual, data-driven insights** for the Board of Directors.
+
+**CRITICAL RULES (ZERO TOLERANCE):**
+1.  **NO HALLUCINATION**: Do NOT invent "maintenance issues", "targets", "training needs", or "budget constraints" unless the data explicitly supports it.
+2.  **STRICT DATA**: Only use the values present in the <RAW_DATA_SAMPLE>. Do not extrapolate beyond the Date Range.
+3.  **SCHEMA COMPLIANCE**: Adhere strictly to the defined schema.
+4.  **TONE**: Professional, authoritative, critical, and concise.
 
 <BUSINESS_DOMAINS>
 The system operates across 3 main Areas:
@@ -324,8 +412,8 @@ SPECIAL INSTRUCTION FOR CARGO (CGO):
 - Chart: "${chartTitle}" (${chartType})
 - Total Rows: ${totalRows}
 - Stats: Max=${statistics.maximum}, Avg=${statistics.average.toFixed(2)}, Min=${statistics.minimum}
-- Date Range: ${dateRange ? `${dateRange.from} to ${dateRange.to}` : 'N/A'}
-- Context: ${context || 'General Analysis'}
+- Date Range: ${dateRange ? `${dateRange.from} to ${dateRange.to}` : "N/A"}
+- Context: ${context || "General Analysis"}
 </DATA_CONTEXT>
 
 <RAW_DATA_SAMPLE>
@@ -408,29 +496,35 @@ Return a valid JSON object. NO markdown.
 }
 
 function parseInsightsFromText(text: string): unknown {
-  const lines = text.split('\n').filter(line => line.trim());
-  
+  const lines = text.split("\n").filter((line) => line.trim());
+
   return {
-    ringkasan: lines[0] || 'Analisis data telah selesai.',
-    temuanUtama: lines.slice(1, 6).map(line => line.replace(/^[\s\-\•]+/, '').trim()),
+    ringkasan: lines[0] || "Analisis data telah selesai.",
+    temuanUtama: lines
+      .slice(1, 6)
+      .map((line) => line.replace(/^[\s\-\•]+/, "").trim()),
     tren: [],
-    rekomendasi: lines.slice(6, 9).map(line => line.replace(/^[\s\-\•]+/, '').trim()),
+    rekomendasi: lines
+      .slice(6, 9)
+      .map((line) => line.replace(/^[\s\-\•]+/, "").trim()),
     anomali: [],
-    kesimpulan: lines[lines.length - 1] || 'Data menunjukkan hasil yang signifikan.'
+    kesimpulan:
+      lines[lines.length - 1] || "Data menunjukkan hasil yang signifikan.",
   };
 }
 
 function generateFallbackInsights() {
   return {
-    ringkasan: "Tidak dapat memuat analisis AI saat ini. Silakan coba beberapa saat lagi.",
+    ringkasan:
+      "Tidak dapat memuat analisis AI saat ini. Silakan coba beberapa saat lagi.",
     temuanUtama: [
       "Data visualisasi telah berhasil dimuat.",
-      "Analisis mendalam membutuhkan koneksi ke layanan AI.", 
-      "Periksa koneksi internet Anda."
+      "Analisis mendalam membutuhkan koneksi ke layanan AI.",
+      "Periksa koneksi internet Anda.",
     ],
     tren: [],
     rekomendasi: ["Lakukan analisis manual berdasarkan data tabel."],
     anomali: [],
-    kesimpulan: "Data tabel tersedia untuk direview secara manual."
+    kesimpulan: "Data tabel tersedia untuk direview secara manual.",
   };
 }

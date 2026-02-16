@@ -32,7 +32,7 @@ export const TABLES: TableDef[] = [
       { name: 'action_taken', label: 'Tindakan yang Diambil', type: 'string' },
       { name: 'gapura_kps_action_taken', label: 'Gapura KPS Action Taken', type: 'string' },
       { name: 'immediate_action', label: 'Tindakan Segera', type: 'string' },
-      { name: 'evidence_urls', label: 'Link Evidence (Google Drive)', type: 'string' },
+      { name: 'evidence_urls', label: 'Link Evidence', type: 'string' },
       { name: 'evidence_url', label: 'Evidence URL (Legacy)', type: 'string' },
       { name: 'reporter_name', label: 'Nama Pelapor', type: 'string' },
       { name: 'reference_number', label: 'Nomor Referensi', type: 'string' },
