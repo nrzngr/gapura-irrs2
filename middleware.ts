@@ -15,7 +15,6 @@ const ROLE_DASHBOARDS: Record<string, string> = {
 export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
     const cookieStore = request.cookies;
-    
     // Multi-Account Support: Try to extract active session from bundle first
     let session = cookieStore.get('session')?.value;
     const authBundle = cookieStore.get('auth_bundle')?.value;
@@ -29,15 +28,23 @@ export async function middleware(request: NextRequest) {
         } catch { /* fallback to legacy */ }
     }
 
+    // EXPLICIT BYPASS for public embed routes
+    // This must be checked early to avoid ANY redirects.
+    if (path.startsWith('/embed') || path.startsWith('/api/embed')) {
+        return NextResponse.next();
+    }
+
     const demoEnabled = process.env.DEMO_MODE === 'true';
     const isDemo = demoEnabled && (request.nextUrl.searchParams.get('demo') === '1' || request.headers.get('x-demo') === 'true');
 
     // Paths that don't require auth
-    // /embed/* routes are public for PowerPoint hyperlink integration
-    const isPublicPath = path.startsWith('/auth') || 
-                         path.startsWith('/embed') || 
-                         path.startsWith('/api/embed') || 
-                         path === '/';
+    const isAuthPath = path.startsWith('/auth');
+    const isPublicEmbedPath = path.startsWith('/embed') || 
+                             path.startsWith('/api/embed') ||
+                             path.startsWith('/api/dashboards/query') ||
+                             path.startsWith('/api/dashboards/insights') ||
+                             (path === '/api/dashboards' && request.method === 'GET');
+    const isPublicPath = isAuthPath || isPublicEmbedPath || path === '/';
 
     // Verify session
     const payload = session ? await verifySession(session) : null;
@@ -56,8 +63,8 @@ export async function middleware(request: NextRequest) {
         // Normalize role for consistent checking
         const role = String(payload.role).trim().toUpperCase();
 
-        // 2. If logged in and trying to access auth pages, redirect to dashboard
-        if (isPublicPath && path !== '/') {
+        // 2. If logged in and trying to access AUTH pages (login/register), redirect to dashboard
+        if (isAuthPath) {
             const dashboardUrl = ROLE_DASHBOARDS[role] || '/dashboard/employee';
             return NextResponse.redirect(new URL(dashboardUrl, request.url));
         }
@@ -98,6 +105,8 @@ export const config = {
     matcher: [
         '/dashboard/:path*',
         '/auth/:path*',
-        '/'
+        '/embed/:path*',
+        '/api/dashboards/:path*',
+        '/',
     ],
 };

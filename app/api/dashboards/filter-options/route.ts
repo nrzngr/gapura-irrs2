@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       : Object.keys(ALLOWED_FIELDS);
 
     // Fetch all reports from Google Sheets (cached)
-    const reports = await reportsService.getReports(payload.id);
+    const reports = await reportsService.getReports();
 
     const results: Record<string, string[]> = {};
 

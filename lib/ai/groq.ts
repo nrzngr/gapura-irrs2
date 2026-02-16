@@ -1,0 +1,34 @@
+import Groq from "groq-sdk";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+export type GroqMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+/**
+ * Calls Groq AI API with llama-3.1-8b-instant
+ */
+export async function callGroqAI(
+  messages: GroqMessage[],
+  model: string = "llama-3.1-8b-instant"
+): Promise<string> {
+  try {
+    console.log(`[Groq] Calling model: ${model}`);
+    
+    const completion = await groq.chat.completions.create({
+      model: model,
+      messages: messages as any,
+      temperature: 0.1, // Low temperature for deterministic analysis
+      max_tokens: 1024,
+    });
+
+    return completion.choices[0]?.message?.content || "";
+  } catch (error) {
+    console.error("[Groq] Error calling AI:", error);
+    throw error;
+  }
+}

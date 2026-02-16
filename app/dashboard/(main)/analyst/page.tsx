@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
+import { CustomerFeedbackFilterModal } from './CustomerFeedbackFilterModal';
 
 // --- Types ---
 interface AnalyticsData {
@@ -55,6 +56,8 @@ export default function AnalystDashboard() {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [customDashboards, setCustomDashboards] = useState<{ id: string; name: string; description: string | null; slug: string; created_at: string }[]>([]);
     const [cfLoading, setCfLoading] = useState(false);
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [filterLoading, setFilterLoading] = useState(false);
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -241,6 +244,141 @@ export default function AnalystDashboard() {
             .slice(0, 8);
     }, [filteredReports]);
 
+    // Complexity: Time O(n) | Space O(k) where k = unique reporters
+    const topReportersData = useMemo(() => {
+        const reporterMap: Record<string, { name: string; station: string; count: number }> = {};
+        filteredReports.forEach(r => {
+            const name = r.users?.full_name || r.reporter_name || 'Unknown';
+            const station = r.stations?.code || r.branch || '-';
+            const key = name;
+            if (!reporterMap[key]) reporterMap[key] = { name, station, count: 0 };
+            reporterMap[key].count++;
+        });
+        return Object.values(reporterMap)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+    }, [filteredReports]);
+
+    // Complexity: Time O(n) | Space O(12) — fixed 12 months
+    const monthlyComparisonData = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthBuckets: Record<string, { masuk: number; selesai: number }> = {};
+        months.forEach(m => { monthBuckets[m] = { masuk: 0, selesai: 0 }; });
+        filteredReports.forEach(r => {
+            const createdMonth = months[new Date(r.created_at).getMonth()];
+            monthBuckets[createdMonth].masuk++;
+            if (r.resolved_at) {
+                const resolvedMonth = months[new Date(r.resolved_at).getMonth()];
+                monthBuckets[resolvedMonth].selesai++;
+            }
+        });
+        return months
+            .map(month => {
+                const { masuk, selesai } = monthBuckets[month];
+                const rate = masuk > 0 ? Math.round((selesai / masuk) * 100) : 0;
+                return { month, masuk, selesai, rate };
+            })
+            .filter(d => d.masuk > 0 || d.selesai > 0);
+    }, [filteredReports]);
+
+    // Complexity: Time O(n) | Space O(4) — fixed severity levels
+    const severityDistributionData = useMemo(() => {
+        const severityMap: Record<string, number> = {};
+        filteredReports.forEach(r => {
+            const sev = r.severity || 'low';
+            severityMap[sev] = (severityMap[sev] || 0) + 1;
+        });
+        const colorMap: Record<string, string> = {
+            low: '#10b981', medium: '#f59e0b', high: '#ef4444', urgent: '#dc2626',
+        };
+        return Object.entries(severityMap)
+            .map(([name, value]) => ({ name, value, fill: colorMap[name] || '#6b7280' }))
+            .sort((a, b) => b.value - a.value);
+    }, [filteredReports]);
+
+    // Complexity: Time O(n) | Space O(k) where k = unique hubs
+    const hubDistributionData = useMemo(() => {
+        const hubMap: Record<string, number> = {};
+        filteredReports.forEach(r => {
+            const hub = r.hub || 'Unknown';
+            hubMap[hub] = (hubMap[hub] || 0) + 1;
+        });
+        return Object.entries(hubMap)
+            .map(([hub, count]) => ({ hub, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+    }, [filteredReports]);
+
+    // Complexity: Time O(n) | Space O(k) where k = unique branches
+    const resolutionByBranchData = useMemo(() => {
+        const branchMap: Record<string, { total: number; resolved: number }> = {};
+        filteredReports.forEach(r => {
+            const branch = r.stations?.code || r.branch || 'Unknown';
+            if (!branchMap[branch]) branchMap[branch] = { total: 0, resolved: 0 };
+            branchMap[branch].total++;
+            if (r.status === 'SELESAI') branchMap[branch].resolved++;
+        });
+        return Object.entries(branchMap)
+            .map(([branch, data]) => ({
+                branch,
+                total: data.total,
+                resolved: data.resolved,
+                rate: data.total > 0 ? Math.round((data.resolved / data.total) * 100) : 0,
+            }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10);
+    }, [filteredReports]);
+
+    // Available options for filter modal
+    const availableOptions = useMemo(() => {
+        const hubs = new Set<string>();
+        const branches = new Set<string>();
+        const airlines = new Set<string>();
+        const categories = new Set<string>();
+
+        reports.forEach(r => {
+            if (r.hub) hubs.add(r.hub);
+            if (r.stations?.code) branches.add(r.stations.code);
+            else if (r.branch) branches.add(r.branch);
+            
+            if (r.airlines) airlines.add(r.airlines);
+            else if (r.airline) airlines.add(r.airline);
+
+            if (r.main_category) categories.add(r.main_category);
+        });
+
+        return {
+            hubs: Array.from(hubs).sort(),
+            branches: Array.from(branches).sort(),
+            airlines: Array.from(airlines).sort(),
+            categories: Array.from(categories).sort()
+        };
+    }, [reports]);
+
+    const handleApplyFilter = async (filterData: any) => {
+        setFilterLoading(true);
+        try {
+            const res = await fetch('/api/dashboards/customer-feedback-generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filterData),
+            });
+
+            if (!res.ok) throw new Error('Failed to generate dashboard');
+
+            const data = await res.json();
+            if (data.dashboard?.slug) {
+                router.push(`/embed/custom/${data.dashboard.slug}`);
+            }
+        } catch (err) {
+            console.error('Filter apply error:', err);
+            alert('Gagal menerapkan filter');
+        } finally {
+            setFilterLoading(false);
+            setShowFilterModal(false);
+        }
+    };
+
     const filteredStats = useMemo(() => {
         const total = filteredReports.length;
         const resolved = filteredReports.filter(r => r.status === 'SELESAI').length;
@@ -339,6 +477,18 @@ export default function AnalystDashboard() {
                                     <span className="hidden 2xl:inline">Feedback</span>
                                 </button>
 
+                                <button 
+                                    onClick={() => setShowFilterModal(true)}
+                                    className={cn(
+                                        "hidden xl:inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                                        "bg-white border-[var(--surface-4)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+                                    )}
+                                    title="Filter Customer Feedback"
+                                >
+                                    <Shield size={14} />
+                                    <span className="hidden 2xl:inline">Filter</span>
+                                </button>
+
                                 <button onClick={() => router.push('/dashboard/employee/new')} className="btn-primary py-2 text-xs">
                                     <Plus size={16} /> <span className="hidden sm:inline">Laporan</span>
                                 </button>
@@ -410,6 +560,10 @@ export default function AnalystDashboard() {
                 categoryByAreaData={categoryByAreaData}
                 categoryByBranchData={categoryByBranchData}
                 categoryByAirlinesData={categoryByAirlinesData}
+                topReportersData={topReportersData}
+                monthlyComparisonData={monthlyComparisonData}
+                hubDistributionData={hubDistributionData}
+                resolutionByBranchData={resolutionByBranchData}
                 filteredReports={filteredReports}
                 onDrilldown={(url) => router.push(url)}
                 drilldownUrl={drilldownUrl}
@@ -525,6 +679,17 @@ export default function AnalystDashboard() {
                 onClose={() => setSelectedReport(null)}
                 report={selectedReport}
                 userRole="ANALYST"
+            />
+
+            <CustomerFeedbackFilterModal
+                isOpen={showFilterModal}
+                onClose={() => setShowFilterModal(false)}
+                onApply={handleApplyFilter}
+                loading={filterLoading}
+                availableHubs={availableOptions.hubs}
+                availableBranches={availableOptions.branches}
+                availableAirlines={availableOptions.airlines}
+                availableCategories={availableOptions.categories}
             />
         </div>
     );

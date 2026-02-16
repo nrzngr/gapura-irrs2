@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: hanya Analyst dan Admin' }, { status: 403 });
     }
 
-    const { dateFrom, dateTo } = await request.json();
+    const { dateFrom, dateTo, filters, title } = await request.json();
     
     // Ensure fresh data from Google Sheets before generating dashboard
     // This is crucial because the dashboard generation relies on querying data
@@ -55,20 +55,25 @@ export async function POST(request: NextRequest) {
     // The VIEWING happens later.
     
     // However, to ensure connectivity is valid before even generating:
-    await reportsService.getReports(payload.id); // Simple check to ensure we can connect
+    await reportsService.getReports({ refresh: true }); // Force fetch from Google Sheets
 
     // If no dates provided, generate without date range restrictions
     const effectiveDateFrom = dateFrom || '1900-01-01';
     const effectiveDateTo = dateTo || '2099-12-31';
-    const isDefaultRange = !dateFrom && !dateTo;
+    const isDefaultRange = !dateFrom && !dateTo && (!filters || (
+      (!filters.hubs || filters.hubs.length === 0) &&
+      (!filters.branches || filters.branches.length === 0) &&
+      (!filters.airlines || filters.airlines.length === 0) &&
+      (!filters.categories || filters.categories.length === 0)
+    ));
 
     // Generate dashboard definition
-    const dashboard = generateCustomerFeedbackDashboard(effectiveDateFrom, effectiveDateTo);
+    const dashboard = generateCustomerFeedbackDashboard(effectiveDateFrom, effectiveDateTo, { filters });
 
     let slug: string;
     let dashboardId: string;
 
-    if (isDefaultRange) {
+    if (isDefaultRange && !title) { // Only use default slot if no custom title provided
         slug = 'customer-feedback-main';
         
         // Check if default dashboard exists
@@ -137,16 +142,21 @@ export async function POST(request: NextRequest) {
         const baseSlug = 'customer-feedback';
         slug = `${baseSlug}-${Date.now().toString(36)}`;
 
+        // Provide custom title if available
+        const finalName = title || dashboard.name || 'Customer Feedback Dashboard';
+        const finalDesc = title ? `Custom Analysis: ${title}` : (dashboard.description || 'Customer Feedback Analysis Dashboard');
+
         // Insert new custom dashboard
         const { data: dbDashboard, error: insertError } = await supabaseAdmin
             .from('custom_dashboards')
             .insert({
-                name: dashboard.name || 'Customer Feedback Dashboard',
-                description: dashboard.description || 'Customer Feedback Analysis Dashboard',
+                name: finalName,
+                description: finalDesc,
                 slug: slug,
                 is_public: true,
                 config: {
                     pages: dashboard.pages?.map(p => p.name) || ['Case Category', 'Detail Category', 'Detail Report'],
+                    hideControls: true,
                 },
             })
             .select()

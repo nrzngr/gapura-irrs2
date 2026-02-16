@@ -21,7 +21,7 @@ export async function GET() {
         }
 
         // Fetch reports from Google Sheets
-        const reports = await reportsService.getReports(payload.id);
+        const reports = await reportsService.getReports();
 
         // Fetch related data from Supabase for manual join
         // We fetch all needed reference data once

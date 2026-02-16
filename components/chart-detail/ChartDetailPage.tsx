@@ -1,17 +1,21 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { saveAs } from 'file-saver';
-import { Download, FileText, Link as LinkIcon, Check } from 'lucide-react';
+import { Download, FileText, Link as LinkIcon, Check, Share2 } from 'lucide-react';
 import type { DashboardTile, QueryResult } from '@/types/builder';
 import { EnlargedChart } from './EnlargedChart';
-import { DataTableWithPagination } from './DataTableWithPagination';
+import { InvestigativeTable } from './InvestigativeTable';
 import { AIInsightsPanel } from './AIInsightsPanel';
 import { SummaryCards } from './SummaryCards';
 import { SupportingCharts } from './SupportingCharts';
+import { GlobalControlBar, ViewMode, Normalization } from './GlobalControlBar';
+import { InsightPanel } from '@/components/chart-detail/InsightPanel';
+import { generateAnalyticalCharts, fetchAnalyticalChartData } from '@/lib/chart-detail-generator';
+import type { AnalyticalChart } from '@/lib/chart-detail-generator';
 
 interface ChartDetailData {
   tile: DashboardTile;
@@ -19,9 +23,15 @@ interface ChartDetailData {
   dashboardId?: string;
 }
 
+interface StructuredFinding {
+  diagnosa: string;
+  data: Record<string, any>;
+  impactScore: number;
+}
+
 interface AIInsight {
   ringkasan: string;
-  temuanUtama: string[];
+  temuanUtama: (string | StructuredFinding)[];
   tren: Array<{
     label: string;
     arah: string;
@@ -48,15 +58,33 @@ const formatChartType = (type: string) => {
   return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
-export default function ChartDetailPage() {
+export default function ChartDetailPage({ isPublic = false }: { isPublic?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<ChartDetailData | null>(null);
   const [insights, setInsights] = useState<AIInsight | null>(null);
-  const [insightsLoading, setInsightsLoading] = useState(true);
-  const [supportingData, setSupportingData] = useState<Record<number, QueryResult>>({});
+  const [insightsLoading, setInsightsLoading] = useState(false);
   const [fullData, setFullData] = useState<QueryResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [loadingTile, setLoadingTile] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
+
+  // Global Analytical State
+  const [viewMode, setViewMode] = useState<ViewMode>('values');
+  const [normalization, setNormalization] = useState<Normalization>('none');
+
+  // Analytical supporting charts — cross-dimensional breakdown from real data
+  const [analyticalCharts, setAnalyticalCharts] = useState<AnalyticalChart[]>([]);
+  const [analyticalDataMap, setAnalyticalDataMap] = useState<Record<number, QueryResult>>({});
+  const [analyticalLoading, setAnalyticalLoading] = useState(false);
+
+  // Compute chart definitions from tile + result (synchronous, no fetch)
+  // Complexity: Time O(1) | Space O(charts)
+  const chartDefs = useMemo(() => {
+    if (!data) return null;
+    const displayResult = fullData || data.result;
+    return generateAnalyticalCharts(data.tile, displayResult);
+  }, [data, fullData]);
 
   const fetchFullData = useCallback(async (tile: DashboardTile): Promise<QueryResult> => {
     try {
@@ -86,9 +114,9 @@ export default function ChartDetailPage() {
       console.error('Failed to fetch full data:', error);
     }
     
-    // Fallback to stored data
-    return data?.result || { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 };
-  }, [data?.result]);
+    // Pure fetcher: return empty result on failure to avoid loops
+    return { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 };
+  }, []); // No dependencies for stability
 
   const generateInsights = useCallback(async (detailData: ChartDetailData): Promise<AIInsight | null> => {
     setInsightsLoading(true);
@@ -140,13 +168,19 @@ export default function ChartDetailPage() {
           dashboardId: detailData.dashboardId,
           tileId: detailData.tile.id,
           totalRows: result.rows.length,
-          dataSample: result.rows.slice(0, 100), // Increase sample for better context
+          dataSample: result.rows.slice(0, 100),
+          supportingCharts: analyticalCharts.map(ac => ({
+            title: ac.visualization.title,
+            chartType: ac.visualization.chartType,
+            dimensions: ac.query.dimensions,
+            measures: ac.query.measures
+          })),
           statistics: {
             total,
             average: avg,
             maximum: max,
             minimum: min,
-            variance: max - min, // Add range/variance context
+            variance: max - min,
             rowCount: result.rows.length
           },
           context: `Berikan analisis SANGAT MENDALAM untuk ${formatChartType(detailData.tile.visualization.chartType)} berjudul "${detailData.tile.visualization.title}". 
@@ -158,55 +192,7 @@ export default function ChartDetailPage() {
       const responseData = await response.json();
       
       if (response.ok && responseData.insights) {
-        const insights = responseData.insights as AIInsight;
-        
-        // Fetch data for supporting charts if any
-        if (insights.supportingCharts && insights.supportingCharts.length > 0) {
-          const suppPromises = insights.supportingCharts.map(async (sc, idx) => {
-            try {
-              // CRITICAL FIX: Merge filters from the main tile to ensure data consistency
-              // This ensures AI charts respect the same Date Range, Status, etc. as the main chart
-              const parentFilters = detailData.tile.query.filters || [];
-              const aiFilters = sc.query.filters || [];
-              
-              // Deduplicate filters based on field and operator
-              const mergedFilters = [...aiFilters];
-              parentFilters.forEach(pf => {
-                const exists = mergedFilters.some(af => af.field === pf.field && af.operator === pf.operator);
-                if (!exists) {
-                  mergedFilters.push(pf);
-                }
-              });
-
-              const mergedQuery = {
-                ...sc.query,
-                filters: mergedFilters
-              };
-
-              const res = await fetch('/api/dashboards/query', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: mergedQuery })
-              });
-              if (res.ok) {
-                const result = await res.json();
-                return { idx, result };
-              }
-            } catch (e) {
-              console.error(`Failed to fetch supporting chart ${idx}:`, e);
-            }
-            return null;
-          });
-
-          const results = await Promise.all(suppPromises);
-          const newDataMap: Record<number, QueryResult> = {};
-          results.forEach(r => {
-            if (r) newDataMap[r.idx] = r.result;
-          });
-          setSupportingData(newDataMap);
-        }
-
-        return insights;
+        return responseData.insights as AIInsight;
       } else if (responseData.fallback) {
         console.warn('Using fallback insights due to API error:', responseData.error);
         return responseData.fallback;
@@ -231,7 +217,7 @@ export default function ChartDetailPage() {
     }
     
     return null;
-  }, []);
+  }, [analyticalCharts]);
 
   const handleDownloadImage = async () => {
     if (chartRef.current) {
@@ -268,27 +254,134 @@ export default function ChartDetailPage() {
   };
 
   useEffect(() => {
-    // Get data from sessionStorage
+    // 1. Try sessionStorage first (fastest for dashboard navigation)
     const storedData = sessionStorage.getItem('chartDetailData');
     if (storedData) {
-      const parsed = JSON.parse(storedData) as ChartDetailData;
-      setData(parsed);
-    } else {
-      // Redirect back if no data
-      router.back();
+      try {
+        const parsed = JSON.parse(storedData) as ChartDetailData;
+        const urlTileId = new URLSearchParams(window.location.search).get('tileId');
+        if (!urlTileId || parsed.tile.id === urlTileId) {
+          setData(parsed);
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to parse stored chart data:', e);
+      }
     }
-  }, [router]);
 
-  // Separate effect for data-dependent operations
+    // 2. Fallback: Fetch from API using tileId from URL (for direct/public links)
+    const searchParams = new URLSearchParams(window.location.search);
+    const tileId = searchParams.get('tileId');
+
+    if (!tileId) {
+      if (!isPublic) router.push('/dashboard');
+      return;
+    }
+
+    // Guard: Don't fetch if already have data, currently loading, or already failed for this ID
+    if (data?.tile.id === tileId || loadingTile || fetchError === tileId) return;
+
+    const loadTileData = async () => {
+      setLoadingTile(true);
+      try {
+        const res = await fetch(`/api/dashboards?tileId=${tileId}`);
+        const tile = await res.json();
+        
+        if (tile.error) throw new Error(tile.error);
+
+        const dashboardTile: DashboardTile = {
+          id: tile.id,
+          visualization: {
+            title: tile.title,
+            chartType: tile.chart_type,
+            ...(tile.visualization_config || {})
+          },
+          query: tile.query_config || {
+            dimensions: [tile.data_field],
+            measures: ['count'],
+            filters: []
+          },
+          layout: tile.layout || { w: 6, h: 4 }
+        };
+
+        const result = await fetchFullData(dashboardTile);
+        
+        setData({
+          tile: dashboardTile,
+          result: result,
+          dashboardId: tile.custom_dashboards?.id
+        });
+      } catch (err) {
+        console.error('Failed to load public chart:', err);
+        setFetchError(tileId);
+        if (!isPublic) router.push('/dashboard');
+      } finally {
+        setLoadingTile(false);
+      }
+    };
+
+    loadTileData();
+  }, [router, isPublic, fetchFullData, loadingTile, data?.tile.id]); 
+
+  // Fetch full data once on mount or when tile ID changes
   useEffect(() => {
-    if (data) {
-      // Fetch full data (unlimited)
+    if (data && !fullData) {
       fetchFullData(data.tile).then(setFullData);
-      
-      // Generate AI insights
+    }
+  }, [data?.tile.id, fullData, fetchFullData]);
+
+  // Generate insights once data is available
+  useEffect(() => {
+    if (data && !insights && !insightsLoading && analyticalCharts.length > 0) {
       generateInsights(data).then(setInsights);
     }
-  }, [data, fetchFullData, generateInsights]);
+  }, [data?.tile.id, insights, insightsLoading, analyticalCharts.length, generateInsights]);
+
+  // Fetch cross-dimensional analytical chart data once definitions are ready
+  // Complexity: Time O(k * API_latency) parallelized | Space O(k * n)
+  useEffect(() => {
+    if (!chartDefs || chartDefs.charts.length === 0 || analyticalCharts.length > 0) return;
+    
+    setAnalyticalCharts(chartDefs.charts);
+    setAnalyticalDataMap(chartDefs.dataMap);
+    setAnalyticalLoading(true);
+
+    fetchAnalyticalChartData(chartDefs.charts, chartDefs.dataMap)
+      .then(fullMap => {
+        setAnalyticalDataMap(fullMap);
+      })
+      .finally(() => setAnalyticalLoading(false));
+  }, [chartDefs?.charts]); // Depend on charts count/length to avoid frequent re-runs
+
+  const handleSharePublic = () => {
+    if (!data?.tile.id) return;
+    const shareUrl = `${window.location.origin}/embed/chart?tileId=${data.tile.id}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 text-red-500">
+          <X size={32} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Link Tidak Valid</h2>
+        <p className="text-gray-500 max-w-md mb-8">
+          Tile ID <code className="bg-gray-200 px-1 rounded">{fetchError}</code> tidak ditemukan atau Anda tidak memiliki akses. 
+          Pastikan dashboard telah diatur menjadi publik.
+        </p>
+        <button 
+          onClick={() => router.push('/dashboard')}
+          className="px-6 py-2.5 bg-[#6b8e3d] text-white font-bold rounded-lg shadow-md hover:bg-[#5a7a3a] transition-all"
+        >
+          Kembali ke Dashboard
+        </button>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
@@ -301,25 +394,30 @@ export default function ChartDetailPage() {
   const displayData = fullData || data.result;
   const tile = data.tile;
 
+  // Prepare insights for the panel
+  const insightStrings = insights 
+    ? [insights.ringkasan, ...insights.temuanUtama]
+    : [];
+
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       {/* Header */}
-      <header className="bg-white border-b border-[#e0e0e0] sticky top-0 z-50 w-full">
-        <div className="w-full px-6 h-16 flex items-center justify-between">
+      <header className="bg-white border-b border-[#e0e0e0] sticky top-0 z-50 w-full px-6">
+        <div className="h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-[#666] hover:text-[#6b8e3d] transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="text-sm font-medium">Kembali ke Dashboard</span>
-            </button>
-            
-            <div className="h-6 w-px bg-[#e0e0e0]" />
-            
-            <h1 className="text-lg font-bold text-[#333]">
-              {tile.visualization.title}
-            </h1>
+            {!isPublic && (
+              <button 
+                onClick={() => router.back()}
+                className="p-2 hover:bg-white rounded-full transition-all hover:shadow-sm group text-gray-500 hover:text-indigo-600"
+              >
+                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                {tile.visualization.title}
+              </h1>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
@@ -344,66 +442,88 @@ export default function ChartDetailPage() {
             >
               <Download size={20} />
             </button>
-            <div className="h-6 w-px bg-[#e0e0e0] mx-2" />
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors"
-            >
-              <X size={20} className="text-[#666]" />
-            </button>
+            {!isPublic && (
+              <button
+                onClick={handleSharePublic}
+                className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
+                title="Share Public Link"
+              >
+                {copied ? (
+                  <Check size={20} className="text-green-600" />
+                ) : (
+                  <Share2 size={20} />
+                )}
+              </button>
+            )}
+            {!isPublic && (
+              <>
+                <div className="h-6 w-px bg-[#e0e0e0] mx-2" />
+                <button
+                  onClick={() => router.back()}
+                  className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors"
+                >
+                  <X size={20} className="text-[#666]" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="w-full px-6 py-6 font-sans">
-        {/* Summary Cards */}
-        <SummaryCards data={displayData} />
-
-        {/* Chart Section */}
-        <section ref={chartRef} className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] p-6 mb-6 overflow-hidden">
-          <h2 className="text-sm font-semibold text-[#6b8e3d] mb-4 uppercase tracking-wide">
-            Visualisasi Data
-          </h2>
-          <div className="w-full">
+      <main className="w-full px-6 py-6 font-sans space-y-8">
+        {/* MAIN CONTENT GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* HERO CHART (Left - 8 cols) */}
+          <div className="lg:col-span-8 space-y-4">
             <EnlargedChart 
               tile={tile} 
               result={displayData}
+              viewMode={viewMode}
+              normalization={normalization}
             />
           </div>
-        </section>
 
-
-        {/* Data and Insights Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-          {/* Main Data Column */}
-          <div className="space-y-6">
-            {/* Supporting Charts / AI Mini-Dashboard */}
-            {insights?.supportingCharts && insights.supportingCharts.length > 0 && (
-              <SupportingCharts 
-                charts={insights.supportingCharts}
-                dataMap={supportingData}
-                loading={insightsLoading}
+          {/* INSIGHT PANEL (Right - 4 cols) */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="sticky top-24">
+              <InsightPanel 
+                insights={insightStrings} 
+                isLoading={insightsLoading} 
               />
-            )}
-
-            {/* Data Table */}
-            <section className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] overflow-hidden">
-              <DataTableWithPagination 
-                data={displayData}
-                title={tile.visualization.title || 'Chart Data'}
-              />
-            </section>
+            </div>
           </div>
-
-          {/* AI Insights Sidebar */}
-          <section className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] overflow-hidden">
-            <AIInsightsPanel 
-              insights={insights}
-              loading={insightsLoading}
-            />
-          </section>
         </div>
+
+        {(insightsLoading || analyticalLoading) && (
+          <div className="flex justify-center p-12">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        )}
+
+        {/* SUPPORTING CHARTS */}
+        <div className="space-y-6 pt-4 border-t border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <span className="w-1 h-6 bg-indigo-500 rounded-full"></span>
+            Detailed Breakdown
+          </h3>
+          <SupportingCharts 
+            charts={analyticalCharts} 
+            dataMap={analyticalDataMap}
+            loading={analyticalLoading} 
+            source="system"
+            viewMode={viewMode}
+            normalization={normalization}
+          />
+        </div>
+
+        {/* Data Table */}
+        <section className="bg-white rounded-xl shadow-sm border border-[#e0e0e0] overflow-hidden">
+          <InvestigativeTable 
+            data={displayData}
+            title={tile.visualization.title || 'Chart Data'}
+          />
+        </section>
       </main>
     </div>
   );

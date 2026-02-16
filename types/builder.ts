@@ -66,6 +66,7 @@ export type ChartType =
   | 'bar'
   | 'horizontal_bar'
   | 'stacked_bar'
+  | 'grouped_bar'
   | 'line'
   | 'area'
   | 'pie'
@@ -75,6 +76,7 @@ export type ChartType =
   | 'table'
   | 'pivot'
   | 'kpi'
+  | 'branch_area_grid'
   | 'combo';
 
 export interface ChartVisualization {
@@ -84,7 +86,8 @@ export interface ChartVisualization {
   colorField?: string;   // optional series grouping
   title?: string;
   showLegend: boolean;
-  showLabels: boolean;
+  showLabels?: boolean;
+  displayLimit?: number; // Visual limit for "Top N" charts
   colors?: string[];
   crossFiltering?: boolean;
   openLinkInNewTab?: boolean;

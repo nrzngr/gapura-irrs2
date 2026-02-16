@@ -2,8 +2,10 @@
 
 import React from 'react';
 import { ChartPreview } from '@/components/builder/ChartPreview';
+import { GroupedBarChart } from './GroupedBarChart';
 import { Info } from 'lucide-react';
 import type { DashboardTile, QueryResult } from '@/types/builder';
+import { ViewMode, Normalization } from './GlobalControlBar';
 
 interface SupportingChart {
   visualization: DashboardTile['visualization'];
@@ -15,6 +17,9 @@ interface SupportingChartsProps {
   charts: SupportingChart[];
   dataMap: Record<number, QueryResult>;
   loading: boolean;
+  source?: 'system' | 'ai';
+  viewMode?: ViewMode;
+  normalization?: Normalization;
 }
 
 function safeRender(value: any): React.ReactNode {
@@ -29,24 +34,32 @@ function safeRender(value: any): React.ReactNode {
 // For supporting charts, we use fixed heights to prevent overflow
 function calculateChartHeight(chartType: string, rowCount: number): string {
   switch (chartType) {
-    case 'horizontal_bar':
-      // Horizontal bars need more height per item
+    case 'horizontal_bar': {
       const barHeight = Math.max(rowCount * 38 + 70, 220);
-      return `${Math.min(barHeight, 450)}px`; // Increased cap to 450px
+      return `${Math.min(barHeight, 450)}px`;
+    }
     case 'pie':
     case 'donut':
-      return '240px'; // Slightly increased for better label visibility
+      return '240px';
+    case 'heatmap': {
+      // Heatmap rows need space; scale with data volume
+      const hmHeight = Math.max(rowCount * 28 + 80, 260);
+      return `${Math.min(hmHeight, 500)}px`;
+    }
+    case 'stacked_bar':
+      return '280px';
     case 'bar':
     case 'line':
     case 'area':
-    case 'heatmap':
       return '220px';
+    case 'grouped_bar':
+      return '400px';
     default:
       return '220px';
   }
 }
 
-export function SupportingCharts({ charts, dataMap, loading }: SupportingChartsProps) {
+export function SupportingCharts({ charts, dataMap, loading, source = 'ai', viewMode = 'values', normalization = 'none' }: SupportingChartsProps) {
   if (loading) {
     return (
       <div className="space-y-4">
@@ -87,9 +100,15 @@ export function SupportingCharts({ charts, dataMap, loading }: SupportingChartsP
         <h3 className="text-[10px] font-bold text-[#6b8e3d] uppercase tracking-[0.1em]">
           Eksplorasi Pendukung
         </h3>
-        <span className="ml-2 text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
-          ✨ Dibuat oleh AI
-        </span>
+        {source === 'ai' ? (
+          <span className="ml-2 text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+            ✨ Dibuat oleh AI
+          </span>
+        ) : (
+          <span className="ml-2 text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
+            📊 Dari Data Laporan
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -115,6 +134,18 @@ export function SupportingCharts({ charts, dataMap, loading }: SupportingChartsP
                 <h4 className="text-[11px] font-bold text-slate-700 uppercase mb-1">Gagal Memuat Chart</h4>
                 <p className="text-[10px] text-slate-400">Terjadi kesalahan saat mengambil data untuk visualisasi ini.</p>
               </div>
+            );
+          }
+
+          if (chart.visualization.chartType === 'grouped_bar') {
+            return (
+              <GroupedBarChart 
+                key={idx}
+                visualization={chart.visualization}
+                result={result}
+                title={chart.visualization.title}
+                explanation={chart.explanation}
+              />
             );
           }
 
@@ -189,7 +220,7 @@ export function SupportingCharts({ charts, dataMap, loading }: SupportingChartsP
           return (
             <div 
               key={idx} 
-              className="bg-white rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30 h-auto"
+              className="bg-white rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30"
             >
               <div className="px-4 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
                 <h4 className="text-[11px] font-bold text-[#333] uppercase tracking-tight">
@@ -200,12 +231,14 @@ export function SupportingCharts({ charts, dataMap, loading }: SupportingChartsP
               
               <div 
                 className="p-3 overflow-hidden"
-                style={{ height: chartHeight, minHeight: chartHeight }}
+                style={{ height: chartHeight }}
               >
                 <ChartPreview 
                   visualization={chart.visualization}
                   result={result}
                   compact={true}
+                  viewMode={viewMode}
+                  normalization={normalization}
                 />
               </div>
 

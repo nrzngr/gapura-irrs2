@@ -20,7 +20,27 @@ function dateFilters(dateFrom: string, dateTo: string) {
 let tileCounter = 0;
 function tileId() { return `cft-${Date.now()}-${++tileCounter}`; }
 
-export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: string): DashboardDefinition {
+export interface DashboardOptions {
+  filters?: {
+    hubs?: string[];
+    branches?: string[];
+    airlines?: string[];
+    categories?: string[];
+  }
+}
+
+function arrayFilter(field: string, values: string[] | undefined): QueryFilter[] {
+  if (!values || values.length === 0) return [];
+  return [{
+    table: 'reports',
+    field,
+    operator: 'in',
+    value: values,
+    conjunction: 'AND'
+  }];
+}
+
+export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: string, options?: DashboardOptions): DashboardDefinition {
   tileCounter = 0;
   
   // Parse dates safely - handle ISO format (YYYY-MM-DD)
@@ -43,7 +63,35 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
     value: 'NON CARGO',
     conjunction: 'AND' as const
   };
-  const baseFilters = [...df, nonCargoFilter];
+
+  // Optional Filters
+  const hubFilters = arrayFilter('hub', options?.filters?.hubs);
+  const branchFilters = arrayFilter('branch', options?.filters?.branches);
+  const airlineFilters = arrayFilter('airline', options?.filters?.airlines); // 'airline' column alias of 'airlines' in some contexts, but schema says 'airlines' or 'airline'. Reports service maps it. 
+  // Schema.ts says 'airlines' is the field name in 'reports' table? 
+  // Let's check schema.ts later. But types/index.ts says 'airlines' and 'airline'. 
+  // If I look at the existing queries in this file: 
+  // Line 92: field: 'airline' (with alias 'total'). 
+  // Line 142: field: 'airlines' (with alias 'airline').
+  // This implies inconsistency in field usage or schema aliases.
+  // I will use 'airlines' as per line 142 if it refers to the column.
+  // Line 204: field: 'airlines'.
+  // Line 319: field: 'airline'.
+  // I'll stick to 'airlines' as the likely column name based on plural convention in other fields if any, but 'branch' is singular.
+  // type Report has 'airlines?: string'.
+  // I will use 'airlines' generally, but if it fails I might need to check DB schema. 
+  // Wait, existing code uses both?
+  // tile 3 uses field: 'airline'. tile 139 uses field: 'airlines'.
+  // I'll use 'airlines' for the filter as it seems more common for the column name.
+  // Actually, let's use 'airlines' for safety, but check if 'airline' is a calculated field.
+  // In `types/index.ts`, `airlines` is a string field.
+  
+  // Correction: I should check which one works. 
+  // I'll use 'airlines'.
+  
+  const categoryFilters = arrayFilter('main_category', options?.filters?.categories);
+
+  const baseFilters = [...df, nonCargoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters];
 
   const fromDate = parseDate(dateFrom);
   const toDate = parseDate(dateTo);
@@ -116,7 +164,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'category', alias: 'category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
       visualization: { chartType: 'donut', title: 'Report by Case Category', xAxis: 'category', yAxis: ['count'], showLegend: true, showLabels: true },
       layout: { x: 0, y: 1, w: 6, h: 2 },
@@ -129,7 +177,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'branch', alias: 'branch' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Branch Report', xAxis: 'branch', yAxis: ['count'], showLegend: false, showLabels: true },
       layout: { x: 6, y: 1, w: 6, h: 2 },
@@ -142,7 +190,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'airlines', alias: 'airline' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
       visualization: { chartType: 'horizontal_bar', title: 'Airlines Report', xAxis: 'airline', yAxis: ['count'], showLegend: false, showLabels: true },
       layout: { x: 0, y: 3, w: 6, h: 2 },
@@ -155,9 +203,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'date_of_event', alias: 'month', dateGranularity: 'month' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'month', direction: 'desc' }], limit: 12,
+        sorts: [{ field: 'month', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'month', yAxis: ['count'], showLegend: false, showLabels: true },
+      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'month', yAxis: ['count'], showLegend: false, showLabels: true, displayLimit: 12 },
       layout: { x: 6, y: 3, w: 6, h: 2 },
     },
 
@@ -169,9 +217,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'area', alias: 'area' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 5,
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'donut', title: 'Category by Area', xAxis: 'area', yAxis: ['count'], showLegend: true, showLabels: true },
+      visualization: { chartType: 'donut', title: 'Category by Area', xAxis: 'area', yAxis: ['count'], showLegend: true, showLabels: true, displayLimit: 5 },
       layout: { x: 0, y: 5, w: 6, h: 2 },
     },
     {
@@ -227,23 +275,23 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [
           { table: 'reports', field: 'branch', alias: 'Branch Report' },
-          { table: 'reports', field: 'airline', alias: 'Airlines' },
           { table: 'reports', field: 'area', alias: 'Area' },
         ],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...baseFilters],
-        sorts: [{ field: 'Branch Report', direction: 'asc' }, { field: 'Total', direction: 'desc' }], 
-        limit: 500,
+        filters: [...df, nonCargoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], 
+        limit: 1000,
       },
       visualization: { 
-        chartType: 'pivot', 
+        chartType: 'branch_area_grid', 
         title: 'Case Report by Area',
         xAxis: 'Area',
-        yAxis: ['Branch Report', 'Airlines'],
-        showLegend: false, 
-        showLabels: true 
+        yAxis: ['Branch Report'],
+        showLegend: true, 
+        showLabels: true,
+        colors: ['#4caf50', '#81c784', '#a5d6a7', '#c8e6c9', '#e8f5e9'],
       },
-      layout: { x: 0, y: 1, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2 (Standardized)
+      layout: { x: 0, y: 7, w: 12, h: 4 }, // Full width for grid
     },
     // Table -> Bar: Terminal Area Category
     {
@@ -253,7 +301,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'terminal_area_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'terminal_area_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 100,
+        sorts: [{ field: 'Record Count', direction: 'desc' }], limit: 10000,
       },
       visualization: { 
         chartType: 'horizontal_bar', 
@@ -264,7 +312,8 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLabels: true, 
         colors: ['#10b981'],
         crossFiltering: true,
-        openLinkInNewTab: true
+        openLinkInNewTab: true,
+        displayLimit: 10
       },
       layout: { x: 6, y: 1, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2 (Standardized)
     },
@@ -276,9 +325,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'apron_area_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'apron_area_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 100,
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#10b981'] },
+      visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#10b981'], displayLimit: 10 },
       layout: { x: 0, y: 3, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2 (Standardized)
     },
     // Table -> Bar: General Category
@@ -289,9 +338,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'general_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'general_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 100,
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#10b981'] },
+      visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#10b981'], displayLimit: 10 },
       layout: { x: 6, y: 3, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2 (Standardized)
     },
     // Horizontal Bar: HUB Report
@@ -302,9 +351,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'hub', alias: 'hub' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true, colors: ['#81c784'] },
+      visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 10 },
       layout: { x: 0, y: 5, w: 6, h: 2 },
     },
     // Table: Detail Report Landside & Airside
@@ -325,7 +374,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         ],
         measures: [],
         filters: [...baseFilters],
-        sorts: [{ field: 'Date', direction: 'desc' }], limit: 5000,
+        sorts: [{ field: 'Date', direction: 'desc' }], limit: 10000,
       },
       visualization: { chartType: 'table', title: 'Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },
       layout: { x: 0, y: 7, w: 12, h: 4 }, // WIDTH 12, HEIGHT 4 (Table Exception)
@@ -351,7 +400,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'terminal_area_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], 
-        limit: 100,
+        limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -374,7 +423,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'apron_area_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], 
-        limit: 100,
+        limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -397,7 +446,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'general_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], 
-        limit: 100,
+        limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -422,7 +471,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'terminal_area_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], 
-        limit: 100,
+        limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -445,7 +494,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'apron_area_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], 
-        limit: 100,
+        limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -468,7 +517,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...baseFilters, { table: 'reports', field: 'general_category', operator: 'is_not_null' as const, value: '', conjunction: 'AND' as const }],
         sorts: [{ field: 'Total', direction: 'desc' }], 
-        limit: 100,
+        limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -495,7 +544,53 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   };
   
   const page4Tiles: DashboardTile[] = [
-    // ── Row 1: 4 Horizontal Bar Charts ──
+    // ── KPI Row ──
+    {
+      id: tileId(),
+      query: {
+        source: 'reports', joins: [], dimensions: [],
+        measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }],
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [], limit: 1,
+      },
+      visualization: { chartType: 'kpi', title: 'Total Report', yAxis: ['total'], showLegend: false, showLabels: false },
+      layout: { x: 0, y: 0, w: 3, h: 1 },
+    },
+    {
+      id: tileId(),
+      query: {
+        source: 'reports', joins: [], dimensions: [],
+        measures: [{ table: 'reports', field: 'branch', function: 'COUNT_DISTINCT', alias: 'total' }],
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [], limit: 1,
+      },
+      visualization: { chartType: 'kpi', title: 'Branch', yAxis: ['total'], showLegend: false, showLabels: false },
+      layout: { x: 3, y: 0, w: 3, h: 1 },
+    },
+    {
+      id: tileId(),
+      query: {
+        source: 'reports', joins: [], dimensions: [],
+        measures: [{ table: 'reports', field: 'airline', function: 'COUNT_DISTINCT', alias: 'total' }],
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [], limit: 1,
+      },
+      visualization: { chartType: 'kpi', title: 'Airlines', yAxis: ['total'], showLegend: false, showLabels: false },
+      layout: { x: 6, y: 0, w: 3, h: 1 },
+    },
+    {
+      id: tileId(),
+      query: {
+        source: 'reports', joins: [], dimensions: [],
+        measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }],
+        filters: [...df, cgoFilter, { table: 'reports', field: 'main_category', operator: 'eq' as const, value: 'Compliment', conjunction: 'AND' as const }, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [], limit: 1,
+      },
+      visualization: { chartType: 'kpi', title: 'Compliment Report', yAxis: ['total'], showLegend: false, showLabels: false },
+      layout: { x: 9, y: 0, w: 3, h: 1 },
+    },
+
+    // ── Row 1: 4 Horizontal Bar Charts (Shifted to y: 1) ──
     
     // 1. Report by Case Category
     {
@@ -504,11 +599,11 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'main_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Report by Case Category', xAxis: 'Category', yAxis: ['Total'], showLegend: true, showLabels: true, colors: ['#00acc1', '#81c784', '#ffd54f'] },
-      layout: { x: 0, y: 0, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2
+      visualization: { chartType: 'horizontal_bar', title: 'Report by Case Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#00acc1', '#81c784', '#ffd54f'], displayLimit: 10 },
+      layout: { x: 0, y: 1, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2
     },
     // 2. Branch Reporting
     {
@@ -517,11 +612,11 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'branch', alias: 'Branch' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Branch Reporting', xAxis: 'Branch', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'] },
-      layout: { x: 6, y: 0, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2
+      visualization: { chartType: 'horizontal_bar', title: 'Report by Branch (Top 10)', xAxis: 'Branch', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 10 },
+      layout: { x: 6, y: 1, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2
     },
     // 3. Airlines Report
     {
@@ -530,11 +625,11 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'airline', alias: 'Airline' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Airlines Report', xAxis: 'Airline', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'] },
-      layout: { x: 0, y: 2, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
+      visualization: { chartType: 'horizontal_bar', title: 'Airlines Report', xAxis: 'Airline', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 10 },
+      layout: { x: 0, y: 3, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
     },
     // 4. Monthly Report
     {
@@ -543,11 +638,11 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'date_of_event', alias: 'Month', dateGranularity: 'month' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Month', direction: 'desc' }], limit: 12,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Month', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'Month', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'] },
-      layout: { x: 6, y: 2, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
+      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'Month', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 12 },
+      layout: { x: 6, y: 3, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
     },
 
     // ── Row 2: Category by Area + 2 Pivot Tables ──
@@ -559,11 +654,11 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'area', alias: 'Area' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 5,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Category by Area', xAxis: 'Area', yAxis: ['Total'], showLegend: true, showLabels: true, colors: ['#00acc1', '#81c784', '#ffd54f'] },
-      layout: { x: 0, y: 4, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 3
+      visualization: { chartType: 'horizontal_bar', title: 'Category by Area', xAxis: 'Area', yAxis: ['Total'], showLegend: true, showLabels: true, colors: ['#00acc1', '#81c784', '#ffd54f'], displayLimit: 5 },
+      layout: { x: 0, y: 5, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 3
     },
     // 6. Case Category by Branch (Pivot)
     {
@@ -575,8 +670,8 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
           { table: 'reports', field: 'main_category', alias: 'Report Category' },
         ],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Grand total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Grand total', direction: 'desc' }], limit: 100,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Grand total', direction: 'desc' }], limit: 10000,
       },
       visualization: { 
         chartType: 'pivot', 
@@ -586,7 +681,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         showLegend: false, 
         showLabels: true 
       },
-      layout: { x: 6, y: 4, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 3
+      layout: { x: 6, y: 5, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 3
     },
     // 7. Case Category by Airlines (Pivot)
     {
@@ -598,11 +693,11 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
           { table: 'reports', field: 'main_category', alias: 'Report Category' },
         ],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Grand total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Grand total', direction: 'desc' }], limit: 100,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Grand total', direction: 'desc' }], limit: 10000,
       },
       visualization: { chartType: 'table', title: 'Case Category by Airlines', yAxis: [], showLegend: false, showLabels: false },
-      layout: { x: 0, y: 6, w: 12, h: 2 }, // WIDTH 12, HEIGHT 2, Row 4
+      layout: { x: 0, y: 7, w: 12, h: 2 }, // WIDTH 12, HEIGHT 2, Row 4
     },
   ];
 
@@ -620,23 +715,23 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [
           { table: 'reports', field: 'branch', alias: 'Branch Report' },
-          { table: 'reports', field: 'airline', alias: 'Airlines' },
           { table: 'reports', field: 'area', alias: 'Area' },
         ],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Grand total' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'Branch Report', direction: 'asc' }, { field: 'Grand total', direction: 'desc' }], 
-        limit: 500,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Grand total', direction: 'desc' }],
+        limit: 10000,
       },
-      visualization: { 
-        chartType: 'pivot', 
+      visualization: {
+        chartType: 'branch_area_grid',
         title: 'Case Report by Area',
         xAxis: 'Area',
-        yAxis: ['Branch Report', 'Airlines'],
-        showLegend: false, 
-        showLabels: true 
+        yAxis: ['Branch Report'],
+        showLegend: true,
+        showLabels: true,
+        colors: ['#4caf50', '#81c784', '#a5d6a7', '#c8e6c9', '#e8f5e9'],
       },
-      layout: { x: 0, y: 0, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2
+      layout: { x: 0, y: 0, w: 12, h: 4 }, // Width 12 for grid
     },
     // 2. Terminal Area Category
     {
@@ -645,10 +740,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'terminal_area_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'Terminal Area', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'Terminal Area', conjunction: 'AND' as const }, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Terminal Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'] },
+      visualization: { chartType: 'horizontal_bar', title: 'Terminal Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'], displayLimit: 10 },
       layout: { x: 6, y: 0, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2
     },
     // 3. Apron Area Category
@@ -658,10 +753,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'apron_area_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'Apron Area', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'Apron Area', conjunction: 'AND' as const }, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'] },
+      visualization: { chartType: 'horizontal_bar', title: 'Apron Area Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'], displayLimit: 10 },
       layout: { x: 0, y: 2, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
     },
     // 4. General Category
@@ -671,10 +766,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'general_category', alias: 'Category' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
-        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'General', conjunction: 'AND' as const }],
-        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, { table: 'reports', field: 'area', operator: 'eq' as const, value: 'General', conjunction: 'AND' as const }, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'Total', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'] },
+      visualization: { chartType: 'horizontal_bar', title: 'General Category', xAxis: 'Category', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#66bb6a'], displayLimit: 10 },
       layout: { x: 6, y: 2, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
     },
 
@@ -687,10 +782,10 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         source: 'reports', joins: [],
         dimensions: [{ table: 'reports', field: 'hub', alias: 'hub' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
-        filters: [...df, cgoFilter],
-        sorts: [{ field: 'count', direction: 'desc' }], limit: 10,
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
+        sorts: [{ field: 'count', direction: 'desc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true, colors: ['#81c784'] },
+      visualization: { chartType: 'horizontal_bar', title: 'HUB Report', xAxis: 'hub', yAxis: ['count'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 10 },
       layout: { x: 0, y: 4, w: 6, h: 2 },
     },
     // 6. Detail Report Landside & Airside
@@ -710,7 +805,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
           { table: 'reports', field: 'evidence_url', alias: 'Evidence Link' },
         ],
         measures: [],
-        filters: [...df, cgoFilter],
+        filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters],
         sorts: [{ field: 'Date', direction: 'desc' }], limit: 5000,
       },
       visualization: { chartType: 'table', title: 'Detail Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },

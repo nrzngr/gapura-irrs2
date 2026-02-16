@@ -4,11 +4,11 @@ import {
   normalizeVisualization,
 } from "@/lib/builder/normalization";
 import { buildSchemaContextForAI } from "@/lib/builder/schema";
-import { callAI } from "@/lib/ai/openrouter";
+import { callGroqAI } from "@/lib/ai/groq";
 import crypto from "crypto";
 
 // AI Configuration
-const AI_MODEL = "openai/gpt-oss-20b:free";
+const AI_MODEL = "llama-3.1-8b-instant";
 
 // Rate limiting
 const requestTimestamps = new Map<string, number[]>();
@@ -40,6 +40,12 @@ interface InsightRequest {
     from: string;
     to: string;
   };
+  supportingCharts?: Array<{
+    title: string;
+    chartType: string;
+    dimensions: any[];
+    measures: any[];
+  }>;
 }
 
 // Generate cache key from request
@@ -52,6 +58,7 @@ function generateCacheKey(body: InsightRequest): string {
     totalRows: body.totalRows,
     statistics: body.statistics,
     dateRange: body.dateRange,
+    supportingCharts: body.supportingCharts,
     // Use first 50 rows for better uniqueness
     dataSample: body.dataSample.slice(0, 50),
   };
@@ -180,17 +187,14 @@ export async function POST(req: NextRequest) {
       context: "Analysis based on provided data sample.",
     });
 
-    // Call AI (OpenRouter)
+    // Call AI (Groq)
     let insightsText;
     try {
-      insightsText = await callAI(
+      insightsText = await callGroqAI(
         [
           {
             role: "system",
             content: `Anda adalah Senior Data Analyst di PT Gapura Angkasa Indonesia dengan pengalaman lebih dari 40 tahun dalam operasional ground handling. 
-Tugas Anda adalah memberikan analisis yang sangat kritis, akurat, dan berbasis data (data-driven) untuk Board of Directors.
-
-IDENTITY & PRINCIPLES:
 1.  **NO HALLUCINATION**: Haram hukumnya mengarang data. Jika data tidak ada, katakan tidak ada. Jangan pernah berasumsi atau membuat angka fiktif.
 2.  **STRICT SCHEMA ADHERRENCE**: Gunakan hanya istilah dan field yang ada dalam schema database Gapura.
 3.  **ROOT CAUSE FOCUS**: Jangan hanya melaporkan "apa" yang terjadi, tapi analisis "mengapa" dan dampaknya terhadap On-Time Performance (OTP) dan SLA.
@@ -203,10 +207,13 @@ ATURAN OUTPUT:
 3.  JANGAN gunakan markdown block (seperti \`\`\`json) di dalam value JSON.
 4.  JANGAN PERNAH mengurutkan (ORDER BY) berdasarkan kolom mentah yang tidak ada di SELECT/GROUP BY.
 
-Business Context:
-- **Laporan/Reports**: Data operasional harian (irregularity, complaint, compliment).
-- **Areas**: APRON (Sisi udara), TERMINAL (Sisi darat), GENERAL.
-- **Severity**: Low, Medium, High.`,
+Business Context (PT Gapura Angkasa):
+- **Irregularity**: Kejadian tidak normal/penyimpangan operasional (Misal: Delay, Baggage Mishandling, Equipment Failure). PRIORITAS TINGGI.
+- **Complain**: Keluhan pelanggan/maskapai. Dampak langsung pada kepuasan & SLA. Harus segera dimitigasi.
+- **Compliment**: Apresiasi dari pelanggan. Identifikasi "Service Champion" atau area berkinerja tinggi.
+- **Areas**: APRON (Sisi udara), TERMINAL (Sisi darat), GENERAL (Umum).
+- **Severity**: Low, Medium, High. Catatan: Complain "Low" tetap kritikal bagi reputasi layanan.
+- **Root Cause**: Analisis dari 5-Why (Men, Machine, Method, Material, Milieu/Environment).`,
           },
           {
             role: "user",
@@ -303,44 +310,13 @@ Business Context:
         insightsObj.tren = [];
       }
 
-      // Initialize supportingCharts if missing or not an array
-      if (!Array.isArray(insightsObj.supportingCharts)) {
-        insightsObj.supportingCharts = [];
-      }
-
-      // Deduplicate by title
-      const seenTitles = new Set<string>();
-      const rawCharts = insightsObj.supportingCharts as Array<{
-        visualization?: { title?: string; chartType?: string };
-        query?: unknown;
-      }>;
-
-      insightsObj.supportingCharts = rawCharts.filter((chart) => {
-        if (!chart || !chart.visualization || !chart.visualization.title)
-          return false;
-        // Basic validation of chart structure
-        if (!chart.visualization.chartType || !chart.query) return false;
-
-        // NORMALIZE QUERY
-        chart.query = normalizeQuery(chart.query);
-        if (!chart.query) return false;
-
-        const normalizedTitle = chart.visualization.title.trim().toLowerCase();
-
-        // APPLY SHARED VISUALIZATION RULES (Fail-safes, Axis syncing)
-        chart = normalizeVisualization(chart as any);
-
-        if (seenTitles.has(normalizedTitle)) return false;
-        seenTitles.add(normalizedTitle);
-        return true;
-      });
     }
 
     // 5. CACHE STORAGE
     setMemoryCache(
       cacheKey,
       insights,
-      (insights as Record<string, unknown>).supportingCharts,
+      [], // AI supporting charts disabled - we use deterministic charts now
       {
         model: AI_MODEL,
         chartTitle,
@@ -409,11 +385,16 @@ SPECIAL INSTRUCTION FOR CARGO (CGO):
 </SYSTEM_INSTRUCTION>
 
 <DATA_CONTEXT>
-- Chart: "${chartTitle}" (${chartType})
-- Total Rows: ${totalRows}
-- Stats: Max=${statistics.maximum}, Avg=${statistics.average.toFixed(2)}, Min=${statistics.minimum}
-- Date Range: ${dateRange ? `${dateRange.from} to ${dateRange.to}` : "N/A"}
-- Context: ${context || "General Analysis"}
+- Chart Utama: "${chartTitle}" (${chartType})
+- Total Baris: ${totalRows}
+- Statistik: Maks=${statistics.maximum}, Rata-rata=${statistics.average.toFixed(2)}, Min=${statistics.minimum}
+- Rentang Tanggal: ${dateRange ? `${dateRange.from} s/d ${dateRange.to}` : "Tidak Tersedia"}
+- Konteks Analisis: ${context || "Analisis Umum"}
+
+<SUPPORTING_CHARTS_CONTEXT>
+Gunakan context ini untuk melihat gambaran besar (Holistic Awareness). Jangan hanya fokus pada satu chart utama jika chart pendukung memberikan insight tambahan:
+${JSON.stringify(data.supportingCharts || [], null, 2)}
+</SUPPORTING_CHARTS_CONTEXT>
 </DATA_CONTEXT>
 
 <RAW_DATA_SAMPLE>
@@ -421,24 +402,14 @@ ${JSON.stringify(dataSample, null, 2)}
 </RAW_DATA_SAMPLE>
 
 <ANALYSIS_TASKS>
-1. **Executive Summary**: Summarize the data trends in 2 sentences. What is the main takeaway?
-2. **Key Findings**: Identify the top 3 contributors or patterns. Use ACTUAL NUMBERS from the data sample.
-3. **Anomalies**: Is there any value significantly higher/lower than others? If not, say "No significant anomalies".
-4. **Recommendations**: Suggest 2 actions based ONLY on the data. (e.g., if "Delay" is high, suggest "Investigate root causes of Delay").
+1. **Executive Summary**: Ringkas tren data dalam 2-3 kalimat. Apa temuan terpenting yang harus diketahui Direksi?
+2. **Korupsi Data vs Konteks Bisnis**: Gunakan angka AKTUAL dari data sample. Hubungkan antara volume di Chart Utama dengan dimensi di Supporting Charts (Contoh: "Meskipun volume Complain di Lokasi A tinggi, Supporting Chart menunjukkan ini didominasi oleh Kategori B"). 
+   - **PENTING**: JANGAN PERNAH menggunakan nama fiktif seperti 'Maskapai X', 'Lokasi A', atau 'Kategori B' dalam output akhir. Gunakan HANYA nama asli yang ada di dataset.
+3. **Analisis 3S (Safety, Security, Service)**: Klasifikasikan temuan berdasarkan dampaknya terhadap Safety operasional atau Service quality (Complaint/Compliment).
+4. **Anomali & Root Cause**: Identifikasi outlier. Berikan spekulasi penyebab berdasarkan kategori (Misal: "Lonjakan Delay di Apron kemungkinan disebabkan oleh Machine/GSE Failure").
+5. **Rekomendasi Strategis**: Berikan 2-3 tindakan konkret yang dapat dilakukan manajemen.
 </ANALYSIS_TASKS>
 
-<SUPPORTING_CHART_INSTRUCTIONS>
-Generate EXACTLY 4 unique supporting charts to provide deeper context:
-1. **Breakdown by another dimension**: If main chart is by Category, show by Branch or Airline.
-2. **Trend Analysis**: Show the data over time (event_date) if possible.
-3. **Top Contributors**: A horizontal bar chart of the top 5 contributing entities (e.g. specific airlines or branches).
-4. **Composition**: A pie/donut chart showing the distribution of a key attribute (e.g. Status or Severity).
-
-Rules:
-- Do NOT repeat the main chart.
-- Use different visualization types (bar, line, pie, horizontal_bar).
-- Ensure queries are valid and use correct table/field names from schema.
-</SUPPORTING_CHART_INSTRUCTIONS>
 
 <OUTPUT_FORMAT>
 Return a valid JSON object. NO markdown.
@@ -452,8 +423,9 @@ Return a valid JSON object. NO markdown.
     }
   ],
   "__RULES__": [
-     "DO NOT use generic keys like 'Label', 'Metric_Name', 'Dimension_Name', 'Report Category', 'Branch'. Use the ACTUAL field name from the data (e.g., 'Singapore Airlines': 18, 'Irregularity': 50).",
-     "The 'data' object should look like { 'Singapore Airlines': '18 reports', 'Emirates': '17 reports' }"
+     "DO NOT use generic keys like 'Label', 'Metric_Name', 'Dimension_Name', 'Report Category', 'Branch'. Use the ACTUAL field name from the data (e.g., 'Garuda Indonesia': 18, 'Irregularity': 50).",
+     "The 'data' object should look like { 'Nama Maskapai/Kategori': '18 laporan' }",
+     "CRITICAL: If a dimension name is not in the data, DO NOT make it up. DO NOT use 'Maskapai X' or similar placeholders."
   ],
   "tren": [
     { "label": "Trend Name", "arah": "naik/turun/stabil", "persentase": 0, "deskripsi": "Description" }
@@ -468,27 +440,6 @@ Return a valid JSON object. NO markdown.
   ],
   "anomali": [
     { "label": "Outlier Label", "nilai": "Value", "deskripsi": "Description" }
-  ],
-  "supportingCharts": [
-    {
-      "visualization": {
-        "chartType": "bar|line|area|pie|donut|heatmap",
-        "title": "Indonesian Insightful Title",
-        "xAxis": "Alias mapper",
-        "yAxis": ["Alias mapper"],
-        "colorField": "For Heatmaps"
-      },
-      "query": {
-        "source": "reports",
-        "dimensions": [{"table": "reports", "field": "f", "alias": "A"}],
-        "measures": [{"table": "reports", "field": "id", "function": "COUNT", "alias": "Jumlah"}],
-        "sorts": [{"field": "Jumlah", "direction": "desc"}],
-        "limit": 5
-      }
-    },
-    { "visualization": { "title": "Chart 2" }, "query": {} },
-    { "visualization": { "title": "Chart 3" }, "query": {} },
-    { "visualization": { "title": "Chart 4" }, "query": {} }
   ],
   "kesimpulan": "Final conclusion."
 }

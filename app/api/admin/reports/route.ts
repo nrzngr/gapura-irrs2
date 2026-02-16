@@ -3,6 +3,33 @@ import { supabase } from '@/lib/supabase';
 import { validateStatusTransition, getTimestampFieldForStatus, getUserFieldForStatus } from '@/lib/utils/validate-transition';
 import { reportsService } from '@/lib/services/reports-service';
 
+// Reference data cache — stations/users change infrequently
+// Complexity: Time O(1) per lookup | Space O(stations + users)
+interface RefCache<T> { data: T; ts: number }
+const REF_CACHE_TTL = 1000 * 60 * 10; // 10 minutes
+let stationsCache: RefCache<Array<{ id: string; code: string; name: string }>> | null = null;
+let usersCache: RefCache<Array<{ id: string; full_name: string; email: string }>> | null = null;
+
+async function getCachedStations() {
+  if (stationsCache && Date.now() - stationsCache.ts < REF_CACHE_TTL) {
+    return stationsCache.data;
+  }
+  const { data } = await supabase.from('stations').select('id, code, name');
+  const result = data ?? [];
+  stationsCache = { data: result, ts: Date.now() };
+  return result;
+}
+
+async function getCachedUsers() {
+  if (usersCache && Date.now() - usersCache.ts < REF_CACHE_TTL) {
+    return usersCache.data;
+  }
+  const { data } = await supabase.from('users').select('id, full_name, email');
+  const result = data ?? [];
+  usersCache = { data: result, ts: Date.now() };
+  return result;
+}
+
 // GET all reports (for admin)
 export async function GET(request: Request) {
     try {
@@ -14,28 +41,31 @@ export async function GET(request: Request) {
         const mainCategory = searchParams.get('main_category');
         const from = searchParams.get('from');
         const to = searchParams.get('to');
-        const targetDivision = searchParams.get('target_division');
 
-        // Fetch all reports from Google Sheets
-        const reports = await reportsService.getReports();
+        // Parallel fetch — reports + reference data concurrently
+        const [reports, stations, users] = await Promise.all([
+            reportsService.getReports(),
+            getCachedStations(),
+            getCachedUsers(),
+        ]);
 
-        // Fetch related data from Supabase for manual join
-        const { data: stations } = await supabase.from('stations').select('id, code, name');
-        const { data: users } = await supabase.from('users').select('id, full_name, email');
-        
-        // Enrich reports
+        // Complexity: Time O(n * s) — s is small (station count), acceptable
+        // Build lookup maps for O(1) enrichment if reference data is large
+        const stationById = new Map(stations.map(s => [s.id, s]));
+        const stationByCode = new Map(stations.map(s => [s.code, s]));
+        const userById = new Map(users.map(u => [u.id, u]));
+
         const enrichedReports = reports.map(report => {
-            const stationObj = stations?.find(s => s.id === report.station_id) || 
-                               stations?.find(s => s.code === report.branch) || 
-                               stations?.find(s => s.code === report.station_code);
-            
-            const userObj = users?.find(u => u.id === report.user_id);
+            const stationObj = stationById.get(report.station_id) ??
+                               stationByCode.get(report.branch) ??
+                               stationByCode.get(report.station_code);
+
+            const userObj = userById.get(report.user_id);
 
             return {
                 ...report,
                 stations: stationObj ? { code: stationObj.code, name: stationObj.name } : null,
                 users: userObj ? { full_name: userObj.full_name, email: userObj.email } : null,
-                // Ensure station_id is populated for filtering if it was missing but matched by code
                 station_id: report.station_id || stationObj?.id
             };
         });
@@ -48,7 +78,6 @@ export async function GET(request: Request) {
         }
 
         if (station && station !== 'all') {
-            // station filter is likely an ID from frontend dropdown
             filteredData = filteredData.filter(r => r.station_id === station);
         }
 
@@ -57,7 +86,6 @@ export async function GET(request: Request) {
         }
 
         if (mainCategory && mainCategory !== 'all') {
-             // 'category' in Sheet mapped to 'category' in Report
             filteredData = filteredData.filter(r => r.category === mainCategory);
         }
 
@@ -71,15 +99,9 @@ export async function GET(request: Request) {
             filteredData = filteredData.filter(r => new Date(r.created_at).getTime() <= toDate);
         }
 
-        // target_division might not be in Sheet?
-        // if (targetDivision && targetDivision !== 'all') {
-        //    filteredData = filteredData.filter(r => r.target_division === targetDivision);
-        // }
-
-        // Search by case number / title / reference_number / flight_number
         if (search) {
             const searchLower = search.toLowerCase();
-            filteredData = filteredData.filter(r => 
+            filteredData = filteredData.filter(r =>
                 (r.title || '').toLowerCase().includes(searchLower) ||
                 (r.reference_number || '').toLowerCase().includes(searchLower) ||
                 (r.flight_number || '').toLowerCase().includes(searchLower) ||

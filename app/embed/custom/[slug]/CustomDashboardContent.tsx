@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChartPreview } from '@/components/builder/ChartPreview';
+import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink, Menu } from 'lucide-react';
 import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
@@ -56,6 +57,7 @@ interface Dashboard {
     subtitle?: string;
     filters?: string[];
     pages?: string[];
+    hideControls?: boolean;
   };
   dashboard_charts: ChartData[];
 }
@@ -97,6 +99,7 @@ export function CustomDashboardContent() {
 
   // Multi-page navigation
   const [activePage, setActivePage] = useState(0);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -513,6 +516,49 @@ export function CustomDashboardContent() {
       setExportingFormat(null);
     }
   }, [dashboard, pages, chartsData, fetchChartData]);
+  const hasMultiplePages = pages.length > 1;
+
+  const handleTableViewDetail = useCallback((chart: ChartData, result: QueryResult) => {
+    const isCGODetail = pages[activePage]?.name.toLowerCase().includes('cgo detail');
+    const displayTitle = isCGODetail ? 'Detail CGO Report' : chart.title;
+    
+    const baseViz: ChartVisualization = chart.visualization_config || {
+      chartType: (chart.chart_type as ChartType) || 'bar',
+      yAxis: result.columns.slice(1),
+      xAxis: result.columns[0],
+      showLegend: true,
+      showLabels: true,
+    };
+    const viz = greenify(baseViz);
+
+    const detailData = {
+      tile: {
+        id: chart.id,
+        visualization: { ...viz, title: displayTitle },
+        query: chart.query_config || {
+          source: 'reports',
+          joins: [],
+          dimensions: [],
+          measures: [],
+          filters: [],
+          sorts: [],
+          limit: 1000
+        },
+        layout: chart.layout || { x: 0, y: 0, w: 6, h: 3 }
+      },
+      result: result,
+      dashboardId: 'embed-dashboard',
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
+    
+    const params = new URLSearchParams();
+    params.set('dashboardId', 'embed-dashboard');
+    params.set('tileId', chart.id);
+    
+    router.push(`/dashboard/chart-detail?${params.toString()}`);
+  }, [activePage, pages, router]);
 
   // ─── Loading / Error ────────────────────────────────────────────────────────
   if (loading) {
@@ -580,7 +626,7 @@ export function CustomDashboardContent() {
     );
   }
 
-  const hasMultiplePages = pages.length > 1;
+
 
   return (
     <div className="flex min-h-screen font-sans bg-gray-50 text-gray-900 overflow-x-hidden">
@@ -787,43 +833,45 @@ export function CustomDashboardContent() {
                 </div>
                 
                 {/* Date range */}
-                <div className="relative">
-                  <button 
-                    onClick={() => setShowDatePicker(!showDatePicker)} 
-                    className="flex items-center gap-2 px-3 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium hover:bg-[#5a7a3a] transition-all shadow-sm active:scale-95 border border-transparent"
-                  >
-                    <span className="truncate max-w-[120px] sm:max-w-xs">{formatDateRange()}</span>
-                    <ChevronDownIcon size={14} className="text-white/80" />
-                  </button>
-                  {showDatePicker && (
-                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-4 shadow-2xl z-50 min-w-[280px] flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">From</label>
-                        <input 
-                          type="date" 
-                          value={dateFrom} 
-                          onChange={e => setDateFrom(e.target.value)} 
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                        />
+                {!dashboard.config?.hideControls && (
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowDatePicker(!showDatePicker)} 
+                      className="flex items-center gap-2 px-3 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium hover:bg-[#5a7a3a] transition-all shadow-sm active:scale-95 border border-transparent"
+                    >
+                      <span className="truncate max-w-[120px] sm:max-w-xs">{formatDateRange()}</span>
+                      <ChevronDownIcon size={14} className="text-white/80" />
+                    </button>
+                    {showDatePicker && (
+                      <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-4 shadow-2xl z-50 min-w-[280px] flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">From</label>
+                          <input 
+                            type="date" 
+                            value={dateFrom} 
+                            onChange={e => setDateFrom(e.target.value)} 
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">To</label>
+                          <input 
+                            type="date" 
+                            value={dateTo} 
+                            onChange={e => setDateTo(e.target.value)} 
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
+                          />
+                        </div>
+                        <button 
+                          onClick={() => setShowDatePicker(false)} 
+                          className="mt-1 w-full py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-bold hover:bg-[#5a7a3a] transition-colors"
+                        >
+                          Apply Filters
+                        </button>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">To</label>
-                        <input 
-                          type="date" 
-                          value={dateTo} 
-                          onChange={e => setDateTo(e.target.value)} 
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
-                        />
-                      </div>
-                      <button 
-                        onClick={() => setShowDatePicker(false)} 
-                        className="mt-1 w-full py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-bold hover:bg-[#5a7a3a] transition-colors"
-                      >
-                        Apply Filters
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -832,21 +880,23 @@ export function CustomDashboardContent() {
               <span className="text-white font-bold text-sm block tracking-wide">
                 Irregularity, Complain & Compliment Report
               </span>
-              <div className="flex gap-2 flex-wrap items-center">
-                <DynamicFilterHeader 
-                  onFilterChange={setActiveFilters}
-                  initialFilters={activeFilters}
-                  variant="white"
-                />
-                {(dateFrom || dateTo) && (
-                  <button
-                    onClick={() => { setDateFrom(''); setDateTo(''); }}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white text-xs font-medium border border-white/20 hover:bg-white/20 transition-all active:scale-95"
-                  >
-                    <X size={12} /> Reset Date
-                  </button>
-                )}
-              </div>
+              {!dashboard.config?.hideControls && (
+                <div className="flex gap-2 flex-wrap items-center">
+                  <DynamicFilterHeader 
+                    onFilterChange={setActiveFilters}
+                    initialFilters={activeFilters}
+                    variant="white"
+                  />
+                  {(dateFrom || dateTo) && (
+                    <button
+                      onClick={() => { setDateFrom(''); setDateTo(''); }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white text-xs font-medium border border-white/20 hover:bg-white/20 transition-all active:scale-95"
+                    >
+                      <X size={12} /> Reset Date
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* KPI Stats Row */}
@@ -863,7 +913,21 @@ export function CustomDashboardContent() {
                     }
                   }
                   return (
-                    <div key={tile.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1 hover:shadow-md transition-shadow">
+                    <div 
+                      key={tile.id} 
+                      onClick={() => {
+                        if (cr?.type === 'query' && cr.queryResult) {
+                          handleViewDetail(
+                            tile.title,
+                            cr.queryResult.rows as Record<string, unknown>[],
+                            'kpi',
+                            { yAxis: tile.visualization_config?.yAxis },
+                            tile.query_config
+                          );
+                        }
+                      }}
+                      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1 hover:shadow-md transition-all cursor-pointer hover:border-green-200 active:scale-95"
+                    >
                       <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider text-center">{tile.title}</div>
                       <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{typeof value === 'number' ? value.toLocaleString('id-ID') : value}</div>
                     </div>
@@ -933,33 +997,25 @@ export function CustomDashboardContent() {
                       }, chart.query_config)}
                     />
                   ) : !isTableType && cr.type === 'query' && cr.queryResult ? (
-                    <ChartCard chart={chart} result={cr.queryResult} />
+                    <ChartCard 
+                      chart={chart} 
+                      result={cr.queryResult} 
+                      isCGODetail={pages[activePage]?.name.toLowerCase().includes('cgo detail')}
+                    />
                   ) : cr.type === 'legacy' && cr.stats ? (
                     <LegacyCard chart={chart} stats={cr.stats} />
                   ) : null}
 
-                  {/* For table type: show title header + detail table directly */}
-                  {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
-                    <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 overflow-hidden shadow-sm">
-                      <div className="px-5 py-4 flex items-center justify-between">
-                        <div>
-                          <h3 className="m-0 text-sm font-bold text-gray-800">{chart.title}</h3>
-                          <span className="text-xs text-gray-400">{cr.queryResult.rowCount} baris</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* DETAIL TABLE (only for table type charts) */}
                   {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
-                    <DetailTable 
-                      title={chart.title} 
-                      result={cr.queryResult} 
-                      onViewDetail={() => handleViewDetail(chart.title, cr.queryResult ? cr.queryResult.rows : [], 'table', {
-                         xAxis: chart.visualization_config?.xAxis,
-                         // For table, we might want to pass all columns, but for now this is fine since it's just 'table' type
-                      }, chart.query_config)}
-                    />
+                     <div className="h-[600px] mb-8">
+                      <InvestigativeTable 
+                        title={pages[activePage]?.name.toLowerCase().includes('cgo detail') ? 'Detail CGO Report' : chart.title} 
+                        data={cr.queryResult} 
+                        className="h-full shadow-lg border-indigo-100"
+                        onViewDetail={() => handleTableViewDetail(chart, cr.queryResult!)}
+                      />
+                    </div>
                   )}
                   {cr.type === 'legacy' && cr.stats && cr.stats.distribution.length > 0 && (
                     <LegacyDetailTable title={chart.title} stats={cr.stats} />
@@ -1031,7 +1087,7 @@ export function CustomDashboardContent() {
 
 // ─── CHART CARD ─────────────────────────────────────────────────────────────
 
-function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult }) {
+function ChartCard({ chart, result, isCGODetail }: { chart: ChartData; result: QueryResult; isCGODetail?: boolean }) {
   const router = useRouter();
   const baseViz: ChartVisualization = chart.visualization_config || {
     chartType: (chart.chart_type as ChartType) || 'bar',
@@ -1042,6 +1098,7 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
   };
   const viz = greenify(baseViz);
   const isTable = viz.chartType === 'table';
+  const displayTitle = isCGODetail ? 'Detail CGO Report' : chart.title;
 
   if (isTable) return null;
 
@@ -1050,7 +1107,7 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
     const detailData = {
       tile: {
         id: chart.id,
-        visualization: viz,
+        visualization: { ...viz, title: displayTitle },
         query: chart.query_config || {
           source: 'reports',
           joins: [],
@@ -1080,7 +1137,7 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden h-full">
       <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100/50">
-        <h3 className="text-sm font-bold text-gray-800 m-0">{chart.title}</h3>
+        <h3 className="text-sm font-bold text-gray-800 m-0">{displayTitle}</h3>
         <button
           onClick={handleViewDetail}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-[#6b8e3d] hover:bg-[#5a7a3a] rounded transition-colors shadow-sm active:scale-95"
@@ -1092,7 +1149,7 @@ function ChartCard({ chart, result }: { chart: ChartData; result: QueryResult })
       </div>
       <div className="p-4 flex-1 min-h-0 flex flex-col overflow-hidden bg-white/50 relative">
         <div className="w-full h-[400px] overflow-y-auto custom-scrollbar">
-          <ChartPreview visualization={viz} result={result} />
+          <ChartPreview visualization={viz} result={result} isThumbnail={true} />
         </div>
       </div>
     </div>
@@ -1158,169 +1215,7 @@ function LegacyCard({ chart, stats }: { chart: ChartData; stats: ChartResult['st
   );
 }
 
-// ─── DETAIL TABLE (separate card, grouped with chart above) ─────────────────
 
-function DetailTable({ title, result, onViewDetail }: { title: string; result: QueryResult; onViewDetail?: () => void }) {
-  const [page, setPage] = useState(0);
-  const [sortCol, setSortCol] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const PAGE_SIZE = 10;
-
-  const rows = result.rows as Record<string, unknown>[];
-
-  const sortedRows = useMemo(() => {
-    if (!sortCol) return rows;
-    return [...rows].sort((a, b) => {
-      const av = a[sortCol] ?? '';
-      const bv = b[sortCol] ?? '';
-      if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
-      return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
-    });
-  }, [rows, sortCol, sortDir]);
-
-  const pagedRows = sortedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
-
-  const handleSort = (col: string) => {
-    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortCol(col); setSortDir('asc'); }
-  };
-
-  // Max values per column for heatmap
-  const maxValues = useMemo(() => {
-    const max: Record<string, number> = {};
-    result.columns.forEach(col => {
-      let colMax = 0;
-      rows.forEach(row => { const v = Number(row[col]); if (!isNaN(v) && v > colMax) colMax = v; });
-      max[col] = colMax;
-    });
-    return max;
-  }, [result.columns, rows]);
-
-  // Grand total row
-  const grandTotal = useMemo(() => {
-    const totals: Record<string, number> = {};
-    result.columns.forEach(col => {
-      let sum = 0;
-      let isNumeric = false;
-      rows.forEach(row => {
-        const v = Number(row[col]);
-        if (!isNaN(v) && row[col] !== null && row[col] !== '' && typeof row[col] !== 'boolean') {
-          sum += v;
-          isNumeric = true;
-        }
-      });
-      if (isNumeric) totals[col] = sum;
-    });
-    return totals;
-  }, [result.columns, rows]);
-
-  const hasNumericTotal = Object.keys(grandTotal).length > 0;
-
-  return (
-    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden shadow-sm">
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b8e3d]">Detail: {title}</span>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] sm:text-[11px] text-gray-400 font-medium">{rows.length} baris</span>
-          {onViewDetail && (
-            <button
-              onClick={onViewDetail}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-300 rounded text-[10px] sm:text-[11px] font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
-              title="View Full Detail"
-            >
-              <ExternalLink size={12} />
-              Detail
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full border-collapse text-xs sm:text-[13px]">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap sticky left-0 z-10 w-12">#</th>
-              {result.columns.map(col => (
-                <th 
-                  key={col} 
-                  onClick={() => handleSort(col)} 
-                  className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap cursor-pointer select-none hover:bg-[#4d6932] transition-colors"
-                >
-                  <span className="flex items-center gap-1">
-                    {formatColumnLabel(col)}
-                    {sortCol === col && <span className="text-[9px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {pagedRows.map((row, idx) => (
-              <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="px-3 py-2 text-gray-400 text-[11px] whitespace-nowrap sticky left-0 bg-inherit">{page * PAGE_SIZE + idx + 1}.</td>
-                {result.columns.map(col => {
-                  const val = row[col];
-                  const isEvidenceCol = col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link');
-                  if (isEvidenceCol) {
-                    return <td key={col} className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{renderEvidenceCell(val)}</td>;
-                  }
-                  const numVal = Number(val);
-                  const isNum = !isNaN(numVal) && val !== null && val !== '' && typeof val !== 'boolean';
-                  const maxVal = maxValues[col];
-                  let cellBg = 'transparent';
-                  if (isNum && maxVal > 0 && numVal > 0) {
-                    const alpha = Math.max(0.06, Math.min(0.35, (numVal / maxVal) * 0.45));
-                    cellBg = `rgba(107, 142, 61, ${alpha})`;
-                  }
-                  return (
-                    <td 
-                      key={col} 
-                      className={`px-3 py-2 text-gray-700 text-xs whitespace-nowrap ${isNum ? 'text-center font-semibold' : 'text-left'}`}
-                      style={{ backgroundColor: cellBg }}
-                    >
-                      {formatCellValue(val)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-            {/* Grand Total Row */}
-            {hasNumericTotal && (
-              <tr className="border-t-2 border-[#6b8e3d] bg-[#f0f7e8]">
-                <td className="px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap sticky left-0 bg-[#f0f7e8]">∑</td>
-                {result.columns.map(col => (
-                  <td key={col} className={`px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap ${grandTotal[col] !== undefined ? 'text-center' : 'text-left'}`}>
-                    {grandTotal[col] !== undefined ? grandTotal[col].toLocaleString('id-ID') : 'Grand Total'}
-                  </td>
-                ))}
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {/* Pagination */}
-      {rows.length > PAGE_SIZE && (
-        <div className="flex items-center justify-end px-4 py-2 gap-2 text-xs text-gray-500 border-t border-gray-100 bg-white">
-          <span className="font-medium mr-2">{page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, rows.length)} / {rows.length}</span>
-          <button 
-            onClick={() => setPage(p => Math.max(0, p - 1))} 
-            disabled={page === 0} 
-            className={`p-1 rounded hover:bg-gray-100 transition-colors ${page === 0 ? 'text-gray-300 cursor-default' : 'text-gray-600 cursor-pointer'}`}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button 
-            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} 
-            disabled={page >= totalPages - 1} 
-            className={`p-1 rounded hover:bg-gray-100 transition-colors ${page >= totalPages - 1 ? 'text-gray-300 cursor-default' : 'text-gray-600 cursor-pointer'}`}
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── LEGACY DETAIL TABLE ────────────────────────────────────────────────────
 

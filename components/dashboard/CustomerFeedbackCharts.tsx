@@ -257,11 +257,11 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
     
     if (!data) return null;
 
-    const handleViewDetail = (chartTitle: string, chartData: ChartDataItem[], chartType: string, config?: { xAxis?: string, yAxis?: string[], metric?: string }) => {
+    const handleViewDetail = (chartTitle: string, chartData: ChartDataItem[], chartType: string, chartId: string, config?: { xAxis?: string, yAxis?: string[], metric?: string }) => {
         // Store data in sessionStorage for the detail page
         const detailData = {
             tile: {
-                id: `chart-${Date.now()}`,
+                id: chartId,
                 visualization: {
                     chartType: chartType,
                     title: chartTitle,
@@ -309,22 +309,22 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                  <DonutChart 
                     title="Report by Case Category" 
                     data={data.caseCategory} 
-                    onViewDetail={() => handleViewDetail('Report by Case Category', data.caseCategory, 'pie')}
+                    onViewDetail={() => handleViewDetail('Report by Case Category', data.caseCategory, 'pie', '5078762d-d71d-472d-a9b1-d69872bef570')}
                 />
                 <HorizontalBarChart 
                     title="Branch Report" 
                     data={data.branch} 
-                    onViewDetail={() => handleViewDetail('Branch Report', data.branch, 'horizontal_bar')}
+                    onViewDetail={() => handleViewDetail('Branch Report', data.branch, 'horizontal_bar', 'e6f8a48b-302a-466d-8e4a-5813350e8f7a')}
                 />
                 <HorizontalBarChart 
                     title="Airlines Report" 
                     data={data.airlines} 
-                    onViewDetail={() => handleViewDetail('Airlines Report', data.airlines, 'horizontal_bar')}
+                    onViewDetail={() => handleViewDetail('Airlines Report', data.airlines, 'horizontal_bar', '04f355cf-2ff1-4469-b99f-5ae48da32931')}
                 />
                 <HorizontalBarChart 
                     title="Monthly Report" 
                     data={data.monthly} 
-                    onViewDetail={() => handleViewDetail('Monthly Report', data.monthly, 'horizontal_bar')}
+                    onViewDetail={() => handleViewDetail('Monthly Report', data.monthly, 'horizontal_bar', '13f28a33-6c49-42ea-9554-e3f55519d872')}
                 />
             </div>
 

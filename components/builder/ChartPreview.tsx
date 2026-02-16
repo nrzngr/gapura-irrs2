@@ -11,7 +11,14 @@ import {
 } from 'recharts';
 import type { ChartVisualization, QueryResult, DashboardTile } from '@/types/builder';
 import { CustomPivotTable } from './CustomPivotTable';
+import { BranchAreaGrid } from '@/components/chart-detail/BranchAreaGrid';
 import { ChartClickHandler } from '@/components/chart-detail/ChartClickHandler';
+import { ExecutivePivotView } from '@/components/builder/ExecutivePivotView';
+import { ViewMode, Normalization } from '@/components/chart-detail/GlobalControlBar';
+
+// ... existing imports
+
+
 import { formatDateValue, ISO_DATETIME_RE, processChartData, formatDisplayValue } from '@/lib/chart-utils';
 
 interface ChartPreviewProps {
@@ -20,17 +27,66 @@ interface ChartPreviewProps {
   compact?: boolean;
   tile?: DashboardTile;
   dashboardId?: string;
+  viewMode?: ViewMode;
+  normalization?: Normalization;
+  isThumbnail?: boolean;
 }
 
 const GAPURA_GREEN_LIGHT = '#7cb342';
 const GAPURA_GREEN_DARK = '#558b2f';
 const GAPURA_BLUE = '#42a5f5';
 const GAPURA_YELLOW = '#fdd835';
+const GAPURA_RED = '#ef5350';
+const GAPURA_ORANGE = '#ffa726';
+const GAPURA_GREY = '#bdbdbd';
+const GAPURA_AMBER = '#ffca28';
 
 const DEFAULT_COLORS = [
   GAPURA_GREEN_LIGHT, GAPURA_BLUE, GAPURA_YELLOW, GAPURA_GREEN_DARK, '#aed581',
   '#33691e', '#9ccc65', '#689f38', '#c5e1a5', '#43a047', '#81c784', '#4caf50',
 ];
+
+// Semantic Color Mapping
+const SEMANTIC_COLORS: Record<string, string> = {
+  // Categories
+  'irregularity': GAPURA_RED,
+  'complaint': GAPURA_ORANGE,
+  'compliment': GAPURA_GREEN_LIGHT,
+  
+  // Areas
+  'terminal': GAPURA_BLUE,
+  'terminal area': GAPURA_BLUE,
+  'apron': GAPURA_AMBER,
+  'apron area': GAPURA_AMBER,
+  'general': GAPURA_GREY,
+  'cargo': '#8d6e63', // Brown for Cargo
+  'kargo': '#8d6e63',
+
+  // Status (Common)
+  'open': GAPURA_RED,
+  'closed': GAPURA_GREEN_LIGHT,
+  'in progress': GAPURA_YELLOW,
+  'done': GAPURA_GREEN_LIGHT,
+};
+
+function getSemanticColor(value: string | unknown, index: number, fallbackPalette: string[]): string {
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+    // Direct match
+    if (SEMANTIC_COLORS[normalized]) return SEMANTIC_COLORS[normalized];
+    // Partial match for "Terminal Area" -> "terminal"
+    if (normalized.includes('terminal')) return SEMANTIC_COLORS['terminal'];
+    if (normalized.includes('apron')) return SEMANTIC_COLORS['apron'];
+    if (normalized.includes('general')) return SEMANTIC_COLORS['general'];
+    if (normalized.includes('kargo') || normalized.includes('cargo')) return SEMANTIC_COLORS['cargo'];
+    
+    // Category matches
+    if (normalized.includes('irregular')) return SEMANTIC_COLORS['irregularity'];
+    if (normalized.includes('complaint')) return SEMANTIC_COLORS['complaint'];
+    if (normalized.includes('compliment')) return SEMANTIC_COLORS['compliment'];
+  }
+  return fallbackPalette[index % fallbackPalette.length];
+}
 
 const TOOLTIP_STYLE = {
   backgroundColor: '#ffffff',
@@ -64,19 +120,60 @@ function DateTooltip({ active, payload, label }: { active?: boolean; payload?: A
   );
 }
 
-export function ChartPreview({ visualization, result, compact = false, tile, dashboardId }: ChartPreviewProps) {
+export function ChartPreview({ visualization, result, compact = false, tile, dashboardId, viewMode = 'values', normalization = 'none', isThumbnail = false }: ChartPreviewProps) {
   const { colorField, showLabels, colors } = visualization;
   let { chartType } = visualization;
   
   // Normalize chartType - default to 'bar' if not provided or invalid
-  const validChartTypes = ['bar', 'horizontal_bar', 'line', 'area', 'pie', 'donut', 'heatmap', 'table', 'pivot'];
+  const validChartTypes = ['bar', 'horizontal_bar', 'line', 'area', 'pie', 'donut', 'heatmap', 'table', 'pivot', 'kpi', 'branch_area_grid'];
   if (!chartType || !validChartTypes.includes(chartType)) {
     console.warn(`[ChartPreview] Invalid or missing chartType: "${chartType}", defaulting to 'bar'`);
     chartType = 'bar';
   }
   
   const palette = (colors && colors.length > 0) ? colors : DEFAULT_COLORS;
-  const rawData = result.rows as Record<string, unknown>[];
+  
+  // Data cleaning and normalization
+  const cleanString = (str: string) => {
+    if (!str) return '';
+    // Remove underscores and normalize case
+    return str.replace(/_/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const cleanChartData = (rows: Record<string, unknown>[]) => {
+    return rows
+      .filter(row => {
+        // Filter out rows with #N/A in any string column
+        return !Object.values(row).some(val => val === '#N/A');
+      })
+      .map(row => {
+        const newRow: Record<string, unknown> = { ...row };
+        Object.keys(newRow).forEach(key => {
+          const val = newRow[key];
+          if (typeof val === 'string') {
+            // Check for specific status normalization
+            if (val.toUpperCase() === 'CLOSED') {
+              newRow[key] = 'Closed';
+            } else if (val === '#N/A') {
+              newRow[key] = null; // Should be filtered out but just in case
+            } else {
+              // General cleanup for uppercase/underscored strings
+              // Only apply if it looks like a code (uppercase with underscores)
+              if (val === val.toUpperCase() && val.includes('_')) {
+                newRow[key] = cleanString(val);
+              }
+            }
+          }
+        });
+        return newRow;
+      });
+  };
+
+  const rawData = React.useMemo(() => cleanChartData(result.rows as Record<string, unknown>[]), [result.rows]);
 
   // Debug logging
   console.log('[ChartPreview] Rendering:', {
@@ -253,7 +350,9 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     if (fallbackY) activeYKeys = [fallbackY];
   }
 
-  const data = processChartData(rawData, activeXKey);
+  const fullData = processChartData(rawData, activeXKey);
+  const displayLimit = visualization.displayLimit;
+  const data = displayLimit && displayLimit > 0 ? fullData.slice(0, displayLimit) : fullData;
 
   // HEATMAP
   if (chartType === 'heatmap') {
@@ -299,8 +398,9 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     const rowLabels = [...new Set(rawData.map(d => String(d[rowKey] ?? '')))];
     const colLabels = [...new Set(rawData.map(d => String(d[colKey] ?? '')))];
     
-    // Limit labels in compact mode for better performance/readability
-    const displayRowLabels = compact ? rowLabels.slice(0, 10) : rowLabels;
+    // Limit labels in compact mode for better performance/readability or use displayLimit
+    const limitRows = displayLimit && displayLimit > 0 ? displayLimit : (compact ? 10 : rowLabels.length);
+    const displayRowLabels = rowLabels.slice(0, limitRows);
     const displayColLabels = compact ? colLabels.slice(0, 8) : colLabels;
     
     // Dynamic cell sizing for better proportion
@@ -422,8 +522,41 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
 
   // PIVOT TABLE
   if (chartType === 'pivot') {
+    // Check for Executive View Triggers
+    const isExecutiveContext = visualization.title?.includes('by Airlines');
+
+    if (isExecutiveContext && !isThumbnail) {
+      return wrap(
+        <ExecutivePivotView 
+          result={result} 
+          title={visualization.title} 
+          viewMode={viewMode}
+          normalization={normalization}
+          isTile={!!tile}
+        />
+      );
+    }
+
     return wrap(
-      <CustomPivotTable result={result} title={visualization.title} />
+      <CustomPivotTable 
+        result={result} 
+        title={visualization.title} 
+        viewMode={viewMode}
+        normalization={normalization}
+        compact={compact}
+      />
+    );
+  }
+
+  // BRANCH AREA GRID
+  if (chartType === 'branch_area_grid') {
+    return wrap(
+      <BranchAreaGrid 
+        data={result} 
+        config={visualization} 
+        viewMode={viewMode}
+        normalization={normalization}
+      />
     );
   }
 
@@ -522,7 +655,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       return typeof val === 'string' && isNaN(Number(val));
     });
 
-    const pieData = rawData.map(row => {
+    let pieData = rawData.map(row => {
       // Build a descriptive name by joining all string columns present in the result
       // This handles cases like "Citilink - Irregularity"
       const descriptiveName = stringCols
@@ -542,36 +675,39 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     if (compact) {
       pieData.sort((a, b) => b.value - a.value);
     }
+    
+    // Apply display limit
+    if (displayLimit && displayLimit > 0) {
+        pieData = pieData.slice(0, displayLimit);
+    }
 
     console.log('[ChartPreview] Pie data:', pieData);
 
     // For compact mode (supporting charts), use legend at bottom and center pie
     // For full mode, use legend at right side
     const pieProps = compact
-      ? { cx: '50%', cy: '40%', innerRadius: isDonut ? 35 : 0, outerRadius: 50 }
-      : { cx: '40%', cy: '50%', innerRadius: isDonut ? 60 : 0, outerRadius: 80 };
+      ? { cx: '50%', cy: '50%', innerRadius: isDonut ? 40 : 0, outerRadius: 65 }
+      : { cx: '50%', cy: '50%', innerRadius: isDonut ? 80 : 0, outerRadius: 110 };
 
-    // Use fixed height for pie charts to ensure they render properly
-    const pieHeight = compact ? 220 : 380; // Slightly increased for compact
+    // Use fixed height for pie charts to ensure they render properly, prevent scrollbars
+    const pieHeight = compact ? 250 : 380; 
     
     return wrap(
-      <div style={{ width: '100%', height: pieHeight }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-          <PieChart margin={{ bottom: compact ? 10 : 0 }}>
+      <div style={{ width: '100%', height: pieHeight, overflow: 'hidden' }} className="flex flex-col items-center justify-center">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart margin={{ top: 0, left: 0, right: 0, bottom: 0 }}>
             <Tooltip content={<DateTooltip />} />
             <Legend 
-              verticalAlign={compact ? "bottom" : "middle"}
-              align={compact ? "center" : "right"}
-              layout={compact ? "horizontal" : "vertical"}
-              iconSize={compact ? 8 : 10}
+              verticalAlign="bottom"
+              align="center"
+              layout="horizontal"
+              iconSize={8}
+              iconType="circle"
               wrapperStyle={{ 
-                fontSize: compact ? '9px' : '12px', 
-                paddingTop: compact ? '4px' : '0px',
-                paddingLeft: compact ? '0px' : '20px',
-                maxHeight: compact ? '40px' : 'none',
-                overflow: 'hidden'
+                fontSize: '11px',
+                width: '100%',
+                paddingTop: '10px'
               }}
-              formatter={(value: string) => value.length > (compact ? 12 : 25) ? value.substring(0, compact ? 10 : 22) + '...' : value}
             />
             <Pie
               data={pieData}
@@ -579,16 +715,35 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
               paddingAngle={2}
               dataKey="value"
               nameKey="name"
+              labelLine={false}
               label={showLabels ? (props: any) => {
-                const name = props.name || '';
-                const percent = props.percent || 0;
-                // For long names (especially combined ones), truncate more gracefully
-                const displayName = name.length > 20 ? name.substring(0, 18) + '..' : name;
-                return `${displayName} (${(percent * 100).toFixed(0)}%)`;
+                const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, name } = props;
+                const RADIAN = Math.PI / 180;
+                // Position label outside slightly
+                const radius = outerRadius + 20; 
+                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                
+                // Only show if > 3% to avoid clutter
+                if (percent < 0.03) return null;
+
+                return (
+                  <text 
+                    x={x} 
+                    y={y} 
+                    fill="#374151" 
+                    textAnchor={x > cx ? 'start' : 'end'} 
+                    dominantBaseline="central"
+                    fontSize={11}
+                    fontWeight={600}
+                  >
+                    {`${name}: ${value?.toLocaleString('id-ID')} (${(percent * 100).toFixed(0)}%)`}
+                  </text>
+                );
               } : false}
             >
               {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={palette[index % palette.length]} />
+                <Cell key={`cell-${index}`} fill={getSemanticColor(entry.name, index, palette)} stroke="white" strokeWidth={2} />
               ))}
             </Pie>
           </PieChart>
@@ -598,8 +753,8 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   }
 
   const commonProps = {
-    tick: { fontSize: 10, fill: '#888' },
-    axisLine: { stroke: '#eee' },
+    tick: { fontSize: 10, fill: '#6b7280' },
+    axisLine: { stroke: '#e5e7eb' },
     tickLine: false,
   };
 
@@ -610,20 +765,52 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   const shouldRotateX = !(['pie', 'donut', 'heatmap', 'horizontal_bar'] as string[]).includes(chartType) && (isXLong || data.length > (compact ? 4 : 8));
   const bottomMargin = shouldRotateX ? (compact ? 45 : 65) : (compact ? 30 : 20);
 
+  // KPI
+  if (chartType === 'kpi') {
+    const row = rawData[0];
+    let value: string | number = '-';
+    let label = visualization.title || 'Total';
+    
+    if (row) {
+      // Use configured Y-axis or fallback to first numeric/value column
+      const yKey = activeYKeys[0] || result.columns.find(c => c !== activeXKey) || result.columns[0];
+      const val = row[yKey];
+      value = (typeof val === 'number') ? val : Number(val);
+      if (isNaN(value as number)) value = '-';
+    }
+
+    // Use semantic color from title if possible, else default green
+    const kpiColor = getSemanticColor(label, 0, [GAPURA_GREEN_DARK]);
+
+    return wrap(
+      <div className="flex flex-col items-center justify-center h-full min-h-[120px] p-4">
+        <div className="text-xs font-bold uppercase tracking-wider text-center mb-1" style={{ color: kpiColor }}>
+          {label}
+        </div>
+        <div className="text-4xl md:text-5xl font-bold" style={{ color: kpiColor }}>
+          {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
+        </div>
+        {compact && (
+          <div className="mt-2 text-[10px] text-gray-400 font-medium">
+            {formatDateValue(new Date().toISOString())}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // BAR / HORIZONTAL_BAR
   if (chartType === 'bar' || chartType === 'horizontal_bar') {
     const horizontal = chartType === 'horizontal_bar';
     
     // Compact adjustments for supporting charts
-    const fontSize = compact ? 8 : 10; // Slightly smaller font for compact
-    // Smaller item height for compact mode to fit in supporting charts
-    const itemHeight = compact ? 26 : (data.length > 20 ? 30 : (data.length > 10 ? 40 : 55));
-    const dynamicMinH = horizontal ? (data.length * itemHeight + (compact ? 40 : 100)) : '100%';
+    const fontSize = compact ? 9 : 10;
+    // Taller item height for horizontal bars to reduce spacing
+    const itemHeight = compact ? 32 : (data.length > 20 ? 30 : (data.length > 10 ? 40 : 55));
+    // Ensure minHeight covers content to prevent internal scroll if possible, but allow container to scroll if massive
+    const dynamicMinH = horizontal ? (data.length * itemHeight + 50) : '100%';
     
-    // For vertical bar charts in compact mode:
-    // - Use auto-calculated bar size (don't set barSize)
-    // - Use smaller height
-    // - Use larger gap between categories for better proportion
+    // Use containerHeight as 'auto' for horizontal to let it grow, but constrained by parent in actual usage
     const containerHeight = horizontal ? dynamicMinH : chartHeight;
     
     let yAxisWidth = 80;
@@ -631,30 +818,31 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       const labels = data.map(d => String(d[activeXKey] ?? ''));
       const longestWord = Math.max(...labels.flatMap(l => l.split(' ').map(w => w.length)), 0);
       
-      // Calculate width based on longest word or wrapped lines
-      const effectiveCharLen = Math.min(Math.max(longestWord, compact ? 10 : 12), 25);
-      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 4.5 : 7.5), compact ? 50 : 120), 220);
+      const effectiveCharLen = Math.min(Math.max(longestWord, compact ? 12 : 15), 35);
+      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 6 : 8), compact ? 80 : 150), 300);
     }
 
     return wrap(
-      <div className="bg-white rounded-lg p-1" style={{ width: '100%', height: horizontal ? 'auto' : chartHeight, minHeight: horizontal ? dynamicMinH : undefined, overflow: 'hidden' }}>
+      <div className="bg-white rounded-lg p-1" style={{ width: '100%', height: horizontal ? 'auto' : chartHeight, overflow: horizontal ? 'visible' : 'hidden' }}>
         <ResponsiveContainer width="100%" height={containerHeight} minWidth={0} minHeight={0}>
           <BarChart 
             data={data} 
             layout={horizontal ? 'vertical' : 'horizontal'}
             margin={{ 
-              top: 10, 
-              right: horizontal ? (compact ? 25 : 60) : 10, 
+              top: 5, 
+              right: horizontal ? (compact ? 40 : 60) : 10, 
               left: 0, 
-              bottom: bottomMargin
+              bottom: horizontal ? 5 : bottomMargin
             }}
-            barCategoryGap={compact ? "35%" : "20%"}
-            {...(horizontal && compact ? { barSize: 18 } : {})}
+            barCategoryGap={compact ? "15%" : "20%"}
+            barSize={horizontal ? (compact ? 20 : 32) : undefined}
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={!horizontal} horizontal={horizontal} stroke="#f1f5f9" />
+            {/* Minimal Grid: only vertical lines for vertical bars, only horizontal for horizontal (if any) - actually user wants minimal noise, so remove relevant grid lines */}
+            <CartesianGrid strokeDasharray="3 3" vertical={!horizontal} horizontal={false} stroke="#f3f4f6" />
+            
             {horizontal ? (
               <>
-                <XAxis type="number" {...commonProps} allowDecimals={false} hide={compact} domain={[0, 'auto']} />
+                <XAxis type="number" {...commonProps} hide={true} domain={[0, 'auto']} />
                 <YAxis 
                   type="category" 
                   dataKey={activeXKey} 
@@ -664,37 +852,20 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                   tick={(props) => {
                     const { x, y, payload } = props;
                     const label = String(payload.value);
-                    const words = label.split(' ');
-                    const lines = [];
-                    let cur = words[0];
-                    const maxChars = compact ? 10 : 20;
+                    const isTop = payload.index === 0;
                     
-                    for(let i=1; i<words.length; i++) {
-                      if ((cur + ' ' + words[i]).length < maxChars) cur += ' ' + words[i];
-                      else { lines.push(cur); cur = words[i]; }
-                    }
-                    lines.push(cur);
-                    
-                    // Truncate total lines for compact
-                    const displayLines = compact ? lines.slice(0, 2) : lines;
-                    const isTruncated = lines.length > displayLines.length;
-
                     return (
                       <g transform={`translate(${x},${y})`}>
-                        {displayLines.map((l, i) => (
-                          <text 
-                            key={i} 
-                            x={-8} 
-                            y={0} 
-                            dy={i * (fontSize + 2) + 4 - ((displayLines.length - 1) * (fontSize/1.5))} 
-                            textAnchor="end" 
-                            fontSize={fontSize} 
-                            fill="#444"
-                            fontWeight={500}
-                          >
-                            {l}{i === displayLines.length - 1 && isTruncated ? '..' : ''}
-                          </text>
-                        ))}
+                        <text 
+                          x={-8} 
+                          y={4} 
+                          textAnchor="end" 
+                          fontSize={fontSize} 
+                          fill={isTop ? "#111827" : "#6b7280"}
+                          fontWeight={isTop ? 600 : 400}
+                        >
+                          {label.length > 20 ? label.substring(0, 18) + '..' : label}
+                        </text>
                       </g>
                     );
                   }}
@@ -710,18 +881,12 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                   tick={(props) => {
                     const { x, y, payload } = props;
                     let label = String(payload.value);
-                    
-                    // Handle long date labels more gracefully
                     if (label.includes(' ') && label.length > 10) {
                       const parts = label.split(' ');
-                      if (parts.length >= 2) {
-                        // For compact mode or many data points, use "DD MMM" instead of "DD MMM YYYY"
-                        if (compact || data.length > 10) {
-                          label = `${parts[0]} ${parts[1]}`;
-                        }
+                      if (parts.length >= 2 && (compact || data.length > 10)) {
+                        label = `${parts[0]} ${parts[1]}`;
                       }
                     }
-                    
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text
@@ -729,10 +894,10 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                           y={0}
                           dy={10}
                           textAnchor={shouldRotateX ? "end" : "middle"}
-                          fill="#666"
+                          fill="#6b7280"
                           fontSize={fontSize}
                           transform={shouldRotateX ? "rotate(-45)" : undefined} 
-                          fontWeight={500}
+                          fontWeight={400}
                         >
                           {label.length > (compact ? 12 : 25) ? label.substring(0, compact ? 10 : 22) + '...' : label}
                         </text>
@@ -748,17 +913,35 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
               <Bar 
                 key={key} 
                 dataKey={key} 
-                fill={palette[i % palette.length]} 
+                fill={getSemanticColor(key, i, palette)} 
                 radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} 
                 animationDuration={1000}
                 label={showLabels ? { 
                   position: horizontal ? 'right' : 'top', 
                   fontSize: fontSize, 
-                  fill: '#666',
+                  fill: '#374151',
+                  fontWeight: 600,
                   formatter: (val: unknown) => formatDisplayValue(val),
-                  offset: compact ? 4 : 10
+                  offset: 5
                 } : false}
-              />
+              >
+                {/* Smart Coloring: Highlight Top Performer if not semantic */}
+                {activeYKeys.length === 1 && data.map((entry, index) => {
+                  const xVal = String(entry[activeXKey]);
+                  const semanticColor = getSemanticColor(xVal, index, palette);
+                  const isSemantic = SEMANTIC_COLORS[xVal.toLowerCase()] || 
+                                     xVal.toLowerCase().includes('terminal') || 
+                                     xVal.toLowerCase().includes('apron');
+                  
+                  let finalColor = semanticColor;
+                  if (!isSemantic) {
+                    // Highlight top ranked item (index 0) with Dark Green, others lighter
+                    finalColor = index === 0 ? GAPURA_GREEN_DARK : '#a3d162'; 
+                  }
+                  
+                  return <Cell key={`cell-${index}`} fill={finalColor} />;
+                })}
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -850,7 +1033,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 key={key} 
                 type="monotone" 
                 dataKey={key} 
-                stroke={palette[i % palette.length]} 
+                stroke={getSemanticColor(key, i, palette)} 
                 strokeWidth={2} 
                 dot={compact ? {r: 2} : {r: 3}} 
                 animationDuration={1000}
@@ -913,8 +1096,8 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 key={key} 
                 type="monotone" 
                 dataKey={key} 
-                stroke={palette[i % palette.length]} 
-                fill={palette[i % palette.length]} 
+                stroke={getSemanticColor(key, i, palette)} 
+                fill={getSemanticColor(key, i, palette)} 
                 fillOpacity={0.2} 
                 animationDuration={1000}
               />

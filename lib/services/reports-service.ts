@@ -88,7 +88,7 @@ const HEADER_MAPPING: Record<string, keyof Report> = {
 };
 
 const CACHE_KEY_ALL_REPORTS = 'reports:all:v3';
-const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+const CACHE_TTL = 1000 * 60 * 15; // 15 minutes — sheets data is semi-static
 
 // Helper to parse dates robustly
 function parseDate(dateStr: string | number | Date): Date | null {
@@ -203,8 +203,7 @@ export class ReportsService {
     return Date.now(); 
   }
 
-  async getReports(userId?: string, options?: { refresh?: boolean }): Promise<Report[]> {
-    // Check cache first
+  async getReports(options?: { refresh?: boolean }): Promise<Report[]> {
     if (!options?.refresh) {
       const cached = getCache<Report[]>(CACHE_KEY_ALL_REPORTS, CACHE_TTL);
       if (cached) {
@@ -214,82 +213,76 @@ export class ReportsService {
 
     if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
 
-    let allReports: Report[] = [];
+    // Parallel fetch — both sheets concurrently instead of sequential
+    // Complexity: Time O(max(sheetA, sheetB)) instead of O(sheetA + sheetB)
+    const sheetResults = await Promise.allSettled(
+      REPORT_SHEETS.map(async (sheetName) => {
+        const [rows, headers] = await Promise.all([
+          this.fetchSheetWithRetry(sheetName),
+          this.getHeaderRow(sheetName),
+        ]);
+        return { sheetName, rows, headers };
+      })
+    );
 
-    for (const sheetName of REPORT_SHEETS) {
-        try {
-            const rows = await this.fetchSheetWithRetry(sheetName);
-            const headers = await this.getHeaderRow(sheetName);
+    const allReports: Report[] = [];
 
-            const sheetReports: Report[] = rows.map((row, index) => {
-                const report: any = {};
-                
-                // Generate ID: SheetName!row_Index
-                // We use a separator that is safe. '!' is standard for Sheet ranges.
-                report.id = `${sheetName}!row_${index + 2}`;
-                
-                headers.forEach((header, colIndex) => {
-                    const key = HEADER_MAPPING[header];
-                    if (key) {
-                        report[key] = row[colIndex];
-                    }
-                });
-                
-                // Defaults
-                // Parse and normalize date_of_event using robust parser
-                const parsedEventDate = parseDate(report.date_of_event);
-                
-                if (parsedEventDate) {
-                    report.date_of_event = parsedEventDate.toISOString();
-                    // Use date_of_event as created_at if not present
-                    if (!report.created_at) {
-                        report.created_at = report.date_of_event;
-                    }
-                } else {
-                    // Fallback for created_at if date parsing failed
-                    if (!report.created_at) {
-                        report.created_at = new Date().toISOString();
-                    }
-                }
+    for (const result of sheetResults) {
+      if (result.status === 'rejected') {
+        console.error('Error fetching sheet:', result.reason);
+        continue;
+      }
+      const { sheetName, rows, headers } = result.value;
 
-                if (!report.status) report.status = 'MENUNGGU_FEEDBACK';
-                
-                // Compatibility aliases
-                if (report.main_category && !report.category) report.category = report.main_category;
-                if (report.airline && !report.airlines) report.airlines = report.airline;
-                
-                // Calculate SLA Deadline
-                if (!report.priority) report.priority = 'low';
-                if (!report.sla_deadline && report.created_at) {
-                    try {
-                        report.sla_deadline = calculateSlaDeadline(report.created_at, report.priority as any).toISOString();
-                    } catch (e) {
-                        // Ignore date parsing errors
-                    }
-                }
-                
-                // Tag the source sheet
-                report.source_sheet = sheetName; 
+      for (let index = 0; index < rows.length; index++) {
+        const row = rows[index];
+        const report: Record<string, unknown> = {};
 
-                return report as Report;
-            });
-            
-            allReports = [...allReports, ...sheetReports];
-        } catch (error) {
-            console.error(`Error fetching from sheet ${sheetName}:`, error);
-            // Continue to next sheet
+        report.id = `${sheetName}!row_${index + 2}`;
+
+        for (let colIndex = 0; colIndex < headers.length; colIndex++) {
+          const key = HEADER_MAPPING[headers[colIndex]];
+          if (key) report[key] = row[colIndex];
         }
+
+        const parsedEventDate = parseDate(report.date_of_event as string);
+
+        if (parsedEventDate) {
+          report.date_of_event = parsedEventDate.toISOString();
+          if (!report.created_at) report.created_at = report.date_of_event;
+        } else {
+          if (!report.created_at) report.created_at = new Date().toISOString();
+        }
+
+        if (!report.status) report.status = 'MENUNGGU_FEEDBACK';
+
+        if (report.main_category && !report.category) report.category = report.main_category;
+        if (report.airline && !report.airlines) report.airlines = report.airline;
+
+        if (!report.priority) report.priority = 'low';
+        if (!report.sla_deadline && report.created_at) {
+          try {
+            report.sla_deadline = calculateSlaDeadline(report.created_at as string, report.priority as 'low' | 'medium' | 'high' | 'urgent').toISOString();
+          } catch (_) {
+            // date parsing error — ignore
+          }
+        }
+
+        report.source_sheet = sheetName;
+        allReports.push(report as unknown as Report);
+      }
     }
 
-    const sorted = allReports.sort((a, b) => {
-        const dateA = a.date_of_event ? new Date(a.date_of_event).getTime() : 0;
-        const dateB = b.date_of_event ? new Date(b.date_of_event).getTime() : 0;
-        return dateB - dateA;
+    // Complexity: Time O(n log n)
+    allReports.sort((a, b) => {
+      const dateA = a.date_of_event ? new Date(a.date_of_event).getTime() : 0;
+      const dateB = b.date_of_event ? new Date(b.date_of_event).getTime() : 0;
+      return dateB - dateA;
     });
 
-    setCache(CACHE_KEY_ALL_REPORTS, sorted);
-    
-    return sorted;
+    setCache(CACHE_KEY_ALL_REPORTS, allReports);
+
+    return allReports;
   }
 
   async createReport(reportData: Partial<Report>): Promise<Report> {

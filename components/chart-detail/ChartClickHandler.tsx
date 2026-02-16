@@ -46,7 +46,7 @@ export function ChartClickHandler({ tile, result, children, dashboardId }: Chart
   return (
     <div 
       onClick={handleClick}
-      className="cursor-pointer transition-all duration-200 hover:opacity-90 relative group"
+      className="cursor-pointer transition-all duration-200 hover:opacity-90 relative group h-full w-full"
       title="Klik untuk melihat detail"
     >
       {children}

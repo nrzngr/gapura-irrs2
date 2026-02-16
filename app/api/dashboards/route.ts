@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 interface DashboardConfig {
   dateRange?: string;
@@ -69,6 +70,48 @@ export async function GET(request: NextRequest) {
           'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
         },
       });
+    }
+
+    const tileId = searchParams.get('tileId');
+    if (tileId) {
+        // Fetch specific chart/tile using ADMIN client to bypass RLS for public access
+        const { data: chart, error } = await supabaseAdmin
+            .from('dashboard_charts')
+            .select(`
+                id,
+                title,
+                chart_type,
+                data_field,
+                position,
+                width,
+                config,
+                query_config,
+                visualization_config,
+                layout,
+                page_name,
+                custom_dashboards (
+                    id,
+                    slug,
+                    is_public
+                )
+            `)
+            .eq('id', tileId)
+            .single();
+
+        if (error || !chart) {
+            return NextResponse.json({ error: 'Tile not found' }, { status: 404 });
+        }
+
+        // Security check: only show if dashboard is public
+        if (!(chart.custom_dashboards as any)?.is_public) {
+            return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
+        }
+
+        return NextResponse.json(chart, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+            }
+        });
     }
 
     // List all public dashboards

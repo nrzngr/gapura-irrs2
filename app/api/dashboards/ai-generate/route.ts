@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { normalizeQuery, normalizeVisualization } from '@/lib/builder/normalization';
-import { callAI } from '@/lib/ai/openrouter';
+import { callGroqAI } from '@/lib/ai/groq';
 import { TABLES, JOINS, getFieldDef } from '@/lib/builder/schema';
 import type { DashboardDefinition, DashboardTile } from '@/types/builder';
 
@@ -488,10 +488,10 @@ export async function POST(request: NextRequest) {
     let content;
 
     try {
-      content = await callAI([
+      content = await callGroqAI([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
-      ]);
+      ], 'llama-3.1-8b-instant');
     } catch (error) {
        console.error('AI API error:', error);
        return NextResponse.json(

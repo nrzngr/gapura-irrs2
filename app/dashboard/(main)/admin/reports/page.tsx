@@ -54,11 +54,12 @@ export default function AdminReportsPage() {
     useEffect(() => { fetchStations(); }, [fetchStations]);
 
     const filteredReports = reports.filter(report => {
-        const matchesSearch = report.title.toLowerCase().includes(search.toLowerCase()) ||
+        const matchesSearch = 
+            report.title?.toLowerCase().includes(search.toLowerCase()) ||
             report.location?.toLowerCase().includes(search.toLowerCase()) ||
-            report.users?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-            report.stations?.name.toLowerCase().includes(search.toLowerCase()) ||
-            report.id.toLowerCase().includes(search.toLowerCase()) ||
+            report.users?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+            report.stations?.name?.toLowerCase().includes(search.toLowerCase()) ||
+            report.id?.toLowerCase().includes(search.toLowerCase()) ||
             report.reference_number?.toLowerCase().includes(search.toLowerCase()) ||
             report.flight_number?.toLowerCase().includes(search.toLowerCase());
         const matchesSeverity = severityFilter === 'all' || report.severity === severityFilter;

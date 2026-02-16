@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
-import { callAI } from '@/lib/ai/openrouter';
+import { callGroqAI } from '@/lib/ai/groq';
 
 interface TileSummary {
   id: string;
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     let content;
     try {
-      content = await callAI([
+      content = await callGroqAI([
         {
           role: "system",
           content: "Anda adalah Senior Data Analyst Gapura Angkasa. Berikan insight yang kritis, akurat, dan bernilai strategis bagi Direksi."
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
           role: "user",
           content: prompt
         }
-      ]);
+      ], 'llama-3.1-8b-instant');
     } catch (error) {
       console.error('[export-insights] AI error:', error);
       return NextResponse.json({ error: 'Gagal menghubungi AI' }, { status: 502 });
