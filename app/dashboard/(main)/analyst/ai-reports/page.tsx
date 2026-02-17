@@ -7,7 +7,7 @@ import {
   Play, Download, Database, Cpu, BarChart3, PieChart,
   AlertCircle, CheckCircle2, XCircle, Zap, Target, FileText,
   Loader2, Search, Sparkles, Gauge, Lightbulb,
-  ChevronDown, ChevronUp, ArrowRight
+  ChevronDown, ChevronUp, ArrowRight, Box, Layout
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -402,6 +402,7 @@ export default function AIReportsPage() {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [summaries, setSummaries] = useState<any>({ cgo: null, nonCargo: null });
   
   // Independent pagination states
   const [nonCargoPage, setNonCargoPage] = useState(1);
@@ -414,7 +415,26 @@ export default function AIReportsPage() {
     fetchHealthStatus();
     fetchModelInfo();
     fetchReports();
+    fetchSummaries();
   }, []);
+
+  const fetchSummaries = async () => {
+    try {
+      const [cgoRes, nonCargoRes] = await Promise.all([
+        fetch('/api/ai/summarize?category=cgo'),
+        fetch('/api/ai/summarize?category=non_cargo')
+      ]);
+      
+      const [cgo, nonCargo] = await Promise.all([
+        cgoRes.ok ? cgoRes.json() : null,
+        nonCargoRes.ok ? nonCargoRes.json() : null
+      ]);
+      
+      setSummaries({ cgo, nonCargo });
+    } catch (err) {
+      console.error('Failed to fetch AI summaries:', err);
+    }
+  };
 
   const fetchHealthStatus = async () => {
     try {
@@ -473,8 +493,19 @@ export default function AIReportsPage() {
       Status: report.status || 'Open',
       Upload_Irregularity_Photo: report.photo_url || ''
     };
+
     try {
-      const res = await fetch('/api/ai/analyze', {
+      // Basic AI service URL building helper
+      const buildQuery = (params: Record<string, string | number | undefined>) => {
+        const q = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null) q.set(k, String(v));
+        });
+        return q.toString();
+      };
+
+      // Define our parallel tasks
+      const analysisPromise = fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -487,19 +518,42 @@ export default function AIReportsPage() {
             analyzeTrends: true
           }
         })
+      }).then(res => res.ok ? res.json() : Promise.reject('Main analysis failed'));
+
+      // Similar Reports
+      const similarPromise = fetch(`/api/ai/similar?${buildQuery({
+        text: reportData.Report,
+        top_k: 5
+      })}`, { method: 'POST' }).then(res => res.ok ? res.json() : null);
+
+      // Root Cause Classification (if root cause text provided)
+      const classifyPromise = reportData.Root_Caused 
+        ? fetch(`/api/ai/root-cause/classify?${buildQuery({
+            root_cause: reportData.Root_Caused,
+            report: reportData.Report,
+            area: reportData.Area,
+            category: reportData.Irregularity_Complain_Category
+          })}`, { method: 'POST' }).then(res => res.ok ? res.json() : null)
+        : Promise.resolve(null);
+
+      const [analysis, similarReports, classification] = await Promise.all([
+        analysisPromise,
+        similarPromise,
+        classifyPromise
+      ]);
+      
+      setSingleAnalysis({ 
+        report, 
+        analysis, 
+        similarReports,
+        classification
       });
       
-      if (res.ok) {
-        const data = await res.json();
-        setSingleAnalysis({ report, analysis: data });
-      } else {
-        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-        setError(errorData.error || `Error ${res.status}: AI service tidak tersedia`);
-        setSingleAnalysis(null);
-      }
     } catch (err) {
-      setError('Gagal menganalisis laporan. Pastikan AI service berjalan di localhost:8000');
-      setSingleAnalysis(null);
+      console.error('Analysis failed:', err);
+      setError('Gagal menganalisis laporan secara lengkap. Beberapa fitur AI mungkin tidak tersedia.');
+      // Attempt to salvage what we have if main analysis succeeded but others failed
+      // (Handled by the logic above where failed optional steps return null)
     } finally {
       setLoading(prev => ({ ...prev, single: false }));
     }
@@ -809,6 +863,105 @@ export default function AIReportsPage() {
                     <FeatureImportanceChart features={modelInfo.regression.metrics.feature_importance} />
                   </Card>
                 )}
+
+                {/* AI Category Summaries (CGO & Non-Cargo) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {summaries.nonCargo && (
+                    <Card className="p-6 bg-emerald-50/10 border-emerald-100">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-emerald-500" />
+                        Ringkasan Landside & Airside
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 bg-white/50 rounded border border-emerald-100/50">
+                            <p className="text-[10px] text-emerald-600 font-bold uppercase">Total Laporan</p>
+                            <p className="text-lg font-bold text-gray-900">{summaries.nonCargo.summary?.total_records || 0}</p>
+                          </div>
+                          <div className="p-2 bg-white/50 rounded border border-emerald-100/50">
+                            <p className="text-[10px] text-emerald-600 font-bold uppercase">Critical/High</p>
+                            <p className="text-lg font-bold text-gray-900">{summaries.nonCargo.summary?.critical_high_percentage || 0}%</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="text-[10px] text-emerald-600 font-bold uppercase mb-2">Top Kategori</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(summaries.nonCargo.summary?.top_categories || {})
+                              .filter(([key]) => key !== "")
+                              .slice(0, 3)
+                              .map(([category, count], i) => (
+                                <Badge key={i} variant="outline" className="bg-white/50 text-[10px]">
+                                  {category}: {count as number}
+                                </Badge>
+                              ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-emerald-600 font-bold uppercase mb-2">Top Maskapai</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(summaries.nonCargo.summary?.top_airlines || {})
+                              .slice(0, 3)
+                              .map(([airline, count], i) => (
+                                <Badge key={i} variant="outline" className="bg-white/50 text-[10px]">
+                                  {airline}: {count as number}
+                                </Badge>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {summaries.cgo && (
+                    <Card className="p-6 bg-blue-50/10 border-blue-100">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Database className="w-5 h-5 text-blue-500" />
+                        Ringkasan Cargo (CGO)
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 bg-white/50 rounded border border-blue-100/50">
+                            <p className="text-[10px] text-blue-600 font-bold uppercase">Total Laporan</p>
+                            <p className="text-lg font-bold text-gray-900">{summaries.cgo.summary?.total_records || 0}</p>
+                          </div>
+                          <div className="p-2 bg-white/50 rounded border border-blue-100/50">
+                            <p className="text-[10px] text-blue-600 font-bold uppercase">Critical/High</p>
+                            <p className="text-lg font-bold text-gray-900">{summaries.cgo.summary?.critical_high_percentage || 0}%</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-blue-600 font-bold uppercase mb-2">Top Kategori</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(summaries.cgo.summary?.top_categories || {})
+                              .filter(([key]) => key !== "")
+                              .slice(0, 3)
+                              .map(([category, count], i) => (
+                                <Badge key={i} variant="outline" className="bg-white/50 text-[10px]">
+                                  {category}: {count as number}
+                                </Badge>
+                              ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] text-blue-600 font-bold uppercase mb-2">Top Maskapai</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(summaries.cgo.summary?.top_airlines || {})
+                              .slice(0, 3)
+                              .map(([airline, count], i) => (
+                                <Badge key={i} variant="outline" className="bg-white/50 text-[10px]">
+                                  {airline}: {count as number}
+                                </Badge>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
               </div>
             )}
 

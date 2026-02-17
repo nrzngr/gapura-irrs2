@@ -25,7 +25,8 @@ import {
   Activity,
   Zap,
   Loader2,
-  Database
+  Database,
+  Lightbulb
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,20 @@ const getCategoryIcon = (category: string) => {
   if (cat.includes('bagasi') || cat.includes('baggage')) return <FileText size={12} />; // suitcase icon maybe?
   if (cat.includes('cargo')) return <Database size={12} />;
   return <FileText size={12} />;
+};
+
+const Badge = ({ children, className, variant = 'default' }: { children: React.ReactNode; className?: string; variant?: 'default' | 'outline' | 'secondary' | 'destructive' }) => {
+  const variants = {
+    default: 'bg-emerald-100 text-emerald-700',
+    outline: 'border border-gray-200 text-gray-700',
+    secondary: 'bg-gray-100 text-gray-700',
+    destructive: 'bg-red-100 text-red-700'
+  };
+  return (
+    <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-medium", variants[variant], className)}>
+      {children}
+    </span>
+  );
 };
 
 export function ReportAnalysisTable({ 
@@ -233,7 +248,7 @@ export function ReportAnalysisTable({
                   </div>
                 </th>
               ))}
-              <th className="px-3 py-3 text-left w-24"></th> {/* Action col */}
+              <th className="px-3 py-3 text-left w-24" />
             </tr>
           </thead>
           
@@ -257,7 +272,6 @@ export function ReportAnalysisTable({
                         ${isExpanded ? 'bg-indigo-50/30' : 'hover:bg-gray-50'}
                       `}
                     >
-                      {/* Toggle & Number */}
                       <td className="px-3 py-3 text-center align-top">
                         <button className={`p-1 rounded-full transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'text-gray-300 group-hover:text-gray-500'}`}>
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -266,8 +280,6 @@ export function ReportAnalysisTable({
                       <td className="px-2 py-3 text-center text-xs font-mono text-gray-400 group-hover:text-gray-600 align-top">
                         {idx + 1}
                       </td>
-
-                      {/* Data Columns */}
                       <td className="px-3 py-3 text-xs text-gray-500 align-top">
                          {row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                       </td>
@@ -410,7 +422,56 @@ export function ReportAnalysisTable({
                                                 })()}
                                              </p>
                                           </div>
-                                       </div>
+
+                                           {/* NEW: Similar Reports */}
+                                           {analysisResult.similarReports && analysisResult.similarReports.results?.length > 0 && (
+                                             <div className="md:col-span-2 space-y-3">
+                                               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 mt-4">
+                                                 <LinkIcon size={14} className="text-blue-500" /> Laporan Serupa
+                                               </h4>
+                                               <div className="space-y-2">
+                                                 {analysisResult.similarReports.results.map((sim: any, i: number) => (
+                                                   <div key={i} className="p-3 bg-white border border-gray-100 rounded-lg text-xs flex justify-between items-center hover:bg-gray-50 transition-colors">
+                                                     <div className="flex-1 min-w-0 pr-4">
+                                                       <div className="font-medium text-gray-900 truncate">{(sim.metadata?.airlines || 'Unknown') + ' - ' + (sim.metadata?.main_category || 'Incident')}</div>
+                                                       <div className="text-gray-500 truncate">{sim.text}</div>
+                                                     </div>
+                                                     <div className="flex items-center gap-2 flex-shrink-0">
+                                                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">
+                                                          {(sim.score * 100).toFixed(0)}% Match
+                                                        </span>
+                                                        <button 
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // Logic to switch to this similar report or show detail could go here
+                                                          }}
+                                                          className="p-1 text-gray-400 hover:text-indigo-600"
+                                                        >
+                                                          <Maximize2 size={12} />
+                                                        </button>
+                                                     </div>
+                                                   </div>
+                                                 ))}
+                                               </div>
+                                             </div>
+                                           )}
+
+                                           {/* NEW: Root Cause Classification */}
+                                           {analysisResult.classification && (
+                                              <div className="md:col-span-2 bg-emerald-50/50 p-4 rounded-lg border border-emerald-100 mt-4">
+                                                 <div className="text-[10px] uppercase text-emerald-600 font-bold mb-2">Automated Root Cause Diagnosis</div>
+                                                 <div className="flex flex-wrap gap-2 mb-3">
+                                                    <Badge className="bg-emerald-100 text-emerald-800 border-none">
+                                                       {analysisResult.classification.primary_category} ({(analysisResult.classification.confidence * 100).toFixed(0)}%)
+                                                    </Badge>
+                                                 </div>
+                                                 <p className="text-[11px] text-emerald-700/80 leading-relaxed italic">
+                                                    "{analysisResult.classification.description}"
+                                                 </p>
+                                              </div>
+                                           )}
+
+                                        </div>
                                      ) : (
                                        <div className="text-center py-8 relative z-10">
                                          {analyzing && selectedId === row.id ? (
