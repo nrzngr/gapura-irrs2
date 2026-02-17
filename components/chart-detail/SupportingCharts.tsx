@@ -20,6 +20,10 @@ import { MonthlyTrendChart } from './custom-charts/MonthlyTrendChart';
 import { CategoryDistributionChart } from './custom-charts/CategoryDistributionChart';
 import { AreaAnalysisChart } from './AreaAnalysisChart';
 import { CategoryByBranchChart } from './custom-charts/CategoryByBranchChart';
+import { fetchRiskSummary, RiskSummaryResponse } from '@/lib/api/risk';
+import { RiskSummaryTool } from './RiskSummaryTool';
+import { ShieldAlert, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Types of custom charts
 export type CustomChartType = 
@@ -140,6 +144,45 @@ function transformToSubCategoryData(result: QueryResult) {
       count: count,
       percentage: total > 0 ? (count / total) * 100 : 0,
       parentCategory: category
+    };
+  });
+}
+
+function transformToBranchCategoryData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('CategoryByBranchChart: No data available');
+    return [];
+  }
+
+  const columns = result.columns || Object.keys(result.rows[0] || {});
+  
+  // Robust field detection
+  const branchKeys = ['branch', 'reporting_branch', 'BRANCH', 'Reporting_Branch', 'Reporting Branch', 'Branch ', 'lokal_mpa_lookup', 'Lokal / MPA (VLOOKUP)'];
+  const categoryKeys = ['category', 'main_category', 'CATEGORY', 'Report_Category', 'Report Category', 'Irregularity_Complain_Category'];
+  const countKeys = ['jumlah', 'count', 'JUMLAH', 'COUNT', 'jumlah_kasus', 'jumlah kasus'];
+
+  const getVal = (row: any, keys: string[]) => {
+    // Try lowercase and trimmed versions too
+    for (const k of keys) {
+      if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+      const foundKey = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.trim().toLowerCase());
+      if (foundKey && row[foundKey] !== undefined) return row[foundKey];
+    }
+    // Fallback searching in columns
+    const colName = columns.find(c => keys.includes(c) || keys.includes(c.toLowerCase()));
+    if (colName) return row[colName];
+    return null;
+  };
+
+  return result.rows.map(row => {
+    const branch = String(getVal(row, branchKeys) || 'Unknown');
+    const category = String(getVal(row, categoryKeys) || 'Unknown');
+    const count = Number(getVal(row, countKeys) || 1);
+    
+    return {
+      branch,
+      category,
+      count
     };
   });
 }
@@ -376,6 +419,23 @@ function calculateChartHeight(chartType: string, rowCount: number): string {
 }
 
 export function SupportingCharts({ charts, dataMap, loading, source = 'ai', viewMode = 'values', normalization = 'none' }: SupportingChartsProps) {
+  const [riskData, setRiskData] = React.useState<RiskSummaryResponse | null>(null);
+  const [riskLoading, setRiskLoading] = React.useState(false);
+  const [riskError, setRiskError] = React.useState<string | null>(null);
+
+  const handleFetchRisk = async () => {
+    setRiskLoading(true);
+    setRiskError(null);
+    try {
+      const data = await fetchRiskSummary();
+      setRiskData(data);
+    } catch (err) {
+      setRiskError('Failed to fetch risk summary. Please try again.');
+      console.error(err);
+    } finally {
+      setRiskLoading(false);
+    }
+  };
   
   // Debug logging - log data structure for custom charts
   if (typeof window !== 'undefined' && charts.length > 0) {
@@ -432,22 +492,68 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
   if (!charts || charts.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="w-1 h-3 bg-[#6b8e3d] rounded-full" />
-        <h3 className="text-[10px] font-bold text-[#6b8e3d] uppercase tracking-[0.1em]">
-          Eksplorasi Pendukung
-        </h3>
-        {source === 'ai' ? (
-          <span className="ml-2 text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
-            ✨ Dibuat oleh AI
-          </span>
-        ) : (
-          <span className="ml-2 text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
-            📊 Dari Data Laporan
-          </span>
-        )}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-3 bg-[#6b8e3d] rounded-full" />
+          <h3 className="text-[10px] font-bold text-[#6b8e3d] uppercase tracking-[0.1em]">
+            Eksplorasi Pendukung
+          </h3>
+          {source === 'ai' ? (
+            <span className="ml-2 text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+              ✨ Dibuat oleh AI
+            </span>
+          ) : (
+            <span className="ml-2 text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
+              📊 Dari Data Laporan
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleFetchRisk}
+            disabled={riskLoading}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all
+              ${riskData 
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100' 
+                : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+          >
+            {riskLoading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : riskData ? (
+              <RefreshCcw size={14} />
+            ) : (
+              <ShieldAlert size={14} />
+            )}
+            {riskData ? 'Refresh Risk Summary' : 'Risk Summary (AI)'}
+          </button>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {riskData && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mb-8 p-6 bg-white rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-50/50"
+          >
+            <RiskSummaryTool data={riskData} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {riskError && (
+        <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium flex items-center gap-2">
+          <AlertCircle size={14} />
+          {riskError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {charts.map((chart, idx) => {
@@ -567,7 +673,7 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
                 return (
                   <CategoryByBranchChart
                     key={idx}
-                    data={transformToAirlineTypeCategoryData(result)}
+                    data={transformToBranchCategoryData(result)}
                     {...customChartProps}
                   />
                 );

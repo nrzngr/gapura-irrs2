@@ -448,48 +448,51 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       {/* Header */}
-      <header className="bg-white border-b border-[#e0e0e0] sticky top-0 z-50 w-full px-6">
-        <div className="h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <header className="bg-white border-b border-[#e0e0e0] sticky top-0 z-50 w-full px-4 sm:px-6">
+        <div className="h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             {!isPublic && (
               <button 
                 onClick={() => router.back()}
-                className="p-2 hover:bg-white rounded-full transition-all hover:shadow-sm group text-gray-500 hover:text-indigo-600"
+                className="p-2 hover:bg-gray-50 rounded-full transition-all hover:shadow-sm group text-gray-500 hover:text-indigo-600 shrink-0"
               >
                 <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
               </button>
             )}
-            <div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight truncate">
                 {tile.visualization.title}
               </h1>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyLink}
-              className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666] tooltip"
-              title="Copy Link"
-            >
-              {copied ? <Check size={20} className="text-green-600" /> : <LinkIcon size={20} />}
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
-              title="Export CSV"
-            >
-              <FileText size={20} />
-            </button>
-            <button
-              onClick={handleDownloadImage}
-              className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
-              title="Download PNG"
-            >
-              <Download size={20} />
-            </button>
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+              <button
+                onClick={handleCopyLink}
+                className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666] tooltip"
+                title="Copy Link"
+              >
+                {copied ? <Check size={20} className="text-green-600" /> : <LinkIcon size={20} />}
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
+                title="Export CSV"
+              >
+                <FileText size={20} />
+              </button>
+              <button
+                onClick={handleDownloadImage}
+                className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
+                title="Download PNG"
+              >
+                <Download size={20} />
+              </button>
+            </div>
+
             {!isPublic && (
-              <>
+              <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   onClick={handleSharePublic}
                   className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
@@ -503,16 +506,16 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
                 </button>
                 <button
                   onClick={() => setShowDebug(!showDebug)}
-                  className={`p-2 hover:bg-[#f5f5f5] rounded-full transition-colors ${showDebug ? 'text-blue-600' : 'text-[#666]'}`}
+                  className={`hidden md:block p-2 hover:bg-[#f5f5f5] rounded-full transition-colors ${showDebug ? 'text-blue-600' : 'text-[#666]'}`}
                   title="Toggle Debug Panel"
                 >
                   <Bug size={20} />
                 </button>
-              </>
+              </div>
             )}
             {!isPublic && (
               <>
-                <div className="h-6 w-px bg-[#e0e0e0] mx-2" />
+                <div className="h-6 w-px bg-[#e0e0e0] mx-1 sm:mx-2" />
                 <button
                   onClick={() => router.back()}
                   className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors"
@@ -526,33 +529,33 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
       </header>
 
       <main className="w-full px-4 sm:px-6 py-4 sm:py-6 font-sans">
-        <div className="max-w-[1600px] mx-auto space-y-8">
+        <div className="max-w-[1700px] mx-auto space-y-6 sm:space-y-8">
           {/* CONTEXT RIBBON */}
           <ContextRibbon query={tile.query} />
 
           {/* MAIN CONTENT GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* HERO CHART (Left - 8 cols) */}
-          <div className="lg:col-span-8 space-y-4">
-            <EnlargedChart 
-              tile={tile} 
-              result={displayData}
-              viewMode={viewMode}
-              normalization={normalization}
-            />
-          </div>
-
-          {/* INSIGHT PANEL (Right - 4 cols) */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="sticky top-24">
-              <InsightPanel 
-                insights={insightStrings} 
-                isLoading={insightsLoading} 
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* HERO CHART (Left - 8 cols) */}
+            <div className="lg:col-span-8 space-y-4">
+              <EnlargedChart 
+                tile={tile} 
+                result={displayData}
+                viewMode={viewMode}
+                normalization={normalization}
               />
             </div>
+
+            {/* INSIGHT PANEL (Right - 4 cols) */}
+            <div className="lg:col-span-4 space-y-4">
+              <div className="lg:sticky lg:top-24">
+                <InsightPanel 
+                  insights={insightStrings} 
+                  isLoading={insightsLoading} 
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
         {(insightsLoading || analyticalLoading) && (
           <div className="flex justify-center p-12">

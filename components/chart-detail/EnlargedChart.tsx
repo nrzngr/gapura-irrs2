@@ -36,10 +36,10 @@ export function EnlargedChart({ tile, result, viewMode, normalization }: Enlarge
     // Ensure container has proper dimensions
     const containerStyle: React.CSSProperties = {
       width: '100%',
-      // For Pivot/Table, we want to maximize screen real estate but ensure it fits
-      height: isPivot ? '75vh' : (isHorizontalBar ? 'auto' : '500px'), 
-      minHeight: '400px',
-      maxHeight: isHorizontalBar ? '600px' : 'none',
+      // Use responsive height: larger on desktop, compact on mobile
+      height: isPivot ? '75vh' : (isHorizontalBar ? 'auto' : 'clamp(350px, 60vh, 550px)'), 
+      minHeight: '350px',
+      maxHeight: isHorizontalBar ? '700px' : 'none',
       overflowY: isHorizontalBar ? 'auto' : 'hidden', // hidden for pivot to enforce h-full constraint
       paddingRight: isHorizontalBar ? '8px' : '0',
       marginBottom: isPivot ? '32px' : '0', // Add margin to prevent overlapping

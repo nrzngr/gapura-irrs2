@@ -356,15 +356,9 @@ export function generateAnalyticalCharts(
     const dimInfo = REPORT_DIMENSIONS[dim];
     if (!dimInfo) continue;
 
+    // Branch breakdown chart removed per user request
     if (dim === 'branch' || dim === 'station_code') {
-      crossChartConfigs.push({
-        dimension: dim,
-        chartType: 'bar', // Visual representation fallback
-        titlePrefix: `Analisis Kategori per ${dimInfo.label}`,
-        explanation: `Peta panas distribusi laporan (Irregularity/Complaint/Compliment) per ${dimInfo.label.toLowerCase()}. Visualisasi hotspot kategori per lokasi.`,
-        limit: 10000,
-        customChartType: 'category_branch', // New specialized component
-      });
+      continue;
     } else if (dim === 'airlines') {
       crossChartConfigs.push({
         dimension: dim,

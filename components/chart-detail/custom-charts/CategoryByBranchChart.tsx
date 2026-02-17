@@ -39,7 +39,18 @@ export function CategoryByBranchChart({
   const pivotData = useMemo(() => {
     if (!data || data.length === 0) return null;
 
-    const branches = Array.from(new Set(data.map(d => d.airlineType || d.Branch || d.BRANCH || 'Unknown'))).sort();
+    // Fast mapping keys to avoid common pitfalls with case or naming variations
+    const getVal = (d: any, keys: string[]) => {
+      for (const k of keys) {
+        if (d[k] !== undefined && d[k] !== null && d[k] !== '') return d[k];
+      }
+      return null;
+    };
+
+    const branchKeys = ['branch', 'reporting_branch', 'BRANCH', 'Reporting_Branch', 'Reporting Branch', 'lokal_mpa_lookup', 'Lokal / MPA (VLOOKUP)'];
+    const categoryKeys = ['category', 'main_category', 'CATEGORY', 'Report_Category', 'Report Category', 'Irregularity_Complain_Category', 'Report_Category'];
+
+    const branches = Array.from(new Set(data.map(d => getVal(d, branchKeys) || 'Unknown'))).sort();
     const categories = ['IRREGULARITY', 'COMPLAINT', 'COMPLIMENT'];
     
     // Matrix: branch -> category -> count
@@ -57,11 +68,23 @@ export function CategoryByBranchChart({
       matrix[b] = {};
       rowTotals[b] = 0;
       categories.forEach(c => {
-        const item = data.find(d => 
-          (d.airlineType || d.branch || d.BRANCH || 'Unknown') === b && 
-          (d.category || d.CATEGORY || '').toUpperCase() === c
-        );
-        const val = item ? Number(item.count || item.jumlah || 0) : 0;
+        // Use the standardized keys from the transformer
+        const val = data.reduce((acc, d) => {
+          const dBranch = d.branch || getVal(d, branchKeys) || 'Unknown';
+          const dRawCat = (d.category || getVal(d, categoryKeys) || '').toString().toUpperCase();
+          
+          // MAP common variations to the 3 main categories
+          let dCat = 'UNKNOWN';
+          if (dRawCat.includes('IRREGULARITY')) dCat = 'IRREGULARITY';
+          else if (dRawCat.includes('COMPLAIN')) dCat = 'COMPLAINT';
+          else if (dRawCat.includes('COMPLIMENT')) dCat = 'COMPLIMENT';
+
+          if (dBranch === b && dCat === c) {
+            return acc + Number(d.count || d.jumlah || d.jumlah_kasus || 1); 
+          }
+          return acc;
+        }, 0);
+
         matrix[b][c] = val;
         rowTotals[b] += val;
         colTotals[c] += val;

@@ -201,88 +201,89 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
   return (
     <div className={`flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
       {/* ─── 1. HEADER STRIP ─────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4 bg-white sticky top-0 z-30">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white sticky top-0 z-30">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-bold text-gray-800 truncate">{title}</h3>
+        </div>
 
-
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
            {/* Summary Stats Pucks */}
-           <div className="hidden md:flex items-center gap-2 mr-4 text-xs font-medium">
+           <div className="flex items-center gap-2 text-xs font-medium">
              {stats.complaints > 0 && (
-               <span className="px-2 py-1 rounded-md bg-red-50 text-red-700 border border-red-100 flex items-center gap-1">
+               <span className="px-2 py-1 rounded-md bg-red-50 text-red-700 border border-red-100 flex items-center gap-1 shrink-0">
                  <AlertCircle size={12} /> {stats.complaints}
                </span>
              )}
              {stats.irregularities > 0 && (
-               <span className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 border border-orange-100 flex items-center gap-1">
+               <span className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 border border-orange-100 flex items-center gap-1 shrink-0">
                  <HelpCircle size={12} /> {stats.irregularities}
                </span>
              )}
              {stats.compliments > 0 && (
-               <span className="px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 flex items-center gap-1">
+               <span className="px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-100 flex items-center gap-1 shrink-0">
                  <CheckCircle2 size={12} /> {stats.compliments}
                </span>
              )}
            </div>
 
-           {/* Search */}
-           <div className="relative group">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-            <input
-              type="text"
-              placeholder="Search data..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-40 md:w-64 transition-all"
-            />
+           {/* Search & Actions */}
+           <div className="flex items-center gap-2 flex-1 sm:flex-none justify-between sm:justify-end">
+            <div className="relative group flex-1 sm:flex-none">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full sm:w-48 lg:w-64 transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={handleExport}
+                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" 
+                title="Export CSV"
+              >
+                <Download size={16} />
+              </button>
+
+              {onViewDetail && (
+                <button
+                  onClick={onViewDetail}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-[#6b8e3d] hover:bg-[#5a7a3a] rounded transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                  title="View Table Detail"
+                >
+                  <Maximize2 size={12} />
+                  <span>Detail</span>
+                </button>
+              )}
+            </div>
           </div>
-
-
-
-          <button 
-            onClick={handleExport}
-            className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" 
-            title="Export CSV"
-          >
-            <Download size={16} />
-          </button>
-
-          {onViewDetail && (
-            <button
-              onClick={onViewDetail}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-[#6b8e3d] hover:bg-[#5a7a3a] rounded transition-all shadow-sm active:scale-95 ml-1"
-              title="View Table Detail"
-            >
-              <Maximize2 size={12} />
-              <span>Detail</span>
-            </button>
-          )}
         </div>
       </div>
 
-      {/* ─── ANALYTICS PANEL ───────────────────────────────────────────────── */}
-
-
       {/* ─── 2. TABLE BODY ────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto custom-scrollbar relative">
-        <table className="w-full border-collapse table-fixed">
+      <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
+        <table className="w-full border-collapse table-auto min-w-full">
           <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm">
             <tr>
-              <th className="px-3 py-3 text-left w-10" />
-              <th className="px-2 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider w-10 text-center">#</th>
+              <th className="px-3 py-3 text-left w-10 shrink-0" />
+              <th className="px-2 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider w-10 text-center shrink-0">#</th>
               {categoryCol && (
-                <th onClick={() => handleSort(categoryCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none w-32">
+                <th onClick={() => handleSort(categoryCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[120px] max-w-[160px]">
                   <div className="flex items-center gap-1">{categoryCol} {sortCol === categoryCol && (sortDir === 'asc' ? '▲' : '▼')}</div>
                 </th>
               )}
               {dateCol && (
-                <th onClick={() => handleSort(dateCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none w-28">
+                <th onClick={() => handleSort(dateCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[100px] whitespace-nowrap">
                   <div className="flex items-center gap-1">{dateCol} {sortCol === dateCol && (sortDir === 'asc' ? '▲' : '▼')}</div>
                 </th>
               )}
               {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => {
                 const isLongText = ['root_cause', 'root caused', 'root cause', 'action_taken', 'action taken', 'action', 'corrective_action'].includes(col.toLowerCase());
                 return (
-                  <th key={col} onClick={() => handleSort(col)} className={`px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${isLongText ? 'w-48' : 'w-24'} break-words`}>
+                  <th key={col} onClick={() => handleSort(col)} className={`px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${isLongText ? 'min-w-[200px]' : 'min-w-[100px]'} break-words whitespace-nowrap`}>
                     <div className="flex items-center gap-1">
                       {col.replace(/_/g, ' ')}
                       {sortCol === col && <span className="text-indigo-500">{sortDir === 'asc' ? '▲' : '▼'}</span>}
@@ -291,7 +292,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                 );
               })}
               {reportCol && (
-                <th className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider w-64">
+                <th className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider min-w-[250px]">
                   Report Preview
                 </th>
               )}
