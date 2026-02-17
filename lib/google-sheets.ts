@@ -1,3 +1,4 @@
+import 'server-only';
 import { google } from 'googleapis';
 
 export const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];

@@ -1,5 +1,6 @@
-'use client';
 
+
+import 'server-only';
 import { getGoogleSheets } from '@/lib/google-sheets';
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '1TFPZOAWAKubPl7iaUk8BXt2BabY1N-AcLgi-_zBQGzk';
