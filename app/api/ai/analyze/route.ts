@@ -87,9 +87,14 @@ export async function POST(req: NextRequest) {
     } catch (aiError) {
       console.error('AI Service Error:', aiError);
       
-      // Fallback: Return mock analysis jika AI service tidak tersedia
-      const fallbackResult = generateFallbackAnalysis(convertedData, analysisOptions);
-      return NextResponse.json(translateToIndonesian(fallbackResult));
+      // Return error - no fallback/mock data
+      return NextResponse.json(
+        { 
+          error: 'AI service tidak tersedia. Pastikan service AI berjalan di localhost:8000',
+          details: aiError instanceof Error ? aiError.message : 'Unknown error'
+        },
+        { status: 503 }
+      );
     }
   } catch (error) {
     console.error('AI Analysis API Error:', error);
@@ -130,155 +135,4 @@ function translateToIndonesian(result: any) {
   };
 }
 
-/**
- * Generate fallback analysis jika AI service tidak tersedia
- */
-function generateFallbackAnalysis(data: any[], options: any) {
-  const predictions = data.map((item, index) => ({
-    reportId: `row_${index}`,
-    predictedDays: calculateFallbackPrediction(item),
-    confidenceInterval: [1.0, 3.0] as [number, number],
-    featureImportance: {
-      category: 0.35,
-      airline: 0.28,
-      hub: 0.15,
-      reportLength: 0.12,
-      hasPhotos: 0.10,
-    },
-  }));
 
-  return {
-    regression: options.predictResolutionTime ? {
-      predictions,
-      modelMetrics: {
-        mae: 1.2,
-        rmse: 1.8,
-        r2: 0.78,
-        mape: 0.15,
-        catatan: 'Menggunakan perhitungan fallback (AI service tidak tersedia)',
-      },
-    } : null,
-    nlp: options.classifySeverity ? {
-      classifications: data.map((item, index) => ({
-        reportId: `row_${index}`,
-        severity: classifySeverityFallback(item),
-        severityConfidence: 0.85,
-        areaType: item.Area?.replace(' Area', '') || 'Unknown',
-        issueType: item.Irregularity_Complain_Category || 'Unknown',
-        issueTypeConfidence: 0.80,
-      })),
-      entities: [],
-      summaries: options.generateSummary ? data.map((item, index) => ({
-        reportId: `row_${index}`,
-        executiveSummary: generateSummaryFallback(item),
-        keyPoints: [
-          `Kategori: ${item.Irregularity_Complain_Category || 'Unknown'}`,
-          `Status: ${item.Status || 'Unknown'}`,
-          `Area: ${item.Area || 'Unknown'}`,
-        ],
-      })) : [],
-      sentiment: data.map((item, index) => ({
-        reportId: `row_${index}`,
-        urgencyScore: calculateUrgencyFallback(item),
-        sentiment: 'Neutral',
-        keywords: [],
-      })),
-    } : null,
-    trends: options.analyzeTrends ? generateTrendsFallback(data) : null,
-    metadata: {
-      totalRecords: data.length,
-      processingTime: 150,
-      modelVersions: {
-        regression: 'v1.0.0-fallback',
-        nlp: 'v1.0.0-fallback',
-      },
-    },
-  };
-}
-
-function calculateFallbackPrediction(item: any): number {
-  const category = item.Irregularity_Complain_Category || 'Unknown';
-  const baseDays: Record<string, number> = {
-    'Cargo Problems': 2.5,
-    'Pax Handling': 1.8,
-    'GSE': 3.2,
-    'Operation': 2.1,
-    'Baggage Handling': 1.5,
-    'Procedure Competencies': 2.8,
-    'Flight Document Handling': 2.0,
-  };
-  
-  const base = baseDays[category] || 2.0;
-  const variation = (Math.random() - 0.5) * 0.6;
-  return Math.max(0.5, base + variation);
-}
-
-function classifySeverityFallback(item: any): string {
-  const report = (item.Report || '').toLowerCase();
-  const rootCause = (item.Root_Caused || '').toLowerCase();
-  const text = report + ' ' + rootCause;
-  
-  if (text.includes('damage') || text.includes('torn') || text.includes('broken') || text.includes('critical')) {
-    return 'High';
-  } else if (text.includes('delay') || text.includes('late') || text.includes('wrong')) {
-    return 'Medium';
-  }
-  return 'Low';
-}
-
-function generateSummaryFallback(item: any): string {
-  const category = item.Irregularity_Complain_Category || 'Issue';
-  const report = (item.Report || '').substring(0, 100);
-  return `${category}: ${report}${report.length > 100 ? '...' : ''}`;
-}
-
-function calculateUrgencyFallback(item: any): number {
-  const report = (item.Report || '').toLowerCase();
-  const keywords = ['damage', 'broken', 'emergency', 'critical', 'urgent'];
-  const count = keywords.filter(kw => report.includes(kw)).length;
-  return Math.min(1.0, count / 3);
-}
-
-function generateTrendsFallback(data: any[]) {
-  const byAirline: Record<string, { count: number; issues: string[] }> = {};
-  const byHub: Record<string, { count: number; issues: string[] }> = {};
-  const byCategory: Record<string, { count: number }> = {};
-
-  data.forEach(item => {
-    const airline = item.Airlines || 'Unknown';
-    const hub = item.HUB || 'Unknown';
-    const category = item.Irregularity_Complain_Category || 'Unknown';
-
-    if (!byAirline[airline]) byAirline[airline] = { count: 0, issues: [] };
-    byAirline[airline].count++;
-    byAirline[airline].issues.push(category);
-
-    if (!byHub[hub]) byHub[hub] = { count: 0, issues: [] };
-    byHub[hub].count++;
-    byHub[hub].issues.push(category);
-
-    if (!byCategory[category]) byCategory[category] = { count: 0 };
-    byCategory[category].count++;
-  });
-
-  return {
-    byAirline: Object.fromEntries(
-      Object.entries(byAirline).map(([k, v]) => [k, {
-        count: v.count,
-        avgResolutionDays: 2.0 + Math.random(),
-        topIssues: [...new Set(v.issues)].slice(0, 3),
-      }])
-    ),
-    byHub: Object.fromEntries(
-      Object.entries(byHub).map(([k, v]) => [k, {
-        count: v.count,
-        avgResolutionDays: 2.0 + Math.random(),
-        topIssues: [...new Set(v.issues)].slice(0, 3),
-      }])
-    ),
-    byCategory: Object.fromEntries(
-      Object.entries(byCategory).map(([k, v]) => [k, { count: v.count, trend: 'stable' }])
-    ),
-    timeSeries: [],
-  };
-}
