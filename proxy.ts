@@ -16,7 +16,7 @@ const ROLE_DASHBOARDS: Record<string, string> = {
     CABANG: '/dashboard/employee',
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const path = request.nextUrl.pathname;
     const cookieStore = request.cookies;
     // Multi-Account Support: Try to extract active session from bundle first

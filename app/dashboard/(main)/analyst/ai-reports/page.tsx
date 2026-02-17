@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
+import { ReportAnalysisTable } from './ReportAnalysisTable';
 
 // --- Types ---
 interface ModelInfo {
@@ -66,8 +67,18 @@ interface BatchAnalysisResult {
   metadata: {
     totalRecords: number;
     processingTimeSeconds: number;
+    recordsPerSecond?: number;
+    modelVersions?: {
+      regression: string;
+      nlp: string;
+    };
   };
+  sheets?: Record<string, { rows_fetched: number; status: string }>;
   summary: {
+    totalRecords?: number;
+    sheetsProcessed?: number;
+    regressionEnabled?: boolean;
+    nlpEnabled?: boolean;
     severityDistribution: Record<string, number>;
     predictionStats: {
       min: number;
@@ -81,6 +92,9 @@ interface BatchAnalysisResult {
     originalData: any;
     prediction: any;
     classification: any;
+    sentiment?: any;
+    summary?: any;
+    entities?: any;
   }>;
 }
 
@@ -95,6 +109,10 @@ interface AIReport {
   description?: string;
   branch?: string;
   hub?: string;
+  root_cause?: string;
+  action_taken?: string;
+  photo_url?: string;
+  flightNumber?: string;
 }
 
 // --- Utility Functions ---
@@ -249,6 +267,126 @@ const SeverityDistribution = ({ distribution }: { distribution: Record<string, n
   );
 };
 
+const ReportsTable = ({ 
+  title, 
+  icon: Icon, 
+  data, 
+  page, 
+  setPage, 
+  rowsPerPage = 10 
+}: { 
+  title: string;
+  icon: any;
+  data: any[];
+  page: number;
+  setPage: (p: number | ((prev: number) => number)) => void;
+  rowsPerPage?: number;
+}) => (
+  <Card className="p-6">
+    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+       <Icon className="w-5 h-5 text-gray-500" />
+       {title} ({data.length})
+    </h3>
+    
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="bg-gray-50 text-gray-600 font-medium border-b">
+          <tr>
+            <th className="px-4 py-3">Tanggal</th>
+            <th className="px-4 py-3">Penerbangan</th>
+            <th className="px-4 py-3">Rute</th>
+            <th className="px-4 py-3">Deskripsi</th>
+            <th className="px-4 py-3">Prediksi</th>
+            <th className="px-4 py-3">Keparahan</th>
+            <th className="px-4 py-3">Sentimen</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {data
+            .slice((page - 1) * rowsPerPage, page * rowsPerPage)
+            .map((result: any, idx: number) => (
+            <tr key={idx} className="hover:bg-gray-50/50">
+              <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                {result.originalData.date ? new Date(result.originalData.date).toLocaleDateString('id-ID', {
+                  day: 'numeric', month: 'short', year: 'numeric'
+                }) : '-'}
+              </td>
+              <td className="px-4 py-3 font-medium">
+                {result.originalData.flightNumber ? (
+                  <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
+                    {result.originalData.flightNumber}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 text-xs text-center block">-</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-gray-600">
+                {result.originalData.route || '-'}
+              </td>
+              <td className="px-4 py-3 text-gray-600 max-w-[250px] truncate" title={result.originalData.report}>
+                {result.originalData.report || result.originalData.issueType || '-'}
+              </td>
+              <td className="px-4 py-3">
+                <span className={cn(
+                  "font-medium",
+                  result.prediction?.predictedDays > 3 ? "text-red-700" : "text-emerald-700"
+                )}>
+                  {result.prediction?.predictedDays?.toFixed(1)} hari
+                </span>
+              </td>
+              <td className="px-4 py-3">
+                <Badge className={getSeverityColor(result.classification?.severity)}>
+                  {translateSeverity(result.classification?.severity)}
+                </Badge>
+              </td>
+              <td className="px-4 py-3">
+                {result.sentiment?.sentiment ? (
+                  <Badge variant="outline" className={cn(
+                    result.sentiment.sentiment.includes('Positive') ? "text-green-600 border-green-200 bg-green-50" :
+                    result.sentiment.sentiment.includes('Negative') ? "text-red-600 border-red-200 bg-red-50" :
+                    "text-gray-600 bg-gray-50"
+                  )}>
+                    {result.sentiment.sentiment}
+                  </Badge>
+                ) : (
+                  <span className="text-xs text-gray-400">-</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Pagination */}
+    {data.length > rowsPerPage && (
+      <div className="flex justify-between items-center mt-4 pt-4 border-t">
+        <span className="text-sm text-gray-500">
+          Menampilkan {(page - 1) * rowsPerPage + 1} - {Math.min(page * rowsPerPage, data.length)} dari {data.length}
+        </span>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="px-3 py-1 h-8"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            <ChevronDown className="rotate-90 w-4 h-4" />
+          </Button>
+          <Button 
+            variant="outline"
+            className="px-3 py-1 h-8" 
+            onClick={() => setPage(p => Math.min(Math.ceil(data.length / rowsPerPage), p + 1))}
+            disabled={page >= Math.ceil(data.length / rowsPerPage)}
+          >
+            <ChevronDown className="rotate-270 w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    )}
+  </Card>
+);
+
 // --- Main Component ---
 export default function AIReportsPage() {
   const router = useRouter();
@@ -264,6 +402,12 @@ export default function AIReportsPage() {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  
+  // Independent pagination states
+  const [nonCargoPage, setNonCargoPage] = useState(1);
+  const [cgoPage, setCgoPage] = useState(1);
+  
+  const resultsPerPage = 10;
 
   // Fetch initial data
   useEffect(() => {
@@ -333,13 +477,16 @@ export default function AIReportsPage() {
     const reportData = {
       Date_of_Event: report.created_at || new Date().toISOString(),
       Airlines: report.airlines || 'Unknown',
-      Flight_Number: report.title || 'N/A',
+      Flight_Number: report.flightNumber || 'N/A',
       Branch: report.branch || 'Unknown',
       HUB: report.hub || 'Unknown',
       Irregularity_Complain_Category: report.main_category || 'Unknown',
       Report: report.description || '',
+      Root_Caused: report.root_cause || '',
+      Action_Taken: report.action_taken || '',
       Area: report.branch || 'Unknown',
-      Status: report.status || 'Open'
+      Status: report.status || 'Open',
+      Upload_Irregularity_Photo: report.photo_url || ''
     };
     
     console.log('[AI Single Analysis] Mapped data:', reportData);
@@ -408,6 +555,8 @@ export default function AIReportsPage() {
         console.log('[AI Batch Analysis] Total records:', data.metadata?.totalRecords);
         console.log('[AI Batch Analysis] Severity distribution:', data.summary?.severityDistribution);
         setBatchResults(data);
+        setNonCargoPage(1);
+        setCgoPage(1);
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
         console.error('[AI Batch] Error:', errorData);
@@ -838,215 +987,45 @@ export default function AIReportsPage() {
                     </div>
                   )}
                 </Card>
+
+                {/* Split Tables */}
+                {batchResults && batchResults.results && batchResults.results.length > 0 && (
+                  <div className="space-y-6">
+                    {/* Non-Cargo Table */}
+                    <ReportsTable
+                      title="Laporan Landside & Airside (Non-Cargo)"
+                      icon={FileText}
+                      data={batchResults.results.filter((r: any) => r.sourceSheet.includes('NON CARGO'))}
+                      page={nonCargoPage}
+                      setPage={setNonCargoPage}
+                      rowsPerPage={resultsPerPage}
+                    />
+
+                    {/* CGO Table */}
+                    <ReportsTable
+                      title="Laporan Cargo (CGO)"
+                      icon={Database}
+                      data={batchResults.results.filter((r: any) => r.sourceSheet.includes('CGO'))}
+                      page={cgoPage}
+                      setPage={setCgoPage}
+                      rowsPerPage={resultsPerPage}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
             {/* Single Analysis Tab */}
             {activeTab === 'single' && (
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Search className="w-5 h-5 text-blue-500" />
-                    Analisis Laporan Individual
-                  </h3>
-                  
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium mb-2">Pilih Laporan</label>
-                    {reports.length === 0 ? (
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <p className="text-amber-700">
-                          Tidak ada laporan tersedia. Pastikan data Google Sheets sudah di-import.
-                        </p>
-                        <button 
-                          onClick={fetchReports}
-                          className="mt-2 text-sm text-amber-600 underline hover:text-amber-800"
-                        >
-                          Muat Ulang Data
-                        </button>
-                      </div>
-                    ) : (
-                      <select
-                        value={selectedReportId}
-                        onChange={(e) => handleReportSelect(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      >
-                        <option value="">Pilih laporan untuk dianalisis... ({reports.length} tersedia)</option>
-                        {reports.slice(0, 100).map((report) => (
-                          <option key={report.id} value={report.id}>
-                            {report.airlines || 'Unknown'} - {report.title?.substring(0, 50) || 'No Title'}...
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {reports.length > 100 && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Menampilkan 100 dari {reports.length} laporan
-                      </p>
-                    )}
-                  </div>
-
-                  {loading.single && (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 size={32} className="animate-spin text-emerald-600" />
-                      <span className="ml-3 text-gray-600">Menganalisis laporan...</span>
-                    </div>
-                  )}
-
-                  {singleAnalysis && !loading.single && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="space-y-6"
-                    >
-                      {/* Model Status Warning */}
-                      {!singleAnalysis.analysis.regression?.modelMetrics?.model_loaded && (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                          <p className="text-amber-700 text-sm">
-                            <strong>Perhatian:</strong> {singleAnalysis.analysis.regression?.modelMetrics?.note || 'Model AI tidak tersedia. Menampilkan prediksi fallback.'}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Report Info */}
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <h4 className="font-bold text-gray-800 mb-2">Detail Laporan</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-500">Maskapai</p>
-                            <p className="font-medium">{singleAnalysis.report.airlines || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Kategori</p>
-                            <p className="font-medium">{singleAnalysis.report.main_category || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Branch</p>
-                            <p className="font-medium">{singleAnalysis.report.branch || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-500">Status</p>
-                            <p className="font-medium">{singleAnalysis.report.status || 'N/A'}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Prediction Result */}
-                      <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                        <h4 className="font-bold text-emerald-800 mb-2">Hasil Prediksi AI</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-600">Waktu Penyelesaian</p>
-                            <p className="text-2xl font-bold text-emerald-700">
-                              {singleAnalysis.analysis.regression?.predictions?.[0]?.predictedDays?.toFixed(1)} hari
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Interval Kepercayaan</p>
-                            <p className="text-lg font-bold text-emerald-700">
-                              [{singleAnalysis.analysis.regression?.predictions?.[0]?.confidenceInterval?.[0]?.toFixed(1)} - {singleAnalysis.analysis.regression?.predictions?.[0]?.confidenceInterval?.[1]?.toFixed(1)}]
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Tingkat Keparahan</p>
-                            <Badge className={getSeverityColor(singleAnalysis.analysis.nlp?.classifications?.[0]?.severity)}>
-                              {translateSeverity(singleAnalysis.analysis.nlp?.classifications?.[0]?.severity)}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* SHAP Explanation */}
-                      {singleAnalysis.analysis.regression?.predictions?.[0]?.shapExplanation && (
-                        <div className="p-4 border rounded-lg">
-                          <h4 className="font-bold mb-2 flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4 text-amber-500" />
-                            Penjelasan Prediksi (SHAP)
-                          </h4>
-                          <p className="text-sm text-gray-600 mb-3">
-                            {singleAnalysis.analysis.regression.predictions[0].shapExplanation.explanation}
-                          </p>
-                          <div className="space-y-2">
-                            {singleAnalysis.analysis.regression.predictions[0].shapExplanation.topFactors.map((factor: any, idx: number) => (
-                              <div key={idx} className="flex items-center gap-2 text-sm">
-                                <span className={cn(
-                                  "w-2 h-2 rounded-full",
-                                  factor.direction === 'increases' ? 'bg-red-500' : 'bg-green-500'
-                                )} />
-                                <span className="flex-1">{factor.feature.replace(/_/g, ' ')}</span>
-                                <span className={cn(
-                                  "font-medium",
-                                  factor.direction === 'increases' ? 'text-red-600' : 'text-green-600'
-                                )}>
-                                  {factor.direction === 'increases' ? '+' : '-'}{factor.abs_contribution.toFixed(2)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Summary */}
-                      {singleAnalysis.analysis.nlp?.summaries?.[0] && (
-                        <div className="p-4 border rounded-lg">
-                          <h4 className="font-bold mb-2">Ringkasan AI</h4>
-                          <p className="text-sm text-gray-700 mb-3">
-                            {singleAnalysis.analysis.nlp.summaries[0].executiveSummary !== 'Unknown: ' 
-                              ? singleAnalysis.analysis.nlp.summaries[0].executiveSummary
-                              : 'Ringkasan tidak tersedia untuk laporan ini.'}
-                          </p>
-                          {singleAnalysis.analysis.nlp.summaries[0].keyPoints.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {singleAnalysis.analysis.nlp.summaries[0].keyPoints
-                                .filter((point: string) => !point.includes('Unknown'))
-                                .map((point: string, idx: number) => (
-                                  <Badge key={idx} variant="outline" className="text-xs">
-                                    {point}
-                                  </Badge>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Sentiment */}
-                      {singleAnalysis.analysis.nlp?.sentiment?.[0] && (
-                        <div className="p-4 border rounded-lg">
-                          <h4 className="font-bold mb-2">Analisis Sentimen</h4>
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <p className="text-sm text-gray-600">Skor Urgensi</p>
-                              <p className="text-xl font-bold">
-                                {(singleAnalysis.analysis.nlp.sentiment[0].urgencyScore * 100).toFixed(0)}%
-                              </p>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-600">Kata Kunci Terdeteksi</p>
-                               <div className="flex flex-wrap gap-1 mt-1">
-                                 {singleAnalysis.analysis.nlp.sentiment[0].keywords.length > 0 ? (
-                                   singleAnalysis.analysis.nlp.sentiment[0].keywords.map((kw: string, idx: number) => (
-                                     <Badge key={idx} variant="secondary" className="text-xs">
-                                       {kw}
-                                     </Badge>
-                                   ))
-                                 ) : (
-                                   <span className="text-sm text-gray-400">Tidak ada kata kunci terdeteksi</span>
-                                 )}
-                               </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-
-                  {!singleAnalysis && !loading.single && (
-                    <div className="text-center py-12 text-gray-500">
-                      <Search size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>Pilih laporan dari dropdown untuk melihat analisis AI detail.</p>
-                    </div>
-                  )}
-                </Card>
-              </div>
+              <ReportAnalysisTable
+                title="Analisis Laporan Individual"
+                reports={reports}
+                onAnalyze={(report) => handleReportSelect(report.id)}
+                analysisResult={singleAnalysis}
+                analyzing={loading.single || false}
+                selectedId={selectedReportId}
+                className="min-h-[600px]"
+              />
             )}
 
             {/* Model Info Tab */}

@@ -42,6 +42,7 @@ export async function GET() {
 
     // Call the Python AI service
     const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    console.log('[AI Model Info] URL:', AI_SERVICE_URL);
     
     try {
       const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/model-info`, {

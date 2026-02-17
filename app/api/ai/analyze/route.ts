@@ -33,20 +33,20 @@ export async function POST(req: NextRequest) {
 
     // Convert reports to format yang diharapkan oleh AI model
     const convertedData = data.map((report: any) => ({
-      Date_of_Event: report.date_of_event || report.created_at,
-      Airlines: report.airlines || report.airline || 'Unknown',
-      Flight_Number: report.flight_number || report.flightNumber || 'N/A',
-      Branch: report.branch || report.stations?.code || 'Unknown',
-      HUB: report.hub || 'Unknown',
-      Route: report.route || '',
-      Report_Category: report.report_category || report.category || 'Irregularity',
-      Irregularity_Complain_Category: report.main_category || report.category_detail || 'Unknown',
-      Report: report.description || report.report || report.title || '',
-      Root_Caused: report.root_cause || report.root_caused || '',
-      Action_Taken: report.action_taken || report.action || '',
-      Area: report.area || 'Unknown',
-      Status: report.status || 'Open',
-      Upload_Irregularity_Photo: report.photo_url || '',
+      Date_of_Event: report.Date_of_Event || report.date_of_event || report.created_at,
+      Airlines: report.Airlines || report.airlines || report.airline || 'Unknown',
+      Flight_Number: report.Flight_Number || report.flight_number || report.flightNumber || 'N/A',
+      Branch: report.Branch || report.branch || report.stations?.code || 'Unknown',
+      HUB: report.HUB || report.hub || 'Unknown',
+      Route: report.Route || report.route || '',
+      Report_Category: report.Report_Category || report.report_category || report.category || 'Irregularity',
+      Irregularity_Complain_Category: report.Irregularity_Complain_Category || report.main_category || report.category_detail || 'Unknown',
+      Report: report.Report || report.description || report.report || report.title || '',
+      Root_Caused: report.Root_Caused || report.root_cause || report.root_caused || '',
+      Action_Taken: report.Action_Taken || report.action_taken || report.action || '',
+      Area: report.Area || report.area || 'Unknown',
+      Status: report.Status || report.status || 'Open',
+      Upload_Irregularity_Photo: report.Upload_Irregularity_Photo || report.photo_url || '',
     }));
 
     // Default options
@@ -60,6 +60,12 @@ export async function POST(req: NextRequest) {
 
     // Panggil AI service (Python FastAPI)
     const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    
+    // DEBUG: Log payload sent to AI service
+    console.log('[AI Analyze Route] Sending payload to AI service:', JSON.stringify({
+      data: convertedData.slice(0, 2), // Log first 2 items to avoid spam
+      options: analysisOptions,
+    }, null, 2));
     
     try {
       const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/analyze`, {

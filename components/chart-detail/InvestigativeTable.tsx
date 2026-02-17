@@ -13,31 +13,15 @@ import {
   CheckCircle2, 
   HelpCircle,
   Clock,
-  MapPin,
-  Plane,
-  FileText,
   Link as LinkIcon,
-  BarChart2,
-  PieChart as PieChartIcon,
   Sparkles,
-  ChevronUp
+  ChevronUp,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell, 
-  PieChart, 
-  Pie 
-} from 'recharts';
 import type { QueryResult } from '@/types/builder';
 import { formatDisplayValue } from '@/lib/chart-utils';
-import { InvestigativeAIInsights } from './InvestigativeAIInsights';
+
 
 interface InvestigativeTableProps {
   data: QueryResult;
@@ -45,8 +29,6 @@ interface InvestigativeTableProps {
   className?: string;
   onViewDetail?: () => void;
 }
-
-const GREEN_PALETTE = ['#6b8e3d', '#7cb342', '#558b2f', '#aed581', '#33691e', '#9ccc65', '#689f38', '#c5e1a5', '#43a047', '#81c784'];
 
 type SortDir = 'asc' | 'desc';
 
@@ -97,7 +79,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
-  const [showAnalytics, setShowAnalytics] = useState(false);
+
 
   // Hydration sync
   useEffect(() => {
@@ -106,9 +88,20 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
 
   // ─── 1. COLUMN DEFINITION ───────────────────────────────────────────────────
   const allColumns = data.columns;
-  
+
   // Identify special columns
-  const categoryCol = allColumns.find(c => ['category', 'kategori', 'main_category'].includes(c.toLowerCase()));
+  const categoryCol = allColumns.find(c => [
+    'category', 
+    'kategori', 
+    'main_category', 
+    'report_category', 
+    'kategori_laporan', 
+    'irregularity_complain_category',
+    'complaint_category',
+    'jenis_laporan',
+    'category_detail',
+    'report category'
+  ].includes(c.toLowerCase()));
   const dateCol = allColumns.find(c => ['date', 'tanggal', 'created_at', 'flight_date'].includes(c.toLowerCase()));
   const reportCol = allColumns.find(c => ['report', 'laporan', 'description', 'remark', 'remarks', 'short_report'].includes(c.toLowerCase()));
   const rootCauseCol = allColumns.find(c => ['root_cause', 'root cause', 'root caused', 'akar_masalah', 'penyebab'].includes(c.toLowerCase()));
@@ -159,70 +152,23 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
 
   // Statistics for Summary Strip
   const stats = useMemo(() => {
-    const total = filteredData.length;
-    const complaints = categoryCol ? filteredData.filter(r => String(r[categoryCol]).toLowerCase().includes('complaint')).length : 0;
-    const irregularities = categoryCol ? filteredData.filter(r => String(r[categoryCol]).toLowerCase().includes('irregularity')).length : 0;
-    const compliments = categoryCol ? filteredData.filter(r => String(r[categoryCol]).toLowerCase().includes('compliment')).length : 0;
+    const metricCol = allColumns.find(c => ['count', 'jumlah', 'total', 'record_count', 'frequency'].includes(c.toLowerCase()));
+    
+    // Helper to sum metric or count rows
+    const sumMetric = (items: Record<string, any>[]) => {
+      if (!metricCol) return items.length;
+      return items.reduce((sum, item) => sum + (Number(item[metricCol]) || 0), 0);
+    };
+
+    const total = sumMetric(filteredData);
+    const complaints = categoryCol ? sumMetric(filteredData.filter(r => String(r[categoryCol]).toLowerCase().includes('complaint'))) : 0;
+    const irregularities = categoryCol ? sumMetric(filteredData.filter(r => String(r[categoryCol]).toLowerCase().includes('irregularity'))) : 0;
+    const compliments = categoryCol ? sumMetric(filteredData.filter(r => String(r[categoryCol]).toLowerCase().includes('compliment'))) : 0;
+    
     return { total, complaints, irregularities, compliments };
-  }, [filteredData, categoryCol]);
+  }, [filteredData, categoryCol, allColumns]);
 
-  // ─── ANALYTICS ENGINE ───────────────────────────────────────────────────
-  const analyticsData = useMemo(() => {
-    if (!showAnalytics) return null;
 
-    const rows = filteredData as Record<string, any>[];
-    
-    // 1. Distributions
-    const dist = {
-      category: new Map<string, number>(),
-      branch: new Map<string, number>(),
-      airline: new Map<string, number>()
-    };
-
-    const branchCol = allColumns.find(c => ['branch', 'cabang', 'station'].includes(c.toLowerCase()));
-    const airlineCol = allColumns.find(c => ['airline', 'airlines', 'maskapai', 'jenis_maskapai'].includes(c.toLowerCase()));
-
-    rows.forEach(row => {
-      // Category
-      if (categoryCol) {
-        const val = row[categoryCol] || 'Unknown';
-        dist.category.set(val, (dist.category.get(val) || 0) + 1);
-      }
-      // Branch
-      if (branchCol) {
-        const val = row[branchCol] || 'Unknown';
-        dist.branch.set(val, (dist.branch.get(val) || 0) + 1);
-      }
-      // Airline
-      if (airlineCol) {
-        const val = row[airlineCol] || 'Unknown';
-        dist.airline.set(val, (dist.airline.get(val) || 0) + 1);
-      }
-    });
-
-    const toChartData = (map: Map<string, number>) => 
-      Array.from(map.entries())
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-    // 2. Automated Insights
-    const topCategory = toChartData(dist.category)[0];
-    const topBranch = toChartData(dist.branch)[0];
-    
-    const insights = [
-      topCategory ? `Kategori tertinggi adalah ${topCategory.name} dengan ${topCategory.value} laporan.` : '',
-      topBranch ? `Branch ${topBranch.name} memiliki volume laporan terbanyak.` : '',
-      rows.length > 50 ? `Volume data tinggi (${rows.length} baris), pola distribusi menunjukkan konsentrasi pada ${topCategory?.name || 'area tertentu'}.` : ''
-    ].filter(Boolean);
-
-    return {
-      categoryChart: toChartData(dist.category).slice(0, 5),
-      branchChart: toChartData(dist.branch).slice(0, 5),
-      airlineChart: toChartData(dist.airline).slice(0, 5),
-      insights,
-      totalCount: rows.length
-    };
-  }, [showAnalytics, filteredData, allColumns, categoryCol]);
 
   // ─── HANDLERS ───────────────────────────────────────────────────────────────
   const handleSort = (col: string) => {
@@ -290,20 +236,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
             />
           </div>
 
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg p-0.5 ml-1">
-            <button 
-              onClick={() => setShowAnalytics(!showAnalytics)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
-                showAnalytics 
-                ? 'bg-[#6b8e3d] text-white shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700 hover:bg-white'
-              }`}
-              title="Toggle Visual Analytics"
-            >
-              <BarChart2 size={12} />
-              <span>Analitik</span>
-            </button>
-          </div>
+
 
           <button 
             onClick={handleExport}
@@ -327,89 +260,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
       </div>
 
       {/* ─── ANALYTICS PANEL ───────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showAnalytics && analyticsData && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="border-b border-gray-100 bg-gray-50/30 overflow-hidden"
-          >
-            <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Distributions Group */}
-              <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Category Dist */}
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <PieChartIcon size={14} className="text-[#6b8e3d]" />
-                    <h4 className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">Distribusi Kategori</h4>
-                  </div>
-                  <div className="h-[200px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData.categoryChart} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
-                        <XAxis type="number" hide />
-                        <YAxis 
-                          dataKey="name" 
-                          type="category" 
-                          width={80} 
-                          tick={{ fontSize: 10, fill: '#666' }}
-                        />
-                        <Tooltip 
-                          cursor={{ fill: 'rgba(107, 142, 61, 0.05)' }}
-                          contentStyle={{ fontSize: '10px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                        />
-                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                          {analyticsData?.categoryChart.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={GREEN_PALETTE[index % GREEN_PALETTE.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
 
-                {/* Branch Dist */}
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MapPin size={14} className="text-[#6b8e3d]" />
-                    <h4 className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">Distribusi Branch</h4>
-                  </div>
-                  <div className="h-[200px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData?.branchChart}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#666' }} />
-                        <YAxis hide />
-                        <Tooltip />
-                        <Bar dataKey="value" fill="#6b8e3d" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Insights Sidebar */}
-              <div className="lg:col-span-4 flex flex-col gap-4">
-                <InvestigativeAIInsights 
-                  data={filteredData} 
-                  title={title} 
-                  columns={allColumns} 
-                />
-              </div>
-            </div>
-            <div className="px-6 py-2 bg-gray-50 flex items-center justify-center border-t border-gray-100">
-              <button 
-                onClick={() => setShowAnalytics(false)}
-                className="text-[10px] font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 uppercase tracking-tighter"
-              >
-                <ChevronUp size={12} /> Tutup Analitik
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ─── 2. TABLE BODY ────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto custom-scrollbar relative">
