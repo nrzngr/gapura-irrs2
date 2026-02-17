@@ -342,7 +342,7 @@ export function generateAnalyticalCharts(
 
   const crossChartConfigs: Array<{
     dimension: string;
-    chartType: 'horizontal_bar' | 'donut' | 'bar' | 'line' | 'grouped_bar';
+    chartType: 'horizontal_bar' | 'donut' | 'bar' | 'line' | 'grouped_bar' | 'heatmap';
     titlePrefix: string;
     explanation: string;
     limit?: number;
@@ -359,10 +359,11 @@ export function generateAnalyticalCharts(
     if (dim === 'branch' || dim === 'station_code') {
       crossChartConfigs.push({
         dimension: dim,
-        chartType: 'horizontal_bar',
-        titlePrefix: `Distribusi per ${dimInfo.label}`,
-        explanation: `Bandara/cabang mana yang paling banyak menyumbang laporan? Identifikasi hotspot operasional.`,
+        chartType: 'bar', // Visual representation fallback
+        titlePrefix: `Analisis Kategori per ${dimInfo.label}`,
+        explanation: `Peta panas distribusi laporan (Irregularity/Complaint/Compliment) per ${dimInfo.label.toLowerCase()}. Visualisasi hotspot kategori per lokasi.`,
         limit: 10000,
+        customChartType: 'category_branch', // New specialized component
       });
     } else if (dim === 'airlines') {
       crossChartConfigs.push({
@@ -433,8 +434,9 @@ export function generateAnalyticalCharts(
     const isTimeSeries = config.dimension === 'month' || config.dimension === 'day';
     let query;
 
-    if (config.chartType === 'grouped_bar') {
-       // Grouped bar needs specific stacked query (Dimension x Category)
+    const isHeatmapOrGrouped = config.chartType === 'heatmap' || config.chartType === 'grouped_bar';
+    if (isHeatmapOrGrouped) {
+       // Heatmap and grouped bar need specific stacked query (Dimension x Category)
        query = buildStackedQuery(parentFilters, config.dimension, 'category', config.limit);
     } else {
        query = isTimeSeries

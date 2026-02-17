@@ -86,11 +86,11 @@ function ContextRibbon({ query }: { query: DashboardTile['query'] }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
+    <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 scrollbar-hide">
       {items.map((item, idx) => (
         <div 
           key={idx} 
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200/60 shadow-sm ${item.bg} backdrop-blur-md transition-all hover:shadow-md cursor-default group`}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200/60 shadow-sm ${item.bg} backdrop-blur-md transition-all hover:shadow-md cursor-default group flex-shrink-0 whitespace-nowrap`}
         >
           <item.icon size={14} className={`${item.color} group-hover:scale-110 transition-transform`} />
           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{item.label}</span>
@@ -525,7 +525,7 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
         </div>
       </header>
 
-      <main className="w-full px-6 py-6 font-sans">
+      <main className="w-full px-4 sm:px-6 py-4 sm:py-6 font-sans">
         <div className="max-w-[1600px] mx-auto space-y-8">
           {/* CONTEXT RIBBON */}
           <ContextRibbon query={tile.query} />

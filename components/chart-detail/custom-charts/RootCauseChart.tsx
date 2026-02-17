@@ -109,19 +109,24 @@ export function RootCauseChart({
     return (
       <div className="flex flex-col h-[500px] overflow-hidden">
         {/* Header Stats */}
-        <div className="px-5 py-4 bg-gradient-to-r from-[#6b8e3d]/10 to-transparent border-b border-[#e0e0e0]">
-          <div className="flex justify-between items-center mb-2">
+        <div className="px-4 py-3 sm:px-5 sm:py-4 bg-gradient-to-r from-[#6b8e3d]/10 to-transparent border-b border-[#e0e0e0]">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-2 gap-2 sm:gap-0">
             <div>
               <h5 className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">AI Classification Results</h5>
-              <div className="text-[10px] text-slate-500 mt-0.5">
-                Total Records: <span className="font-mono font-bold text-slate-700">{aiData.total_records}</span>
+              <div className="text-[10px] text-slate-500 mt-0.5 flex gap-2">
+                <span>Total: <span className="font-mono font-bold text-slate-700">{aiData.total_records}</span></span>
+                <span className="text-slate-300">|</span>
+                <span>Unclassified: <span className="font-mono font-bold text-slate-700">{aiData.unknown}</span></span>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-xl font-black text-slate-700">
-                {aiData.classification_rate.toFixed(1)}%
+            <div className="text-left sm:text-right w-full sm:w-auto flex justify-between sm:block items-center">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:hidden">Rate</span>
+              <div>
+                <span className="text-xl font-black text-slate-700 mr-1 sm:mr-0 inline-block">
+                    {aiData.classification_rate.toFixed(1)}%
+                </span>
+                <div className="hidden sm:block text-[9px] font-bold text-slate-400 uppercase tracking-tight">Classification Rate</div>
               </div>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Classification Rate</div>
             </div>
           </div>
           
@@ -135,10 +140,6 @@ export function RootCauseChart({
               className="h-full bg-slate-200" 
               style={{ width: `${100 - aiData.classification_rate}%` }} 
             />
-          </div>
-          <div className="flex justify-between mt-1 text-[9px] text-slate-400 font-medium font-mono">
-            <span>Classified: {aiData.classified}</span>
-            <span>Unknown: {aiData.unknown}</span>
           </div>
         </div>
 

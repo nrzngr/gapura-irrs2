@@ -82,7 +82,7 @@ export function GroupedBarChart({ visualization, result, title, explanation, cla
     <div className={`flex flex-col h-full bg-white font-sans text-sm rounded-3xl border border-gray-100 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.08)] overflow-hidden ${className}`}>
       
       {/* 2. HEADER - Ultra-Compact */}
-      <div className="px-5 py-3 border-b border-gray-50 flex items-center justify-between bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="px-5 py-3 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between bg-white/50 backdrop-blur-sm sticky top-0 z-10 gap-3 sm:gap-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -134,7 +134,10 @@ export function GroupedBarChart({ visualization, result, title, explanation, cla
               tickLine={false}
               tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }}
               dy={10}
-              interval={0} // Show all labels
+              interval={0} 
+              angle={-45}
+              textAnchor="end"
+              height={60}
             />
             
             <YAxis 
@@ -186,7 +189,7 @@ export function GroupedBarChart({ visualization, result, title, explanation, cla
                   dataKey={cat}
                   fill={color}
                   radius={[3, 3, 0, 0]}
-                  barSize={20} // Fixed width for consistency
+                  maxBarSize={40}
                   animationDuration={1000}
                 >
                   <LabelList 

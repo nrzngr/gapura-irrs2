@@ -11,3 +11,4 @@ export { RootCauseChart } from './RootCauseChart';
 export { AirlineTypeCategoryChart } from './AirlineTypeCategoryChart';
 export { MonthlyTrendChart } from './MonthlyTrendChart';
 export { CategoryDistributionChart } from './CategoryDistributionChart';
+export { CategoryByBranchChart } from './CategoryByBranchChart';

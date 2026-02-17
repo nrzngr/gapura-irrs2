@@ -19,6 +19,7 @@ import { AirlineTypeCategoryChart } from './custom-charts/AirlineTypeCategoryCha
 import { MonthlyTrendChart } from './custom-charts/MonthlyTrendChart';
 import { CategoryDistributionChart } from './custom-charts/CategoryDistributionChart';
 import { AreaAnalysisChart } from './AreaAnalysisChart';
+import { CategoryByBranchChart } from './custom-charts/CategoryByBranchChart';
 
 // Types of custom charts
 export type CustomChartType = 
@@ -32,6 +33,7 @@ export type CustomChartType =
   | 'airline_type_category'
   | 'monthly_trend'
   | 'category_distribution'
+  | 'category_branch'
   | 'area_breakdown';
 
 interface SupportingChart {
@@ -289,8 +291,8 @@ function transformToAirlineTypeCategoryData(result: QueryResult) {
   return result.rows.map(row => {
     const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
     return {
-      airlineType: String(row.jenis_maskapai || row.JENIS_MASKAPAI || row.airline_type || row.airlineType || 'Lokal'),
-      category: String(row.category || row.CATEGORY || row.Category || 'IRREGULARITY'),
+      airlineType: String(row.jenis_maskapai || row.JENIS_MASKAPAI || row.airline_type || row.airlineType || 'Lokal').toUpperCase(),
+      category: String(row.category || row.CATEGORY || row.Category || 'IRREGULARITY').toUpperCase(),
       count: count,
       percentage: total > 0 ? (count / total) * 100 : 0
     };
@@ -558,6 +560,14 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
                   <CategoryDistributionChart
                     key={idx}
                     data={transformToCategoryDistributionData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'category_branch':
+                return (
+                  <CategoryByBranchChart
+                    key={idx}
+                    data={transformToAirlineTypeCategoryData(result)}
                     {...customChartProps}
                   />
                 );
