@@ -819,7 +819,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       const longestWord = Math.max(...labels.flatMap(l => l.split(' ').map(w => w.length)), 0);
       
       const effectiveCharLen = Math.min(Math.max(longestWord, compact ? 12 : 15), 35);
-      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 6 : 8), compact ? 80 : 150), 300);
+      yAxisWidth = Math.min(Math.max(effectiveCharLen * (compact ? 6 : 8), compact ? 100 : 150), 300);
     }
 
     return wrap(
@@ -854,6 +854,10 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                     const label = String(payload.value);
                     const isTop = payload.index === 0;
                     
+                    // Intelligent truncation based on width - allow more characters if width is higher
+                    const maxChars = compact ? Math.floor(yAxisWidth / 5.5) : 30;
+                    const truncatedLabel = label.length > maxChars ? label.substring(0, maxChars - 2) + '..' : label;
+                    
                     return (
                       <g transform={`translate(${x},${y})`}>
                         <text 
@@ -864,7 +868,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                           fill={isTop ? "#111827" : "#6b7280"}
                           fontWeight={isTop ? 600 : 400}
                         >
-                          {label.length > 20 ? label.substring(0, 18) + '..' : label}
+                          {truncatedLabel}
                         </text>
                       </g>
                     );

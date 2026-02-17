@@ -13,6 +13,8 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
     DIVISI_OT: 2,
     DIVISI_OP: 2,
     DIVISI_UQ: 2,
+    DIVISI_HC: 2,
+    DIVISI_HT: 2,
     ANALYST: 3,
     SUPER_ADMIN: 4,
 };
@@ -106,6 +108,8 @@ export const DIVISION_LABELS: Record<DivisionType, string> = {
     OT: 'Teknik (GSE)',
     OP: 'Operasi',
     UQ: 'Quality (Safety)',
+    HC: 'Human Capital',
+    HT: 'Human Training',
 };
 
 /**
@@ -117,6 +121,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
     DIVISI_OT: 'Divisi OT',
     DIVISI_OP: 'Divisi OP',
     DIVISI_UQ: 'Divisi UQ',
+    DIVISI_HC: 'Divisi HC',
+    DIVISI_HT: 'Divisi HT',
     ANALYST: 'Analyst',
     SUPER_ADMIN: 'Super Admin',
 };
@@ -130,6 +136,8 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
     DIVISI_OT: 'Divisi Teknik. Eksekutor laporan terkait GSE dan peralatan.',
     DIVISI_OP: 'Divisi Operasi. Eksekutor laporan terkait operasional.',
     DIVISI_UQ: 'Divisi Quality. Eksekutor laporan terkait safety dan quality.',
+    DIVISI_HC: 'Divisi Human Capital. Eksekutor laporan terkait kepegawaian.',
+    DIVISI_HT: 'Divisi Human Training. Eksekutor laporan terkait pelatihan.',
     ANALYST: 'Kepala divisi. Akses global + export data.',
     SUPER_ADMIN: 'Full access. Kelola user dan master data.',
 };

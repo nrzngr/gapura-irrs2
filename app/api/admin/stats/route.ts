@@ -103,7 +103,9 @@ export async function GET(request: Request) {
             .slice(0, 5)
             .map(r => ({
                 id: r.id,
-                title: r.title || r.description || 'No Title', // Sheets might not have title
+                title: r.title || r.description || 'No Title',
+                report: r.report,
+                primary_tag: r.primary_tag,
                 location: r.location || r.station_code || r.branch,
                 status: r.status,
                 severity: r.severity,

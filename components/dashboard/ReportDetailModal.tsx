@@ -96,12 +96,28 @@ export function ReportDetailModal({
                             report={displayReport} 
                             onUpdateStatus={onUpdateStatus}
                             userRole={userRole}
-                             onRefresh={() => {
+                             onRefresh={(updatedReport?: Report) => {
                                  if (onRefresh) onRefresh();
+                                 
+                                 // Handle Report Transfer (ID Change)
+                                 if (updatedReport && updatedReport.id && initialReport?.id && updatedReport.id !== initialReport.id) {
+                                     // ID changed (moved to another sheet), so current ID is now invalid (404)
+                                     // Best UX: Close modal as "context" is lost/changed
+                                     onClose();
+                                     return;
+                                 }
+
                                  if (initialReport?.id) {
                                      fetch(`/api/reports/${initialReport.id}`)
-                                        .then(res => res.json())
-                                        .then(data => setFullReport(data));
+                                        .then(res => {
+                                            if (!res.ok) {
+                                                if (res.status === 404) onClose(); // Auto-close if not found
+                                                throw new Error('Failed to fetch');
+                                            }
+                                            return res.json();
+                                        })
+                                        .then(data => setFullReport(data))
+                                        .catch(err => console.error("Error refreshing detail:", err));
                                  }
                              }}
                         />

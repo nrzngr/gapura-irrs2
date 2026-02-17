@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth-utils';
 import { validateStatusTransition, getTimestampFieldForStatus, getUserFieldForStatus } from '@/lib/utils/validate-transition';
 import { reportsService } from '@/lib/services/reports-service';
 
@@ -34,40 +36,61 @@ async function getCachedUsers() {
 
 // GET all reports (from Google Sheets via shared service)
 export async function GET(request: Request) {
+    const startTime = Date.now();
     try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('session')?.value;
+        const payload = token ? await verifySession(token) : null;
+
+        if (!payload) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const station = searchParams.get('station');
         const search = searchParams.get('search');
-        // severity and main_category were unused in previous filter logic but passed in params?
-        // Let's support them if needed, but existing logic only used status, station, search, from, to.
         const from = searchParams.get('from');
         const to = searchParams.get('to');
+        let targetDivision = searchParams.get('target_division');
 
         // Fetch using the shared service (Robust & Cached)
         const allReports = await reportsService.getReports(); 
-
         let filteredData = allReports;
 
         // Filter: Status
         if (status && status !== 'all') {
-            filteredData = filteredData.filter(r => r.status.toLowerCase() === status.toLowerCase());
+            filteredData = filteredData.filter(r => r.status === status);
         }
 
         // Filter: Station (Branch)
         if (station && station !== 'all') {
             // Note: matching strict code
-            filteredData = filteredData.filter(r => r.stations?.code === station || r.station_id === station);
+            filteredData = filteredData.filter(r => r.station_id === station || r.branch === station);
+        }
+
+        // Normalize role for consistent checking
+        const role = payload.role ? String(payload.role).trim().toUpperCase() : '';
+
+        // STRICT ROLE-BASED OVERRIDE FOR DIVISIONS
+        // If the user belongs to a specific division, they can ONLY see that division's data.
+        if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
+             const userDivision = role.split('_')[1];
+             targetDivision = userDivision;
+        }
+
+        // Filter: Target Division
+        if (targetDivision && targetDivision !== 'all') {
+            filteredData = filteredData.filter(r => r.target_division === targetDivision);
         }
 
         // Filter: Search
         if (search) {
-            const searchLower = search.toLowerCase();
-            filteredData = filteredData.filter(r =>
-                (r.title || '').toLowerCase().includes(searchLower) ||
-                (r.description || '').toLowerCase().includes(searchLower) ||
-                (r.flight_number || '').toLowerCase().includes(searchLower) ||
-                (r.reporter_name || '').toLowerCase().includes(searchLower)
+            const q = search.toLowerCase();
+            filteredData = filteredData.filter(r => 
+                r.title?.toLowerCase().includes(q) || 
+                r.description?.toLowerCase().includes(q) ||
+                r.id?.toLowerCase().includes(q)
             );
         }
 
@@ -80,6 +103,9 @@ export async function GET(request: Request) {
             const toDate = new Date(to).getTime();
             filteredData = filteredData.filter(r => new Date(r.created_at).getTime() <= toDate);
         }
+
+        const duration = Date.now() - startTime;
+        console.log(`[API] GET /admin/reports - Found ${filteredData.length}/${allReports.length} reports in ${duration}ms (Role: ${role}, Division: ${targetDivision})`);
 
         return NextResponse.json(filteredData);
     } catch (error) {

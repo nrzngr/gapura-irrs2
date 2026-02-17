@@ -407,12 +407,28 @@ export function CustomDashboardContent() {
         pageMap.get(pageName)!.push(chart);
       }
 
-      return Array.from(pageMap.entries())
+      const result = Array.from(pageMap.entries())
         .filter(([, tiles]) => tiles.length > 0)
-        .map(([name, tiles]) => ({
-          name,
-          tiles: tiles.sort((a, b) => a.position - b.position),
-        }));
+        .map(([name, tiles]) => {
+          const sortedTiles = tiles.sort((a, b) => a.position - b.position);
+          
+          // Inject standard KPIs for CGO Detail if missing
+          if (name.toLowerCase().includes('cgo detail') && !sortedTiles.some(t => (t.visualization_config?.chartType === 'kpi' || t.chart_type === 'kpi'))) {
+            const injectedKpis = [
+              { id: 'injected-kpi-total', title: 'Total Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -4, page_name: name, width: '3', data_field: 'customer_feedback' },
+              { id: 'injected-kpi-branch', title: 'Branch', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'branch', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -3, page_name: name, width: '3', data_field: 'customer_feedback' },
+              { id: 'injected-kpi-airline', title: 'Airlines', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'airline', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -2, page_name: name, width: '3', data_field: 'customer_feedback' },
+              { id: 'injected-kpi-compliment', title: 'Compliment Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'main_category', operator: 'eq', value: 'Compliment' }, { table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -1, page_name: name, width: '3', data_field: 'customer_feedback' },
+            ] as ChartData[];
+            return { name, tiles: [...injectedKpis, ...sortedTiles] };
+          }
+
+          return {
+            name,
+            tiles: sortedTiles,
+          };
+        });
+      return result;
     }
 
     // Single page fallback
@@ -437,13 +453,28 @@ export function CustomDashboardContent() {
   const kpiTiles = useMemo(() => {
     if (pages.length === 0) return [];
     const currentPage = pages[activePage] || pages[0];
-    return currentPage.tiles.filter(c => c.visualization_config?.chartType === 'kpi');
+    
+    // 1. Check for existing KPI tiles in the config
+    const existingKpis = currentPage.tiles.filter(c => (c.visualization_config?.chartType === 'kpi' || c.chart_type === 'kpi'));
+    if (existingKpis.length > 0) return existingKpis;
+
+    // 2. Runtime Injection for CGO Detail (if missing from DB)
+    if (currentPage.name.toLowerCase().includes('cgo detail')) {
+       return [
+         { id: 'injected-kpi-total', title: 'Total Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
+         { id: 'injected-kpi-branch', title: 'Branch', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'branch', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
+         { id: 'injected-kpi-airline', title: 'Airlines', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'airline', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
+         { id: 'injected-kpi-compliment', title: 'Compliment Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'main_category', operator: 'eq', value: 'Compliment' }, { table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
+       ] as unknown as ChartData[];
+    }
+
+    return [];
   }, [pages, activePage]);
 
   const contentTiles = useMemo(() => {
     if (pages.length === 0) return [];
     const currentPage = pages[activePage] || pages[0];
-    return currentPage.tiles.filter(c => c.visualization_config?.chartType !== 'kpi');
+    return currentPage.tiles.filter(c => (c.visualization_config?.chartType !== 'kpi' && c.chart_type !== 'kpi'));
   }, [pages, activePage]);
 
   const totalReport = useMemo(() => {
@@ -452,8 +483,12 @@ export function CustomDashboardContent() {
       if (cr.type === 'query' && cr.queryResult) {
         (cr.queryResult.rows as Record<string, unknown>[]).forEach(row => {
           Object.values(row).forEach(v => {
-            const n = Number(v);
-            if (!isNaN(n) && n > total) total = n;
+            if (typeof v === 'number' && Number.isFinite(v) && v > total) {
+              total = v;
+            } else if (typeof v === 'string') {
+              const n = Number(v);
+              if (!isNaN(n) && Number.isFinite(n) && n > total) total = n;
+            }
           });
         });
       }
@@ -519,8 +554,7 @@ export function CustomDashboardContent() {
   const hasMultiplePages = pages.length > 1;
 
   const handleTableViewDetail = useCallback((chart: ChartData, result: QueryResult) => {
-    const isCGODetail = pages[activePage]?.name.toLowerCase().includes('cgo detail');
-    const displayTitle = isCGODetail ? 'Detail CGO Report' : chart.title;
+    const displayTitle = chart.title;
     
     const baseViz: ChartVisualization = chart.visualization_config || {
       chartType: (chart.chart_type as ChartType) || 'bar',
@@ -976,21 +1010,23 @@ export function CustomDashboardContent() {
               const cr = chartsData.get(chart.id);
               if (!cr) return null;
               const layout = chart.layout || { w: 6, h: 2 };
-              const colSpan = layout.w || 6;
               const isTableType = chart.visualization_config?.chartType === 'table';
               
               // Map legacy 12-col grid width to Tailwind classes
-              // Default to spanning full width on mobile (col-span-1 in a 1-col grid), 
-              // and specific span on desktop (md:col-span-X)
+              // Calculate colSpan based on width (w: 12 is full width, usually 12 cols)
+              const colSpan = chart.layout?.w || 6;
+              const isCompact = colSpan < 6;
+              
               let mdColSpan = 'md:col-span-6';
-              if (colSpan === 12) mdColSpan = 'md:col-span-12';
-              else if (colSpan >= 8) mdColSpan = 'md:col-span-8';
-              else if (colSpan >= 6) mdColSpan = 'md:col-span-6';
-              else if (colSpan >= 4) mdColSpan = 'md:col-span-4';
-              else if (colSpan >= 3) mdColSpan = 'md:col-span-3';
+              if (colSpan >= 11) mdColSpan = 'md:col-span-12';
+              else if (colSpan >= 7.5) mdColSpan = 'md:col-span-8';
+              else if (colSpan >= 5.5) mdColSpan = 'md:col-span-6';
+              else if (colSpan >= 3.5) mdColSpan = 'md:col-span-4';
+              else if (colSpan >= 2.68) mdColSpan = 'md:col-span-3';
+              else if (colSpan >= 2) mdColSpan = 'md:col-span-2';
 
               return (
-                <div key={chart.id} className={`col-span-1 ${mdColSpan} flex flex-col gap-0.5`}>
+                <div key={chart.id} className={`${mdColSpan} col-span-12 flex flex-col`}>
                   {/* HEATMAP (specific handling) */}
                   {cr.type === 'query' && cr.queryResult && chart.visualization_config?.chartType === 'heatmap' ? (
                     <HeatmapChart
@@ -1020,7 +1056,7 @@ export function CustomDashboardContent() {
                   {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
                      <div className="h-[600px] mb-8">
                       <InvestigativeTable 
-                        title={pages[activePage]?.name.toLowerCase().includes('cgo detail') ? 'Detail CGO Report' : chart.title} 
+                        title={chart.title} 
                         data={cr.queryResult} 
                         className="h-full shadow-lg border-indigo-100"
                         onViewDetail={() => handleTableViewDetail(chart, cr.queryResult!)}
@@ -1097,7 +1133,7 @@ export function CustomDashboardContent() {
 
 // ─── CHART CARD ─────────────────────────────────────────────────────────────
 
-function ChartCard({ chart, result, isCGODetail }: { chart: ChartData; result: QueryResult; isCGODetail?: boolean }) {
+function ChartCard({ chart, result, isCGODetail, compact }: { chart: ChartData; result: QueryResult; isCGODetail?: boolean, compact?: boolean }) {
   const router = useRouter();
   const baseViz: ChartVisualization = chart.visualization_config || {
     chartType: (chart.chart_type as ChartType) || 'bar',
@@ -1108,7 +1144,7 @@ function ChartCard({ chart, result, isCGODetail }: { chart: ChartData; result: Q
   };
   const viz = greenify(baseViz);
   const isTable = viz.chartType === 'table';
-  const displayTitle = isCGODetail ? 'Detail CGO Report' : chart.title;
+  const displayTitle = chart.title;
 
   if (isTable) return null;
 
@@ -1158,8 +1194,8 @@ function ChartCard({ chart, result, isCGODetail }: { chart: ChartData; result: Q
         </button>
       </div>
       <div className="p-4 flex-1 min-h-0 flex flex-col overflow-hidden bg-white/50 relative">
-        <div className="w-full h-[400px] overflow-y-auto custom-scrollbar">
-          <ChartPreview visualization={viz} result={result} isThumbnail={true} />
+        <div className={`w-full overflow-y-auto custom-scrollbar ${compact ? 'h-[280px]' : 'h-[400px]'}`}>
+          <ChartPreview visualization={viz} result={result} isThumbnail={true} compact={compact} />
         </div>
       </div>
     </div>

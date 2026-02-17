@@ -3,6 +3,6 @@
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
 import { DIVISIONS } from '@/lib/constants/divisions';
 
-export default function UQDashboard() {
-    return <AnalyticsDashboard division={DIVISIONS.UQ} />;
+export default function HCDashboard() {
+    return <AnalyticsDashboard division={DIVISIONS.HC} />;
 }

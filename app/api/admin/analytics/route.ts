@@ -28,6 +28,24 @@ export async function GET(request: Request) {
         const period = searchParams.get('period');
         const from = searchParams.get('from');
         const to = searchParams.get('to');
+        const division = searchParams.get('division');
+
+        // Extract role from session for security override
+        const { cookies } = await import('next/headers');
+        const { verifySession } = await import('@/lib/auth-utils');
+        const cookieStore = await cookies();
+        const session = cookieStore.get('session')?.value;
+        let targetDivision = division;
+
+        if (session) {
+            const payload = await verifySession(session);
+            if (payload) {
+                const role = String(payload.role).trim().toUpperCase();
+                if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
+                    targetDivision = role.split('_')[1];
+                }
+            }
+        }
 
         // 1. Fetch all reports from Google Sheets Cache
         const allReports = await reportsService.getReports();
@@ -54,10 +72,15 @@ export async function GET(request: Request) {
         if (dateFrom && dateTo) {
             const tFrom = dateFrom.getTime();
             const tTo = dateTo.getTime();
-            filteredReports = allReports.filter(r => {
+            filteredReports = filteredReports.filter(r => {
                 const t = new Date(r.created_at).getTime();
                 return t >= tFrom && t <= tTo;
             });
+        }
+
+        // Apply Division Filter
+        if (targetDivision && targetDivision !== 'all') {
+            filteredReports = filteredReports.filter(r => r.target_division === targetDivision);
         }
 
         // 3. Aggregate Data in Memory

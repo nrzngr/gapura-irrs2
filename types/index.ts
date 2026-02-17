@@ -1,4 +1,4 @@
-export type UserRole = 'SUPER_ADMIN' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'ANALYST' | 'CABANG';
+export type UserRole = 'SUPER_ADMIN' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'DIVISI_HC' | 'DIVISI_HT' | 'ANALYST' | 'CABANG';
 
 export type ReportStatus = 'BARU' | 'DITOLAK' | 'MENUNGGU_FEEDBACK' | 'SUDAH_DIVERIFIKASI' | 'SELESAI' | 'Closed' | 'OPEN';
 
@@ -6,13 +6,14 @@ export type ReportPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type ReportSeverity = 'low' | 'medium' | 'high' | 'urgent';
 
-export type DivisionType = 'OS' | 'OP' | 'OT' | 'UQ' | 'GENERAL';
+export type DivisionType = 'OS' | 'OP' | 'OT' | 'UQ' | 'HC' | 'HT' | 'GENERAL';
 
 export interface SessionPayload {
     id: string;
     email: string;
     role: string;
     full_name?: string;
+    division?: string;
     sid?: string; // Unique Session ID for database tracking & revocation
 }
 
@@ -112,7 +113,6 @@ export interface Report {
     reporting_branch?: string;
     hub?: string;
     route?: string;
-    target_division?: string;
     branch?: string;
     station_code?: string;
     reporter_name?: string;
@@ -139,7 +139,17 @@ export interface Report {
     kode_hub?: string;
     maskapai_lookup?: string;
     lokal_mpa_lookup?: string;
-    
+
+    // Triage / Pivot Fields
+    primary_tag?: string; // 'Landside' | 'Airside'
+    sub_category_note?: string;
+    target_division?: string; // 'OS' | 'OP' | 'OT' | 'UQ' | 'HC' | 'HT'
+
+    // Triage Fields (Analyst -> Division)
+    // primary_tag?: 'Landside' | 'Airside' | string;
+    // sub_category_note?: string;
+    // target_division?: DivisionType;
+
     // Joined data
     stations?: { code: string; name: string };
     users?: { full_name: string; email: string; role?: string };

@@ -76,26 +76,36 @@ export async function POST(request: Request) {
             );
         }
 
-        // AUTO-CORRECT ROLE for OT/OP/UQ if deemed as PARTNER
+        // AUTO-CORRECT ROLE for OT/OP/UQ/HC/HT if deemed as PARTNER
         // This ensures they get the correct dashboard experience
         let finalRole = user.role;
-        const posName = user.positions?.name?.toUpperCase() || '';
+        const posName = (user.positions?.name || '').toUpperCase();
+        const division = (user.division || '').toUpperCase();
+        const emailUpper = email.toUpperCase();
         
-        console.log('[LOGIN DEBUG] User:', user.email, 'Role:', user.role, 'Position:', posName);
+        console.log('[LOGIN DEBUG] User:', user.email, 'Role:', user.role, 'Position:', posName, 'Division:', division);
 
-        // Loose check for any PARTNER role
-        if (finalRole.includes('PARTNER')) {
-            const emailUpper = email.toUpperCase();
-            if (posName.includes('OT') || posName.includes('TEKNOLOGI') || emailUpper.includes('PARTNER.OT')) finalRole = 'OT_ADMIN';
-            else if (posName.includes('OP') || posName.includes('OPERASI') || emailUpper.includes('PARTNER.OP')) finalRole = 'OP_ADMIN';
-            else if (posName.includes('UQ') || posName.includes('QUAL') || emailUpper.includes('PARTNER.UQ')) finalRole = 'UQ_ADMIN';
+        // Logic 1: If role is specifically marked as PARTNER_X, or if it says CABANG/PARTNER but has a division
+        if (finalRole === 'CABANG' || finalRole.includes('PARTNER')) {
+            if (division === 'OS' || posName.includes('OS') || emailUpper.includes('PARTNER.OS')) finalRole = 'PARTNER_OS';
+            else if (division === 'OT' || posName.includes('OT') || posName.includes('TEKNOLOGI') || emailUpper.includes('PARTNER.OT')) finalRole = 'PARTNER_OT';
+            else if (division === 'OP' || posName.includes('OP') || posName.includes('OPERASI') || emailUpper.includes('PARTNER.OP')) finalRole = 'PARTNER_OP';
+            else if (division === 'UQ' || posName.includes('UQ') || posName.includes('QUAL') || emailUpper.includes('PARTNER.UQ')) finalRole = 'PARTNER_UQ';
+            else if (division === 'HC' || posName.includes('HC') || emailUpper.includes('PARTNER.HC')) finalRole = 'PARTNER_HC';
+            else if (division === 'HT' || posName.includes('HT') || emailUpper.includes('PARTNER.HT')) finalRole = 'PARTNER_HT';
         }
 
         console.log('[LOGIN DEBUG] Final Role:', finalRole);
 
         // Create session with unique ID for DB tracking
         const sid = crypto.randomUUID();
-        const token = await signSession({ id: user.id, email: user.email, role: finalRole, sid });
+        const token = await signSession({ 
+            id: user.id, 
+            email: user.email, 
+            role: finalRole, 
+            division: user.division,
+            sid 
+        });
         const cookieStore = await cookies();
 
         // 1. Register Session in DB for security monitoring

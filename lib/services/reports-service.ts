@@ -87,6 +87,11 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   maskapai_lookup: ['MASKAPAI_VLOOKUP', 'MASKAPAI (VLOOKUP)'],
   lokal_mpa_lookup: ['Lokal_MPA_VLOOKUP', 'Lokal / MPA (VLOOKUP)'],
   
+  // Triage Columns
+  primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
+  sub_category_note: ['Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
+  target_division: ['Target Division', 'Target_Division', 'Divisi', 'Division'],
+  
   // Standard fields
   id: ['ID'],
   user_id: ['User ID'],
@@ -96,6 +101,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   priority: ['Priority', 'Prioritas'],
   created_at: ['Created_At', 'Created At'],
   updated_at: ['Updated_At', 'Updated At'],
+  report: ['Report', 'Judul Laporan'],
   // Add other fields as needed
 };
 
@@ -118,6 +124,11 @@ const WRITE_MAPPING: Record<string, string> = {
   apron_area_category: 'Apron Area Category',
   general_category: 'General Category',
   status: 'Status',
+  
+  // Triage Write Mappings
+  primary_tag: 'Primary Tag',
+  sub_category_note: 'Sub Category Note',
+  target_division: 'Target Division',
 };
 
 const CACHE_KEY_ALL_REPORTS = 'reports:all:v3';
@@ -174,13 +185,19 @@ export class ReportsService {
   }
 
   private async getHeaderRow(sheetName: string): Promise<string[]> {
+    const cacheKey = `headers:${sheetName}`;
+    const cached = getCache<string[]>(cacheKey, 1000 * 60 * 60); // 1 hour cache for headers
+    if (cached) return cached;
+
     const sheets = await this.getSheets();
     if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:ZZ1`,
+      range: `${sheetName}!A1:AT1`,
     });
-    return (response.data.values?.[0] || []).map((h: string) => h.trim());
+    const headers = (response.data.values?.[0] || []).map((h: any) => String(h).trim());
+    setCache(cacheKey, headers);
+    return headers;
   }
 
   private async fetchSheetWithRetry(sheetName: string, retries = 3, delay = 1000): Promise<any[][]> {
@@ -190,7 +207,7 @@ export class ReportsService {
           try {
               const response = await sheets.spreadsheets.values.get({
                   spreadsheetId: SPREADSHEET_ID,
-                  range: `${sheetName}!A2:ZZ`,
+                  range: `${sheetName}!A1:AT`, // Combined A1 (Headers) + Data
               });
               return response.data.values || [];
           } catch (error) {
@@ -220,51 +237,58 @@ export class ReportsService {
 
     if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
 
-    // Parallel fetch
-    const sheetResults = await Promise.allSettled(
-      REPORT_SHEETS.map(async (sheetName) => {
-        const [rows, headers] = await Promise.all([
-          this.fetchSheetWithRetry(sheetName),
-          this.getHeaderRow(sheetName),
-        ]);
-        return { sheetName, rows, headers };
-      })
-    );
+    const sheets = await this.getSheets();
+    
+    // Batch fetch for performance consolidation (O(1) HTTP requests)
+    const ranges = REPORT_SHEETS.map(name => `${name}!A1:AT`);
+    const batchRes = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId: SPREADSHEET_ID,
+      ranges,
+    });
 
     const allReports: Report[] = [];
+    const valueRanges = batchRes.data.valueRanges || [];
 
-    for (const result of sheetResults) {
-      if (result.status === 'rejected') {
-        console.error('Error fetching sheet:', result.reason);
-        continue;
-      }
-      const { sheetName, rows, headers } = result.value;
+    for (let i = 0; i < REPORT_SHEETS.length; i++) {
+      const sheetName = REPORT_SHEETS[i];
+      const data = valueRanges[i]?.values || [];
+      if (data.length === 0) continue;
 
-      // Helper to find column index case-insensitively
-      const findColIdx = (possibleNames: string[]): number => {
-        return headers.findIndex(h => 
-          possibleNames.some(name => h.trim().toLowerCase() === name.trim().toLowerCase())
-        );
-      };
+      const headers = (data[0] || []).map((h: any) => String(h).trim());
+      const rows = data.slice(1);
+
+      // Pre-calculate mapping for this sheet
+      const columnMapping: Record<string, number> = {};
+      (Object.keys(PROP_TO_HEADER) as Array<keyof Report>).forEach((prop) => {
+          const headerNames = PROP_TO_HEADER[prop];
+          if (headerNames) {
+              const colIdx = headers.findIndex(h => 
+                  headerNames.some(name => h.trim().toLowerCase() === name.trim().toLowerCase())
+              );
+              if (colIdx !== -1) {
+                  columnMapping[prop as string] = colIdx;
+              }
+          }
+      });
 
       for (let index = 0; index < rows.length; index++) {
         const row = rows[index];
-        const report: any = {}; // Use any to build up the report
+        const report: any = {};
 
         report.id = `${sheetName}!row_${index + 2}`;
 
-        // Dynamic mapping
-        (Object.keys(PROP_TO_HEADER) as Array<keyof Report>).forEach((prop) => {
-           // @ts-ignore
-           const headerNames = PROP_TO_HEADER[prop];
-           if (headerNames) {
-              const colIdx = findColIdx(headerNames);
-              if (colIdx !== -1) {
-                // Determine if we need to parse specific fields or just take the value
-                report[prop] = row[colIdx];
-              }
-           }
+        // Fast mapping using pre-calculated indices
+        Object.entries(columnMapping).forEach(([prop, colIdx]) => {
+            report[prop] = row[colIdx];
         });
+
+        // Ensure title is never undefined or empty
+        // Prioritize 'report' column content as the title if available
+        if (report.report && report.report.trim()) {
+            report.title = report.report.trim();
+        }
+
+        if (!report.title) report.title = '(Tanpa Judul)';
 
         // Post-processing & Defaults
         const parsedEventDate = parseDate(report.date_of_event as string);
@@ -395,7 +419,9 @@ export class ReportsService {
     let targetSheet = 'NON CARGO';
     const category = (reportData.category || '').toLowerCase();
     const area = (reportData.area || '').toLowerCase();
-    if (area === 'cargo' || category.includes('cargo') || reportData.is_gse_related) {
+    const primaryTag = (reportData.primary_tag || '').toUpperCase();
+    
+    if (area === 'cargo' || category.includes('cargo') || reportData.is_gse_related || primaryTag === 'CGO' || primaryTag === 'CARGO') {
         targetSheet = 'CGO';
     }
 
@@ -403,7 +429,7 @@ export class ReportsService {
     
     const newReport: Report = {
       ...reportData,
-      created_at: new Date().toISOString(),
+      created_at: reportData.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
       status: reportData.status || 'MENUNGGU_FEEDBACK',
       severity: reportData.severity || 'low',
@@ -412,7 +438,7 @@ export class ReportsService {
       location: reportData.location || '',
     } as Report;
 
-    const row = headers.map(header => {
+    const row = headers.map((header: string) => {
       // Find which property maps to this header
       const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === header.trim().toLowerCase());
        if (propEntry) {
@@ -462,40 +488,106 @@ export class ReportsService {
   }
 
   async updateReport(id: string, updates: Partial<Report>): Promise<Report | null> {
-    // Basic implementation: fetch row, update fields, write back
-    // Warning: Race conditions possible if concurrent edits
+    const parsed = this.parseId(id);
+    if (!parsed) {
+        console.error('Invalid ID format for update:', id);
+        return null; 
+    }
+    
     const sheets = await this.getSheets();
     if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
-
-    const parsed = this.parseId(id);
-    if (!parsed) return null;
     const { sheetName, rowIndex } = parsed;
 
-    const currentReport = await this.getReportById(id);
-    if (!currentReport) return null;
+    // Check for Report Transfer Trigger (NON CARGO -> CGO)
+    // If updating primary_tag to CGO and current sheet is NOT CGO needed
+    if (updates.primary_tag === 'CGO' && sheetName !== 'CGO') {
+        const currentReport = await this.getReportById(id);
+        if (currentReport) {
+            // Prepare payload for new report
+            // We use 'any' to bypass strict type checking for the ID delete
+            const newReportPayload: any = {
+                ...currentReport,
+                ...updates,
+            };
+            // Ensure ID is removed so createReport generates a new one
+            delete newReportPayload.id;
+            
+            // Ensure primary_tag is set to CGO so createReport routes it correctly
+            newReportPayload.primary_tag = 'CGO';
 
-    const updatedReport = { ...currentReport, ...updates, updated_at: new Date().toISOString() };
+            // Create in CGO sheet
+            const newReport = await this.createReport(newReportPayload);
+            
+            // Delete from old sheet
+            if (newReport && newReport.id) {
+                await this.deleteReport(id);
+                return newReport;
+            } else {
+                 console.error('Failed to create transferred report in CGO');
+                 return null;
+            }
+        }
+    }
+
+    // 1. Get Headers
     const headers = await this.getHeaderRow(sheetName);
-
-    const row = headers.map(header => {
-       const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === header.trim().toLowerCase());
-       if (propEntry) {
-         const prop = propEntry[0] as keyof Report;
-         // @ts-ignore
-         return updatedReport[prop] !== undefined ? updatedReport[prop] : '';
-       }
-       return '';
-    });
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A${rowIndex}`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [row] },
-    });
     
+    // 2. Build the update payload
+    // Helper: Column Letter from Index (0 -> A)
+    function getColLetter(index: number) {
+        let temp, letter = '';
+        while (index >= 0) {
+            temp = index % 26;
+            letter = String.fromCharCode(temp + 65) + letter;
+            index = (index - temp - 1) / 26;
+        }
+        return letter;
+    }
+
+    for (const [key, value] of Object.entries(updates)) {
+        // Find header(s) for this property
+        // @ts-ignore
+        const possibleHeaders = PROP_TO_HEADER[key];
+        // Also check if key matches a header directly (fallback)
+        
+        let colIndex = -1;
+        
+        if (possibleHeaders) {
+             colIndex = headers.findIndex((h: string) => possibleHeaders.includes(h));
+        }
+        
+        // Fallback: Try direct match case-insensitive
+        if (colIndex === -1) {
+            colIndex = headers.findIndex((h: string) => h.toLowerCase() === key.toLowerCase() || h.toLowerCase() === key.replace(/_/g, ' ').toLowerCase());
+        }
+
+        if (colIndex === -1) {
+            console.warn(`Header not found for property: ${key} in sheet ${sheetName}`);
+            continue;
+        }
+
+        const colLetter = getColLetter(colIndex);
+        const cellRange = `${sheetName}!${colLetter}${rowIndex}`;
+        
+        let stringValue = value;
+        if (value === null || value === undefined) stringValue = '';
+        else if (typeof value === 'object') stringValue = JSON.stringify(value);
+        else stringValue = String(value);
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: cellRange,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[stringValue]] }
+        });
+    }
+
+    // Invalidate Cache
     invalidateCache(CACHE_KEY_ALL_REPORTS);
-    return updatedReport;
+    
+    // Return updated report (merge generic)
+    const existing = await this.getReportById(id);
+    return existing ? { ...existing, ...updates } : null;
   }
 
   async deleteReport(id: string): Promise<boolean> {

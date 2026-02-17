@@ -29,7 +29,7 @@ export default function OTReportsPage() {
     const fetchReports = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/reports');
+            const res = await fetch('/api/admin/reports?target_division=OT');
             const data = await res.json();
             // Temporarily show all reports (no division filter)
             setReports(Array.isArray(data) ? data : []);
@@ -143,11 +143,11 @@ export default function OTReportsPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr style={{ background: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
-                                    <th className="text-left py-3 px-5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)', width: '45%' }}>Laporan</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Pelapor</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Severity</th>
+                                    <th className="text-left py-3 px-5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)', width: '35%' }}>Laporan / Flight</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Kategori</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Cabang</th>
                                     <th className="text-center py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Status</th>
-                                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tanggal</th>
+                                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tanggal Kejadian</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -167,36 +167,29 @@ export default function OTReportsPage() {
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                         >
                                             <td className="py-4 px-5">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="p-2 rounded-lg flex-shrink-0" style={{ background: severity.bg }}>
-                                                        <SevIcon size={16} style={{ color: severity.color }} />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.title}</p>
-                                                        {report.location && (
-                                                            <p className="text-xs flex items-center gap-1 mt-1" style={{ color: 'var(--text-muted)' }}>
-                                                                <MapPin size={10} /> {report.location}
-                                                            </p>
-                                                        )}
-                                                    </div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {report.primary_tag === 'CGO' ? (
+                                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
+                                                    ) : (
+                                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
+                                                    )}
+                                                    <span className="text-[10px] bg-[var(--surface-4)] px-1.5 py-0.5 rounded font-mono text-[var(--text-secondary)] uppercase">{report.airlines || 'Unknown Airline'}</span>
+                                                </div>
+                                                <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.report || report.title || '(Tanpa Judul)'}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {report.flight_number && <span className="text-[10px] text-[var(--text-muted)] font-mono">{report.flight_number}</span>}
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-4">
-                                                <p className="font-medium truncate max-w-[120px]" style={{ color: 'var(--text-primary)' }}>{report.users?.full_name || report.reporter_name || '-'}</p>
-                                            </td>
-                                            <td className="py-4 px-4 text-center">
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white" style={{ background: severity.color }}>
-                                                    {severity.label}
-                                                </span>
-                                            </td>
+                                            <td className="py-4 px-4"><p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{report.category || report.main_category || '-'}</p></td>
+                                            <td className="py-4 px-4"><p className="font-medium" style={{ color: 'var(--text-primary)' }}>{report.branch || report.station_code || '-'}</p></td>
                                             <td className="py-4 px-4 text-center">
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: status.bgColor, color: status.color }}>
                                                     <StatIcon size={12} /> {status.label}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-5 text-right">
-                                                <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                                                    {new Date(report.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                                                    {report.date_of_event ? new Date(report.date_of_event).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                                                 </p>
                                             </td>
                                         </tr>

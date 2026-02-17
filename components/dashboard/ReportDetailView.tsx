@@ -117,7 +117,7 @@ function SectionCard({
 interface ReportDetailViewProps {
   report: Report | null;
   onUpdateStatus?: (reportId: string, status: string, notes?: string, evidenceUrl?: string) => Promise<void>;
-  onRefresh?: () => void;
+  onRefresh?: (updatedReport?: any) => void;
   onClose?: () => void;
   userRole?: string;
   divisionColor?: string;
@@ -148,6 +148,9 @@ export function ReportDetailView({
   const [newEvidenceLink, setNewEvidenceLink] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchForm, setDispatchForm] = useState({ primary_tag: "", sub_category_note: "", target_division: "" });
+
   // Sync edit form with report
   useEffect(() => {
     if (report) {
@@ -157,6 +160,12 @@ export function ReportDetailView({
         flight_number: report.flight_number || "",
         aircraft_reg: report.aircraft_reg || "",
         location: report.location || "",
+      });
+      // Initialize dispatch form if data exists
+      setDispatchForm({
+          primary_tag: report.primary_tag || "",
+          sub_category_note: report.sub_category_note || "",
+          target_division: report.target_division || ""
       });
     }
   }, [report]);
@@ -185,6 +194,31 @@ export function ReportDetailView({
       setReopenNotes("");
       setCloseEvidenceUrl("");
     } finally { setActionLoading(false); }
+  };
+
+  const handleDispatch = async () => {
+      if (!report) return;
+      setActionLoading(true);
+      try {
+          // dispatchForm contains primary_tag, sub_category_note, target_division
+          // We update these fields via the same API route
+          const res = await fetch(`/api/reports/${report.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(dispatchForm)
+          });
+          
+          if (!res.ok) throw new Error("Failed to dispatch");
+          
+          const updatedReport = await res.json();
+          setShowDispatchModal(false);
+          onRefresh?.(updatedReport);
+      } catch (error) {
+          console.error(error);
+          alert("Gagal melakukan dispatch");
+      } finally {
+          setActionLoading(false);
+      }
   };
 
   const handleAddEvidenceLink = async () => {
@@ -278,12 +312,22 @@ export function ReportDetailView({
                 placeholder="Judul laporan..."
               />
             ) : (
-              <h1 className="text-base font-semibold text-gray-900 truncate">
-                {report.title || `${report.airlines || ""} ${report.flight_number || ""}`.trim() || "Laporan"}
-              </h1>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                   {report.primary_tag === 'CGO' ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">CGO</span>
+                   ) : (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">LANDSIDE & AIRSIDE</span>
+                   )}
+                   <span className="text-[10px] text-[var(--text-muted)] font-mono">{report.id}</span>
+                </div>
+                <h1 className="text-base font-semibold text-gray-900 truncate">
+                  {report.report || report.title || `${report.airlines || ""} ${report.flight_number || ""}`.trim() || "Laporan"}
+                </h1>
+              </div>
             )}
             <p className="text-xs text-gray-400 truncate">
-              {report.category || "Irregularity"} • #{report.id.slice(0, 8).toUpperCase()}
+              {report.category || "Irregularity"} • #{report?.id?.slice(0, 8).toUpperCase() ?? 'N/A'}
             </p>
           </div>
 
@@ -516,6 +560,28 @@ export function ReportDetailView({
                 </div>
               )}
 
+              {/* Triage / Dispatch Action (Analyst Only) */}
+              {userRole === "ANALYST" && !isClosed && (
+                <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-xl">
+                    <p className="text-[10px] uppercase text-indigo-200 tracking-wider mb-3">Analyst Triage</p>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-semibold">
+                                {report.target_division ? `Dispatched to ${report.target_division}` : "Unassigned"}
+                            </span>
+                            {report.primary_tag && <span className="text-[10px] opacity-80">{report.primary_tag}</span>}
+                        </div>
+                        <button
+                            onClick={() => setShowDispatchModal(true)}
+                            className="px-4 py-2.5 bg-white text-indigo-700 rounded-xl text-[13px] font-bold flex items-center gap-2 hover:bg-indigo-50 active:scale-95 transition-all shadow-sm"
+                        >
+                            <Plane size={16} />
+                            {report.target_division ? "Update Dispatch" : "Dispatch"}
+                        </button>
+                    </div>
+                </div>
+              )}
+
               {/* Comment Input */}
               <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
                 <CommentInput reportId={report.id} onSuccess={onRefresh} placeholder="Tambahkan tindak lanjut..." />
@@ -584,9 +650,96 @@ export function ReportDetailView({
       </div>
 
 
+
       {/* =============================================
           MODALS
           ============================================= */}
+      
+      {/* Dispatch / Triage Modal (Analyst Only) */}
+      {showDispatchModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in">
+             <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Triage & Dispatch</h3>
+              <button onClick={() => setShowDispatchModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+                {/* Primary Tag (Area Category) */}
+                <div>
+                     <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Kategori Area (Primary Tag)</label>
+                     <div className="flex gap-3">
+                         {['Landside & Airside', 'CGO'].map((tag) => (
+                             <button
+                                key={tag}
+                                onClick={() => setDispatchForm(prev => ({ ...prev, primary_tag: tag }))}
+                                className={cn(
+                                    "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
+                                    dispatchForm.primary_tag === tag 
+                                        ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
+                                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                                )}
+                             >
+                                 {tag}
+                             </button>
+                         ))}
+                     </div>
+                </div>
+
+                {/* Target Division */}
+                <div>
+                    <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Target Divisi</label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {['OS', 'OP', 'OT', 'UQ', 'HC', 'HT'].map((div) => (
+                            <button
+                                key={div}
+                                onClick={() => setDispatchForm(prev => ({ ...prev, target_division: div }))}
+                                className={cn(
+                                    "py-2 rounded-lg border text-sm font-bold transition-all",
+                                    dispatchForm.target_division === div
+                                        ? "bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm"
+                                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                                )}
+                            >
+                                {div}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Sub Category Note */}
+                <div>
+                    <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Catatan Sub-Kategori</label>
+                    <textarea
+                        value={dispatchForm.sub_category_note}
+                        onChange={(e) => setDispatchForm(prev => ({ ...prev, sub_category_note: e.target.value }))}
+                        className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none resize-none bg-gray-50"
+                        rows={3}
+                        placeholder="Tambahkan detail spesifik kategori..."
+                    />
+                </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowDispatchModal(false)} 
+                className="flex-1 py-3.5 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-[15px]"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleDispatch}
+                disabled={actionLoading || !dispatchForm.target_division} 
+                className="flex-1 py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <Plane size={18} />}
+                Dispatch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reopen Modal */}
       {showReopenModal && (
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">

@@ -35,22 +35,50 @@ export async function GET(
             return NextResponse.json({ error: 'Report not found' }, { status: 404 });
         }
 
-        // Fetch related data from Supabase for manual join
-        let user = null;
-        if (report.user_id) {
-            const { data: u } = await supabase.from('users').select('id, full_name, email').eq('id', report.user_id).single();
-            user = u;
-        }
+        // Fetch related data from Supabase for manual join ONLY if it's a UUID
+        let user: any = null;
+        let station: any = null;
+        let comments: any[] = [];
 
-        let station = null;
-        // Try to match station by ID, then code (branch)
-        if (report.station_id) {
-             const { data: s } = await supabase.from('stations').select('id, code, name').eq('id', report.station_id).single();
-             station = s;
-        } else if (report.branch || report.station_code) {
-             const code = report.branch || report.station_code;
-             const { data: s } = await supabase.from('stations').select('id, code, name').eq('code', code).single();
-             station = s;
+        if (!id.includes('!')) {
+            if (report.user_id) {
+                const { data: u } = await supabase.from('users').select('id, full_name, email').eq('id', report.user_id).single();
+                user = u;
+            }
+
+            // Try to match station by ID
+            if (report.station_id) {
+                 const { data: s } = await supabase.from('stations').select('id, code, name').eq('id', report.station_id).single();
+                 station = s;
+            } else if (report.branch || report.station_code) {
+                 const code = report.branch || report.station_code;
+                 const { data: s } = await supabase.from('stations').select('id, code, name').eq('code', code).single();
+                 station = s;
+            }
+
+            // Fetch comments
+            const { data: c, error: commentsError } = await supabaseAdmin
+                .from('report_comments')
+                .select(`
+                    id,
+                    content,
+                    attachments,
+                    is_system_message,
+                    created_at,
+                    users:user_id (
+                        id,
+                        full_name,
+                        role,
+                        division
+                    )
+                `)
+                .eq('report_id', id)
+                .order('created_at', { ascending: true });
+                
+            if (commentsError) {
+                console.error('[DEBUG_API] Error fetching comments with admin:', commentsError);
+            }
+            comments = c || [];
         }
 
         // Enrich report
@@ -58,37 +86,11 @@ export async function GET(
             ...report,
             users: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
             stations: station || (report.branch ? { code: report.branch, name: report.branch } : null),
+            comments: comments,
             // Legacy / Frontend compatibility
             user: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
             station: station || (report.branch ? { code: report.branch, name: report.branch } : null),
         };
-
-        // Try to fetch comments from Supabase (might return empty if no relation exists)
-        // Note: This relies on report_id existing in Supabase or not being enforced for SELECT
-        const { data: comments, error: commentsError } = await supabaseAdmin
-            .from('report_comments')
-            .select(`
-                id,
-                content,
-                attachments,
-                is_system_message,
-                created_at,
-                users:user_id (
-                    id,
-                    full_name,
-                    role,
-                    division
-                )
-            `)
-            .eq('report_id', id)
-            .order('created_at', { ascending: true });
-            
-        if (commentsError) {
-            console.error('[DEBUG_API] Error fetching comments with admin:', commentsError);
-        }
-
-        // @ts-ignore
-        enrichedReport.comments = comments || [];
 
         return NextResponse.json(enrichedReport);
     } catch (error) {
@@ -134,6 +136,10 @@ export async function PATCH(
             // Add other fields that might be updated
             action_taken,
             root_cause,
+            // Triage
+            primary_tag,
+            sub_category_note,
+            target_division,
         } = body;
 
         const updates: any = {};
@@ -152,6 +158,11 @@ export async function PATCH(
         if (station_id !== undefined) updates.station_id = station_id;
         if (action_taken !== undefined) updates.action_taken = action_taken;
         if (root_cause !== undefined) updates.root_caused = root_cause;
+        
+        // Triage
+        if (primary_tag !== undefined) updates.primary_tag = primary_tag;
+        if (sub_category_note !== undefined) updates.sub_category_note = sub_category_note;
+        if (target_division !== undefined) updates.target_division = target_division;
 
         const updatedReport = await reportsService.updateReport(id, updates);
 

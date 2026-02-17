@@ -5,9 +5,13 @@ import { verifySession } from '@/lib/auth-utils';
 const ROLE_DASHBOARDS: Record<string, string> = {
     SUPER_ADMIN: '/dashboard/admin',
     DIVISI_OS: '/dashboard/os',
+    PARTNER_OS: '/dashboard/os',
     DIVISI_OT: '/dashboard/ot',
+    PARTNER_OT: '/dashboard/ot',
     DIVISI_OP: '/dashboard/op',
+    PARTNER_OP: '/dashboard/op',
     DIVISI_UQ: '/dashboard/uq',
+    PARTNER_UQ: '/dashboard/uq',
     ANALYST: '/dashboard/analyst',
     CABANG: '/dashboard/employee',
 };
@@ -71,6 +75,14 @@ export async function middleware(request: NextRequest) {
 
         // 3. Role based access control for dashboards
         
+        // Division users should not land on generic employee dashboard
+        if (path === '/dashboard/employee') {
+            const correctDashboard = ROLE_DASHBOARDS[role];
+            if (correctDashboard && correctDashboard !== '/dashboard/employee') {
+                 return NextResponse.redirect(new URL(correctDashboard, request.url));
+            }
+        }
+
         // Admin dashboard protection
         if (path.startsWith('/dashboard/admin') && role !== 'SUPER_ADMIN') {
             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
@@ -83,17 +95,23 @@ export async function middleware(request: NextRequest) {
 
         // Division Dashboards (OS, OT, OP, UQ)
         if (path.startsWith('/dashboard/os') && !path.startsWith('/dashboard/analyst')) {
-             if (!['DIVISI_OS', 'DIVISI_OT', 'DIVISI_OP', 'DIVISI_UQ'].includes(role)) {
+             if (!['DIVISI_OS', 'PARTNER_OS', 'DIVISI_OT', 'PARTNER_OT', 'DIVISI_OP', 'PARTNER_OP', 'DIVISI_UQ', 'PARTNER_UQ'].includes(role)) {
                   return NextResponse.redirect(new URL('/dashboard/employee', request.url));
              }
         }
-        if (path.startsWith('/dashboard/ot') && role !== 'DIVISI_OT') {
+        if (path.startsWith('/dashboard/ot') && !['DIVISI_OT', 'PARTNER_OT'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
-        if (path.startsWith('/dashboard/op') && role !== 'DIVISI_OP') {
+        if (path.startsWith('/dashboard/op') && !['DIVISI_OP', 'PARTNER_OP'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
-        if (path.startsWith('/dashboard/uq') && role !== 'DIVISI_UQ') {
+        if (path.startsWith('/dashboard/uq') && !['DIVISI_UQ', 'PARTNER_UQ'].includes(role)) {
+             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
+        }
+        if (path.startsWith('/dashboard/hc') && !['DIVISI_HC', 'PARTNER_HC'].includes(role)) {
+             return NextResponse.redirect(new URL('/dashboard/employee', request.url));
+        }
+        if (path.startsWith('/dashboard/ht') && !['DIVISI_HT', 'PARTNER_HT'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
     }

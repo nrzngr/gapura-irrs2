@@ -189,6 +189,11 @@ export default function AnalystReportsPage() {
                                                     </div>
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
+                                                            {report.primary_tag === 'CGO' ? (
+                                                                <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
+                                                            ) : (
+                                                                <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
+                                                            )}
                                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" style={{ background: 'var(--surface-4)', color: 'var(--text-secondary)' }}>
                                                                 {report.stations?.code || report.branch || 'N/A'}
                                                             </span>
@@ -199,7 +204,7 @@ export default function AnalystReportsPage() {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.title || report.description || 'No Title'}</p>
+                                                        <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.report || report.title || '(Tanpa Judul)'}</p>
                                                         {report.location && (
                                                             <p className="text-xs flex items-center gap-1 mt-1 truncate max-w-[250px]" style={{ color: 'var(--text-muted)' }}>
                                                                 <MapPin size={10} />

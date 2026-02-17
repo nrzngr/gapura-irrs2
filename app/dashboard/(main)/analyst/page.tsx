@@ -1,5 +1,7 @@
 'use client';
 
+
+// Triggering HMR
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -11,7 +13,7 @@ import {
     AlertTriangle, ArrowUp, LayoutDashboard
 } from 'lucide-react';
 
-const AnalystCharts = dynamic(() => import('./AnalystCharts'), {
+const AnalystCharts = dynamic(() => import('@/components/dashboard/analyst/AnalystCharts'), {
     ssr: false,
     loading: () => (
         <div className="min-h-[40vh] flex items-center justify-center">
@@ -26,7 +28,8 @@ import { cn } from '@/lib/utils';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
-import { CustomerFeedbackFilterModal } from './CustomerFeedbackFilterModal';
+import { CustomerFeedbackFilterModal } from '@/components/dashboard/analyst/CustomerFeedbackFilterModal';
+import { TriageModal } from '@/components/dashboard/analyst/TriageModal';
 
 // --- Types ---
 interface AnalyticsData {
@@ -54,6 +57,10 @@ export default function AnalystDashboard() {
     const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
     const [dateRange, setDateRange] = useState<'all' | 'week' | 'month'>('all');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+    
+    // Triage State
+    const [triageReport, setTriageReport] = useState<Report | null>(null);
+    const [isTriageOpen, setIsTriageOpen] = useState(false);
 
     const [cfLoading, setCfLoading] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
@@ -426,6 +433,36 @@ export default function AnalystDashboard() {
         return { total, resolved, pending, highSeverity, resolutionRate };
     }, [filteredReports]);
 
+
+
+    const handleTriageSubmit = async (data: { primary_tag: string; sub_category_note: string; target_division: string }) => {
+        if (!triageReport) return;
+        
+        try {
+            const res = await fetch(`/api/reports/${triageReport.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    primary_tag: data.primary_tag,
+                    sub_category_note: data.sub_category_note,
+                    target_division: data.target_division,
+                    status: 'MENUNGGU_FEEDBACK', // Ensure status reflects currently being processed
+                    // Add updated_at implicitly handled by service or API
+                }),
+            });
+
+            if (!res.ok) throw new Error('Failed to update report');
+
+            // Refresh data
+            await fetchData(true);
+            setIsTriageOpen(false);
+            setTriageReport(null);
+        } catch (error) {
+            console.error('Triage update failed:', error);
+            alert('Gagal update laporan');
+        }
+    };
+
     const exportToExcel = async () => {
         setExporting('excel');
         try {
@@ -618,8 +655,37 @@ export default function AnalystDashboard() {
                                 ) : (
                                     todayCases.slice(0, 10).map((r) => (
                                         <tr key={r.id} className="border-b border-[var(--surface-4)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer" onClick={() => setSelectedReport(r)}>
-                                            <td className="p-4 font-mono text-sm">{r.id.slice(0, 8)}</td>
-                                            <td className="p-4 text-sm font-medium text-[var(--text-primary)] max-w-[300px] truncate">{r.title}</td>
+                                            <td className="p-4 font-mono text-sm">
+                                                {r.id.slice(0, 8)}
+                                                {/* Triage Button if Unassigned */}
+                                                {!r.target_division && (r.status === 'BARU' || r.status === 'MENUNGGU_FEEDBACK') && (
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setTriageReport(r);
+                                                            setIsTriageOpen(true);
+                                                        }}
+                                                        className="ml-2 px-2 py-0.5 bg-brand-primary/10 text-brand-primary rounded text-[10px] font-bold uppercase hover:bg-brand-primary/20 transition-colors"
+                                                    >
+                                                        Triage
+                                                    </button>
+                                                )}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        {r.primary_tag === 'CGO' ? (
+                                                            <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
+                                                        ) : (
+                                                            <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
+                                                        )}
+                                                        <span className="text-[9px] text-[var(--text-muted)] font-mono">{r.id.slice(0, 8)}</span>
+                                                    </div>
+                                                    <p className="text-sm font-medium text-[var(--text-primary)] max-w-[300px] truncate">
+                                                        {r.report || r.title || '(Tanpa Judul)'}
+                                                    </p>
+                                                </div>
+                                            </td>
                                             <td className="p-4">
                                                 <span
                                                     className="px-2 py-1 rounded-full text-[10px] font-bold uppercase"
@@ -691,6 +757,13 @@ export default function AnalystDashboard() {
                 availableBranches={availableOptions.branches}
                 availableAirlines={availableOptions.airlines}
                 availableCategories={availableOptions.categories}
+            />
+
+            <TriageModal 
+                isOpen={isTriageOpen}
+                onClose={() => setIsTriageOpen(false)}
+                report={triageReport}
+                onSubmit={handleTriageSubmit}
             />
         </div>
     );

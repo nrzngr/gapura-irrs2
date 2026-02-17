@@ -191,12 +191,19 @@ export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, on
                                             </span>
                                         </div>
                                         
-                                        <h3 className={cn(
-                                            "font-bold text-sm mb-2 line-clamp-2 transition-colors", 
-                                            isSelected ? "text-[var(--brand-primary)]" : "group-hover:text-[var(--text-primary)] text-[var(--text-primary)]/80"
-                                        )}>
-                                            {report.title}
-                                        </h3>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {report.primary_tag === 'CGO' ? (
+                                                <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
+                                            ) : (
+                                                <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
+                                            )}
+                                            <h3 className={cn(
+                                                "font-bold text-sm truncate transition-colors", 
+                                                isSelected ? "text-[var(--brand-primary)]" : "group-hover:text-[var(--text-primary)] text-[var(--text-primary)]/80"
+                                            )}>
+                                                {report.report || report.title || '(Tanpa Judul)'}
+                                            </h3>
+                                        </div>
                                         
                                         <p className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-4 leading-relaxed opacity-80">
                                             {report.description}

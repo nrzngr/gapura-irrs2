@@ -21,7 +21,21 @@ export async function GET() {
         }
 
         // Fetch reports from Google Sheets
-        const reports = await reportsService.getReports();
+        let reports = await reportsService.getReports();
+
+        // Normalize role for consistent checking
+        const role = String(payload.role).trim().toUpperCase();
+
+        // APPLY STRICT FILTERING BASED ON ROLE
+        if (role === 'CABANG' || role === 'EMPLOYEE') {
+            // Employees only see their own reports
+            reports = reports.filter(r => r.user_id === payload.id);
+        } else if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
+             // Division/Partner users only see reports assigned to their division
+             const division = role.split('_')[1]; // OS, OT, OP, UQ, HC, HT, etc.
+             reports = reports.filter(r => r.target_division === division);
+        }
+        // ANALYST and SUPER_ADMIN retain full access for now (if they hit this endpoint)
 
         // Fetch related data from Supabase for manual join
         // We fetch all needed reference data once

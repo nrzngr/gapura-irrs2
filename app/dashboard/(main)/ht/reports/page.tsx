@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FileText, Search, Filter, ChevronDown, RefreshCw, Eye, X,
-    MapPin, AlertTriangle, Shield,
+    MapPin, AlertTriangle, GraduationCap,
     Clock, CheckCircle2
 } from 'lucide-react';
 import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/report-status';
 import { Report } from '@/types';
 
-const DIVISION = { code: 'UQ', name: 'Quality (Safety)', color: '#ec4899' };
+const DIVISION = { code: 'HT', name: 'Human Training', color: '#0ea5e9' };
 
-export default function UQReportsPage() {
+export default function HTReportsPage() {
     const router = useRouter();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,9 +24,8 @@ export default function UQReportsPage() {
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/reports?target_division=UQ');
+            const res = await fetch('/api/admin/reports?target_division=HT');
             const data = await res.json();
-            // Temporarily show all reports (no division filter)
             setReports(Array.isArray(data) ? data : []);
         } catch (error) { console.error('Error:', error); } 
         finally { setLoading(false); }
@@ -48,11 +47,11 @@ export default function UQReportsPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in-up">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <Shield size={20} style={{ color: DIVISION.color }} />
+                        <GraduationCap size={20} style={{ color: DIVISION.color }} />
                         <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{ background: `${DIVISION.color}20`, color: DIVISION.color }}>Divisi {DIVISION.code}</span>
                     </div>
                     <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Laporan {DIVISION.name}</h1>
-                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Kelola laporan kualitas dan keselamatan</p>
+                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Kelola laporan pelatihan</p>
                 </div>
                 <button onClick={fetchReports} className="btn-secondary self-start"><RefreshCw size={16} /> Perbarui</button>
             </div>
@@ -78,7 +77,7 @@ export default function UQReportsPage() {
             <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden', animationDelay: '150ms' }}>
                 <div className="flex items-center justify-between" style={{ padding: 'var(--space-lg) var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}>
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl" style={{ background: `${DIVISION.color}20` }}><Shield size={18} style={{ color: DIVISION.color }} /></div>
+                        <div className="p-2.5 rounded-xl" style={{ background: `${DIVISION.color}20` }}><GraduationCap size={18} style={{ color: DIVISION.color }} /></div>
                         <div><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Daftar Laporan</h3><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{filteredReports.length} laporan</p></div>
                     </div>
                 </div>
@@ -101,7 +100,7 @@ export default function UQReportsPage() {
                                     const stat = STATUS_CONFIG[r.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
                                     const StatIcon = stat.icon;
                                     return (
-                                        <tr key={r.id} className="cursor-pointer transition-colors" style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${sev.color}` }} onClick={() => router.push(`/dashboard/uq/reports/${r.id}`)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                        <tr key={r.id} className="cursor-pointer transition-colors" style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${sev.color}` }} onClick={() => router.push(`/dashboard/ht/reports/${r.id}`)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                                             <td className="py-4 px-5">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     {r.primary_tag === 'CGO' ? (
@@ -133,7 +132,7 @@ export default function UQReportsPage() {
                 )}
             </div>
 
-            {selectedReport && <QuickModal report={selectedReport} onClose={() => setSelectedReport(null)} color={DIVISION.color} path={`/dashboard/uq/reports/${selectedReport.id}`} />}
+            {selectedReport && <QuickModal report={selectedReport} onClose={() => setSelectedReport(null)} color={DIVISION.color} path={`/dashboard/ht/reports/${selectedReport.id}`} />}
         </div>
     );
 }

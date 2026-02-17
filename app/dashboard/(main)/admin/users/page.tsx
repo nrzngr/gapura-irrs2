@@ -34,6 +34,8 @@ const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof 
     DIVISI_OT: { label: 'Divisi OT', color: 'bg-orange-100 text-orange-700', icon: Wrench },
     DIVISI_OP: { label: 'Divisi OP', color: 'bg-teal-100 text-teal-700', icon: User },
     DIVISI_UQ: { label: 'Divisi UQ', color: 'bg-pink-100 text-pink-700', icon: Shield },
+    DIVISI_HC: { label: 'Divisi HC', color: 'bg-violet-100 text-violet-700', icon: User },
+    DIVISI_HT: { label: 'Divisi HT', color: 'bg-sky-100 text-sky-700', icon: User },
     ANALYST: { label: 'Analyst', color: 'bg-indigo-100 text-indigo-700', icon: Star },
     SUPER_ADMIN: { label: 'Super Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
 };
@@ -44,6 +46,8 @@ const divisionConfig: Record<DivisionType, string> = {
     OT: 'Teknik (GSE)',
     OP: 'Operasi',
     UQ: 'Quality',
+    HC: 'Human Capital',
+    HT: 'Human Training',
 };
 
 // --- Edit User Modal Component ---

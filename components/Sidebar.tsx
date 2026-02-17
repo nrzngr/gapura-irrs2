@@ -84,6 +84,24 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             ]
         }
     ],
+    'HC': [
+        {
+            title: 'Human Capital',
+            items: [
+                { href: '/dashboard/hc', label: 'Dashboard HC', icon: LayoutDashboard },
+                { href: '/dashboard/hc/reports', label: 'Laporan HC', icon: ClipboardList },
+            ]
+        }
+    ],
+    'HT': [
+        {
+            title: 'Human Training',
+            items: [
+                { href: '/dashboard/ht', label: 'Dashboard HT', icon: LayoutDashboard },
+                { href: '/dashboard/ht/reports', label: 'Laporan HT', icon: ClipboardList },
+            ]
+        }
+    ],
     'ANALYST': [
         {
             title: 'Command Center',
@@ -93,33 +111,25 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/analyst/ai-reports', label: 'AI Reports', icon: Brain },
                 { href: '/dashboard/analyst/builder', label: 'Explore & Build', icon: Hash },
                 { href: '/dashboard/analyst/import', label: 'Import Data', icon: FolderOpen },
-            ]
-        }
-    ],
-    'PARTNER': [
-        {
-            title: 'Partner Area',
-            items: [
-                { href: '/dashboard/partner', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/employee/reports', label: 'Laporan Masuk', icon: ClipboardList },
+                { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
             ]
         }
     ]
 };
 
-// Map roles to config keys
 const GET_LINKS_KEY = (role: string): string => {
     const r = role.toUpperCase();
     if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
     if (r === 'ANALYST') return 'ANALYST';
-    if (r === 'DIVISI_OS') return 'OS';
-    if (r === 'DIVISI_OT') return 'OT';
-    if (r === 'DIVISI_OP') return 'OP';
-    if (r === 'DIVISI_UQ') return 'UQ';
+    if (r === 'DIVISI_OS' || r === 'PARTNER_OS') return 'OS';
+    if (r === 'DIVISI_OT' || r === 'PARTNER_OT') return 'OT';
+    if (r === 'DIVISI_OP' || r === 'PARTNER_OP') return 'OP';
+    if (r === 'DIVISI_UQ' || r === 'PARTNER_UQ') return 'UQ';
+    if (r === 'DIVISI_HC' || r === 'PARTNER_HC') return 'HC';
+    if (r === 'DIVISI_HT' || r === 'PARTNER_HT') return 'HT';
     return 'EMPLOYEE';
 };
 
-// --- NavContent Component ---
 interface NavContentProps {
     groups: NavGroup[];
     pathname: string;

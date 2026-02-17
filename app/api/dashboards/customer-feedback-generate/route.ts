@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
     }
 
     const role = String(payload.role).trim().toUpperCase();
-    if (role !== 'ANALYST' && role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden: hanya Analyst dan Admin' }, { status: 403 });
+    const isDivisionRole = role.startsWith('DIVISI_') || role.startsWith('PARTNER_');
+    if (role !== 'ANALYST' && role !== 'SUPER_ADMIN' && !isDivisionRole) {
+      return NextResponse.json({ error: 'Forbidden: Akses tidak diizinkan' }, { status: 403 });
     }
 
     const { dateFrom, dateTo, filters, title } = await request.json();
@@ -67,8 +68,14 @@ export async function POST(request: NextRequest) {
       (!filters.categories || filters.categories.length === 0)
     ));
 
+    // Inject division scoping for division roles
+    const generationOptions = { ...filters };
+    if (isDivisionRole) {
+        generationOptions.division = role.split('_')[1];
+    }
+
     // Generate dashboard definition
-    const dashboard = generateCustomerFeedbackDashboard(effectiveDateFrom, effectiveDateTo, { filters });
+    const dashboard = generateCustomerFeedbackDashboard(effectiveDateFrom, effectiveDateTo, { filters: generationOptions });
 
     let slug: string;
     let dashboardId: string;

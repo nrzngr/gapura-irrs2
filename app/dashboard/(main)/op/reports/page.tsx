@@ -24,7 +24,7 @@ export default function OPReportsPage() {
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/reports');
+            const res = await fetch('/api/admin/reports?target_division=OP');
             const data = await res.json();
             // Temporarily show all reports (no division filter)
             setReports(Array.isArray(data) ? data : []);
@@ -35,7 +35,8 @@ export default function OPReportsPage() {
     useEffect(() => { fetchReports(); }, []);
 
     const filteredReports = reports.filter(r => {
-        const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || r.location?.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = (r.title || '').toLowerCase().includes(search.toLowerCase()) || 
+                             (r.location || r.branch || '').toLowerCase().includes(search.toLowerCase());
         const matchesSeverity = severityFilter === 'all' || r.severity === severityFilter;
         const matchesStatus = filter === 'all' || r.status === filter;
         return matchesSearch && matchesSeverity && matchesStatus;
@@ -89,10 +90,11 @@ export default function OPReportsPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead><tr style={{ background: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
-                                <th className="text-left py-3 px-5 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)', width: '45%' }}>Laporan</th>
-                                <th className="text-left py-3 px-4 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)' }}>Pelapor</th>
+                                <th className="text-left py-3 px-5 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)', width: '35%' }}>Laporan / Flight</th>
+                                <th className="text-left py-3 px-4 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)' }}>Kategori</th>
+                                <th className="text-left py-3 px-4 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)' }}>Cabang</th>
                                 <th className="text-center py-3 px-4 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)' }}>Status</th>
-                                <th className="text-right py-3 px-5 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)' }}>Tanggal</th>
+                                <th className="text-right py-3 px-5 font-semibold text-xs uppercase" style={{ color: 'var(--text-muted)' }}>Tanggal Kejadian</th>
                             </tr></thead>
                             <tbody>
                                 {filteredReports.map((r) => {
@@ -101,10 +103,24 @@ export default function OPReportsPage() {
                                     const StatIcon = stat.icon;
                                     return (
                                         <tr key={r.id} className="cursor-pointer transition-colors" style={{ borderBottom: '1px solid var(--surface-4)', borderLeft: `3px solid ${sev.color}` }} onClick={() => router.push(`/dashboard/op/reports/${r.id}`)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                            <td className="py-4 px-5"><p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{r.title}</p>{r.location && <p className="text-xs flex items-center gap-1 mt-1" style={{ color: 'var(--text-muted)' }}><MapPin size={10} /> {r.location}</p>}</td>
-                                            <td className="py-4 px-4"><p className="font-medium" style={{ color: 'var(--text-primary)' }}>{r.users?.full_name || '-'}</p></td>
+                                            <td className="py-4 px-5">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {r.primary_tag === 'CGO' ? (
+                                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
+                                                    ) : (
+                                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
+                                                    )}
+                                                    <span className="text-[10px] bg-[var(--surface-4)] px-1.5 py-0.5 rounded font-mono text-[var(--text-secondary)] uppercase">{r.airlines || 'Unknown Airline'}</span>
+                                                </div>
+                                                <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{r.report || r.title || '(Tanpa Judul)'}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {r.flight_number && <span className="text-[10px] text-[var(--text-muted)] font-mono">{r.flight_number}</span>}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4"><p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{r.category || r.main_category || '-'}</p></td>
+                                            <td className="py-4 px-4"><p className="font-medium" style={{ color: 'var(--text-primary)' }}>{r.branch || r.station_code || '-'}</p></td>
                                             <td className="py-4 px-4 text-center"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: stat.bgColor, color: stat.color }}><StatIcon size={12} /> {stat.label}</span></td>
-                                            <td className="py-4 px-5 text-right"><p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{new Date(r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p></td>
+                                            <td className="py-4 px-5 text-right"><p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{r.date_of_event ? new Date(r.date_of_event).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</p></td>
                                         </tr>
                                     );
                                 })}

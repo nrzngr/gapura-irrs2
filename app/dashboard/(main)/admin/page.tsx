@@ -29,6 +29,8 @@ interface Stats {
     recentReports: Array<{
         id: string;
         title: string;
+        report?: string;
+        primary_tag?: string;
         location: string;
         status: string;
         severity: string;
@@ -272,9 +274,16 @@ export default function AdminDashboard() {
                                         }}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                                            {report.title}
-                                        </p>
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                            {report.primary_tag === 'CGO' ? (
+                                                <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
+                                            ) : (
+                                                <span className="text-[8px] font-extrabold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
+                                            )}
+                                            <p className="font-medium truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                                                {report.report || report.title}
+                                            </p>
+                                        </div>
                                         <div className="flex items-center gap-3 mt-1">
                                             {report.stations && (
                                                 <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
