@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+
 import dynamic from 'next/dynamic';
 import {
-    BarChart3, Clock, CheckCircle2,
+    Clock, CheckCircle2,
     FileText, RefreshCw, Loader2, Plus,
-    FileSpreadsheet, Eye, ArrowRight, Shield,
+    FileSpreadsheet, ArrowRight, Shield,
     AlertTriangle, ArrowUp, LayoutDashboard
 } from 'lucide-react';
 
@@ -54,7 +54,7 @@ export default function AnalystDashboard() {
     const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
     const [dateRange, setDateRange] = useState<'all' | 'week' | 'month'>('all');
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-    const [customDashboards, setCustomDashboards] = useState<{ id: string; name: string; description: string | null; slug: string; created_at: string }[]>([]);
+
     const [cfLoading, setCfLoading] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterLoading, setFilterLoading] = useState(false);
@@ -144,10 +144,7 @@ export default function AnalystDashboard() {
 
     useEffect(() => {
         fetchData();
-        fetch('/api/dashboards')
-            .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data?.dashboards) setCustomDashboards(data.dashboards); })
-            .catch(() => {});
+
     }, [fetchData]);
 
     const filteredReports = useMemo(() => {
@@ -188,17 +185,36 @@ export default function AnalystDashboard() {
     }, [filteredReports]);
 
     const monthlyReportData = useMemo(() => {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthData: Record<string, { irregularity: number; complaint: number; compliment: number }> = {};
-        months.forEach(m => { monthData[m] = { irregularity: 0, complaint: 0, compliment: 0 }; });
+        const dataMap = new Map<string, { irregularity: number; complaint: number; compliment: number; date: Date }>();
+
+        // If no reports, return empty or default? 
+        // Better to allow empty stats or handle gracefully.
+        
         filteredReports.forEach(r => {
-            const date = new Date(r.created_at);
-            const month = months[date.getMonth()];
-            if (r.category === 'Irregularity') monthData[month].irregularity++;
-            else if (r.category === 'Complaint') monthData[month].complaint++;
-            else if (r.category === 'Compliment') monthData[month].compliment++;
+            const d = new Date(r.created_at);
+            if (isNaN(d.getTime())) return;
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+            
+            if (!dataMap.has(key)) {
+                dataMap.set(key, { irregularity: 0, complaint: 0, compliment: 0, date: d });
+            }
+            const entry = dataMap.get(key)!;
+            
+            if (r.category === 'Irregularity') entry.irregularity++;
+            else if (r.category === 'Complaint') entry.complaint++;
+            else if (r.category === 'Compliment') entry.compliment++;
         });
-        return months.map(month => ({ month, ...monthData[month] })).reverse();
+
+        // Convert to array and sort Descending (Newest first) as per screenshot
+        return Array.from(dataMap.entries())
+            .sort((a, b) => b[0].localeCompare(a[0])) 
+            .map(([_, val]) => ({
+                month: val.date.toLocaleString('en-US', { month: 'short', year: '2-digit' }), // "Jan 26"
+                irregularity: val.irregularity,
+                complaint: val.complaint,
+                compliment: val.compliment
+            }))
+            .slice(0, 14); // Limit to last 14 months to prevent cramping
     }, [filteredReports]);
 
     const categoryByAreaData = useMemo(() => {
@@ -261,24 +277,46 @@ export default function AnalystDashboard() {
 
     // Complexity: Time O(n) | Space O(12) — fixed 12 months
     const monthlyComparisonData = useMemo(() => {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthBuckets: Record<string, { masuk: number; selesai: number }> = {};
-        months.forEach(m => { monthBuckets[m] = { masuk: 0, selesai: 0 }; });
+        const dataMap = new Map<string, { masuk: number; selesai: number; date: Date }>();
+        
         filteredReports.forEach(r => {
-            const createdMonth = months[new Date(r.created_at).getMonth()];
-            monthBuckets[createdMonth].masuk++;
+            // Created Date -> Masuk
+            const dCreated = new Date(r.created_at);
+            if (!isNaN(dCreated.getTime())) {
+                const keyCreated = `${dCreated.getFullYear()}-${String(dCreated.getMonth() + 1).padStart(2, '0')}`;
+                if (!dataMap.has(keyCreated)) dataMap.set(keyCreated, { masuk: 0, selesai: 0, date: dCreated });
+                dataMap.get(keyCreated)!.masuk++;
+            }
+
+            // Resolved Date -> Selesai
             if (r.resolved_at) {
-                const resolvedMonth = months[new Date(r.resolved_at).getMonth()];
-                monthBuckets[resolvedMonth].selesai++;
+                const dResolved = new Date(r.resolved_at);
+                if (!isNaN(dResolved.getTime())) {
+                    const keyResolved = `${dResolved.getFullYear()}-${String(dResolved.getMonth() + 1).padStart(2, '0')}`;
+                    if (!dataMap.has(keyResolved)) dataMap.set(keyResolved, { masuk: 0, selesai: 0, date: dResolved });
+                    dataMap.get(keyResolved)!.selesai++;
+                }
             }
         });
-        return months
-            .map(month => {
-                const { masuk, selesai } = monthBuckets[month];
-                const rate = masuk > 0 ? Math.round((selesai / masuk) * 100) : 0;
-                return { month, masuk, selesai, rate };
+
+        // Convert to array and sort Ascending (Left=Oldest, Right=Newest)
+        // Usually comparisons are chronological. 
+        // If users want consistent "Newest on Left", I should change this to 'b.localeCompare(a)'.
+        // Given the other chart is Newest on Left, and user might compare them... 
+        // I will stick to Ascending for Comparison as it involves a Trend Line. Trend lines go Left->Right.
+        // It is very un-intuitive to have a Trend Line go Right->Left (Past->Future).
+        return Array.from(dataMap.entries())
+            .sort((a, b) => a[0].localeCompare(b[0])) 
+            .map(([_, val]) => {
+                const rate = val.masuk > 0 ? Math.round((val.selesai / val.masuk) * 100) : 0;
+                return {
+                    month: val.date.toLocaleString('en-US', { month: 'short', year: '2-digit' }), // "Jan 26"
+                    masuk: val.masuk,
+                    selesai: val.selesai,
+                    rate
+                };
             })
-            .filter(d => d.masuk > 0 || d.selesai > 0);
+            .slice(-14); // Limit to last 14 months to prevent cramping
     }, [filteredReports]);
 
     // Complexity: Time O(n) | Space O(4) — fixed severity levels
@@ -551,25 +589,7 @@ export default function AnalystDashboard() {
                 </div>
             </PresentationSlide>
 
-            {/* Charts: lazy-loaded to keep Recharts out of the initial compile graph */}
-            <AnalystCharts
-                analytics={analytics}
-                caseCategoryData={caseCategoryData}
-                branchReportData={branchReportData}
-                monthlyReportData={monthlyReportData}
-                categoryByAreaData={categoryByAreaData}
-                categoryByBranchData={categoryByBranchData}
-                categoryByAirlinesData={categoryByAirlinesData}
-                topReportersData={topReportersData}
-                monthlyComparisonData={monthlyComparisonData}
-                hubDistributionData={hubDistributionData}
-                resolutionByBranchData={resolutionByBranchData}
-                filteredReports={filteredReports}
-                onDrilldown={(url) => router.push(url)}
-                drilldownUrl={drilldownUrl}
-            />
-
-            {/* Slide 8: Reports Table */}
+            {/* Slide 8: Reports Table - Moved to Top */}
             <PresentationSlide
                 title="Laporan Hari Ini"
                 subtitle={`${todayCases.length} laporan hari ini`}
@@ -632,46 +652,27 @@ export default function AnalystDashboard() {
                 </div>
             </PresentationSlide>
 
-            {/* Custom Dashboards */}
-            {customDashboards.length > 0 && (
-                <PresentationSlide
-                    title="Custom Dashboard"
-                    subtitle="Dashboard kustom yang dibuat oleh Analyst"
-                    icon={BarChart3}
-                >
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {customDashboards.map(d => (
-                            <a
-                                key={d.id}
-                                href={`/embed/custom/${d.slug}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="card-solid p-4 hover:bg-[var(--surface-2)] transition-colors group"
-                            >
-                                <div className="flex items-start justify-between mb-2">
-                                    <h4 className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand-primary)] transition-colors">
-                                        {d.name}
-                                    </h4>
-                                    <Eye size={14} className="text-[var(--text-muted)] shrink-0 mt-0.5" />
-                                </div>
-                                {d.description && (
-                                    <p className="text-xs text-[var(--text-muted)] line-clamp-2 mb-2">{d.description}</p>
-                                )}
-                                <p className="text-[10px] text-[var(--text-muted)]">
-                                    {new Date(d.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </p>
-                            </a>
-                        ))}
-                        <Link
-                            href="/dashboard/analyst/builder"
-                            className="card-solid p-4 border-dashed flex flex-col items-center justify-center gap-2 hover:bg-[var(--surface-2)] transition-colors min-h-[100px]"
-                        >
-                            <Plus size={20} className="text-[var(--text-muted)]" />
-                            <span className="text-xs font-medium text-[var(--text-muted)]">Buat Dashboard Baru</span>
-                        </Link>
-                    </div>
-                </PresentationSlide>
-            )}
+            {/* Charts: lazy-loaded to keep Recharts out of the initial compile graph */}
+            <AnalystCharts
+                analytics={analytics}
+                caseCategoryData={caseCategoryData}
+                branchReportData={branchReportData}
+                monthlyReportData={monthlyReportData}
+                categoryByAreaData={categoryByAreaData}
+                categoryByBranchData={categoryByBranchData}
+                categoryByAirlinesData={categoryByAirlinesData}
+                topReportersData={topReportersData}
+                monthlyComparisonData={monthlyComparisonData}
+                hubDistributionData={hubDistributionData}
+                resolutionByBranchData={resolutionByBranchData}
+                filteredReports={filteredReports}
+                onDrilldown={(url) => router.push(url)}
+                drilldownUrl={drilldownUrl}
+            />
+
+
+
+
 
             {/* Report Detail Modal */}
             <ReportDetailModal

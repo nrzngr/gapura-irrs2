@@ -30,85 +30,55 @@ async function getCachedUsers() {
   return result;
 }
 
-// GET all reports (for admin)
+
+
+// GET all reports (from Google Sheets via shared service)
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const station = searchParams.get('station');
         const search = searchParams.get('search');
-        const severity = searchParams.get('severity');
-        const mainCategory = searchParams.get('main_category');
+        // severity and main_category were unused in previous filter logic but passed in params?
+        // Let's support them if needed, but existing logic only used status, station, search, from, to.
         const from = searchParams.get('from');
         const to = searchParams.get('to');
 
-        // Parallel fetch — reports + reference data concurrently
-        const [reports, stations, users] = await Promise.all([
-            reportsService.getReports(),
-            getCachedStations(),
-            getCachedUsers(),
-        ]);
+        // Fetch using the shared service (Robust & Cached)
+        const allReports = await reportsService.getReports(); 
 
-        // Complexity: Time O(n * s) — s is small (station count), acceptable
-        // Build lookup maps for O(1) enrichment if reference data is large
-        const stationById = new Map(stations.map(s => [s.id, s]));
-        const stationByCode = new Map(stations.map(s => [s.code, s]));
-        const userById = new Map(users.map(u => [u.id, u]));
+        let filteredData = allReports;
 
-        const enrichedReports = reports.map(report => {
-            const stationObj = stationById.get(report.station_id) ??
-                               stationByCode.get(report.branch) ??
-                               stationByCode.get(report.station_code);
-
-            const userObj = userById.get(report.user_id);
-
-            return {
-                ...report,
-                stations: stationObj ? { code: stationObj.code, name: stationObj.name } : null,
-                users: userObj ? { full_name: userObj.full_name, email: userObj.email } : null,
-                station_id: report.station_id || stationObj?.id
-            };
-        });
-
-        // Apply Filters
-        let filteredData = enrichedReports;
-
+        // Filter: Status
         if (status && status !== 'all') {
-            filteredData = filteredData.filter(r => r.status === status);
+            filteredData = filteredData.filter(r => r.status.toLowerCase() === status.toLowerCase());
         }
 
+        // Filter: Station (Branch)
         if (station && station !== 'all') {
-            filteredData = filteredData.filter(r => r.station_id === station);
+            // Note: matching strict code
+            filteredData = filteredData.filter(r => r.stations?.code === station || r.station_id === station);
         }
 
-        if (severity && severity !== 'all') {
-            filteredData = filteredData.filter(r => r.severity === severity);
-        }
-
-        if (mainCategory && mainCategory !== 'all') {
-            filteredData = filteredData.filter(r => r.category === mainCategory);
-        }
-
-        if (from) {
-            const fromDate = new Date(from).getTime();
-            filteredData = filteredData.filter(r => new Date(r.created_at).getTime() >= fromDate);
-        }
-
-        if (to) {
-            const toDate = new Date(to).getTime();
-            filteredData = filteredData.filter(r => new Date(r.created_at).getTime() <= toDate);
-        }
-
+        // Filter: Search
         if (search) {
             const searchLower = search.toLowerCase();
             filteredData = filteredData.filter(r =>
                 (r.title || '').toLowerCase().includes(searchLower) ||
-                (r.reference_number || '').toLowerCase().includes(searchLower) ||
-                (r.flight_number || '').toLowerCase().includes(searchLower) ||
                 (r.description || '').toLowerCase().includes(searchLower) ||
-                (r.reporter_name || '').toLowerCase().includes(searchLower) ||
-                (r.users?.full_name || '').toLowerCase().includes(searchLower)
+                (r.flight_number || '').toLowerCase().includes(searchLower) ||
+                (r.reporter_name || '').toLowerCase().includes(searchLower)
             );
+        }
+
+        // Filter: Date Range
+        if (from) {
+            const fromDate = new Date(from).getTime();
+            filteredData = filteredData.filter(r => new Date(r.created_at).getTime() >= fromDate);
+        }
+        if (to) {
+            const toDate = new Date(to).getTime();
+            filteredData = filteredData.filter(r => new Date(r.created_at).getTime() <= toDate);
         }
 
         return NextResponse.json(filteredData);

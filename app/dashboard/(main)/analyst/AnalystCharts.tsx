@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo } from 'react';
+
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart as RechartsPie, Pie, Cell, BarChart, Bar,
@@ -186,79 +188,276 @@ export default function AnalystCharts({
     onDrilldown,
     drilldownUrl,
 }: AnalystChartsProps) {
+    // Derived Data: Airlines Total (Sum of categories)
+    const airlinesTotalData = useMemo(() => {
+        return categoryByAirlinesData.map(item => ({
+            airline: item.airline,
+            total: item.irregularity + item.complaint + item.compliment
+        })).sort((a, b) => b.total - a.total);
+    }, [categoryByAirlinesData]);
+
+    // Derived Data: Safe Trend Data (Fallback if analytics.trendData is missing)
+    const safeTrendData = useMemo(() => {
+        if (analytics?.trendData?.length) return analytics.trendData;
+        
+        // Fallback: Use monthlyComparisonData which matches { month, total: masuk, resolved: selesai }
+        if (monthlyComparisonData.length > 0) {
+            return monthlyComparisonData.map(item => ({
+                month: item.month,
+                total: item.masuk,
+                resolved: item.selesai
+            }));
+        }
+
+        // Last resort: Map monthlyReportData
+        return monthlyReportData.map(item => ({
+            month: item.month,
+            total: item.irregularity + item.complaint + item.compliment,
+            resolved: 0
+        }));
+    }, [analytics?.trendData, monthlyComparisonData, monthlyReportData]);
+
     return (
         <>
-            {/* Slide 2: Trend Area Chart + Case Category Donut */}
+            {/* Slide 1: Monthly Analytics (grouped side-by-side) */}
             <PresentationSlide
-                title="Tren & Kategori"
-                subtitle="Volume laporan dan distribusi kategori"
-                icon={TrendingUp}
-                hint="Klik chart untuk melihat detail laporan"
+                title="Analisis Bulanan"
+                subtitle="Tren laporan dan perbandingan performa bulanan"
+                icon={CalendarDays}
+                hint="Klik chart untuk melihat detail laporan per bulan"
             >
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Trend Chart */}
-                    <div className="card-solid lg:col-span-2 p-6">
+                <div className="flex flex-col gap-6">
+                    {/* Monthly Report (Horizontal Stacked Bar) */}
+                    <div className="card-solid p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Tren Volume Laporan</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Total vs Terselesaikan</p>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Monthly Report</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Tren bulanan</p>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-[var(--brand-primary)]" />
-                                    <span className="text-xs text-[var(--text-muted)]">Total</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-blue-500" />
-                                    <span className="text-xs text-[var(--text-muted)]">Selesai</span>
-                                </div>
-                            </div>
+                            <CalendarDays size={20} className="text-[var(--text-muted)]" />
+                        </div>
+                        <div className="flex justify-end gap-4 mb-3">
+                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
+                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
+                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#f43f5e]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
+                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0ea5e9]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
                         </div>
                         <div className="h-[280px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart
-                                    data={analytics?.trendData?.length ? analytics.trendData : monthlyReportData as unknown as Array<{ month: string; total: number; resolved: number }>}
-                                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                <BarChart
+                                    data={monthlyReportData as MonthlyReportItem[]}
+                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                                     onClick={(state) => {
-                                        const s = state as { activeLabel?: string; activePayload?: Array<{ payload?: { month?: string } }> };
-                                        const label = s?.activeLabel || (s?.activePayload?.[0]?.payload?.month);
-                                        if (label) {
-                                            onDrilldown(drilldownUrl('month', String(label)));
-                                        }
+                                        const s = state as { activeLabel?: string };
+                                        if (s?.activeLabel) onDrilldown(drilldownUrl('month', String(s.activeLabel)));
                                     }}
                                     style={{ cursor: 'pointer' }}
                                 >
-                                    <defs>
-                                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="var(--brand-primary)" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="var(--brand-primary)" stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
+                                    <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} dy={10} />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Area type="monotone" dataKey="total" name="Total" stroke="var(--brand-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
-                                    <Area type="monotone" dataKey="resolved" name="Selesai" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorResolved)" />
-                                </AreaChart>
+                                    <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32}>
+                                        <LabelList dataKey="irregularity" position="top" fill="var(--text-secondary)" fontSize={10} formatter={(v: any) => v > 0 ? v : ''} />
+                                    </Bar>
+                                    <Bar dataKey="complaint" name="Complaint" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={32}>
+                                        <LabelList dataKey="complaint" position="top" fill="var(--text-secondary)" fontSize={10} formatter={(v: any) => v > 0 ? v : ''} />
+                                    </Bar>
+                                    <Bar dataKey="compliment" name="Compliment" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={32}>
+                                        <LabelList dataKey="compliment" position="top" fill="var(--text-secondary)" fontSize={10} formatter={(v: any) => v > 0 ? v : ''} />
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Case Category Report (Donut) */}
+                    {/* Monthly Comparison (Redesigned) */}
+                    <div className="card-solid p-6">
+                        {/* Header with Insights */}
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-4">
+                            <div>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Perbandingan Bulanan</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Volume Masuk vs Selesai & Completion Rate</p>
+                            </div>
+                            
+                            {/* YTD Summary Stats */}
+                            <div className="flex items-center gap-4 bg-[var(--surface-2)] p-2 rounded-xl border border-[var(--surface-4)]">
+                                <div className="px-3 border-r border-[var(--surface-4)]">
+                                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Total Masuk</p>
+                                    <p className="text-lg font-bold text-[var(--text-primary)]">
+                                        {monthlyComparisonData.reduce((acc, curr) => acc + curr.masuk, 0).toLocaleString('id-ID')}
+                                    </p>
+                                </div>
+                                <div className="px-3 border-r border-[var(--surface-4)]">
+                                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Total Selesai</p>
+                                    <p className="text-lg font-bold text-[#10b981]">
+                                        {monthlyComparisonData.reduce((acc, curr) => acc + curr.selesai, 0).toLocaleString('id-ID')}
+                                    </p>
+                                </div>
+                                <div className="px-3">
+                                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Avg Rate</p>
+                                    <p className="text-lg font-bold text-[#3b82f6]">
+                                        {monthlyComparisonData.length > 0
+                                            ? Math.round((monthlyComparisonData.reduce((acc, curr) => acc + curr.selesai, 0) / monthlyComparisonData.reduce((acc, curr) => acc + curr.masuk, 0)) * 100)
+                                            : 0}%
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {monthlyComparisonData.length === 0 ? (
+                            <p className="text-sm text-[var(--text-muted)] text-center py-12">Belum ada data perbandingan bulanan</p>
+                        ) : (
+                            <>
+                                <div className="h-[320px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart
+                                            data={monthlyComparisonData as MonthlyComparisonItem[]}
+                                            margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
+                                            onClick={(state) => {
+                                                if (state?.activeLabel) onDrilldown(drilldownUrl('month', String(state.activeLabel)));
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
+                                            <XAxis 
+                                                dataKey="month" 
+                                                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                                dy={10}
+                                            />
+                                            {/* Primary Axis (Volume) */}
+                                            <YAxis 
+                                                yAxisId="left" 
+                                                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                            />
+                                            {/* Secondary Axis (Rate) - Hidden but functional */}
+                                            <YAxis 
+                                                yAxisId="right" 
+                                                orientation="right" 
+                                                domain={[0, 100]} 
+                                                hide={true} 
+                                            />
+                                            
+                                            <Tooltip 
+                                                cursor={{ fill: 'var(--surface-2)', opacity: 0.4 }}
+                                                content={({ active, payload, label }) => {
+                                                    if (!active || !payload?.length) return null;
+                                                    const masuk = payload.find(p => p.name === 'Masuk')?.value as number || 0;
+                                                    const selesai = payload.find(p => p.name === 'Selesai')?.value as number || 0;
+                                                    const rate = payload.find(p => p.name === 'Rate %')?.value as number || 0;
+                                                    const gap = masuk - selesai;
+
+                                                    return (
+                                                        <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[200px]">
+                                                            <p className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">{label}</p>
+                                                            <div className="space-y-3">
+                                                                <div className="flex justify-between items-center">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2.5 h-2.5 rounded-sm bg-[#cbd5e1]" />
+                                                                        <span className="text-xs text-gray-600">Masuk</span>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-gray-900">{masuk}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" />
+                                                                        <span className="text-xs text-gray-600">Selesai</span>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-[#10b981]">{selesai}</span>
+                                                                </div>
+                                                                <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
+                                                                        <span className="text-xs text-gray-600">Completion</span>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-[#3b82f6]">{rate}%</span>
+                                                                </div>
+                                                                {gap > 0 && (
+                                                                    <div className="flex justify-between items-center pt-1">
+                                                                         <span className="text-[10px] text-red-500 font-medium">Gap (Pending)</span>
+                                                                         <span className="text-xs font-bold text-red-500">+{gap}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }}
+                                            />
+
+                                            {/* Bars */}
+                                            <Bar 
+                                                yAxisId="left" 
+                                                dataKey="masuk" 
+                                                name="Masuk" 
+                                                fill="#cbd5e1" 
+                                                radius={[4, 4, 0, 0]} 
+                                                barSize={32}
+                                            />
+                                            <Bar 
+                                                yAxisId="left" 
+                                                dataKey="selesai" 
+                                                name="Selesai" 
+                                                fill="#10b981" 
+                                                radius={[4, 4, 0, 0]} 
+                                                barSize={32}
+                                            />
+
+                                            
+                                            {/* Line Overlay */}
+                                            <Line 
+                                                yAxisId="right" 
+                                                type="monotone" 
+                                                dataKey="rate" 
+                                                name="Rate %" 
+                                                stroke="#3b82f6" 
+                                                strokeWidth={2} 
+                                                dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }} 
+                                                activeDot={{ r: 5, strokeWidth: 0 }}
+                                            />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="flex justify-center gap-6 mt-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded" style={{ background: '#cbd5e1' }} />
+                                        <span className="text-xs text-[var(--text-muted)]">Masuk (Volume)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded" style={{ background: '#10b981' }} />
+                                        <span className="text-xs text-[var(--text-muted)]">Selesai (Resolved)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
+                                        <span className="text-xs text-[var(--text-muted)]">Completion Rate %</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </PresentationSlide>
+
+            {/* Slide 2: General Categories & Volume Trends */}
+            <PresentationSlide
+                title="Tren & Distribusi Kategori"
+                subtitle="Volume laporan dan proporsi kategori"
+                icon={PieChartIcon}
+                hint="Klik segmen untuk filter berdasarkan kategori"
+            >
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Case Category (Donut) - Col 1 */}
                     <div className="card-solid p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Case Category Report</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Irregularity / Complaint / Compliment</p>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Kategori Kasus</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Proporsi Tipe Laporan</p>
                             </div>
-                            <PieChartIcon size={20} className="text-[var(--text-muted)]" />
                         </div>
-                        <div className="h-[220px] relative">
+                        <div className="h-[200px] relative">
                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsPie>
                                     <Pie
@@ -289,40 +488,76 @@ export default function AnalystCharts({
                                 <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
                             </div>
                         </div>
-                        <div className="flex justify-center gap-6 mt-2">
-                            {(caseCategoryData as CaseCategoryItem[]).map((s) => (
-                                <div
-                                    key={s.name}
-                                    className="flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
-                                    onClick={() => onDrilldown(drilldownUrl('category', s.name))}
-                                >
-                                    <div className="w-3 h-3 rounded-full" style={{ background: s.fill }} />
-                                    <span className="text-xs text-[var(--text-secondary)]">{s.name} ({s.value})</span>
+                        <div className="flex flex-wrap justify-center gap-3 mt-2">
+                             {(caseCategoryData as CaseCategoryItem[]).map((s) => (
+                                <div key={s.name} className="flex items-center gap-1.5 cursor-pointer" onClick={() => onDrilldown(drilldownUrl('category', s.name))}>
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
+                                    <span className="text-[10px] text-[var(--text-secondary)]">{s.name}</span>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+
+                    {/* Trend Volume (Area) - Col 2 (Span 2) */}
+                    <div className="card-solid lg:col-span-2 p-6">
+                         <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Tren Volume</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Pergerakan total kasus</p>
+                            </div>
+                        </div>
+                        <div className="h-[240px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart
+                                    data={safeTrendData}
+                                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                    onClick={(state) => {
+                                        const s = state as { activeLabel?: string; activePayload?: Array<{ payload?: { month?: string } }> };
+                                        const label = s?.activeLabel || (s?.activePayload?.[0]?.payload?.month);
+                                        if (label) onDrilldown(drilldownUrl('month', String(label)));
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <defs>
+                                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="var(--brand-primary)" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="var(--brand-primary)" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" />
+                                    <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Area type="monotone" dataKey="total" name="Total" stroke="var(--brand-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
+                                    <Area type="monotone" dataKey="resolved" name="Selesai" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorResolved)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
             </PresentationSlide>
 
-            {/* Slide 3: Branch Report + Monthly Report */}
+            {/* Slide 3: Station Analysis (Total & Category Breakdown) */}
             <PresentationSlide
-                title="Laporan per Stasiun & Bulanan"
-                subtitle="Distribusi laporan berdasarkan stasiun dan tren bulanan"
+                title="Analisis Stasiun"
+                subtitle="Performa dan kategori laporan per cabang"
                 icon={Building2}
-                hint="Klik bar untuk melihat detail laporan"
+                hint="Klik bar untuk filter per stasiun"
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Branch Report (Vertical Bar) */}
+                    {/* Branch Report (Total - Simple Bar) */}
                     <div className="card-solid p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Branch Report</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Laporan per stasiun</p>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Total Laporan per Stasiun</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Top 10 Stasiun dengan volume tertinggi</p>
                             </div>
-                            <Building2 size={20} className="text-[var(--text-muted)]" />
                         </div>
-                        <div className="h-[280px]">
+                        <div className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={branchReportData as BranchReportItem[]} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
@@ -347,123 +582,15 @@ export default function AnalystCharts({
                         </div>
                     </div>
 
-                    {/* Monthly Report (Horizontal Stacked Bar) */}
+                    {/* Category by Branch (Stacked Horizontal) */}
                     <div className="card-solid p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Monthly Report</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Tren bulanan</p>
-                            </div>
-                            <CalendarDays size={20} className="text-[var(--text-muted)]" />
-                        </div>
-                        <div className="flex justify-end gap-4 mb-3">
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#ec4899]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
-                        </div>
-                        <div className="h-[280px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={monthlyReportData as MonthlyReportItem[]}
-                                    layout="vertical"
-                                    margin={{ left: 30, right: 10 }}
-                                    onClick={(state) => {
-                                        const s = state as { activeLabel?: string };
-                                        if (s?.activeLabel) onDrilldown(drilldownUrl('month', String(s.activeLabel)));
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="var(--surface-4)" />
-                                    <XAxis type="number" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
-                                    <YAxis type="category" dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} width={35} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="irregularity" name="Irregularity" stackId="a" fill="#10b981" radius={0} />
-                                    <Bar dataKey="complaint" name="Complaint" stackId="a" fill="#ec4899" radius={0} />
-                                    <Bar dataKey="compliment" name="Compliment" stackId="a" fill="#06b6d4" radius={[0, 4, 4, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-            </PresentationSlide>
-
-            {/* Slide 4: Category by Area + Category by Branch */}
-            <PresentationSlide
-                title="Kategori per Area & Stasiun"
-                subtitle="Distribusi kategori berdasarkan area dan stasiun"
-                icon={Target}
-                hint="Klik chart untuk melihat detail laporan"
-            >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Category by Area (Donut) */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Category by Area</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Distribusi per area</p>
-                            </div>
-                            <Target size={20} className="text-[var(--text-muted)]" />
-                        </div>
-                        <div className="h-[200px] relative">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RechartsPie>
-                                    <Pie
-                                        data={categoryByAreaData as CategoryByAreaItem[]}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={50}
-                                        outerRadius={80}
-                                        paddingAngle={3}
-                                        dataKey="value"
-                                        cornerRadius={4}
-                                        onClick={(data) => {
-                                            if (data?.name) onDrilldown(drilldownUrl('area', data.name));
-                                        }}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        {(categoryByAreaData as CategoryByAreaItem[]).map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip content={<CustomTooltip />} />
-                                </RechartsPie>
-                            </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-xl font-bold text-[var(--text-primary)]">
-                                    {(categoryByAreaData as CategoryByAreaItem[]).reduce((sum, d) => sum + d.value, 0)}
-                                </span>
-                                <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Kategori per Stasiun</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Breakdown tipe laporan</p>
                             </div>
                         </div>
-                        <div className="flex justify-center gap-4 mt-2">
-                            {(categoryByAreaData as CategoryByAreaItem[]).map((d) => (
-                                <div
-                                    key={d.name}
-                                    className="flex items-center gap-1.5 cursor-pointer hover:opacity-70 transition-opacity"
-                                    onClick={() => onDrilldown(drilldownUrl('area', d.name))}
-                                >
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />
-                                    <span className="text-[10px] text-[var(--text-secondary)]">{d.name} ({d.value})</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Category by Branch (Horizontal Stacked Bar) */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Category By Branch</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Per stasiun</p>
-                            </div>
-                            <BarChart3 size={20} className="text-[var(--text-muted)]" />
-                        </div>
-                        <div className="flex justify-end gap-4 mb-3">
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#ec4899]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
-                        </div>
-                        <div className="h-[240px]">
+                        <div className="h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
                                     data={categoryByBranchData as CategoryByBranchItem[]}
@@ -488,57 +615,87 @@ export default function AnalystCharts({
                 </div>
             </PresentationSlide>
 
-            {/* Slide 5: Airlines Chart */}
+            {/* Slide 4: Airline Analysis (Total & Category Breakdown) */}
             <PresentationSlide
-                title="Kategori per Maskapai"
-                subtitle="Distribusi laporan berdasarkan maskapai penerbangan"
+                title="Analisis Maskapai"
+                subtitle="Volume dan kategori laporan berdasarkan maskapai"
                 icon={TrendingUp}
-                hint="Klik bar untuk melihat detail laporan"
+                hint="Klik chart untuk filter per maskapai"
             >
-                <div className="card-solid p-6">
-                    <div className="flex justify-end gap-4 mb-3">
-                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
-                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#ec4899]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
-                        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
+                <div className="grid grid-cols-1 gap-6">
+                    {/* Airlines Total (Derived) */}
+                    <div className="card-solid p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Total Laporan Maskapai</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Top Maskapai dengan laporan terbanyak</p>
+                            </div>
+                        </div>
+                        <div className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={airlinesTotalData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
+                                    <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} interval={0} height={60} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar
+                                        dataKey="total"
+                                        name="Total"
+                                        fill="#3b82f6"
+                                        radius={[4, 4, 0, 0]}
+                                        onClick={(data) => {
+                                            const d = data as { airline?: string };
+                                            if (d?.airline) onDrilldown(drilldownUrl('airline', d.airline));
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <LabelList dataKey="total" position="top" fill="var(--text-secondary)" fontSize={10} />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                data={categoryByAirlinesData as CategoryByAirlinesItem[]}
-                                margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
-                                onClick={(state) => {
-                                    if (state?.activeLabel) onDrilldown(drilldownUrl('airline', String(state.activeLabel)));
-                                }}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} height={60} interval={0} />
-                                <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]}>
-                                    <LabelList dataKey="irregularity" position="top" fill="var(--text-secondary)" fontSize={9} />
-                                </Bar>
-                                <Bar dataKey="complaint" name="Complaint" fill="#ec4899" radius={[4, 4, 0, 0]}>
-                                    <LabelList dataKey="complaint" position="top" fill="var(--text-secondary)" fontSize={9} />
-                                </Bar>
-                                <Bar dataKey="compliment" name="Compliment" fill="#06b6d4" radius={[4, 4, 0, 0]}>
-                                    <LabelList dataKey="compliment" position="top" fill="var(--text-secondary)" fontSize={9} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+
+                    {/* Category by Airline (Grouped Bar) */}
+                    <div className="card-solid p-6">
+                         <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Kategori per Maskapai</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Breakdown tipe laporan</p>
+                            </div>
+                        </div>
+                        <div className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={categoryByAirlinesData as CategoryByAirlinesItem[]}
+                                    margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                                    onClick={(state) => {
+                                        if (state?.activeLabel) onDrilldown(drilldownUrl('airline', String(state.activeLabel)));
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
+                                    <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} height={60} interval={0} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="complaint" name="Complaint" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="compliment" name="Compliment" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
             </PresentationSlide>
 
-            {/* Slide 6: Top Reporters (REAL DATA) + Status Flow */}
+            {/* Slide 5: Additional Insights (Top Reporters & Status Flow) */}
             <PresentationSlide
-                title="Pelapor & Status"
-                subtitle="Kontributor terbanyak dan alur status laporan"
-                icon={Users}
-                hint="Klik status untuk melihat detail laporan"
+                title="Wawasan Tambahan"
+                subtitle="Kontributor dan Alur Status"
+                icon={Activity}
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Top Reporters — real data */}
+                     {/* Top Reporters — real data */}
                     <div className="card-solid p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>
@@ -547,13 +704,13 @@ export default function AnalystCharts({
                             </div>
                             <Users size={20} className="text-[var(--text-muted)]" />
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {topReportersData.length === 0 ? (
                                 <p className="text-sm text-[var(--text-muted)] text-center py-8">Belum ada data pelapor</p>
                             ) : (
                                 (topReportersData as TopReporterItem[]).map((reporter, idx) => (
                                     <div key={reporter.name} className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                                             style={{ background: COLORS[idx % COLORS.length] }}>
                                             {idx + 1}
                                         </div>
@@ -561,7 +718,7 @@ export default function AnalystCharts({
                                             <p className="text-sm font-medium text-[var(--text-primary)] truncate">{reporter.name}</p>
                                             <p className="text-[10px] text-[var(--text-muted)]">{reporter.station}</p>
                                         </div>
-                                        <span className="text-sm font-bold" style={{ color: COLORS[idx % COLORS.length] }}>{reporter.count}</span>
+                                        <span className="text-sm font-bold shrink-0" style={{ color: COLORS[idx % COLORS.length] }}>{reporter.count}</span>
                                     </div>
                                 ))
                             )}
@@ -606,148 +763,6 @@ export default function AnalystCharts({
                                 );
                             })}
                         </div>
-                    </div>
-                </div>
-            </PresentationSlide>
-
-            {/* Slide 7: Monthly Comparison (REAL DATA) */}
-            <PresentationSlide
-                title="Perbandingan Bulanan"
-                subtitle="Masuk vs Selesai per bulan"
-                icon={TrendingUp}
-                hint="Klik bar untuk melihat detail laporan"
-            >
-                <div className="card-solid p-6">
-                    {monthlyComparisonData.length === 0 ? (
-                        <p className="text-sm text-[var(--text-muted)] text-center py-12">Belum ada data perbandingan bulanan</p>
-                    ) : (
-                        <>
-                            <div className="h-[200px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart
-                                        data={monthlyComparisonData as MonthlyComparisonItem[]}
-                                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                                        onClick={(state) => {
-                                            if (state?.activeLabel) onDrilldown(drilldownUrl('month', String(state.activeLabel)));
-                                        }}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                                        <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                        <YAxis yAxisId="left" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                        <YAxis yAxisId="right" orientation="right" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} domain={[0, 100]} />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Bar yAxisId="left" dataKey="masuk" name="Masuk" fill="var(--surface-4)" radius={[4, 4, 0, 0]} />
-                                        <Bar yAxisId="left" dataKey="selesai" name="Selesai" fill="var(--brand-primary)" radius={[4, 4, 0, 0]} />
-                                        <Line yAxisId="right" type="monotone" dataKey="rate" name="Rate %" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: '#8b5cf6', r: 4 }} />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div className="flex justify-center gap-6 mt-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded" style={{ background: 'var(--surface-4)' }} />
-                                    <span className="text-xs text-[var(--text-muted)]">Masuk</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded" style={{ background: 'var(--brand-primary)' }} />
-                                    <span className="text-xs text-[var(--text-muted)]">Selesai</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full" style={{ background: '#8b5cf6' }} />
-                                    <span className="text-xs text-[var(--text-muted)]">Resolution Rate %</span>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </PresentationSlide>
-
-            {/* Slide 8: Hub Distribution + Resolution Performance */}
-            <PresentationSlide
-                title="Hub & Performa Resolusi"
-                subtitle="Distribusi per hub dan tingkat penyelesaian per stasiun"
-                icon={MapPin}
-                hint="Analisis penyelesaian laporan per stasiun"
-            >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Hub Distribution (Horizontal Bar) */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Distribusi Hub</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Laporan per hub</p>
-                            </div>
-                            <MapPin size={20} className="text-[var(--text-muted)]" />
-                        </div>
-                        {hubDistributionData.length === 0 ? (
-                            <p className="text-sm text-[var(--text-muted)] text-center py-12">Belum ada data hub</p>
-                        ) : (
-                            <div className="h-[260px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
-                                        data={hubDistributionData as HubDistributionItem[]}
-                                        layout="vertical"
-                                        margin={{ left: 40, right: 20 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="var(--surface-4)" />
-                                        <XAxis type="number" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
-                                        <YAxis type="category" dataKey="hub" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} width={40} />
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Bar dataKey="count" name="Laporan" fill="#3b82f6" radius={[0, 4, 4, 0]}>
-                                            <LabelList dataKey="count" position="right" fill="var(--text-secondary)" fontSize={10} />
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Resolution Rate by Branch (ComposedChart) */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Resolusi per Stasiun</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Total vs Selesai + Rate</p>
-                            </div>
-                            <Activity size={20} className="text-[var(--text-muted)]" />
-                        </div>
-                        {resolutionByBranchData.length === 0 ? (
-                            <p className="text-sm text-[var(--text-muted)] text-center py-12">Belum ada data resolusi</p>
-                        ) : (
-                            <>
-                                <div className="h-[220px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart
-                                            data={resolutionByBranchData as ResolutionByBranchItem[]}
-                                            margin={{ top: 10, right: 30, left: -10, bottom: 0 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                                            <XAxis dataKey="branch" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
-                                            <YAxis yAxisId="left" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
-                                            <YAxis yAxisId="right" orientation="right" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} domain={[0, 100]} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar yAxisId="left" dataKey="total" name="Total" fill="var(--surface-4)" radius={[4, 4, 0, 0]} />
-                                            <Bar yAxisId="left" dataKey="resolved" name="Selesai" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                            <Line yAxisId="right" type="monotone" dataKey="rate" name="Rate %" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }} />
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="flex justify-center gap-5 mt-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded" style={{ background: 'var(--surface-4)' }} />
-                                        <span className="text-xs text-[var(--text-muted)]">Total</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded bg-[#10b981]" />
-                                        <span className="text-xs text-[var(--text-muted)]">Selesai</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
-                                        <span className="text-xs text-[var(--text-muted)]">Rate %</span>
-                                    </div>
-                                </div>
-                            </>
-                        )}
                     </div>
                 </div>
             </PresentationSlide>

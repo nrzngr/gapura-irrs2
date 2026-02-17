@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
-import { Upload, FileUp, AlertCircle, CheckCircle, Loader2, X, Database, Truck, Plane } from 'lucide-react';
+import { Upload, FileUp, AlertCircle, CheckCircle, Loader2, X, Database, Truck, Plane, FileSpreadsheet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Type Definitions ---
@@ -297,11 +297,24 @@ export default function ImportDataPage() {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 pb-32">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Import Data Laporan</h1>
-        <p className="text-gray-500 mt-1">
-            Mode Administrator untuk import data massal dari Google Sheets/Excel.
-        </p>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Import Data Laporan</h1>
+          <p className="text-gray-500 mt-1">
+              Mode Administrator untuk import data massal dari Google Sheets/Excel.
+          </p>
+        </div>
+        
+        <a 
+            href={`https://docs.google.com/spreadsheets/d/${process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold hover:bg-emerald-100 transition-colors"
+        >
+            <FileSpreadsheet size={18} />
+            Menuju Excel
+        </a>
       </div>
 
       {/* Configuration Card */}

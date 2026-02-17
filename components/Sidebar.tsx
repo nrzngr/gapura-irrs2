@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, Shield } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, Shield, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -90,6 +90,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             items: [
                 { href: '/dashboard/analyst', label: 'Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/analyst/reports', label: 'Laporan', icon: ClipboardList },
+                { href: '/dashboard/analyst/ai-reports', label: 'AI Reports', icon: Brain },
                 { href: '/dashboard/analyst/builder', label: 'Explore & Build', icon: Hash },
                 { href: '/dashboard/analyst/import', label: 'Import Data', icon: FolderOpen },
             ]
