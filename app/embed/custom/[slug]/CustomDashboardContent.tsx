@@ -547,6 +547,7 @@ export function CustomDashboardContent() {
       else await exportToPptx(payload);
     } catch (err) {
       console.error(`[Dashboard] Export ${format} error:`, err);
+      alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setExportingFormat(null);
     }
@@ -847,7 +848,7 @@ export function CustomDashboardContent() {
                     <ChevronDownIcon size={14} className="text-gray-400" />
                   </button>
                   {showExportMenu && (
-                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl z-50 min-w-[220px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl z-[100] min-w-[220px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                       <button 
                         onClick={() => handleExport('xlsx')} 
                         className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-green-50 text-gray-700 transition-colors border-b border-gray-50"
@@ -877,7 +878,7 @@ export function CustomDashboardContent() {
                       <ChevronDownIcon size={14} className="text-white/80" />
                     </button>
                     {showDatePicker && (
-                      <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-4 shadow-2xl z-50 min-w-[280px] flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-4 shadow-2xl z-[100] min-w-[280px] flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
                         <div>
                           <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">From</label>
                           <input 
@@ -910,7 +911,7 @@ export function CustomDashboardContent() {
             </div>
 
             {/* Banner with Interactive Filters */}
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl p-4 md:p-5 flex flex-col gap-4 shadow-sm border border-gray-200/60 relative z-50">
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl p-4 md:p-5 flex flex-col gap-4 shadow-sm border border-gray-200/60 relative z-10">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
                   Analytic Filters
@@ -1123,7 +1124,7 @@ export function CustomDashboardContent() {
       {/* Click outside to close dropdowns */}
       {showExportMenu && (
         <div
-          className="fixed inset-0 z-40"
+          className="fixed inset-0 z-30"
           onClick={() => { setShowExportMenu(false); }}
         />
       )}

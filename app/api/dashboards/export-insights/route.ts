@@ -84,7 +84,8 @@ ATURAN KRUSIAL:
 1.  **NO HALLUCINATION**: Gunakan HANYA data yang ada di "DATA FAKTUAL". Jangan mengarang external factors jika tidak ada datanya.
 2.  **SENIOR TONE**: Gunakan bahasa Indonesia profesional, tajam, dan tidak bertele-tele.
 3.  **DATA INTEGRITY**: Wajib menyertakan angka/persentase aktual di dalam narasi.
-4.  **RELEVANCE**: Fokus pada Safety, Security, Services (3S) dan On-Time Performance (OTP).`;
+4.  **RELEVANCE**: Fokus pada Safety, Security, Services (3S) dan On-Time Performance (OTP).
+5.  **JSON ONLY**: Jangan berikan teks pembuka, penutup, atau markdown code blocks. Berikan HANYA raw JSON object yang valid.`;
 }
 
 // Complexity: Time O(1) — single API call | Space O(response)
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       content = await callGroqAI([
         {
           role: "system",
-          content: "Anda adalah Senior Data Analyst Gapura Angkasa. Berikan insight yang kritis, akurat, dan bernilai strategis bagi Direksi."
+          content: "Anda adalah Senior Data Analyst Gapura Angkasa. Berikan insight yang kritis, akurat, dan bernilai strategis bagi Direksi. KEMBALIKAN HANYA JSON."
         },
         {
           role: "user",
@@ -136,15 +137,16 @@ export async function POST(request: NextRequest) {
 
     let insights: InsightsResponse;
     try {
-      // Try extracting JSON if wrapped in markdown
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-      if (jsonMatch) {
-         content = jsonMatch[1];
+      // Robust extraction: find the first { and the last }
+      const firstBrace = content.indexOf('{');
+      const lastBrace = content.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        content = content.substring(firstBrace, lastBrace + 1);
       }
       insights = JSON.parse(content);
     } catch {
-      console.error('[export-insights] Failed to parse:', content);
-      return NextResponse.json({ error: 'Format AI tidak valid' }, { status: 422 });
+      console.error('[export-insights] Failed to parse AI content. Raw output:', content);
+      return NextResponse.json({ error: 'AI returned invalid JSON format' }, { status: 422 });
     }
 
     return NextResponse.json(insights);
