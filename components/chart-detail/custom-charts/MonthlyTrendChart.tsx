@@ -1,0 +1,226 @@
+'use client';
+
+import React from 'react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Info } from 'lucide-react';
+
+interface MonthlyTrendData {
+  month: string;
+  year?: number;
+  count: number;
+  previousCount?: number;
+  change?: number;
+  changePercent?: number;
+}
+
+interface MonthlyTrendChartProps {
+  data: MonthlyTrendData[];
+  title?: string;
+  explanation?: string;
+}
+
+const MONTH_NAMES: Record<string, string> = {
+  '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+  '05': 'Mei', '06': 'Jun', '07': 'Jul', '08': 'Agu',
+  '09': 'Sep', '10': 'Okt', '11': 'Nov', '12': 'Des'
+};
+
+export function MonthlyTrendChart({ 
+  data, 
+  title = 'Tren Bulanan',
+  explanation 
+}: MonthlyTrendChartProps) {
+  // Handle empty data
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-[#e0e0e0] flex flex-col overflow-hidden h-full">
+        <div className="px-4 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+          <h4 className="text-[11px] font-bold text-[#333] uppercase tracking-tight">
+            {title}
+          </h4>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Calendar className="w-6 h-6 text-gray-400" />
+            </div>
+            <p className="text-[11px] text-gray-500">Tidak ada data tren bulanan</p>
+            <p className="text-[9px] text-gray-400 mt-1">Data mungkin belum tersedia atau kosong</p>
+          </div>
+        </div>
+        {explanation && (
+          <div className="px-4 py-3 bg-[#fcfcfc] border-t border-[#f0f0f0] flex gap-2.5 items-start">
+            <Info className="w-3.5 h-3.5 text-[#6b8e3d] mt-0.5 flex-shrink-0" />
+            <p className="text-[10px] text-[#777] leading-relaxed italic">
+              {explanation}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const sortedData = [...data].sort((a, b) => {
+    const aMonth = a.month?.padStart(2, '0') || '00';
+    const bMonth = b.month?.padStart(2, '0') || '00';
+    return aMonth.localeCompare(bMonth);
+  });
+
+  const total = sortedData.reduce((sum, item) => sum + item.count, 0);
+  const avg = total / sortedData.length || 0;
+  const maxCount = Math.max(...sortedData.map(d => d.count), 1);
+  const minCount = Math.min(...sortedData.map(d => d.count));
+  
+  // Calculate overall trend
+  const firstHalf = sortedData.slice(0, Math.floor(sortedData.length / 2));
+  const secondHalf = sortedData.slice(Math.floor(sortedData.length / 2));
+  const firstAvg = firstHalf.reduce((sum, item) => sum + item.count, 0) / firstHalf.length || 0;
+  const secondAvg = secondHalf.reduce((sum, item) => sum + item.count, 0) / secondHalf.length || 0;
+  const overallTrend = secondAvg - firstAvg;
+  const overallTrendPercent = firstAvg > 0 ? (overallTrend / firstAvg) * 100 : 0;
+
+  const TrendIcon = overallTrend > 0 ? TrendingUp : overallTrend < 0 ? TrendingDown : Minus;
+  const trendColor = overallTrend > 0 ? 'text-red-600' : overallTrend < 0 ? 'text-green-600' : 'text-gray-500';
+
+  return (
+    <div className="bg-white rounded-xl border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30 h-full">
+      <div className="px-4 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+        <h4 className="text-[11px] font-bold text-[#333] uppercase tracking-tight">
+          {title}
+        </h4>
+        <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
+      </div>
+      
+      <div className="p-4 flex-1 flex flex-col">
+        {/* Trend Summary */}
+        <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-600" />
+              <span className="text-[10px] font-bold text-gray-700 uppercase">Tren Keseluruhan</span>
+            </div>
+            <div className={`flex items-center gap-1 ${trendColor}`}>
+              <TrendIcon className="w-4 h-4" />
+              <span className="text-sm font-bold">
+                {overallTrendPercent > 0 ? '+' : ''}{overallTrendPercent.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+          <div className="mt-2 flex justify-between text-[9px] text-gray-500">
+            <span>Rata-rata: {avg.toFixed(0)} kasus/bulan</span>
+            <span>Min: {minCount} | Max: {maxCount}</span>
+          </div>
+        </div>
+
+        {/* Line/Bar Chart Area */}
+        <div className="flex-1 flex flex-col min-h-[150px]">
+          {/* Peak indicator */}
+          <div className="relative flex-1 flex items-end gap-1">
+            {sortedData.map((item, idx) => {
+              const height = (item.count / maxCount) * 100;
+              const monthName = MONTH_NAMES[item.month?.padStart(2, '0')] || item.month;
+              const isPeak = item.count === maxCount;
+              const isLow = item.count === minCount;
+              
+              return (
+                <div key={idx} className="flex-1 flex flex-col items-center">
+                  {/* Change indicator */}
+                  {item.change !== undefined && (
+                    <div className={`text-[8px] mb-1 ${
+                      item.change > 0 ? 'text-red-500' : 
+                      item.change < 0 ? 'text-green-500' : 'text-gray-400'
+                    }`}>
+                      {item.change > 0 ? '+' : ''}{item.change}
+                    </div>
+                  )}
+                  
+                  {/* Bar */}
+                  <div 
+                    className={`w-full rounded-t-md transition-all duration-500 relative group cursor-pointer ${
+                      isPeak ? 'bg-gradient-to-t from-red-500 to-red-400' :
+                      isLow ? 'bg-gradient-to-t from-green-500 to-green-400' :
+                      'bg-gradient-to-t from-[#6b8e3d] to-[#8bc34a]'
+                    }`}
+                    style={{ height: `${Math.max(height, 5)}%` }}
+                  >
+                    {/* Tooltip on hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-10">
+                      {item.count} kasus
+                    </div>
+                    
+                    {/* Value label for significant bars */}
+                    {height > 40 && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[9px] font-bold text-white">
+                          {item.count}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Month label */}
+                  <div className="text-[9px] text-gray-500 mt-1 text-center">
+                    {monthName}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Peak and Low markers */}
+          <div className="flex justify-between mt-2 text-[9px]">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full" />
+              <span className="text-gray-500">Puncak: {maxCount}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span className="text-gray-500">Terendah: {minCount}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Monthly breakdown table */}
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="text-[9px] font-bold text-gray-500 uppercase mb-2">3 Bulan Terakhir</div>
+          <div className="grid grid-cols-3 gap-2">
+            {sortedData.slice(-3).map((item, idx) => {
+              const monthName = MONTH_NAMES[item.month?.padStart(2, '0')] || item.month;
+              const changePercent = item.changePercent || 0;
+              
+              return (
+                <div key={idx} className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-[9px] text-gray-500 uppercase">{monthName}</div>
+                  <div className="text-lg font-bold text-gray-800">{item.count}</div>
+                  {item.change !== undefined && (
+                    <div className={`text-[9px] ${
+                      changePercent > 0 ? 'text-red-500' : 
+                      changePercent < 0 ? 'text-green-500' : 'text-gray-400'
+                    }`}>
+                      {changePercent > 0 ? '↑' : changePercent < 0 ? '↓' : '→'} {Math.abs(changePercent).toFixed(0)}%
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="mt-3 flex justify-between items-center">
+          <span className="text-[10px] text-gray-500">Total Periode</span>
+          <span className="text-sm font-bold text-gray-800">{total.toLocaleString('id-ID')}</span>
+        </div>
+      </div>
+
+      {explanation && (
+        <div className="px-4 py-3 bg-[#fcfcfc] border-t border-[#f0f0f0] flex gap-2.5 items-start">
+          <Info className="w-3.5 h-3.5 text-[#6b8e3d] mt-0.5 flex-shrink-0" />
+          <p className="text-[10px] text-[#777] leading-relaxed italic">
+            {explanation}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

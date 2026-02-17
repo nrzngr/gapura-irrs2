@@ -7,10 +7,38 @@ import { Info } from 'lucide-react';
 import type { DashboardTile, QueryResult } from '@/types/builder';
 import { ViewMode, Normalization } from './GlobalControlBar';
 
+// Import custom charts
+import { SeverityDistributionChart } from './custom-charts/SeverityDistributionChart';
+import { StatusBreakdownChart } from './custom-charts/StatusBreakdownChart';
+import { SubCategoryDetailChart } from './custom-charts/SubCategoryDetailChart';
+import { TargetDivisionChart } from './custom-charts/TargetDivisionChart';
+import { AreaSubCategoryChart } from './custom-charts/AreaSubCategoryChart';
+import { PriorityChart } from './custom-charts/PriorityChart';
+import { RootCauseChart } from './custom-charts/RootCauseChart';
+import { AirlineTypeCategoryChart } from './custom-charts/AirlineTypeCategoryChart';
+import { MonthlyTrendChart } from './custom-charts/MonthlyTrendChart';
+import { CategoryDistributionChart } from './custom-charts/CategoryDistributionChart';
+import { AreaAnalysisChart } from './AreaAnalysisChart';
+
+// Types of custom charts
+export type CustomChartType = 
+  | 'severity_distribution'
+  | 'status_breakdown'
+  | 'subcategory_detail'
+  | 'target_division'
+  | 'area_subcategory'
+  | 'priority_analysis'
+  | 'root_cause'
+  | 'airline_type_category'
+  | 'monthly_trend'
+  | 'category_distribution'
+  | 'area_breakdown';
+
 interface SupportingChart {
   visualization: DashboardTile['visualization'];
   query: DashboardTile['query'];
   explanation: string;
+  customChartType?: CustomChartType;
 }
 
 interface SupportingChartsProps {
@@ -28,6 +56,292 @@ function safeRender(value: any): React.ReactNode {
     return value.label || value.text || JSON.stringify(value);
   }
   return String(value);
+}
+
+// Helper functions to transform QueryResult data for custom charts
+function transformToSeverityData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('SeverityDistributionChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      severity: String(row.severity || row.SEVERITY || row.Severity || 'MEDIUM').toUpperCase(),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  });
+}
+
+function transformToStatusData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('StatusBreakdownChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      status: String(row.status || row.STATUS || row.Status || 'OPEN'),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  });
+}
+
+function transformToSubCategoryData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('SubCategoryDetailChart: No data available');
+    return [];
+  }
+
+  // Filter out rows with empty/null sub-categories FIRST
+  const columns = result.columns || Object.keys(result.rows[0] || {});
+  const subCategoryColumn = columns.find(col =>
+    col.toLowerCase().includes('irregularity_complain') ||
+    col.toLowerCase().includes('sub_category') ||
+    col.toLowerCase().includes('subcategory')
+  ) || columns.find(col => col !== 'jumlah' && col !== 'count' && col !== 'JUMLAH' && col !== 'COUNT') || columns[0];
+
+  // Filter rows with valid sub-categories (non-empty, non-null)
+  const validRows = result.rows.filter(row => {
+    const subCategory = String(row[subCategoryColumn] || row.irregularity_complain_category || row.sub_category || row.SUB_CATEGORY || '').trim();
+    return subCategory && subCategory !== '' && subCategory !== 'null' && subCategory !== 'undefined';
+  });
+
+  if (validRows.length === 0) {
+    console.warn('SubCategoryDetailChart: No valid sub-category data after filtering');
+    return [];
+  }
+
+  const total = validRows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+
+  return validRows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    const subCategory = String(row[subCategoryColumn] || row.irregularity_complain_category || row.sub_category || row.SUB_CATEGORY || 'Tidak Terkategori').trim();
+    const category = String(row.category || row.CATEGORY || row.Category || 'Lainnya');
+
+    return {
+      category: category,
+      subCategory: subCategory,
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0,
+      parentCategory: category
+    };
+  });
+}
+
+function transformToDivisionData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('TargetDivisionChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      division: String(row.target_division || row.TARGET_DIVISION || row.targetDivision || row.division || 'LAINNYA').toUpperCase(),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  });
+}
+
+function transformToAreaSubCategoryData(result: QueryResult, forcedArea?: string) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('AreaSubCategoryChart: No data available');
+    return [];
+  }
+
+  // DEBUG: Log detailed info
+  console.group('🔍 AreaSubCategory Transform Debug');
+  console.log('Forced Area:', forcedArea);
+  console.log('Result columns:', result.columns);
+  console.log('First row keys:', Object.keys(result.rows[0] || {}));
+  console.log('First row:', result.rows[0]);
+
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.Total) || Number(row.total) || Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+
+  // Determine which column contains the sub-category
+  const columns = result.columns || Object.keys(result.rows[0] || {});
+  
+  // DEBUG: Log all columns
+  console.log('All columns:', columns);
+  
+  const subCategoryColumn = columns.find(col =>
+    col.toLowerCase() === 'category' ||
+    col.toLowerCase() === 'terminal_area_category' ||
+    col.toLowerCase() === 'apron_area_category' ||
+    col.toLowerCase() === 'general_category'
+  ) || columns.find(col => {
+    const lower = col.toLowerCase();
+    return lower !== 'total' && lower !== 'jumlah' && lower !== 'count' && lower !== 'area';
+  }) || columns[0];
+
+  // Find area column - be more flexible with naming
+  const areaColumn = columns.find(col => {
+    const lower = col.toLowerCase();
+    return lower === 'area' || lower === 'Area' || lower.includes('area');
+  });
+
+  console.log('SubCategory column:', subCategoryColumn);
+  console.log('Area column:', areaColumn);
+  console.log('Area column value in first row:', areaColumn ? result.rows[0]?.[areaColumn] : 'N/A');
+
+  const transformed = result.rows.map(row => {
+    const count = Number(row.Total) || Number(row.total) || Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    const subCategory = String(row[subCategoryColumn] || row.Category || row.category || 'Tidak Terkategori');
+    
+    // Read area from data
+    let area = forcedArea || 'GENERAL';
+    if (areaColumn && row[areaColumn]) {
+      area = String(row[areaColumn]).toUpperCase();
+    } else if (!forcedArea) {
+      // Fallback: detect from column name
+      if (subCategoryColumn.toLowerCase().includes('terminal')) {
+        area = 'TERMINAL';
+      } else if (subCategoryColumn.toLowerCase().includes('apron')) {
+        area = 'APRON';
+      } else if (subCategoryColumn.toLowerCase().includes('general')) {
+        area = 'GENERAL';
+      }
+    }
+
+    return {
+      area: area,
+      subCategory: subCategory,
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  }).filter(item => item.subCategory && item.subCategory !== 'null' && item.subCategory !== 'undefined' && item.subCategory !== '');
+
+  console.log('First 2 transformed items:', transformed.slice(0, 2));
+  console.groupEnd();
+
+  return transformed;
+}
+
+function transformToPriorityData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('PriorityChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      priority: String(row.priority || row.PRIORITY || row.Priority || 'MEDIUM').toUpperCase(),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  });
+}
+
+function transformToRootCauseData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('RootCauseChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      rootCause: String(row.root_caused || row.ROOT_CAUSED || row.root_cause || row.rootCause || 'Tidak Teridentifikasi'),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0,
+      category: String(row.category || row.CATEGORY || row.Category || '')
+    };
+  });
+}
+
+function transformToAirlineTypeCategoryData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('AirlineTypeCategoryChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      airlineType: String(row.jenis_maskapai || row.JENIS_MASKAPAI || row.airline_type || row.airlineType || 'Lokal'),
+      category: String(row.category || row.CATEGORY || row.Category || 'IRREGULARITY'),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  });
+}
+
+function transformToMonthlyTrendData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('MonthlyTrendChart: No data available');
+    return [];
+  }
+  const sortedRows = [...result.rows].sort((a, b) => {
+    const aMonth = String(a.month || a.MONTH || a.Month || '00').padStart(2, '0');
+    const bMonth = String(b.month || b.MONTH || b.Month || '00').padStart(2, '0');
+    return aMonth.localeCompare(bMonth);
+  });
+  
+  return sortedRows.map((row, idx) => {
+    const currentCount = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    const previousCount = idx > 0 ? (Number(sortedRows[idx - 1].jumlah) || Number(sortedRows[idx - 1].count) || Number(sortedRows[idx - 1].JUMLAH) || Number(sortedRows[idx - 1].COUNT) || 0) : currentCount;
+    const change = currentCount - previousCount;
+    const changePercent = previousCount > 0 ? (change / previousCount) * 100 : 0;
+    
+    return {
+      month: String(row.month || row.MONTH || row.Month || '00').padStart(2, '0'),
+      year: Number(row.year || row.YEAR || row.Year) || new Date().getFullYear(),
+      count: currentCount,
+      previousCount: idx > 0 ? previousCount : undefined,
+      change: idx > 0 ? change : undefined,
+      changePercent: idx > 0 ? changePercent : undefined
+    };
+  });
+}
+
+function transformToCategoryDistributionData(result: QueryResult) {
+  if (!result?.rows || result.rows.length === 0) {
+    console.warn('CategoryDistributionChart: No data available');
+    return [];
+  }
+  const total = result.rows.reduce((sum, row) => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return sum + count;
+  }, 0);
+  return result.rows.map(row => {
+    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
+    return {
+      category: String(row.category || row.CATEGORY || row.Category || 'LAINNYA').toUpperCase(),
+      count: count,
+      percentage: total > 0 ? (count / total) * 100 : 0
+    };
+  });
 }
 
 // Calculate dynamic height based on chart type and data
@@ -60,6 +374,28 @@ function calculateChartHeight(chartType: string, rowCount: number): string {
 }
 
 export function SupportingCharts({ charts, dataMap, loading, source = 'ai', viewMode = 'values', normalization = 'none' }: SupportingChartsProps) {
+  
+  // Debug logging - log data structure for custom charts
+  if (typeof window !== 'undefined' && charts.length > 0) {
+    console.group('🔍 SupportingCharts Debug');
+    console.log('Total charts:', charts.length);
+    console.log('DataMap keys:', Object.keys(dataMap));
+    
+    charts.forEach((chart, idx) => {
+      const result = dataMap[idx];
+      if (chart.customChartType && result) {
+        console.group(`Chart ${idx}: ${chart.customChartType}`);
+        console.log('Title:', chart.visualization.title);
+        console.log('Has data:', !!result);
+        console.log('Row count:', result?.rows?.length || 0);
+        console.log('Columns:', result?.columns);
+        console.log('Sample rows (first 2):', result?.rows?.slice(0, 2));
+        console.groupEnd();
+      }
+    });
+    console.groupEnd();
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -135,6 +471,109 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
                 <p className="text-[10px] text-slate-400">Terjadi kesalahan saat mengambil data untuk visualisasi ini.</p>
               </div>
             );
+          }
+
+          // Handle custom chart types
+          if (chart.customChartType) {
+            const customChartProps = {
+              title: chart.visualization.title,
+              explanation: chart.explanation
+            };
+
+            switch (chart.customChartType) {
+              case 'severity_distribution':
+                return (
+                  <SeverityDistributionChart
+                    key={idx}
+                    data={transformToSeverityData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'status_breakdown':
+                return (
+                  <StatusBreakdownChart
+                    key={idx}
+                    data={transformToStatusData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'subcategory_detail':
+                return (
+                  <SubCategoryDetailChart
+                    key={idx}
+                    data={transformToSubCategoryData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'target_division':
+                return (
+                  <TargetDivisionChart
+                    key={idx}
+                    data={transformToDivisionData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'area_subcategory':
+                return (
+                  <AreaSubCategoryChart
+                    key={idx}
+                    data={transformToAreaSubCategoryData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'priority_analysis':
+                return (
+                  <PriorityChart
+                    key={idx}
+                    data={transformToPriorityData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'root_cause':
+                return (
+                  <RootCauseChart
+                    key={idx}
+                    data={transformToRootCauseData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'airline_type_category':
+                return (
+                  <AirlineTypeCategoryChart
+                    key={idx}
+                    data={transformToAirlineTypeCategoryData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'monthly_trend':
+                return (
+                  <MonthlyTrendChart
+                    key={idx}
+                    data={transformToMonthlyTrendData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'category_distribution':
+                return (
+                  <CategoryDistributionChart
+                    key={idx}
+                    data={transformToCategoryDistributionData(result)}
+                    {...customChartProps}
+                  />
+                );
+              case 'area_breakdown':
+                return (
+                  <AreaAnalysisChart
+                    key={idx}
+                    visualization={chart.visualization}
+                    result={result}
+                    title={chart.visualization.title}
+                    explanation={chart.explanation}
+                  />
+                );
+              default:
+                break;
+            }
           }
 
           if (chart.visualization.chartType === 'grouped_bar') {

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "debug:sheets": "node scripts/debug-sheets.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",

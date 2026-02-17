@@ -16,6 +16,7 @@ import { GlobalControlBar, ViewMode, Normalization } from './GlobalControlBar';
 import { InsightPanel } from '@/components/chart-detail/InsightPanel';
 import { generateAnalyticalCharts, fetchAnalyticalChartData } from '@/lib/chart-detail-generator';
 import type { AnalyticalChart } from '@/lib/chart-detail-generator';
+import { MapPin, Plane, Layers, Crosshair, Target, Bug } from 'lucide-react';
 
 interface ChartDetailData {
   tile: DashboardTile;
@@ -58,6 +59,48 @@ const formatChartType = (type: string) => {
   return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
+// ─── CONTEXT RIBBON COMPONENT ───────────────────────────────────────────────
+
+function ContextRibbon({ query }: { query: DashboardTile['query'] }) {
+  const filters = query.filters || [];
+  
+  const getFilterValue = (fields: string[]) => {
+    const filter = filters.find(f => fields.includes(f.field));
+    return filter?.value || null;
+  };
+
+  const branch = getFilterValue(['branch', 'reporting_branch', 'station_code']);
+  const airline = getFilterValue(['airline', 'airlines']);
+  const category = getFilterValue(['main_category', 'category', 'irregularity_complain_category']);
+  const area = getFilterValue(['area']);
+  const subArea = getFilterValue(['apron_area_category', 'terminal_area_category', 'general_category']);
+
+  const items = [
+    { label: 'Cabang', value: branch, icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Maskapai', value: airline, icon: Plane, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Kategori', value: category, icon: Layers, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Area', value: area, icon: Crosshair, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Sub-Area', value: subArea, icon: Target, color: 'text-rose-600', bg: 'bg-rose-50' },
+  ].filter(item => item.value);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-6">
+      {items.map((item, idx) => (
+        <div 
+          key={idx} 
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200/60 shadow-sm ${item.bg} backdrop-blur-md transition-all hover:shadow-md cursor-default group`}
+        >
+          <item.icon size={14} className={`${item.color} group-hover:scale-110 transition-transform`} />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{item.label}</span>
+          <span className="text-xs font-black text-gray-800 tracking-tight">{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ChartDetailPage({ isPublic = false }: { isPublic?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<ChartDetailData | null>(null);
@@ -77,6 +120,9 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
   const [analyticalCharts, setAnalyticalCharts] = useState<AnalyticalChart[]>([]);
   const [analyticalDataMap, setAnalyticalDataMap] = useState<Record<number, QueryResult>>({});
   const [analyticalLoading, setAnalyticalLoading] = useState(false);
+
+  // Debug panel state
+  const [showDebug, setShowDebug] = useState(false);
 
   // Compute chart definitions from tile + result (synchronous, no fetch)
   // Complexity: Time O(1) | Space O(charts)
@@ -443,17 +489,26 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
               <Download size={20} />
             </button>
             {!isPublic && (
-              <button
-                onClick={handleSharePublic}
-                className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
-                title="Share Public Link"
-              >
-                {copied ? (
-                  <Check size={20} className="text-green-600" />
-                ) : (
-                  <Share2 size={20} />
-                )}
-              </button>
+              <>
+                <button
+                  onClick={handleSharePublic}
+                  className="p-2 hover:bg-[#f5f5f5] rounded-full transition-colors text-[#666]"
+                  title="Share Public Link"
+                >
+                  {copied ? (
+                    <Check size={20} className="text-green-600" />
+                  ) : (
+                    <Share2 size={20} />
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowDebug(!showDebug)}
+                  className={`p-2 hover:bg-[#f5f5f5] rounded-full transition-colors ${showDebug ? 'text-blue-600' : 'text-[#666]'}`}
+                  title="Toggle Debug Panel"
+                >
+                  <Bug size={20} />
+                </button>
+              </>
             )}
             {!isPublic && (
               <>
@@ -470,8 +525,12 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
         </div>
       </header>
 
-      <main className="w-full px-6 py-6 font-sans space-y-8">
-        {/* MAIN CONTENT GRID */}
+      <main className="w-full px-6 py-6 font-sans">
+        <div className="max-w-[1600px] mx-auto space-y-8">
+          {/* CONTEXT RIBBON */}
+          <ContextRibbon query={tile.query} />
+
+          {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* HERO CHART (Left - 8 cols) */}
@@ -501,6 +560,46 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
           </div>
         )}
 
+        {/* DEBUG PANEL */}
+        {showDebug && (
+          <div className="bg-gray-900 text-green-400 p-4 rounded-xl font-mono text-xs overflow-auto max-h-96">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">🔍 Debug Panel</h3>
+              <button 
+                onClick={() => console.log('Analytical Charts:', analyticalCharts, 'DataMap:', analyticalDataMap)}
+                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Log to Console
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-white font-bold mb-2">Analytical Charts ({analyticalCharts.length})</h4>
+                {analyticalCharts.map((chart, idx) => {
+                  const data = analyticalDataMap[idx];
+                  return (
+                    <div key={idx} className="mb-3 p-2 bg-gray-800 rounded">
+                      <div className="text-yellow-400 font-bold">[{idx}] {chart.visualization.title}</div>
+                      <div className="text-gray-400">Type: {chart.customChartType || chart.visualization.chartType}</div>
+                      <div className="text-gray-400">Dimensions: {chart.query.dimensions?.map(d => d.field).join(', ')}</div>
+                      {data ? (
+                        <>
+                          <div className="text-green-400">✓ Data: {data.rows?.length || 0} rows</div>
+                          <div className="text-gray-500">Columns: {data.columns?.join(', ')}</div>
+                          <div className="text-gray-500 mt-1">Sample: {JSON.stringify(data.rows?.slice(0, 2), null, 2)}</div>
+                        </>
+                      ) : (
+                        <div className="text-red-400">✗ No data</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* SUPPORTING CHARTS */}
         <div className="space-y-6 pt-4 border-t border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -524,6 +623,7 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
             title={tile.visualization.title || 'Chart Data'}
           />
         </section>
+        </div>
       </main>
     </div>
   );

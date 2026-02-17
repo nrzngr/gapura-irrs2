@@ -11,12 +11,14 @@ import type {
   QuerySort,
   ChartType,
 } from '@/types/builder';
+import type { CustomChartType } from '@/components/chart-detail/SupportingCharts';
 
 // ── Analytical chart spec ────────────────────────────────────────────────────
 export interface AnalyticalChart {
   visualization: ChartVisualization;
   query: QueryDefinition;
   explanation: string;
+  customChartType?: CustomChartType;
 }
 
 export interface AnalyticalChartsResult {
@@ -67,6 +69,7 @@ const GAPURA_RED = '#ef5350';
 const GAPURA_ORANGE = '#ffa726';
 const GAPURA_GREY = '#bdbdbd';
 const GAPURA_AMBER = '#ffca28';
+const GAPURA_PURPLE = '#ab47bc';
 
 const SEMANTIC_COLORS: Record<string, string> = {
   'irregularity': GAPURA_RED,
@@ -344,6 +347,7 @@ export function generateAnalyticalCharts(
     explanation: string;
     limit?: number;
     colors?: string[];
+    customChartType?: CustomChartType;
   }> = [];
 
   for (const dim of crossDimensions) {
@@ -379,10 +383,11 @@ export function generateAnalyticalCharts(
     } else if (dim === 'area') {
       crossChartConfigs.push({
         dimension: dim,
-        chartType: 'donut',
-        titlePrefix: `Distribusi per Area`,
-        explanation: `Area mana (Terminal/Apron/General) yang paling banyak insiden? Fokus perbaikan area.`,
-        colors: [GAPURA_BLUE, GAPURA_AMBER, GAPURA_GREY],
+        chartType: 'grouped_bar', // Kept as fallback
+        titlePrefix: `Kategori per Area`,
+        explanation: `Distribusi Irregularity, Complaint, dan Compliment di Terminal, Apron, dan General Area.`,
+        limit: 10000,
+        customChartType: 'area_breakdown', // Use specialized component
       });
     } else if (dim === 'jenis_maskapai') {
       crossChartConfigs.push({
@@ -449,13 +454,248 @@ export function generateAnalyticalCharts(
       },
       query,
       explanation: config.explanation,
+      customChartType: (config as any).customChartType,
     });
     // dataMap will be filled by the caller after fetching
     idx++;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CHART 6: Heatmap cross-tabulation (dim × category)
+  // CUSTOM CHARTS: Detailed analytical charts for specific dimensions
+  // These provide deep insights with custom visualizations
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // CHART 6: Severity Distribution (if severity not already used)
+  // DISABLED per user request
+  if (!usedDims.has('severity') && false) {
+    const severityQuery = buildCrossQuery(parentFilters, 'severity', 10000);
+    charts.push({
+      visualization: {
+        chartType: 'bar',
+        xAxis: 'severity',
+        yAxis: ['jumlah'],
+        title: 'Distribusi Severity',
+        showLegend: false,
+        showLabels: true,
+        colors: [GAPURA_RED, GAPURA_ORANGE, GAPURA_YELLOW, GAPURA_GREEN_LIGHT],
+      },
+      query: severityQuery,
+      explanation: 'Breakdown kasus berdasarkan tingkat keparahan: Critical, High, Medium, Low. Fokus pada kasus kritis untuk penanganan prioritas.',
+      customChartType: 'severity_distribution',
+    });
+    idx++;
+  }
+
+  // CHART 7: Status Breakdown (if status not already used)
+  if (!usedDims.has('status') && idx < 10) {
+    const statusQuery = buildCrossQuery(parentFilters, 'status', 10000);
+    charts.push({
+      visualization: {
+        chartType: 'donut',
+        xAxis: 'status',
+        yAxis: ['jumlah'],
+        title: 'Status Penyelesaian',
+        showLegend: true,
+        showLabels: true,
+        colors: [GAPURA_GREEN_LIGHT, GAPURA_RED, GAPURA_YELLOW, GAPURA_BLUE, GAPURA_ORANGE],
+      },
+      query: statusQuery,
+      explanation: 'Proporsi status penyelesaian kasus: Selesai, Terbuka, Dalam Proses, Menunggu Feedback, Ditolak. Indikator efektivitas penanganan.',
+      customChartType: 'status_breakdown',
+    });
+    idx++;
+  }
+
+  // CHART 8: Sub-Category Detail (if irregularity_complain_category not already used)
+  if (!usedDims.has('irregularity_complain_category') && idx < 10) {
+    const subCategoryQuery: QueryDefinition = {
+      source: 'reports',
+      joins: [],
+      dimensions: [
+        { table: 'reports', field: 'irregularity_complain_category', alias: 'subCategory' },
+        { table: 'reports', field: 'category', alias: 'parentCategory' },
+      ],
+      measures: [{
+        table: 'reports',
+        field: 'id',
+        function: 'COUNT',
+        alias: 'count',
+      }],
+      filters: [
+        ...parentFilters,
+        { table: 'reports', field: 'irregularity_complain_category', operator: 'is_not_null', value: '', conjunction: 'AND' }
+      ],
+      sorts: [{ field: 'count', direction: 'desc' }],
+      limit: 10000,
+    };
+    charts.push({
+      visualization: {
+        chartType: 'horizontal_bar',
+        xAxis: 'subCategory',
+        yAxis: ['count'],
+        title: 'Detail Sub-Kategori',
+        showLegend: false,
+        showLabels: true,
+        displayLimit: 15,
+      },
+      query: subCategoryQuery,
+      explanation: 'Breakdown detail sub-kategori keluhan dan irregularitas. Identifikasi masalah spesifik yang paling sering terjadi.',
+      customChartType: 'subcategory_detail',
+    });
+    idx++;
+  }
+
+  // CHART 9: Target Division Distribution (DISABLED - data is empty in Google Sheets)
+  // According to debug analysis: Target Division column has 0 valid values (all 426 rows are null)
+  // Uncomment below if data is populated in the future
+  /*
+  if (!usedDims.has('target_division') && idx < 10) {
+    const divisionQuery = buildCrossQuery(parentFilters, 'target_division', 10000);
+    charts.push({
+      visualization: {
+        chartType: 'bar',
+        xAxis: 'target_division',
+        yAxis: ['jumlah'],
+        title: 'Distribusi per Divisi',
+        showLegend: false,
+        showLabels: true,
+        colors: [GAPURA_BLUE, GAPURA_PURPLE, GAPURA_ORANGE, GAPURA_RED],
+      },
+      query: divisionQuery,
+      explanation: 'Distribusi kasus per divisi penanganan: OS (Services), OP (Operasi), OT (Teknik), UQ (Quality). Analisis beban kerja divisi.',
+      customChartType: 'target_division',
+    });
+    idx++;
+  }
+  */
+
+  // CHART 10: Area Sub-Category Analysis (detailed area breakdown)
+  // Use terminal_area_category with is_not_null filter (following customer-feedback-template pattern)
+  // Increased limit to 15 to ensure these charts appear
+  if (!usedDims.has('terminal_area_category') && idx < 15) {
+    const terminalAreaQuery: QueryDefinition = {
+      source: 'reports',
+      joins: [],
+      dimensions: [
+        { table: 'reports', field: 'terminal_area_category', alias: 'Category' },
+        { table: 'reports', field: 'area', alias: 'Area' },
+      ],
+      measures: [{
+        table: 'reports',
+        field: 'id',
+        function: 'COUNT',
+        alias: 'Total',
+      }],
+      filters: [
+        ...parentFilters,
+        { table: 'reports', field: 'terminal_area_category', operator: 'is_not_null', value: '', conjunction: 'AND' }
+      ],
+      sorts: [{ field: 'Total', direction: 'desc' }],
+      limit: 10000,
+    };
+
+    charts.push({
+      visualization: {
+        chartType: 'horizontal_bar',
+        xAxis: 'Category',
+        yAxis: ['Total'],
+        title: 'Sub-Kategori Area Terminal',
+        showLegend: false,
+        showLabels: true,
+        colors: [GAPURA_BLUE],
+        displayLimit: 10,
+      },
+      query: terminalAreaQuery,
+      explanation: 'Breakdown sub-kategori masalah di area Terminal: Check-in, Boarding Gate, Arrival, dll.',
+      customChartType: 'area_subcategory',
+    });
+    idx++;
+  }
+
+  // CHART 10b: Apron Area Sub-Category
+  if (!usedDims.has('apron_area_category') && idx < 15) {
+    const apronAreaQuery: QueryDefinition = {
+      source: 'reports',
+      joins: [],
+      dimensions: [
+        { table: 'reports', field: 'apron_area_category', alias: 'Category' },
+        { table: 'reports', field: 'area', alias: 'Area' },
+      ],
+      measures: [{
+        table: 'reports',
+        field: 'id',
+        function: 'COUNT',
+        alias: 'Total',
+      }],
+      filters: [
+        ...parentFilters,
+        { table: 'reports', field: 'apron_area_category', operator: 'is_not_null', value: '', conjunction: 'AND' }
+      ],
+      sorts: [{ field: 'Total', direction: 'desc' }],
+      limit: 10000,
+    };
+
+    charts.push({
+      visualization: {
+        chartType: 'horizontal_bar',
+        xAxis: 'Category',
+        yAxis: ['Total'],
+        title: 'Sub-Kategori Area Apron',
+        showLegend: false,
+        showLabels: true,
+        colors: [GAPURA_AMBER],
+        displayLimit: 10,
+      },
+      query: apronAreaQuery,
+      explanation: 'Breakdown sub-kategori masalah di area Apron: Parking Stand, Taxiway, dll.',
+      customChartType: 'area_subcategory',
+    });
+    idx++;
+  }
+
+  // CHART 10c: General Category Sub-Category
+  if (!usedDims.has('general_category') && idx < 15) {
+    const generalCategoryQuery: QueryDefinition = {
+      source: 'reports',
+      joins: [],
+      dimensions: [
+        { table: 'reports', field: 'general_category', alias: 'Category' },
+        { table: 'reports', field: 'area', alias: 'Area' },
+      ],
+      measures: [{
+        table: 'reports',
+        field: 'id',
+        function: 'COUNT',
+        alias: 'Total',
+      }],
+      filters: [
+        ...parentFilters,
+        { table: 'reports', field: 'general_category', operator: 'is_not_null', value: '', conjunction: 'AND' }
+      ],
+      sorts: [{ field: 'Total', direction: 'desc' }],
+      limit: 10000,
+    };
+
+    charts.push({
+      visualization: {
+        chartType: 'horizontal_bar',
+        xAxis: 'Category',
+        yAxis: ['Total'],
+        title: 'Sub-Kategori Area General',
+        showLegend: false,
+        showLabels: true,
+        colors: [GAPURA_GREY],
+        displayLimit: 10,
+      },
+      query: generalCategoryQuery,
+      explanation: 'Breakdown sub-kategori masalah di area General: Overall Company Service, Safety Performance, dll.',
+      customChartType: 'area_subcategory',
+    });
+    idx++;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHART N: Heatmap cross-tabulation (dim × category)
   // stacked_bar has no renderer in ChartPreview → use heatmap instead
   // ═══════════════════════════════════════════════════════════════════════════
   // Pick the best two dimensions for a heatmap cross-tabulation.
@@ -493,7 +733,7 @@ export function generateAnalyticalCharts(
       let hmColor = GAPURA_BLUE;
       let configChartType = 'heatmap';
 
-      if (dim1 === 'airlines') {
+      if (dim1 === 'airlines' || dim1 === 'area') {
         configChartType = 'grouped_bar';
       }
       else if (dim1 === 'category') hmColor = GAPURA_RED;
@@ -515,6 +755,125 @@ export function generateAnalyticalCharts(
       });
       idx++;
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADDITIONAL CUSTOM CHARTS
+  // These provide additional deep insights beyond the standard charts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // CHART: Priority Analysis
+  // DISABLED per user request
+  if (!usedDims.has('priority') && idx < 12 && false) {
+    const priorityQuery = buildCrossQuery(parentFilters, 'priority', 10000);
+    charts.push({
+      visualization: {
+        chartType: 'bar',
+        xAxis: 'priority',
+        yAxis: ['jumlah'],
+        title: 'Analisis Prioritas',
+        showLegend: false,
+        showLabels: true,
+        colors: [GAPURA_RED, GAPURA_YELLOW, GAPURA_GREEN_LIGHT],
+      },
+      query: priorityQuery,
+      explanation: 'Distribusi kasus berdasarkan tingkat prioritas: High, Medium, Low. Prioritaskan penanganan kasus High Priority.',
+      customChartType: 'priority_analysis',
+    });
+    idx++;
+  }
+
+  // CHART: Root Cause Analysis
+  if (!usedDims.has('root_caused') && idx < 12) {
+    const rootCauseQuery: QueryDefinition = {
+      source: 'reports',
+      joins: [],
+      dimensions: [{ table: 'reports', field: 'root_caused' }],
+      measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'jumlah' }],
+      filters: [
+        ...parentFilters,
+        { table: 'reports', field: 'root_caused', operator: 'is_not_null', value: '', conjunction: 'AND' },
+        { table: 'reports', field: 'root_caused', operator: 'neq', value: '#N/A', conjunction: 'AND' },
+        { table: 'reports', field: 'root_caused', operator: 'neq', value: 'NIL', conjunction: 'AND' },
+        { table: 'reports', field: 'root_caused', operator: 'neq', value: '-', conjunction: 'AND' },
+        { table: 'reports', field: 'root_caused', operator: 'neq', value: 'Tidak Teridentifikasi', conjunction: 'AND' }
+      ],
+      sorts: [{ field: 'jumlah', direction: 'desc' }],
+      limit: 10,
+    };
+    charts.push({
+      visualization: {
+        chartType: 'horizontal_bar',
+        xAxis: 'root_caused',
+        yAxis: ['jumlah'],
+        title: 'Analisis Akar Masalah',
+        showLegend: false,
+        showLabels: true,
+        displayLimit: 10,
+      },
+      query: rootCauseQuery,
+      explanation: 'Identifikasi akar masalah yang paling sering terjadi menggunakan analisis Pareto 80/20. Fokus pada top issues untuk pengurangan maksimal.',
+      customChartType: 'root_cause',
+    });
+    idx++;
+  }
+
+  // CHART: Airline Type vs Category
+  if (!usedDims.has('jenis_maskapai') && idx < 12) {
+    const airlineTypeQuery = buildStackedQuery(parentFilters, 'jenis_maskapai', 'category', 10000);
+    charts.push({
+      visualization: {
+        chartType: 'grouped_bar',
+        xAxis: 'jenis_maskapai',
+        yAxis: ['jumlah'],
+        title: 'Kategori per Jenis Maskapai',
+        showLegend: true,
+        showLabels: true,
+      },
+      query: airlineTypeQuery,
+      explanation: 'Cross-analysis antara jenis maskapai (Lokal, MPA, Garuda, Citilink, dll) dan kategori kasus. Identifikasi pola maskapai spesifik.',
+      customChartType: 'airline_type_category',
+    });
+    idx++;
+  }
+
+  // CHART: Monthly Trend
+  if (!usedDims.has('month') && idx < 12) {
+    const monthlyQuery = buildTimeTrendQuery(parentFilters, 'month');
+    charts.push({
+      visualization: {
+        chartType: 'line',
+        xAxis: 'month',
+        yAxis: ['jumlah'],
+        title: 'Tren Bulanan',
+        showLegend: false,
+        showLabels: true,
+      },
+      query: monthlyQuery,
+      explanation: 'Analisis tren volume laporan dari bulan ke bulan dengan indikator perubahan. Identifikasi pola musiman dan lonjakan kasus.',
+      customChartType: 'monthly_trend',
+    });
+    idx++;
+  }
+
+  // CHART: Category Distribution (donut chart)
+  if (!usedDims.has('category') && idx < 12) {
+    const categoryQuery = buildCrossQuery(parentFilters, 'category', 10000);
+    charts.push({
+      visualization: {
+        chartType: 'donut',
+        xAxis: 'category',
+        yAxis: ['jumlah'],
+        title: 'Distribusi Kategori',
+        showLegend: true,
+        showLabels: true,
+        colors: [GAPURA_RED, GAPURA_ORANGE, GAPURA_GREEN_LIGHT],
+      },
+      query: categoryQuery,
+      explanation: 'Proporsi Irregularity vs Complaint vs Compliment dengan Health Score. Indikator kesehatan operasional secara keseluruhan.',
+      customChartType: 'category_distribution',
+    });
+    idx++;
   }
 
   return { charts, dataMap };
@@ -550,6 +909,12 @@ export async function fetchAnalyticalChartData(
         sorts: task.query.sorts || [],
       };
 
+      // DEBUG: Log query for area subcategory charts
+      const chartTitle = charts[task.idx]?.visualization?.title || '';
+      if (chartTitle.includes('Area') || chartTitle.includes('Sub-Kategori')) {
+        console.log(`🔍 Query for "${chartTitle}":`, JSON.stringify(normalizedQuery, null, 2));
+      }
+
       const res = await fetch('/api/dashboards/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -558,6 +923,16 @@ export async function fetchAnalyticalChartData(
 
       if (!res.ok) throw new Error(`Query failed: ${res.status}`);
       const result: QueryResult = await res.json();
+      
+      // DEBUG: Log result for area subcategory charts
+      if (chartTitle.includes('Area') || chartTitle.includes('Sub-Kategori')) {
+        console.log(`📊 Result for "${chartTitle}":`, {
+          columns: result.columns,
+          rowCount: result.rows?.length,
+          firstRow: result.rows?.[0],
+        });
+      }
+      
       return { idx: task.idx, result };
     }),
   );
