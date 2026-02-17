@@ -629,7 +629,7 @@ export function CustomDashboardContent() {
 
 
   return (
-    <div className="flex min-h-screen font-sans bg-gray-50 text-gray-900 overflow-x-hidden">
+    <div className="flex min-h-screen font-sans bg-gray-50 text-gray-900">
       {/* ── SIDEBAR (only if multi-page) ── */}
       {/* ── SIDEBAR (Responsive) ── */}
       {hasMultiplePages && (
@@ -642,9 +642,9 @@ export function CustomDashboardContent() {
 
           <div
             className={`
-              fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 flex flex-col
+              fixed inset-y-0 left-0 z-50 bg-white/95 backdrop-blur-xl border-r border-gray-200/60 flex flex-col
               transform transition-all duration-300 ease-in-out shadow-xl md:shadow-none
-              md:translate-x-0 md:static md:h-screen md:sticky md:top-0
+              md:translate-x-0 md:h-screen md:sticky md:top-0
               ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
               ${sidebarCollapsed ? 'md:w-[60px]' : 'md:w-64'}
               w-64
@@ -661,7 +661,7 @@ export function CustomDashboardContent() {
                 </div>
               )}
               {(!sidebarCollapsed || mobileMenuOpen) && (
-                <span className="font-bold text-gray-700 text-sm whitespace-nowrap overflow-hidden">
+                <span className="font-bold text-gray-800 text-sm tracking-tight whitespace-nowrap overflow-hidden">
                   Gapura IRRS
                 </span>
               )}
@@ -697,18 +697,18 @@ export function CustomDashboardContent() {
                         setMobileMenuOpen(false);
                       }}
                       className={`
-                        w-full flex items-center gap-3 rounded-lg text-left transition-all duration-200 group
-                        ${sidebarCollapsed ? 'p-2 justify-center' : 'px-3 py-2.5'}
+                        w-full flex items-center gap-3 rounded-xl text-left transition-all duration-300 group relative overflow-hidden
+                        ${sidebarCollapsed ? 'p-2 justify-center' : 'px-3.5 py-3'}
                         ${isActive 
-                          ? 'bg-[#6b8e3d] text-white shadow-sm' 
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'bg-gradient-to-r from-[#6b8e3d] to-[#7cb342] text-white shadow-lg shadow-[#6b8e3d]/25 ring-1 ring-[#6b8e3d]/20' 
+                          : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
                         }
                       `}
                       title={page.name}
                     >
                       <span className={`
-                        flex items-center justify-center w-6 h-6 rounded text-[10px] font-bold shrink-0 transition-colors
-                        ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'}
+                        flex items-center justify-center w-6 h-6 rounded-lg text-[10px] font-bold shrink-0 transition-colors
+                        ${isActive ? 'bg-white/20 text-white backdrop-blur-sm' : 'bg-gray-100 text-gray-400 group-hover:bg-white group-hover:shadow-sm'}
                       `}>
                         {idx + 1}
                       </span>
@@ -740,9 +740,9 @@ export function CustomDashboardContent() {
       )}
 
       {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 min-w-0 bg-gray-50 flex flex-col">
+      <div className="flex-1 min-w-0 bg-gray-50 flex flex-col overflow-x-hidden">
         {/* ── HEADER ── */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm md:shadow-none">
+        <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-40 shadow-sm md:shadow-none supports-[backdrop-filter]:bg-white/60">
           <div className="px-4 py-4 md:px-6">
             {/* Logo + Title + Date */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -783,8 +783,8 @@ export function CustomDashboardContent() {
                       // Priority 1: Dashboard name from DB
                       if (dashboard?.name && !dashboard.name.toLowerCase().includes('untitled')) {
                         // If yr is already in the name, don't append it again
-                        if (yr && dashboard.name.includes(yr)) return dashboard.name;
-                        return `${dashboard.name}${yearSuffix}`;
+                        if (yr && dashboard.name.includes(yr)) return <span className="tracking-tight">{dashboard.name}</span>;
+                        return <span className="tracking-tight">{dashboard.name}{yearSuffix}</span>;
                       }
 
                       // Priority 2: Page name context
@@ -876,32 +876,35 @@ export function CustomDashboardContent() {
             </div>
 
             {/* Banner with Interactive Filters */}
-            <div className="bg-[#5a7a3a] rounded-xl p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm ring-1 ring-black/5">
-              <span className="text-white font-bold text-sm block tracking-wide">
-                Irregularity, Complain & Compliment Report
-              </span>
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl p-4 md:p-5 flex flex-col gap-4 shadow-sm border border-gray-200/60 relative z-50">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Analytic Filters
+                </span>
+                 {(dateFrom || dateTo) && (
+                    <button
+                      onClick={() => { setDateFrom(''); setDateTo(''); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-600 text-[11px] font-bold uppercase tracking-wide border border-red-100 hover:bg-red-100 transition-all active:scale-95 self-start md:self-auto"
+                    >
+                      <X size={12} /> Clear Date
+                    </button>
+                  )}
+              </div>
+              
               {!dashboard.config?.hideControls && (
-                <div className="flex gap-2 flex-wrap items-center">
+                <div className="w-full relative z-50">
                   <DynamicFilterHeader 
                     onFilterChange={setActiveFilters}
                     initialFilters={activeFilters}
-                    variant="white"
+                    variant="default"
                   />
-                  {(dateFrom || dateTo) && (
-                    <button
-                      onClick={() => { setDateFrom(''); setDateTo(''); }}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white text-xs font-medium border border-white/20 hover:bg-white/20 transition-all active:scale-95"
-                    >
-                      <X size={12} /> Reset Date
-                    </button>
-                  )}
                 </div>
               )}
             </div>
 
             {/* KPI Stats Row */}
             {kpiTiles.length > 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-6">
+              <div className="flex flex-wrap justify-center gap-4 mt-6 relative z-0">
                 {kpiTiles.slice(0, 5).map(tile => {
                   const cr = chartsData.get(tile.id);
                   let value: string | number = '-';
@@ -926,10 +929,19 @@ export function CustomDashboardContent() {
                           );
                         }
                       }}
-                      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1 hover:shadow-md transition-all cursor-pointer hover:border-green-200 active:scale-95"
+                      className="relative bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.08)] transition-all cursor-pointer group overflow-hidden flex flex-col items-center justify-center text-center min-h-[120px] flex-1 min-w-[200px] max-w-[280px]"
                     >
-                      <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider text-center">{tile.title}</div>
-                      <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{typeof value === 'number' ? value.toLocaleString('id-ID') : value}</div>
+                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#6b8e3d] to-[#aed581] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="flex flex-col gap-1 items-center relative z-10 w-full">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full">{tile.title}</div>
+                        <div className="text-3xl md:text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full">
+                          {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
+                        </div>
+                      </div>
+                      <div className="absolute bottom-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500 pointer-events-none">
+                         {/* Abstract decoration */}
+                         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#6b8e3d] to-transparent blur-xl" />
+                      </div>
                     </div>
                   );
                 })}
@@ -937,23 +949,21 @@ export function CustomDashboardContent() {
             )}
 
             {kpiTiles.length === 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
-                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Total Report</div>
-                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{totalReport > 0 ? totalReport.toLocaleString('id-ID') : '-'}</div>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
-                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Halaman</div>
-                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{pages.length}</div>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
-                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Total Chart</div>
-                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{dashboard.dashboard_charts.length}</div>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-1">
-                  <div className="text-xs font-bold text-[#6b8e3d] uppercase tracking-wider">Filter Aktif</div>
-                  <div className="text-2xl md:text-3xl font-bold text-[#6b8e3d]">{activeFilterCount || '-'}</div>
-                </div>
+              <div className="flex flex-wrap justify-center gap-4 mt-6 relative z-0">
+                {[
+                  { label: 'Total Report', value: totalReport > 0 ? totalReport : '-' },
+                  { label: 'Halaman', value: pages.length },
+                  { label: 'Total Chart', value: dashboard.dashboard_charts.length },
+                  { label: 'Filter Aktif', value: activeFilterCount || '-' }
+                ].map((stat, i) => (
+                  <div key={i} className="relative bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] flex flex-col gap-1 items-center justify-center text-center group overflow-hidden flex-1 min-w-[200px] max-w-[280px] min-h-[120px]">
+                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#6b8e3d] to-[#aed581] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full">{stat.label}</div>
+                     <div className="text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full">
+                        {typeof stat.value === 'number' ? stat.value.toLocaleString('id-ID') : stat.value}
+                     </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

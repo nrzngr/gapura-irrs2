@@ -207,6 +207,11 @@ export class ReportsService {
     console.log('[ReportsService] Cache invalidated');
   }
 
+  public getLastUpdated(): number {
+    const entry = ttlCache.get(CACHE_KEY_ALL_REPORTS);
+    return entry ? entry.ts : Date.now();
+  }
+
   async getReports(options?: { refresh?: boolean }): Promise<Report[]> {
     if (!options?.refresh) {
       const cached = getCache<Report[]>(CACHE_KEY_ALL_REPORTS, CACHE_TTL);

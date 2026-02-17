@@ -99,7 +99,7 @@ export function PrismSelect({
             {/* Dropdown Menu */}
             {isOpen && (
                 <div 
-                    className="absolute top-full left-0 right-0 mt-2 p-2 rounded-2xl bg-[var(--surface-2)] border border-[var(--surface-3)] shadow-xl z-50 animate-scale-in origin-top"
+                    className="absolute top-full left-0 right-0 mt-2 p-2 rounded-2xl bg-white border border-gray-100 shadow-xl z-[100] animate-scale-in origin-top"
                     style={{ maxHeight: '300px', display: 'flex', flexDirection: 'column' }}
                 >
                     {/* Search Bar */}

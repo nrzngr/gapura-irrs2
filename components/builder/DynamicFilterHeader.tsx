@@ -88,8 +88,8 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
   }, [selectedHub, selectedBranch, selectedMaskapai, selectedAirlines, selectedCategory, selectedArea, onFilterChange]);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="w-32">
+    <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+      <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.hub} 
           value={selectedHub} 
@@ -99,7 +99,7 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
           label="HUB Area"
         />
       </div>
-      <div className="w-32">
+      <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.branch} 
           value={selectedBranch} 
@@ -109,7 +109,7 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
           label="Branch / Station"
         />
       </div>
-      <div className="w-32">
+      <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.airline_type} 
           value={selectedMaskapai} 
@@ -119,7 +119,7 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
           label="Domestic/Intl"
         />
       </div>
-      <div className="w-32">
+      <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.airline} 
           value={selectedAirlines} 
@@ -129,7 +129,7 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
           label="Airlines Name"
         />
       </div>
-      <div className="w-32">
+      <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.main_category} 
           value={selectedCategory} 
@@ -139,7 +139,7 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
           label="Case Category"
         />
       </div>
-      <div className="w-32">
+      <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.area} 
           value={selectedArea} 

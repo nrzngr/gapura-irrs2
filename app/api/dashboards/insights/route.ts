@@ -418,14 +418,15 @@ Return a valid JSON object. NO markdown.
   "temuanUtama": [
     {
       "diagnosa": "Finding 1 title",
-      "data": { "Actual Dimension Name": "Value" }, 
+      "data": { "Category Name": 123 }, 
       "impactScore": 5
     }
   ],
   "__RULES__": [
-     "DO NOT use generic keys like 'Label', 'Metric_Name', 'Dimension_Name', 'Report Category', 'Branch'. Use the ACTUAL field name from the data (e.g., 'Garuda Indonesia': 18, 'Irregularity': 50).",
-     "The 'data' object should look like { 'Nama Maskapai/Kategori': '18 laporan' }",
-     "CRITICAL: If a dimension name is not in the data, DO NOT make it up. DO NOT use 'Maskapai X' or similar placeholders."
+     "The 'data' object must be a FLAT Key-Value pair: { \"Key Name\": Number }.",
+     "Example: { \"Baggage Handling\": 15, \"Late Check-in\": 8 }",
+     "DO NOT nest objects. DO NOT use colons in keys if avoidable.",
+     "Use actual data values. No placeholders."
   ],
   "tren": [
     { "label": "Trend Name", "arah": "naik/turun/stabil", "persentase": 0, "deskripsi": "Description" }
