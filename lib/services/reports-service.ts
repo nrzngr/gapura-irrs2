@@ -1,5 +1,6 @@
 import { getGoogleSheets } from '@/lib/google-sheets';
-import { Report, ReportStatus, UserRole } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { Report, ReportStatus, UserRole, Station, Unit, Position, IncidentType } from '@/types';
 import { calculateSlaDeadline } from '@/lib/constants/report-status';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -407,6 +408,53 @@ export class ReportsService {
 
     setCache(CACHE_KEY_ALL_REPORTS, allReports);
     return allReports;
+  }
+
+  async getStations(): Promise<Station[]> {
+    const cacheKey = 'stations:all:v1';
+    const cached = getCache<Station[]>(cacheKey, CACHE_TTL);
+    if (cached) return cached;
+
+    const sheets = await this.getSheets();
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'HUB!A2:C', // Assuming A: Code, B: Name, C: Hub
+    });
+
+    const rows = response.data.values || [];
+    const stations: Station[] = rows.map((row, idx) => ({
+      id: row[0] || `station_${idx}`,
+      code: row[0] || '',
+      name: row[1] || row[0] || '',
+    })).filter(s => s.code);
+
+    setCache(cacheKey, stations);
+    return stations;
+  }
+
+  // Helper metadata fetchers to consolidate logic
+  async getUnits(): Promise<Unit[]> {
+    const { data } = await supabase.from('units').select('*').order('name');
+    return data || [];
+  }
+
+  async getPositions(): Promise<Position[]> {
+    const { data } = await supabase.from('positions').select('*').order('level');
+    return data || [];
+  }
+
+  async getIncidentTypes(): Promise<IncidentType[]> {
+    const { data } = await supabase.from('incident_types').select('*').order('name');
+    return data || [];
+  }
+
+  async getLocations(stationCode?: string): Promise<any[]> {
+    let query = supabase.from('locations').select('*').order('name');
+    if (stationCode) {
+      query = query.eq('station_id', stationCode);
+    }
+    const { data } = await query;
+    return data || [];
   }
 
   // NOTE: Create/Update implementation below assumes headers match WRITE_MAPPING.

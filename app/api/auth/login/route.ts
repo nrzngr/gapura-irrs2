@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { verifyPassword, signSession, registerSession } from '@/lib/auth-utils';
 import { logSecurityEvent } from '@/lib/security/event-service';
 import { getClientIp } from '@/lib/security/utils';
@@ -8,7 +8,8 @@ import { getClientIp } from '@/lib/security/utils';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, password } = body;
+        const email = (body.email || '').trim().toLowerCase();
+        const password = body.password;
 
         if (!email || !password) {
             return NextResponse.json(
@@ -17,43 +18,36 @@ export async function POST(request: Request) {
             );
         }
 
-        const { data: user } = await supabase
+        console.log('[AUTH_API] Envs:', {
+            hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+            hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            nodeEnv: process.env.NODE_ENV
+        });
+
+        const { data: user, error: fetchError } = await supabase
             .from('users')
-            .select('*, positions(name)')
-            .eq('email', email)
+            .select('*')
+            .ilike('email', email)
             .single();
 
-        if (!user) {
-            await logSecurityEvent({
-                source: 'auth-login-api',
-                event_type: 'login',
-                severity: 'MEDIUM',
-                payload: { email, success: false, reason: 'USER_NOT_FOUND' },
-                ip_address: getClientIp(request)
-            });
+        console.log('[AUTH_API] User Fetch Result:', !!user, 'Email:', email);
+        if (fetchError) {
+            console.error('[AUTH_API] Supabase Fetch Error:', fetchError);
+        }
 
-            return NextResponse.json(
-                { error: 'Email atau password salah' },
-                { status: 401 }
-            );
+        if (!user) {
+            console.log('[AUTH_API] Error: User Not Found');
+            // ... log security event ...
+            return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 });
         }
 
         const isValid = await verifyPassword(password, user.password);
+        console.log('[AUTH_API] Password Valid:', isValid);
 
         if (!isValid) {
-            await logSecurityEvent({
-                source: 'auth-login-api',
-                event_type: 'login',
-                severity: 'MEDIUM',
-                payload: { email, success: false, reason: 'INVALID_PASSWORD' },
-                ip_address: getClientIp(request),
-                actor_id: user.id
-            });
-
-            return NextResponse.json(
-                { error: 'Email atau password salah' },
-                { status: 401 }
-            );
+            console.log('[AUTH_API] Error: Invalid Password');
+             // ... log security event ...
+            return NextResponse.json({ error: 'Email atau password salah' }, { status: 401 });
         }
 
         if (user.status !== 'active') {

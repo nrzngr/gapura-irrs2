@@ -19,19 +19,8 @@ export async function POST(request: Request) {
         } = body;
 
         // Determine if this is a central office (GPS) registration
-        // Check if station_id is 'GPS' string OR check the actual station code
-        // We need to check this BEFORE validation because unit_id is optional for GPS
-        let isGPS = station_id === 'GPS';
-        if (!isGPS && station_id) {
-            const { data: station } = await supabase
-                .from('stations')
-                .select('code')
-                .eq('id', station_id)
-                .single();
-            if (station?.code === 'GPS') {
-                isGPS = true;
-            }
-        }
+        // station_id is now a string code (e.g. 'GPS', 'CGK')
+        const isGPS = station_id === 'GPS';
 
         // Basic field validation
         // unit_id is NOT required if isGPS is true
@@ -126,7 +115,7 @@ export async function POST(request: Request) {
             full_name: full_name.trim(),
             nik: nik.toUpperCase(),
             phone,
-            station_id: isGPS ? null : station_id, // GPS users don't have station_id
+            station_id, 
             unit_id,
             position_id,
             role: 'CABANG', // Default role, admin can upgrade

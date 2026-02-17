@@ -35,61 +35,21 @@ export async function GET(
             return NextResponse.json({ error: 'Report not found' }, { status: 404 });
         }
 
-        // Fetch related data from Supabase for manual join ONLY if it's a UUID
+        // Fetch user from Supabase if user_id is present
         let user: any = null;
-        let station: any = null;
-        let comments: any[] = [];
-
-        if (!id.includes('!')) {
-            if (report.user_id) {
-                const { data: u } = await supabase.from('users').select('id, full_name, email').eq('id', report.user_id).single();
-                user = u;
-            }
-
-            // Try to match station by ID
-            if (report.station_id) {
-                 const { data: s } = await supabase.from('stations').select('id, code, name').eq('id', report.station_id).single();
-                 station = s;
-            } else if (report.branch || report.station_code) {
-                 const code = report.branch || report.station_code;
-                 const { data: s } = await supabase.from('stations').select('id, code, name').eq('code', code).single();
-                 station = s;
-            }
-
-            // Fetch comments
-            const { data: c, error: commentsError } = await supabaseAdmin
-                .from('report_comments')
-                .select(`
-                    id,
-                    content,
-                    attachments,
-                    is_system_message,
-                    created_at,
-                    users:user_id (
-                        id,
-                        full_name,
-                        role,
-                        division
-                    )
-                `)
-                .eq('report_id', id)
-                .order('created_at', { ascending: true });
-                
-            if (commentsError) {
-                console.error('[DEBUG_API] Error fetching comments with admin:', commentsError);
-            }
-            comments = c || [];
+        if (report.user_id && !report.user_id.includes('!')) {
+            const { data: u } = await supabase.from('users').select('id, full_name, email').eq('id', report.user_id).single();
+            user = u;
         }
 
-        // Enrich report
+        // Enrich report using data from Sheets and User profile
         const enrichedReport = {
             ...report,
             users: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
-            stations: station || (report.branch ? { code: report.branch, name: report.branch } : null),
-            comments: comments,
+            comments: [], // Comments are no longer supported in Supabase
             // Legacy / Frontend compatibility
             user: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
-            station: station || (report.branch ? { code: report.branch, name: report.branch } : null),
+            station: report.stations ? { ...report.stations, id: report.station_id } : undefined,
         };
 
         return NextResponse.json(enrichedReport);

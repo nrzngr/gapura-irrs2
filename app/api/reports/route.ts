@@ -37,35 +37,13 @@ export async function GET() {
         }
         // ANALYST and SUPER_ADMIN retain full access for now (if they hit this endpoint)
 
-        // Fetch related data from Supabase for manual join
-        // We fetch all needed reference data once
-        // Note: In a real app with many records, we would optimize this
-        const { data: stations } = await supabase.from('stations').select('id, code, name');
-        const { data: incidentTypes } = await supabase.from('incident_types').select('id, name');
-        const { data: locations } = await supabase.from('locations').select('id, name, area');
-
-        // Manual Join
-        const enrichedReports = reports.map(report => {
-            const station = stations?.find(s => s.id === report.station_id) || 
-                            stations?.find(s => s.code === report.branch) || // Fallback to matching by code
-                            stations?.find(s => s.code === report.station_code);
-            
-            const incidentType = incidentTypes?.find(t => t.id === report.incident_type_id);
-            const location = locations?.find(l => l.id === report.location_id);
-            
-            // Fallback for incident type name (from CSV string if ID lookup fails)
-            const incidentTypeName = incidentType?.name || report.irregularity_complain_category;
-
-            return {
-                ...report,
-                stations: station ? { code: station.code, name: station.name } : null,
-                incident_types: incidentTypeName ? { name: incidentTypeName } : null,
-                locations: location ? { name: location.name, area: location.area } : null,
-                // Ensure we return these objects as expected by frontend
-                station: station ? { id: station.id, code: station.code, name: station.name } : undefined,
-                incident_type: incidentTypeName ? { id: incidentType?.id || 'manual', name: incidentTypeName, default_severity: 'low' } : undefined
-            };
-        });
+        // ReportsService already handles basic enrichment (stations, categories) from Sheet data
+        const enrichedReports = reports.map(report => ({
+            ...report,
+            // Ensure compatibility with frontend expectations if needed
+            station: report.stations ? { ...report.stations, id: report.station_id } : undefined,
+            incident_type: report.category ? { id: 'manual', name: report.category } : undefined
+        }));
 
         return NextResponse.json(enrichedReports);
     } catch (error) {
