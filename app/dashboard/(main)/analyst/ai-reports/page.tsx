@@ -421,13 +421,10 @@ export default function AIReportsPage() {
       const res = await fetch('/api/ai/health');
       if (res.ok) {
         const data = await res.json();
-        console.log('[AI Health] Response:', data);
         setHealthStatus(data);
-      } else {
-        console.error('[AI Health] Error:', res.status);
       }
     } catch (err) {
-      console.error('[AI Health] Failed to fetch:', err);
+      // Error handled silently or via state
     }
   };
 
@@ -436,16 +433,10 @@ export default function AIReportsPage() {
       const res = await fetch('/api/ai/model-info');
       if (res.ok) {
         const data = await res.json();
-        console.log('[AI Model Info] Response:', data);
-        console.log('[AI Model Info] Test MAE:', data.regression?.metrics?.test_mae);
-        console.log('[AI Model Info] Test R2:', data.regression?.metrics?.test_r2);
-        console.log('[AI Model Info] Samples:', data.regression?.metrics?.n_samples);
         setModelInfo(data);
-      } else {
-        console.error('[AI Model Info] Error:', res.status);
       }
     } catch (err) {
-      console.error('[AI Model Info] Failed to fetch:', err);
+      // Error handled silently or via state
     }
   };
 
@@ -454,14 +445,11 @@ export default function AIReportsPage() {
       const res = await fetch('/api/admin/reports');
       if (res.ok) {
         const data = await res.json();
-        console.log('[AI Reports] Fetched reports:', data.length);
         setReports(Array.isArray(data) ? data : []);
       } else {
-        console.error('[AI Reports] Failed to fetch reports:', res.status);
         setError('Gagal mengambil data laporan dari server');
       }
     } catch (err) {
-      console.error('[AI Reports] Error fetching reports:', err);
       setError('Error mengambil data laporan');
     }
   };
@@ -469,9 +457,6 @@ export default function AIReportsPage() {
   const analyzeSingleReport = async (report: AIReport) => {
     setLoading(prev => ({ ...prev, single: true }));
     setError(null);
-    
-    // Log the report data being sent
-    console.log('[AI Single Analysis] Report data:', report);
     
     // Map the report data properly
     const reportData = {
@@ -488,9 +473,6 @@ export default function AIReportsPage() {
       Status: report.status || 'Open',
       Upload_Irregularity_Photo: report.photo_url || ''
     };
-    
-    console.log('[AI Single Analysis] Mapped data:', reportData);
-    
     try {
       const res = await fetch('/api/ai/analyze', {
         method: 'POST',
@@ -509,21 +491,13 @@ export default function AIReportsPage() {
       
       if (res.ok) {
         const data = await res.json();
-        console.log('[AI Single Analysis] Response:', JSON.stringify(data, null, 2));
-        console.log('[AI Single Analysis] Report ID:', report.id);
-        console.log('[AI Single Analysis] Predicted days:', data.regression?.predictions?.[0]?.predictedDays);
-        console.log('[AI Single Analysis] Confidence Interval:', data.regression?.predictions?.[0]?.confidenceInterval);
-        console.log('[AI Single Analysis] Severity:', data.nlp?.classifications?.[0]?.severity);
-        console.log('[AI Single Analysis] Summary:', data.nlp?.summaries?.[0]?.executiveSummary);
         setSingleAnalysis({ report, analysis: data });
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[AI Analysis] Error:', errorData);
         setError(errorData.error || `Error ${res.status}: AI service tidak tersedia`);
         setSingleAnalysis(null);
       }
     } catch (err) {
-      console.error('[AI Analysis] Exception:', err);
       setError('Gagal menganalisis laporan. Pastikan AI service berjalan di localhost:8000');
       setSingleAnalysis(null);
     } finally {
@@ -551,19 +525,14 @@ export default function AIReportsPage() {
       
       if (res.ok) {
         const data = await res.json();
-        console.log('[AI Batch Analysis] Response:', JSON.stringify(data, null, 2));
-        console.log('[AI Batch Analysis] Total records:', data.metadata?.totalRecords);
-        console.log('[AI Batch Analysis] Severity distribution:', data.summary?.severityDistribution);
         setBatchResults(data);
         setNonCargoPage(1);
         setCgoPage(1);
       } else {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[AI Batch] Error:', errorData);
         setError(errorData.error || `Error ${res.status}: AI service tidak tersedia`);
       }
     } catch (err) {
-      console.error('[AI Batch] Exception:', err);
       setError('Gagal menganalisis semua laporan. Pastikan AI service berjalan di localhost:8000');
     } finally {
       setLoading(prev => ({ ...prev, batch: false }));
@@ -582,7 +551,7 @@ export default function AIReportsPage() {
         setError(errorData.error || 'Gagal me-refresh cache');
       }
     } catch (err) {
-      console.error('[AI Cache] Exception:', err);
+
       setError('Gagal me-refresh cache. AI service mungkin tidak tersedia.');
     } finally {
       setLoading(prev => ({ ...prev, cache: false }));

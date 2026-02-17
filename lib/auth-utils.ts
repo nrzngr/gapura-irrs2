@@ -15,6 +15,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase-admin';
 
 export async function signSession(payload: SessionPayload) {
     const sid = payload.sid || crypto.randomUUID();
@@ -36,24 +37,34 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
 
         // Hard Revocation Check: Ensure session isn't killed in DB
         if (session.sid) {
-            const { data } = await supabase
+            const { data } = await supabaseAdmin
                 .from('security_sessions')
                 .select('is_revoked')
                 .eq('session_id', session.sid)
                 .single();
             
-            if (data?.is_revoked) return null;
+            if (data?.is_revoked) {
+                console.warn(`[AUTH_UTILS] Session ${session.sid} is REVOKED`);
+                return null;
+            }
+            if (!data) {
+                console.warn(`[AUTH_UTILS] Session ${session.sid} NOT FOUND in DB`);
+                // Optional: return null or allow if we trust the JWT? 
+                // Let's return null to be safe as per hard revocation rule
+                return null; 
+            }
 
             // Passive Activity Tracking (Throttled update would be better, but we do basic here)
             // Complexity: Time O(1) in DB | Space O(1)
-            supabase.from('security_sessions')
+            supabaseAdmin.from('security_sessions')
                 .update({ last_active: new Date().toISOString() })
                 .eq('session_id', session.sid)
                 .then(); // Non-blocking
         }
 
         return session;
-    } catch {
+    } catch (err: any) {
+        console.error(`[AUTH_UTILS] verifySession catch error for token:`, err.message || err);
         return null;
     }
 }
@@ -62,7 +73,7 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
  * Register a new session in the database for tracking
  */
 export async function registerSession(userId: string, sid: string, ip: string | null, ua: string | null) {
-    return await supabase.from('security_sessions').insert({
+    return await supabaseAdmin.from('security_sessions').insert({
         user_id: userId,
         session_id: sid,
         ip_address: ip,

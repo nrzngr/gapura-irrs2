@@ -55,7 +55,7 @@ class ClientReportsService {
     // 3. Fetch from API
     this.pendingPromise = (async () => {
       try {
-        console.log('[ClientReportsService] Fetching from /api/reports/sync...');
+
         const response = await fetch('/api/reports/sync');
         if (!response.ok) throw new Error('Failed to sync reports');
         
@@ -67,11 +67,11 @@ class ClientReportsService {
         
         return reports;
       } catch (err) {
-        console.error('Sync error:', err);
+
         // Fallback to stale cache if available
         const stale = this.loadFromStorage(true);
         if (stale) {
-          console.warn('Returning stale cache due to sync error');
+
           this.memoryCache = stale;
           return stale;
         }
@@ -102,7 +102,7 @@ class ClientReportsService {
       };
       localStorage.setItem(META_KEY, JSON.stringify(meta));
     } catch (e) {
-      console.error('Storage quota exceeded', e);
+
       // Strategy: maybe clear other keys or warn user
     }
   }
@@ -117,7 +117,7 @@ class ClientReportsService {
       const now = Date.now();
       
       if (!ignoreExpiration && (now - meta.timestamp > CACHE_DURATION)) {
-        console.log('[ClientReportsService] Cache expired');
+
         return null; // Expired
       }
       
@@ -126,7 +126,7 @@ class ClientReportsService {
       
       return JSON.parse(dataStr);
     } catch (e) {
-      console.error('Error loading from storage', e);
+
       return null;
     }
   }

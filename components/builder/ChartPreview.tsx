@@ -127,7 +127,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   // Normalize chartType - default to 'bar' if not provided or invalid
   const validChartTypes = ['bar', 'horizontal_bar', 'line', 'area', 'pie', 'donut', 'heatmap', 'table', 'pivot', 'kpi', 'branch_area_grid'];
   if (!chartType || !validChartTypes.includes(chartType)) {
-    console.warn(`[ChartPreview] Invalid or missing chartType: "${chartType}", defaulting to 'bar'`);
+
     chartType = 'bar';
   }
   
@@ -176,17 +176,10 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   const rawData = React.useMemo(() => cleanChartData(result.rows as Record<string, unknown>[]), [result.rows]);
 
   // Debug logging
-  console.log('[ChartPreview] Rendering:', {
-    chartType,
-    xAxis: visualization.xAxis,
-    yAxis: visualization.yAxis,
-    rowCount: rawData.length,
-    columns: result.columns,
-    sampleRow: rawData[0]
-  });
+
 
   if (rawData.length === 0) {
-    console.log('[ChartPreview] No data to display');
+
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center p-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
@@ -284,7 +277,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     
     if (xIsNumeric && otherIsString) {
       // Swapping might be needed as X-axis is usually categorical
-      console.log('[ChartPreview] Detected potential swapped keys, attempting swap');
+
       // But only swap if it's not a date
       if (!ISO_DATETIME_RE.test(String(xVal))) {
         activeXKey = firstOtherCol;
@@ -618,17 +611,10 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       dataKey = result.columns.find(c => c !== nameKey) || result.columns[1];
     }
     
-    console.log('[ChartPreview] Pie chart debug:', {
-      chartType,
-      nameKey,
-      dataKey,
-      visualizationX: visualization.xAxis,
-      visualizationY: visualization.yAxis,
-      columns: result.columns,
-    });
+
     
   if (!dataKey) {
-    console.warn('[ChartPreview] No data column found for pie chart');
+
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[180px] text-center p-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
         <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
@@ -681,7 +667,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
         pieData = pieData.slice(0, displayLimit);
     }
 
-    console.log('[ChartPreview] Pie data:', pieData);
+
 
     // For compact mode (supporting charts), use legend at bottom and center pie
     // For full mode, use legend at right side
@@ -976,7 +962,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   }
 
   // LINE/AREA (Minimal for remaining)
-  console.log('[ChartPreview] Rendering line/area chart with:', { chartType, activeXKey, activeYKeys });
+
   
   return wrap(
     <div className="bg-white rounded-lg p-1" style={{ width: '100%', height: chartHeight }}>

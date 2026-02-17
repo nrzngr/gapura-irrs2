@@ -21,7 +21,14 @@ export async function GET() {
         }
 
         // Fetch reports from Google Sheets
-        let reports = await reportsService.getReports();
+        let reports = [];
+        try {
+            reports = await reportsService.getReports();
+            console.log(`[REPORTS_API] Fetched ${reports?.length} raw reports`);
+        } catch (srvErr: any) {
+            console.error('[REPORTS_API] Service error:', srvErr.message);
+            throw srvErr;
+        }
 
         // Normalize role for consistent checking
         const role = String(payload.role).trim().toUpperCase();
@@ -38,13 +45,17 @@ export async function GET() {
         // ANALYST and SUPER_ADMIN retain full access for now (if they hit this endpoint)
 
         // ReportsService already handles basic enrichment (stations, categories) from Sheet data
-        const enrichedReports = reports.map(report => ({
-            ...report,
-            // Ensure compatibility with frontend expectations if needed
-            station: report.stations ? { ...report.stations, id: report.station_id } : undefined,
-            incident_type: report.category ? { id: 'manual', name: report.category } : undefined
-        }));
+        const enrichedReports = (reports || []).map(report => {
+            if (!report) return null;
+            return {
+                ...report,
+                // Ensure compatibility with frontend expectations if needed
+                station: report.stations ? { ...report.stations, id: report.station_id } : undefined,
+                incident_type: report.category ? { id: 'manual', name: report.category } : undefined
+            };
+        }).filter(Boolean);
 
+        console.log(`[REPORTS_API] Returning ${enrichedReports.length} enriched reports`);
         return NextResponse.json(enrichedReports);
     } catch (error) {
         console.error('Error fetching reports:', error);

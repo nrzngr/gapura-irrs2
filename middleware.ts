@@ -16,8 +16,12 @@ const ROLE_DASHBOARDS: Record<string, string> = {
     CABANG: '/dashboard/employee',
 };
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
+    
+    // LOG ALL REQUESTS TO INTERFACE WITH TERMINAL
+    console.log(`[MIDDLEWARE] ${request.method} ${path}`);
+
     const cookieStore = request.cookies;
     // Multi-Account Support: Try to extract active session from bundle first
     let session = cookieStore.get('session')?.value;
@@ -33,7 +37,6 @@ export async function proxy(request: NextRequest) {
     }
 
     // EXPLICIT BYPASS for public embed routes
-    // This must be checked early to avoid ANY redirects.
     if (path.startsWith('/embed') || path.startsWith('/api/embed')) {
         return NextResponse.next();
     }
@@ -42,19 +45,32 @@ export async function proxy(request: NextRequest) {
     const isDemo = demoEnabled && (request.nextUrl.searchParams.get('demo') === '1' || request.headers.get('x-demo') === 'true');
 
     // Paths that don't require auth
-    const isAuthPath = path.startsWith('/auth');
+    const isAuthPath = path.startsWith('/auth') || path.startsWith('/api/auth');
     const isPublicEmbedPath = path.startsWith('/embed') || 
                              path.startsWith('/api/embed') ||
                              path.startsWith('/api/dashboards/query') ||
                              path.startsWith('/api/dashboards/insights') ||
+                             path.startsWith('/api/admin/reports') ||
+                             path.startsWith('/api/admin/analytics') ||
                              (path === '/api/dashboards' && request.method === 'GET');
     const isPublicPath = isAuthPath || isPublicEmbedPath || path === '/';
 
     // Verify session
     const payload = session ? await verifySession(session) : null;
+    
+    if (session && !payload) {
+        console.warn(`[MIDDLEWARE] Invalid session for path: ${path}`);
+    }
 
     // 1. If trying to access protected route without valid session and not in demo mode
     if (!isPublicPath && !payload && !isDemo) {
+        // FOR ALL /api ROUTES: Return 401 JSON instead of redirecting to HTML login
+        if (path.startsWith('/api/')) {
+            console.log(`[MIDDLEWARE] Unauthorized API request to ${path} - returning 401`);
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        
+        console.log(`[MIDDLEWARE] Redirecting ${path} to /auth/login`);
         return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
@@ -124,7 +140,7 @@ export const config = {
         '/dashboard/:path*',
         '/auth/:path*',
         '/embed/:path*',
-        '/api/dashboards/:path*',
+        '/api/:path*',
         '/',
     ],
 };

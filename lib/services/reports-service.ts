@@ -248,7 +248,9 @@ export class ReportsService {
     });
 
     const allReports: Report[] = [];
+    console.log('[ReportsService] Starting getReports fetch from Sheets...');
     const valueRanges = batchRes.data.valueRanges || [];
+    console.log('[ReportsService] Batch fetched', valueRanges.length, 'sheets');
 
     for (let i = 0; i < REPORT_SHEETS.length; i++) {
       const sheetName = REPORT_SHEETS[i];
@@ -257,6 +259,7 @@ export class ReportsService {
 
       const headers = (data[0] || []).map((h: any) => String(h).trim());
       const rows = data.slice(1);
+      console.log(`[ReportsService] Sheet "${sheetName}": ${headers.length} headers, ${rows.length} rows`);
 
       // Pre-calculate mapping for this sheet
       const columnMapping: Record<string, number> = {};

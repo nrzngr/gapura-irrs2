@@ -22,7 +22,7 @@ export function EnlargedChart({ tile, result, viewMode, normalization }: Enlarge
   
   // Default to 'bar' if chartType is not provided
   if (!chartType) {
-    console.warn(`[EnlargedChart] chartType not provided for "${title}", defaulting to 'bar'`);
+
     chartType = 'bar';
   }
 
@@ -45,14 +45,7 @@ export function EnlargedChart({ tile, result, viewMode, normalization }: Enlarge
       marginBottom: isPivot ? '32px' : '0', // Add margin to prevent overlapping
     };
     
-    console.log('[EnlargedChart] Rendering:', {
-      chartType,
-      title,
-      isHorizontalBar,
-      isPieOrDonut,
-      rowCount: result.rows.length,
-      columns: result.columns
-    });
+
 
     return (
       <div style={containerStyle}>

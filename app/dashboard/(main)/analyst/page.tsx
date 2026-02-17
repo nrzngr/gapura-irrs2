@@ -118,7 +118,7 @@ export default function AnalystDashboard() {
                 }
                 
                 // Dashboard not found, clear the cache
-                console.log('[Customer Feedback] Cached dashboard not found, generating new one...');
+
                 localStorage.removeItem('cf_dashboard_slug');
             }
 

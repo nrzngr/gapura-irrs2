@@ -26,7 +26,7 @@ interface NotificationPayload {
  */
 export async function sendNotification(payload: NotificationPayload): Promise<void> {
     // Log for debugging/audit
-    console.log('[NOTIFICATION]', JSON.stringify(payload, null, 2));
+
     
     // TODO: Integrate with notification service
     // Example webhook call:

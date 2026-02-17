@@ -391,7 +391,7 @@ export function normalizeVisualization(tile: DashboardTile): DashboardTile {
   // 1. Heatmap Fail-safe
   if (chartType === 'heatmap') {
     if (dimensions.length < 2 || measures.length < 1) {
-      console.warn(`[Normalization] Downgrading heatmap "${tile.visualization.title}" to bar due to insufficient columns (${dimensions.length} dims, ${measures.length} measures).`);
+
       tile.visualization.chartType = 'bar';
     } else {
       tile.visualization.xAxis = dimensions[0].alias || dimensions[0].field;
@@ -428,7 +428,7 @@ export function normalizeVisualization(tile: DashboardTile): DashboardTile {
   if ((chartType === 'pie' || chartType === 'donut' || chartType === 'bar' || chartType === 'horizontal_bar')) {
     const isTemporal = dimensions.some(d => d.dateGranularity);
     if (dimensions.length === 2 && measures.length === 1 && !isTemporal) {
-      console.log(`[Normalization] Promoting ambiguous ${chartType} "${tile.visualization.title}" to heatmap for dual-categorical dimensions.`);
+
       tile.visualization.chartType = 'heatmap';
       tile.visualization.xAxis = dimensions[0].alias || dimensions[0].field;
       tile.visualization.yAxis = [dimensions[1].alias || dimensions[1].field];
