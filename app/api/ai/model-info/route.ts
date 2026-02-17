@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { reportsService } from '@/lib/services/reports-service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/ai/model-info
  * 

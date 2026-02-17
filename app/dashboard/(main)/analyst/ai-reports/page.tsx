@@ -115,6 +115,31 @@ interface AIReport {
   flightNumber?: string;
 }
 
+interface RootCauseStats {
+  total_records: number;
+  classified: number;
+  unknown: number;
+  classification_rate: number;
+  by_category: Record<string, {
+    count: number;
+    percentage: number;
+    top_issue_categories: Record<string, number>;
+    top_areas: Record<string, number>;
+    top_airlines: Record<string, number>;
+    description: string;
+  }>;
+  top_categories: Array<[string, any]>;
+}
+
+interface RootCauseMetadata {
+  [category: string]: {
+    name: string;
+    description: string;
+    keyword_count: number;
+    severity_multiplier: number;
+  };
+}
+
 // --- Utility Functions ---
 const translateSeverity = (severity: string): string => {
   const map: Record<string, string> = {
@@ -403,6 +428,9 @@ export default function AIReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [summaries, setSummaries] = useState<any>({ cgo: null, nonCargo: null });
+  const [rootCauseStats, setRootCauseStats] = useState<RootCauseStats | null>(null);
+  const [rootCauseMetadata, setRootCauseMetadata] = useState<RootCauseMetadata | null>(null);
+  const [loadingRootCause, setLoadingRootCause] = useState(false);
   
   // Independent pagination states
   const [nonCargoPage, setNonCargoPage] = useState(1);
@@ -416,7 +444,32 @@ export default function AIReportsPage() {
     fetchModelInfo();
     fetchReports();
     fetchSummaries();
+    fetchRootCauseStats();
   }, []);
+
+  const fetchRootCauseStats = async () => {
+    setLoadingRootCause(true);
+    try {
+      const [statsRes, metaRes] = await Promise.all([
+        fetch('/api/ai/root-cause/stats'),
+        fetch('/api/ai/root-cause/categories')
+      ]);
+
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setRootCauseStats(data);
+      }
+      
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        setRootCauseMetadata(meta);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Root Cause stats:', err);
+    } finally {
+      setLoadingRootCause(false);
+    }
+  };
 
   const fetchSummaries = async () => {
     try {
@@ -677,20 +730,6 @@ export default function AIReportsPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <Badge 
-                className={cn(
-                  "px-3 py-1",
-                  modelLoaded 
-                    ? "bg-emerald-100 text-emerald-700" 
-                    : "bg-red-100 text-red-700"
-                )}
-              >
-                {modelLoaded ? (
-                  <><CheckCircle2 size={14} className="mr-1 inline" /> Model Aktif</>
-                ) : (
-                  <><XCircle size={14} className="mr-1 inline" /> Model Tidak Aktif</>
-                )}
-              </Badge>
               
               <Button
                 variant="outline"
@@ -706,37 +745,6 @@ export default function AIReportsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard 
-            title="Akurasi Model"
-            value={`${(testR2 * 100).toFixed(0)}%`}
-            subtitle={`MAE: ${testMae.toFixed(2)} hari`}
-            icon={Target}
-            color="bg-emerald-500"
-          />
-          <StatCard 
-            title="Total Data Latih"
-            value={nSamples.toLocaleString()}
-            subtitle="Records dari Google Sheets"
-            icon={Database}
-            color="bg-blue-500"
-          />
-          <StatCard 
-            title="Fitur Model"
-            value={modelInfo?.regression?.metrics?.n_features || 0}
-            subtitle="Feature engineering"
-            icon={Cpu}
-            color="bg-purple-500"
-          />
-          <StatCard 
-            title="Versi Model"
-            value={modelInfo?.regression?.version?.split('-')[0] || 'N/A'}
-            subtitle={modelInfo?.regression?.type || 'Unknown'}
-            icon={Activity}
-            color="bg-orange-500"
-          />
-        </div>
 
         {/* Error Alert */}
         <AnimatePresence>
@@ -763,8 +771,8 @@ export default function AIReportsPage() {
               {[
                 { id: 'overview', label: 'Ringkasan' },
                 { id: 'batch', label: 'Analisis Batch' },
+                { id: 'root-cause', label: 'Root Cause' },
                 { id: 'single', label: 'Analisis Individual' },
-                { id: 'model', label: 'Info Model' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -788,14 +796,14 @@ export default function AIReportsPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Quick Actions */}
-                  <Card className="p-6">
+                  <Card className="p-6 lg:col-span-2">
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                       <Zap className="w-5 h-5 text-amber-500" />
                       Aksi Cepat
                     </h3>
-                    <div className="space-y-3">
+                    <div className="flex flex-wrap gap-3">
                       <Button 
-                        className="w-full justify-start" 
+                        className="flex-1 min-w-[200px] justify-start" 
                         onClick={() => setActiveTab('batch')}
                       >
                         <Play size={18} className="mr-2" />
@@ -803,7 +811,7 @@ export default function AIReportsPage() {
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="w-full justify-start"
+                        className="flex-1 min-w-[200px] justify-start"
                         onClick={() => setActiveTab('single')}
                       >
                         <Search size={18} className="mr-2" />
@@ -811,41 +819,13 @@ export default function AIReportsPage() {
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="w-full justify-start"
+                        className="flex-1 min-w-[200px] justify-start"
                         onClick={triggerRetraining}
                         disabled={loading.train}
                       >
                         {loading.train ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Sparkles size={18} className="mr-2" />}
                         Pelatihan Ulang Model
                       </Button>
-                    </div>
-                  </Card>
-
-                  {/* Model Status */}
-                  <Card className="p-6">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <Gauge className="w-5 h-5 text-blue-500" />
-                      Status Model
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center py-2 border-b">
-                        <span className="text-gray-600">Status Regresi</span>
-                        <Badge className={modelLoaded ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
-                          {modelLoaded ? 'Aktif' : 'Tidak Aktif'}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b">
-                        <span className="text-gray-600">Status NLP</span>
-                        <Badge variant="outline">{healthStatus?.models?.nlp?.status || 'Unknown'}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b">
-                        <span className="text-gray-600">Cache Status</span>
-                        <Badge variant="outline">{healthStatus?.cache?.status || 'Unknown'}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-gray-600">Memory Cache</span>
-                        <span className="font-mono text-sm">{healthStatus?.cache?.used_memory || 'N/A'}</span>
-                      </div>
                     </div>
                   </Card>
                 </div>
@@ -1137,6 +1117,157 @@ export default function AIReportsPage() {
               </div>
             )}
 
+            {/* Root Cause Analysis Tab */}
+            {activeTab === 'root-cause' && (
+              <div className="space-y-6">
+                {loadingRootCause ? (
+                  <div className="flex flex-col items-center justify-center py-24 text-gray-500">
+                    <Loader2 size={48} className="animate-spin mb-4 opacity-20" />
+                    <p className="animate-pulse">Menganalisis statistik root cause...</p>
+                  </div>
+                ) : rootCauseStats ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="space-y-6"
+                  >
+                    {/* Header Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <StatCard
+                        title="Total Records"
+                        value={rootCauseStats.total_records}
+                        icon={Database}
+                        color="bg-blue-500"
+                      />
+                      <StatCard
+                        title="Classified"
+                        value={rootCauseStats.classified}
+                        subtitle={`${rootCauseStats.classification_rate}% dari total`}
+                        icon={CheckCircle2}
+                        color="bg-emerald-500"
+                      />
+                      <StatCard
+                        title="Unknown"
+                        value={rootCauseStats.unknown}
+                        icon={XCircle}
+                        color="bg-gray-400"
+                      />
+                      <StatCard
+                        title="Top Category"
+                        value={rootCauseStats.top_categories[0]?.[0] || 'N/A'}
+                        subtitle={`${rootCauseStats.top_categories[0]?.[1]?.count || 0} kejadian`}
+                        icon={Activity}
+                        color="bg-purple-500"
+                      />
+                    </div>
+
+                    {/* Detailed Category Cards */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {rootCauseStats.top_categories.map(([category, details]: any) => (
+                        <Card key={category} className="group overflow-hidden flex flex-col border-emerald-100/30 hover:shadow-md transition-all duration-300">
+                          {/* Premium Header */}
+                          <div className="p-5 bg-gradient-to-r from-gray-50/80 to-white border-b border-gray-100 flex justify-between items-start gap-4">
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="font-bold text-gray-900 text-lg tracking-tight leading-tight">{category}</h4>
+                                {rootCauseMetadata?.[category] && (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100/50">
+                                      <TrendingUp size={10} strokeWidth={3} />
+                                      x{rootCauseMetadata[category].severity_multiplier} RISK
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[10px] font-bold border border-blue-100/50">
+                                      <Cpu size={10} strokeWidth={3} />
+                                      {rootCauseMetadata[category].keyword_count} KEYS
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 leading-relaxed font-medium opacity-80">{details.description}</p>
+                            </div>
+                            
+                            <div className="flex flex-col items-end shrink-0">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl font-black text-emerald-600 tracking-tighter">{details.count}</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{details.percentage}%</span>
+                            </div>
+                          </div>
+
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 bg-white">
+                            {/* Issues Breakdown */}
+                            <div className="space-y-4">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] flex items-center gap-2 opacity-70">
+                                <AlertTriangle size={12} className="text-orange-500" strokeWidth={2.5} />
+                                Critical Issues
+                              </p>
+                              <div className="space-y-2">
+                                {Object.entries(details.top_issue_categories)
+                                  .filter(([name]) => name !== "")
+                                  .slice(0, 3)
+                                  .map(([name, count]: any) => (
+                                    <div key={name} className="group/item flex justify-between items-center transition-all">
+                                      <span className="text-xs font-semibold text-gray-600 truncate mr-2" title={name}>
+                                        {name}
+                                      </span>
+                                      <span className="text-[11px] font-bold text-gray-400 group-hover/item:text-emerald-600 transition-colors tabular-nums">{count}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+
+                            {/* Area Breakdown */}
+                            <div className="space-y-4 border-l border-gray-100 pl-6">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] flex items-center gap-2 opacity-70">
+                                <Layout size={12} className="text-blue-500" strokeWidth={2.5} />
+                                Top Locations
+                              </p>
+                              <div className="space-y-2">
+                                {Object.entries(details.top_areas)
+                                  .slice(0, 3)
+                                  .map(([name, count]: any) => (
+                                    <div key={name} className="group/item flex justify-between items-center transition-all">
+                                      <span className="text-xs font-semibold text-gray-600 truncate mr-2">
+                                        {name}
+                                      </span>
+                                      <span className="text-[11px] font-bold text-gray-400 group-hover/item:text-blue-600 transition-colors tabular-nums">{count}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+
+                            {/* Airline Breakdown */}
+                            <div className="space-y-4 border-l border-gray-100 pl-6">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] flex items-center gap-2 opacity-70">
+                                <Box size={12} className="text-purple-500" strokeWidth={2.5} />
+                                Key Carriers
+                              </p>
+                              <div className="space-y-2">
+                                {Object.entries(details.top_airlines)
+                                  .slice(0, 3)
+                                  .map(([name, count]: any) => (
+                                    <div key={name} className="group/item flex justify-between items-center transition-all">
+                                      <span className="text-xs font-semibold text-gray-600 truncate mr-2">
+                                        {name}
+                                      </span>
+                                      <span className="text-[11px] font-bold text-gray-400 group-hover/item:text-purple-600 transition-colors tabular-nums">{count}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="text-center py-24 text-gray-500">
+                    <Brain size={48} className="mx-auto mb-4 opacity-50" />
+                    <p>Statistik root cause tidak dapat dimuat atau belum dihitung.</p>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Single Analysis Tab */}
             {activeTab === 'single' && (
               <ReportAnalysisTable
@@ -1150,109 +1281,6 @@ export default function AIReportsPage() {
               />
             )}
 
-            {/* Model Info Tab */}
-            {activeTab === 'model' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Regression Model */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-bold mb-4">Model Regresi</h3>
-                  {modelInfo?.regression ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs text-gray-500">Versi</p>
-                          <p className="font-bold">{modelInfo.regression.version}</p>
-                        </div>
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs text-gray-500">Tipe</p>
-                          <p className="font-bold">{modelInfo.regression.type}</p>
-                        </div>
-                      </div>
-                      
-                      {modelInfo.regression?.metrics && (
-                        <>
-                          <div className="border-t pt-4">
-                            <h4 className="font-semibold mb-3">Metrik Training</h4>
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="text-center p-2 bg-blue-50 rounded">
-                                <p className="text-xs text-gray-500">MAE</p>
-                                <p className="font-bold text-blue-700">{modelInfo.regression.metrics.train_mae?.toFixed(3) || 'N/A'}</p>
-                              </div>
-                              <div className="text-center p-2 bg-blue-50 rounded">
-                                <p className="text-xs text-gray-500">RMSE</p>
-                                <p className="font-bold text-blue-700">{modelInfo.regression.metrics.train_rmse?.toFixed(3) || 'N/A'}</p>
-                              </div>
-                              <div className="text-center p-2 bg-blue-50 rounded">
-                                <p className="text-xs text-gray-500">R²</p>
-                                <p className="font-bold text-blue-700">{modelInfo.regression.metrics.train_r2?.toFixed(3) || 'N/A'}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="border-t pt-4">
-                            <h4 className="font-semibold mb-3">Metrik Testing</h4>
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="text-center p-2 bg-emerald-50 rounded">
-                                <p className="text-xs text-gray-500">MAE</p>
-                                <p className="font-bold text-emerald-700">{modelInfo.regression.metrics.test_mae?.toFixed(3) || 'N/A'}</p>
-                              </div>
-                              <div className="text-center p-2 bg-emerald-50 rounded">
-                                <p className="text-xs text-gray-500">RMSE</p>
-                                <p className="font-bold text-emerald-700">{modelInfo.regression.metrics.test_rmse?.toFixed(3) || 'N/A'}</p>
-                              </div>
-                              <div className="text-center p-2 bg-emerald-50 rounded">
-                                <p className="text-xs text-gray-500">R²</p>
-                                <p className="font-bold text-emerald-700">{modelInfo.regression.metrics.test_r2?.toFixed(3) || 'N/A'}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Tidak ada informasi model tersedia</p>
-                  )}
-                </Card>
-
-                {/* NLP Model */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-bold mb-4">Model NLP</h3>
-                  {modelInfo?.nlp ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs text-gray-500">Versi</p>
-                          <p className="font-bold">{modelInfo.nlp.version}</p>
-                        </div>
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs text-gray-500">Tipe</p>
-                          <p className="font-bold">{modelInfo.nlp.type}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="border-t pt-4">
-                        <h4 className="font-semibold mb-3">Kemampuan</h4>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="outline">Klasifikasi</Badge>
-                          <Badge variant="outline">NER</Badge>
-                          <Badge variant="outline">Ringkasan</Badge>
-                          <Badge variant="outline">Sentimen</Badge>
-                        </div>
-                      </div>
-
-                      <div className="border-t pt-4">
-                        <h4 className="font-semibold mb-3">Status</h4>
-                        <Badge className={modelInfo.nlp.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>
-                          {modelInfo.nlp.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Tidak ada informasi model tersedia</p>
-                  )}
-                </Card>
-              </div>
-            )}
           </div>
         </div>
       </div>

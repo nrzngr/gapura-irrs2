@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * API endpoint untuk analisis AI
  * Mengirim data ke Python AI service dan mengembalikan hasil analisis

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/ai/health
  * 
