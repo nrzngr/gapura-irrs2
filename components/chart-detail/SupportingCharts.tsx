@@ -14,14 +14,11 @@ import { SubCategoryDetailChart } from './custom-charts/SubCategoryDetailChart';
 import { TargetDivisionChart } from './custom-charts/TargetDivisionChart';
 import { AreaSubCategoryChart } from './custom-charts/AreaSubCategoryChart';
 import { PriorityChart } from './custom-charts/PriorityChart';
-import { RootCauseChart } from './custom-charts/RootCauseChart';
 import { AirlineTypeCategoryChart } from './custom-charts/AirlineTypeCategoryChart';
 import { MonthlyTrendChart } from './custom-charts/MonthlyTrendChart';
 import { CategoryDistributionChart } from './custom-charts/CategoryDistributionChart';
 import { AreaAnalysisChart } from './AreaAnalysisChart';
 import { CategoryByBranchChart } from './custom-charts/CategoryByBranchChart';
-import { fetchRiskSummary, RiskSummaryResponse } from '@/lib/api/risk';
-import { RiskSummaryTool } from './RiskSummaryTool';
 import { ShieldAlert, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -33,7 +30,6 @@ export type CustomChartType =
   | 'target_division'
   | 'area_subcategory'
   | 'priority_analysis'
-  | 'root_cause'
   | 'airline_type_category'
   | 'monthly_trend'
   | 'category_distribution'
@@ -302,25 +298,7 @@ function transformToPriorityData(result: QueryResult) {
   });
 }
 
-function transformToRootCauseData(result: QueryResult) {
-  if (!result?.rows || result.rows.length === 0) {
-    console.warn('RootCauseChart: No data available');
-    return [];
-  }
-  const total = result.rows.reduce((sum, row) => {
-    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
-    return sum + count;
-  }, 0);
-  return result.rows.map(row => {
-    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
-    return {
-      rootCause: String(row.root_caused || row.ROOT_CAUSED || row.root_cause || row.rootCause || 'Tidak Teridentifikasi'),
-      count: count,
-      percentage: total > 0 ? (count / total) * 100 : 0,
-      category: String(row.category || row.CATEGORY || row.Category || '')
-    };
-  });
-}
+
 
 function transformToAirlineTypeCategoryData(result: QueryResult) {
   if (!result?.rows || result.rows.length === 0) {
@@ -419,23 +397,6 @@ function calculateChartHeight(chartType: string, rowCount: number): string {
 }
 
 export function SupportingCharts({ charts, dataMap, loading, source = 'ai', viewMode = 'values', normalization = 'none' }: SupportingChartsProps) {
-  const [riskData, setRiskData] = React.useState<RiskSummaryResponse | null>(null);
-  const [riskLoading, setRiskLoading] = React.useState(false);
-  const [riskError, setRiskError] = React.useState<string | null>(null);
-
-  const handleFetchRisk = async () => {
-    setRiskLoading(true);
-    setRiskError(null);
-    try {
-      const data = await fetchRiskSummary();
-      setRiskData(data);
-    } catch (err) {
-      setRiskError('Failed to fetch risk summary. Please try again.');
-      console.error(err);
-    } finally {
-      setRiskLoading(false);
-    }
-  };
   
   // Debug logging - log data structure for custom charts
   if (typeof window !== 'undefined' && charts.length > 0) {
@@ -509,51 +470,7 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
             </span>
           )}
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleFetchRisk}
-            disabled={riskLoading}
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all
-              ${riskData 
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100' 
-                : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0'
-              }
-              disabled:opacity-50 disabled:cursor-not-allowed
-            `}
-          >
-            {riskLoading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : riskData ? (
-              <RefreshCcw size={14} />
-            ) : (
-              <ShieldAlert size={14} />
-            )}
-            {riskData ? 'Refresh Risk Summary' : 'Risk Summary (AI)'}
-          </button>
-        </div>
       </div>
-
-      <AnimatePresence>
-        {riskData && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="mb-8 p-6 bg-white rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-50/50"
-          >
-            <RiskSummaryTool data={riskData} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {riskError && (
-        <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium flex items-center gap-2">
-          <AlertCircle size={14} />
-          {riskError}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {charts.map((chart, idx) => {
@@ -634,14 +551,6 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
                   <PriorityChart
                     key={idx}
                     data={transformToPriorityData(result)}
-                    {...customChartProps}
-                  />
-                );
-              case 'root_cause':
-                return (
-                  <RootCauseChart
-                    key={idx}
-                    data={transformToRootCauseData(result)}
                     {...customChartProps}
                   />
                 );

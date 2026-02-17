@@ -779,41 +779,6 @@ export function generateAnalyticalCharts(
     idx++;
   }
 
-  // CHART: Root Cause Analysis
-  if (!usedDims.has('root_caused') && idx < 12) {
-    const rootCauseQuery: QueryDefinition = {
-      source: 'reports',
-      joins: [],
-      dimensions: [{ table: 'reports', field: 'root_caused' }],
-      measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'jumlah' }],
-      filters: [
-        ...parentFilters,
-        { table: 'reports', field: 'root_caused', operator: 'is_not_null', value: '', conjunction: 'AND' },
-        { table: 'reports', field: 'root_caused', operator: 'neq', value: '#N/A', conjunction: 'AND' },
-        { table: 'reports', field: 'root_caused', operator: 'neq', value: 'NIL', conjunction: 'AND' },
-        { table: 'reports', field: 'root_caused', operator: 'neq', value: '-', conjunction: 'AND' },
-        { table: 'reports', field: 'root_caused', operator: 'neq', value: 'Tidak Teridentifikasi', conjunction: 'AND' }
-      ],
-      sorts: [{ field: 'jumlah', direction: 'desc' }],
-      limit: 10,
-    };
-    charts.push({
-      visualization: {
-        chartType: 'horizontal_bar',
-        xAxis: 'root_caused',
-        yAxis: ['jumlah'],
-        title: 'Analisis Akar Masalah',
-        showLegend: false,
-        showLabels: true,
-        displayLimit: 10,
-      },
-      query: rootCauseQuery,
-      explanation: 'Identifikasi akar masalah yang paling sering terjadi menggunakan analisis Pareto 80/20. Fokus pada top issues untuk pengurangan maksimal.',
-      customChartType: 'root_cause',
-    });
-    idx++;
-  }
-
   // CHART: Airline Type vs Category
   if (!usedDims.has('jenis_maskapai') && idx < 12) {
     const airlineTypeQuery = buildStackedQuery(parentFilters, 'jenis_maskapai', 'category', 10000);
