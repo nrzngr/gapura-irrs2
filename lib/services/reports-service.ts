@@ -350,6 +350,21 @@ export class ReportsService {
           } catch (_) {}
         }
         
+        // Populate Area based on Sheet Source if missing
+        if (sheetName === 'CGO' && !report.area) {
+            report.area = 'CARGO';
+        } else if (sheetName === 'NON CARGO' && !report.area) {
+             // Heuristic: If it has terminal category, likely TERMINAL. If apron category, likely APRON.
+             // Defaulting to 'TERMINAL' if unknown as per common distribution, or keep empty if strict.
+             if (report.terminal_area_category) report.area = 'TERMINAL';
+             else if (report.apron_area_category) report.area = 'APRON';
+        }
+
+        if (report.status === 'SELESAI' && !report.resolved_at) {
+            // Fallback: use date_of_event as proxy for resolution date since Sheet doesn't have specific column
+            report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
+        }
+
         report.source_sheet = sheetName;
         allReports.push(report as Report);
       }
