@@ -7,7 +7,6 @@ export { SubCategoryDetailChart } from './SubCategoryDetailChart';
 export { TargetDivisionChart } from './TargetDivisionChart';
 export { AreaSubCategoryChart } from './AreaSubCategoryChart';
 export { PriorityChart } from './PriorityChart';
-export { RootCauseChart } from './RootCauseChart';
 export { AirlineTypeCategoryChart } from './AirlineTypeCategoryChart';
 export { MonthlyTrendChart } from './MonthlyTrendChart';
 export { CategoryDistributionChart } from './CategoryDistributionChart';

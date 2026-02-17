@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { reportsService } from '@/lib/services/reports-service';
 import type { Report } from '@/types';
 import { REPORT_STATUS } from '@/lib/constants/report-status';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 
 interface StationStats {
     station: string;
@@ -31,8 +35,6 @@ export async function GET(request: Request) {
         const division = searchParams.get('division');
 
         // Extract role from session for security override
-        const { cookies } = await import('next/headers');
-        const { verifySession } = await import('@/lib/auth-utils');
         const cookieStore = await cookies();
         const session = cookieStore.get('session')?.value;
         let targetDivision = division;
