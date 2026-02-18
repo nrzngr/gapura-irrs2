@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { X, Save, Link2, Check, Loader2, LayoutGrid, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -33,6 +33,7 @@ export function SaveDashboardModal({
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const folderListId = useId();
 
   if (!isOpen) return null;
 
@@ -105,16 +106,14 @@ export function SaveDashboardModal({
                   value={folder}
                   onChange={e => setFolder(e.target.value)}
                   placeholder="Contoh: Laporan Bulanan"
-                  list="folder-suggestions"
+                  list={folderListId}
                   className="w-full px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
                 />
-                {existingFolders.length > 0 && (
-                  <datalist id="folder-suggestions">
-                    {existingFolders.map(f => (
-                      <option key={f} value={f} />
-                    ))}
-                  </datalist>
-                )}
+                <datalist id={folderListId}>
+                  {existingFolders.map(f => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Tile count summary */}

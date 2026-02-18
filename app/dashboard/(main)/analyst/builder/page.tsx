@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BuilderLayout, type SaveTile, type SaveConfig } from '@/components/builder/BuilderLayout';
 import { Trash2, ExternalLink, Clock, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 
@@ -88,6 +88,16 @@ export default function DashboardBuilderPage() {
     } catch { /* ignore */ }
   };
 
+  const existingFolders = useMemo(
+    () =>
+      Array.from(new Set(
+        savedDashboards
+          .map(d => d.folder)
+          .filter((f): f is string => !!f)
+      )),
+    [savedDashboards]
+  );
+
   return (
     <div
       className="fixed inset-0 flex flex-col bg-[var(--surface-1)] md:left-[260px]"
@@ -97,13 +107,7 @@ export default function DashboardBuilderPage() {
       <div className="flex-1 min-h-0 overflow-hidden">
         <BuilderLayout
           onSaveDashboard={handleSave}
-          existingFolders={
-            Array.from(new Set(
-              savedDashboards
-                .map(d => d.folder)
-                .filter((f): f is string => !!f)
-            ))
-          }
+          existingFolders={existingFolders}
         />
       </div>
 
