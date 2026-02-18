@@ -391,6 +391,8 @@ function calculateChartHeight(chartType: string, rowCount: number): string {
       return '220px';
     case 'grouped_bar':
       return '400px';
+    case 'table':
+      return '400px';
     default:
       return '220px';
   }
@@ -684,7 +686,7 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
           return (
             <div 
               key={idx} 
-              className="bg-white rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30"
+              className={`bg-white rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30 ${chart.visualization.chartType === 'table' ? 'md:col-span-2' : ''}`}
             >
               <div className="px-4 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
                 <h4 className="text-[11px] font-bold text-[#333] uppercase tracking-tight">

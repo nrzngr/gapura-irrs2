@@ -231,6 +231,31 @@ function buildTimeTrendQuery(
   };
 }
 
+// ── Helper: build report table query ─────────────────────────────────────────
+// Mimics the "Report Landside & Airside" structure from the dashboard template
+// Complexity: Time O(1) | Space O(filters)
+function buildReportTableQuery(parentFilters: QueryFilter[]): QueryDefinition {
+  return {
+    source: 'reports',
+    joins: [],
+    dimensions: [
+      { table: 'reports', field: 'date_of_event', alias: 'Date' },
+      { table: 'reports', field: 'main_category', alias: 'Category' },
+      { table: 'reports', field: 'branch', alias: 'Branch' },
+      { table: 'reports', field: 'airline', alias: 'Airlines' },
+      { table: 'reports', field: 'flight_number', alias: 'Flight' },
+      { table: 'reports', field: 'description', alias: 'Report' },
+      { table: 'reports', field: 'root_caused', alias: 'Root Caused' },
+      { table: 'reports', field: 'action_taken', alias: 'Action Taken' },
+      { table: 'reports', field: 'evidence_url', alias: 'Evidence Link' },
+    ],
+    measures: [],
+    filters: [...parentFilters],
+    sorts: [{ field: 'Date', direction: 'desc' }],
+    limit: 10000,
+  };
+}
+
 // ── Core: Generate analytical chart definitions ──────────────────────────────
 // Generates up to 6 cross-dimensional charts like a senior data analyst would:
 // 1. Alternative viz of the same data (donut / bar swap)
@@ -798,6 +823,7 @@ export function generateAnalyticalCharts(
     idx++;
   }
 
+
   // CHART: Monthly Trend
   if (!usedDims.has('month') && idx < 12) {
     const monthlyQuery = buildTimeTrendQuery(parentFilters, 'month');
@@ -836,6 +862,25 @@ export function generateAnalyticalCharts(
     });
     idx++;
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FINAL CHART: Detailed Report Table (Linked to all contexts)
+  // Always included as the final exhaustive deep-dive at the bottom
+  // ═══════════════════════════════════════════════════════════════════════════
+  const reportTableQuery = buildReportTableQuery(parentFilters);
+  charts.push({
+    visualization: {
+      chartType: 'table',
+      xAxis: 'Date',
+      yAxis: [],
+      title: 'Detail Laporan Terkait',
+      showLegend: false,
+      showLabels: false,
+    },
+    query: reportTableQuery,
+    explanation: 'Daftar lengkap laporan yang mendasari visualisasi di atas. Gunakan ini untuk cross-referencing detail kejadian, penyebab, dan tindakan yang telah diambil.',
+  });
+  idx++;
 
   return { charts, dataMap };
 }

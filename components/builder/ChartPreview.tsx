@@ -120,6 +120,30 @@ function DateTooltip({ active, payload, label }: { active?: boolean; payload?: A
   );
 }
 
+function ExpandableTableCell({ content }: { content: string }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const isLong = content.length > 60;
+  
+  if (!isLong) return <span>{content}</span>;
+  
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={isExpanded ? "" : "truncate block max-w-full"}>
+        {isExpanded ? content : content.substring(0, 57) + "..."}
+      </span>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(!isExpanded);
+        }}
+        className="text-[9px] font-bold text-[#6b8e3d] hover:text-[#558b2f] flex items-center gap-0.5 w-fit"
+      >
+        {isExpanded ? "Collapse" : "Expand"}
+      </button>
+    </div>
+  );
+}
+
 export function ChartPreview({ visualization, result, compact = false, tile, dashboardId, viewMode = 'values', normalization = 'none', isThumbnail = false }: ChartPreviewProps) {
   const { colorField, showLabels, colors } = visualization;
   let { chartType } = visualization;
@@ -503,8 +527,39 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
           </thead>
           <tbody>
             {rawData.slice(0, 50).map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50 border-b">
-                {result.columns.map(c => <td key={c} className="px-3 py-1.5">{String(row[c] ?? '-')}</td>)}
+              <tr key={i} className="hover:bg-gray-50 border-b transition-colors">
+                {result.columns.map(c => {
+                   const val = row[c];
+                   const valStr = String(val ?? '-');
+                   const isUrlCol = c.toLowerCase().includes('link') || c.toLowerCase().includes('url') || c.toLowerCase().includes('evidence');
+                   const isReport = c.toLowerCase().includes('report') || c.toLowerCase().includes('desc') || c.toLowerCase().includes('root') || c.toLowerCase().includes('action');
+                   
+                   return (
+                     <td key={c} className={`px-3 py-2 ${isReport ? 'min-w-[180px]' : (isUrlCol ? 'min-w-[120px]' : 'truncate max-w-[150px]')} align-top`}>
+                       {isUrlCol ? (
+                         <div className="flex flex-wrap gap-2 text-[10px]">
+                           {valStr.split(/[\s,]+/).filter(link => link.startsWith('http')).map((link, lidx) => (
+                             <a 
+                               key={lidx} 
+                               href={link} 
+                               target="_blank" 
+                               rel="noopener noreferrer" 
+                               className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5 font-bold transition-colors bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100"
+                             >
+                               Link {valStr.split(/[\s,]+/).filter(l => l.startsWith('http')).length > 1 ? `#${lidx + 1}` : ''} <span className="text-[8px]">↗</span>
+                             </a>
+                           ))}
+                           {!valStr.includes('http') && valStr !== '-' && <span className="text-slate-400 italic font-mono">{valStr}</span>}
+                           {valStr === '-' && <span className="text-slate-300">-</span>}
+                         </div>
+                       ) : isReport ? (
+                         <ExpandableTableCell content={valStr} />
+                       ) : (
+                         valStr
+                       )}
+                     </td>
+                   );
+                })}
               </tr>
             ))}
           </tbody>
