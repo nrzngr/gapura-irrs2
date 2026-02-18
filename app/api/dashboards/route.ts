@@ -248,26 +248,51 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// PATCH - Update dashboard (folder move)
+// PATCH - Update dashboard (folder move, folder rename, folder delete)
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, folder } = body as { id: string; folder: string | null };
 
-    if (!id) {
-       return NextResponse.json({ error: 'Dashboard ID required' }, { status: 400 });
+    // Bulk rename: { action: 'rename', oldFolder, newFolder }
+    if (body.action === 'rename') {
+      const { oldFolder, newFolder } = body as { action: string; oldFolder: string; newFolder: string };
+      if (!oldFolder || !newFolder) {
+        return NextResponse.json({ error: 'oldFolder and newFolder required' }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from('custom_dashboards')
+        .update({ folder: newFolder.trim() || null })
+        .eq('folder', oldFolder);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true });
     }
 
+    // Bulk delete folder: { action: 'delete', folder }
+    if (body.action === 'delete') {
+      const { folder } = body as { action: string; folder: string };
+      if (!folder) {
+        return NextResponse.json({ error: 'folder required' }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from('custom_dashboards')
+        .update({ folder: null })
+        .eq('folder', folder);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true });
+    }
+
+    // Single dashboard move: { id, folder }
+    const { id, folder } = body as { id: string; folder: string | null };
+    if (!id) {
+      return NextResponse.json({ error: 'Dashboard ID required' }, { status: 400 });
+    }
     const { error } = await supabase
       .from('custom_dashboards')
       .update({ folder })
       .eq('id', id);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
+
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     return NextResponse.json({ error: message }, { status: 500 });
