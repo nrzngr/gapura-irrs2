@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BuilderLayout, type SaveTile, type SaveConfig } from '@/components/builder/BuilderLayout';
 import { Trash2, ExternalLink, Clock, ChevronDown, ChevronUp, BarChart3, Pencil, FolderInput, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SavedDashboard {
   id: string;
@@ -20,6 +21,8 @@ export default function DashboardBuilderPage() {
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deletingFolder, setDeletingFolder] = useState<string | null>(null);
+  const [movingDashboardId, setMovingDashboardId] = useState<string | null>(null);
+  const [moveFolderValue, setMoveFolderValue] = useState('');
 
   useEffect(() => {
     fetchDashboards();
@@ -130,6 +133,23 @@ export default function DashboardBuilderPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', folder }),
+    });
+  };
+
+  const handleMoveDashboard = async (id: string, folder: string) => {
+    const trimmed = folder.trim();
+    const finalFolder = trimmed === '' ? null : trimmed;
+    
+    // Optimistic update
+    setSavedDashboards(prev =>
+      prev.map(d => d.id === id ? { ...d, folder: finalFolder } : d)
+    );
+    setMovingDashboardId(null);
+    
+    await fetch('/api/dashboards', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, folder: finalFolder }),
     });
   };
 
@@ -301,6 +321,64 @@ export default function DashboardBuilderPage() {
                               >
                                 <Trash2 size={14} />
                               </button>
+                              <div className="relative">
+                                <button
+                                  onClick={() => {
+                                    if (movingDashboardId === d.id) {
+                                      setMovingDashboardId(null);
+                                    } else {
+                                      setMovingDashboardId(d.id);
+                                      setMoveFolderValue(d.folder || '');
+                                    }
+                                  }}
+                                  className={cn(
+                                    "p-1.5 rounded-lg transition-all",
+                                    movingDashboardId === d.id
+                                      ? "text-[var(--brand-primary)] bg-[var(--brand-primary)]/10"
+                                      : "text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10"
+                                  )}
+                                  title="Pindahkan ke folder"
+                                >
+                                  <FolderInput size={14} />
+                                </button>
+                                {movingDashboardId === d.id && (
+                                  <div className="absolute right-0 top-full mt-2 p-3 bg-[var(--surface-1)] border border-[var(--surface-4)] rounded-xl shadow-xl z-50 w-48 animate-scale-in">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">Pindah ke Folder</label>
+                                    <input
+                                      autoFocus
+                                      list="move-folder-list"
+                                      value={moveFolderValue}
+                                      onChange={e => setMoveFolderValue(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') handleMoveDashboard(d.id, moveFolderValue);
+                                        if (e.key === 'Escape') setMovingDashboardId(null);
+                                      }}
+                                      placeholder="Nama folder..."
+                                      className="w-full px-2 py-1.5 text-xs bg-[var(--surface-2)] border border-[var(--surface-4)] rounded focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] text-[var(--text-primary)]"
+                                    />
+                                    <datalist id="move-folder-list">
+                                      {existingFolders.map(f => (
+                                        <option key={f} value={f} />
+                                      ))}
+                                      <option value="">(Tanpa Folder)</option>
+                                    </datalist>
+                                    <div className="flex gap-1.5 mt-2">
+                                      <button
+                                        onClick={() => handleMoveDashboard(d.id, moveFolderValue)}
+                                        className="flex-1 py-1.5 text-[10px] font-bold bg-[var(--brand-primary)] text-white rounded hover:opacity-90"
+                                      >
+                                        Pindahkan
+                                      </button>
+                                      <button
+                                        onClick={() => setMovingDashboardId(null)}
+                                        className="flex-1 py-1.5 text-[10px] font-bold bg-[var(--surface-3)] text-[var(--text-muted)] rounded hover:text-[var(--text-primary)]"
+                                      >
+                                        Batal
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}

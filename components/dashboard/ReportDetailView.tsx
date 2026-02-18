@@ -440,13 +440,19 @@ export function ReportDetailView({
               </SectionCard>
 
               {/* AKAR MASALAH & TINDAKAN */}
-              {(report.root_caused || report.action_taken || report.immediate_action) && (
+              {(report.root_caused || report.action_taken || report.immediate_action || report.preventive_action || report.sub_category_note) && (
                 <SectionCard title="Analisis & Tindakan">
                   <div className="space-y-5">
                     {report.immediate_action && (
                       <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Tindakan Pencegahan</p>
                         <p className="text-[15px] text-emerald-800">{report.immediate_action}</p>
+                      </div>
+                    )}
+                    {report.preventive_action && (
+                      <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600 mb-1">Preventive Action</p>
+                        <p className="text-[15px] text-blue-800">{report.preventive_action}</p>
                       </div>
                     )}
                     {report.root_caused && (
@@ -459,6 +465,12 @@ export function ReportDetailView({
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Tindakan Perbaikan</p>
                         <p className="text-[15px] text-[var(--text-secondary)]">{report.action_taken}</p>
+                      </div>
+                    )}
+                    {report.sub_category_note && (
+                      <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 mb-1">Remarks Gapura KPS</p>
+                        <p className="text-[15px] text-indigo-800">{report.sub_category_note}</p>
                       </div>
                     )}
                   </div>
@@ -707,15 +719,15 @@ export function ReportDetailView({
                     </div>
                 </div>
 
-                {/* Sub Category Note */}
+                {/* Remarks Gapura KPS */}
                 <div>
-                    <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Catatan Sub-Kategori</label>
+                    <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Remarks Gapura KPS</label>
                     <textarea
                         value={dispatchForm.sub_category_note}
                         onChange={(e) => setDispatchForm(prev => ({ ...prev, sub_category_note: e.target.value }))}
                         className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none resize-none bg-gray-50"
                         rows={3}
-                        placeholder="Tambahkan detail spesifik kategori..."
+                        placeholder="Tambahkan catatan, konteks, atau instruksi khusus Gapura KPS..."
                     />
                 </div>
             </div>

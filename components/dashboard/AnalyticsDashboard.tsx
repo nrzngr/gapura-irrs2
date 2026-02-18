@@ -232,6 +232,25 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             .map((item, i) => ({ ...item, fill: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'][i % 5] }));
     }, [filteredReportsList]);
 
+    const areaSubCategoryData = useMemo(() => {
+        const areaMap: Record<string, Record<string, number>> = {};
+        filteredReportsList.forEach(r => {
+            const area = r.area || 'General';
+            const sub = r.main_category || 'Other';
+            if (!areaMap[area]) areaMap[area] = {};
+            areaMap[area][sub] = (areaMap[area][sub] || 0) + 1;
+        });
+
+        return Object.entries(areaMap).map(([area, subs]) => ({
+            area,
+            ...subs
+        })).sort((a, b) => {
+            const sumA = Object.values(a).reduce((acc: number, v) => typeof v === 'number' ? acc + v : acc, 0);
+            const sumB = Object.values(b).reduce((acc: number, v) => typeof v === 'number' ? acc + v : acc, 0);
+            return sumB - sumA;
+        }).slice(0, 10);
+    }, [filteredReportsList]);
+
     const categoryByBranchData = useMemo(() => {
         const branchData: Record<string, { irregularity: number; complaint: number; compliment: number }> = {};
         filteredReportsList.forEach(r => {
@@ -399,6 +418,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         monthlyReportData={monthlyReportData}
                         categoryByAreaData={categoryByAreaData}
                         categoryByBranchData={categoryByBranchData}
+                        areaSubCategoryData={areaSubCategoryData}
                         categoryByAirlinesData={categoryByAirlinesData}
                         topReportersData={topReportersData}
                         monthlyComparisonData={monthlyComparisonData}

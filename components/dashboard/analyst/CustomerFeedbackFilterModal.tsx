@@ -24,6 +24,7 @@ interface CustomerFeedbackFilterModalProps {
     availableBranches: string[];
     availableAirlines: string[];
     availableCategories: string[];
+    existingFolders?: string[];
     initialDateRange?: { from: string; to: string };
 }
 
@@ -36,6 +37,7 @@ export function CustomerFeedbackFilterModal({
     availableBranches,
     availableAirlines,
     availableCategories,
+    existingFolders = [],
     initialDateRange
 }: CustomerFeedbackFilterModalProps) {
     const [dateFrom, setDateFrom] = useState(initialDateRange?.from || '');
@@ -155,8 +157,14 @@ export function CustomerFeedbackFilterModal({
                             value={folder}
                             onChange={(e) => setFolder(e.target.value)}
                             placeholder="Contoh: Quarterly Reports, Branch Analytics"
+                            list="filter-folder-list"
                             className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
                         />
+                        <datalist id="filter-folder-list">
+                            {existingFolders.map(f => (
+                                <option key={f} value={f} />
+                            ))}
+                        </datalist>
                     </div>
 
                     <div className="h-px bg-gray-100" />

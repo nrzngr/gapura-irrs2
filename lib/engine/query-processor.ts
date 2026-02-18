@@ -41,7 +41,7 @@ const getDateKey = (dateStr: string, granularity?: string) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     
-    if (granularity === 'month') return d.toISOString().slice(0, 7); // YYYY-MM
+    if (granularity === 'month') return `${d.getFullYear()} ${d.toLocaleString('en-US', { month: 'short' })}`; // YYYY MMM
     if (granularity === 'year') return d.getFullYear().toString();
     if (granularity === 'day') return d.toISOString().slice(0, 10);
     return dateStr;

@@ -160,7 +160,7 @@ export async function GET(request: Request) {
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+            const label = `${d.getFullYear()} ${d.toLocaleString('en-US', { month: 'short' })}`; // YYYY MMM
             trendMap.set(key, { month: label, total: 0, resolved: 0 });
         }
 

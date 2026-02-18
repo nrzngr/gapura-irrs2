@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Akses tidak diizinkan' }, { status: 403 });
     }
 
-    const { dateFrom, dateTo, filters, title } = await request.json();
+    const { dateFrom, dateTo, filters, title, folder } = await request.json();
     
     // Ensure fresh data from Google Sheets before generating dashboard
     // This is crucial because the dashboard generation relies on querying data
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
                 .update({
                     name: dashboard.name || 'Customer Feedback Dashboard',
                     description: dashboard.description || 'Customer Feedback Analysis Dashboard',
+                    folder: folder || null,
                     is_public: true,
                     config: {
                         pages: dashboard.pages?.map(p => p.name) || ['Case Category', 'Detail Category', 'Detail Report'],
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
                 .insert({
                     name: dashboard.name || 'Customer Feedback Dashboard',
                     description: dashboard.description || 'Customer Feedback Analysis Dashboard',
+                    folder: folder || null,
                     slug: slug,
                     is_public: true,
                     config: {
@@ -159,6 +161,7 @@ export async function POST(request: NextRequest) {
             .insert({
                 name: finalName,
                 description: finalDesc,
+                folder: folder || null,
                 slug: slug,
                 is_public: true,
                 config: {

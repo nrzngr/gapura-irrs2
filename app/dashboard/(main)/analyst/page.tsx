@@ -65,6 +65,7 @@ export default function AnalystDashboard() {
     const [cfLoading, setCfLoading] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterLoading, setFilterLoading] = useState(false);
+    const [savedDashboards, setSavedDashboards] = useState<any[]>([]);
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -88,6 +89,13 @@ export default function AnalystDashboard() {
             if (analyticsRes.ok) {
                 const data = await analyticsRes.json();
                 setAnalytics(data);
+            }
+
+            // Fetch dashboards for folder suggestions
+            const dbRes = await fetch('/api/dashboards');
+            if (dbRes.ok) {
+                const data = await dbRes.json();
+                setSavedDashboards(data.dashboards || []);
             }
         } catch (err) {
             console.error('Failed to fetch data:', err);
@@ -418,6 +426,16 @@ export default function AnalystDashboard() {
             categories: Array.from(categories).sort()
         };
     }, [reports]);
+
+    const existingFolders = useMemo(
+        () =>
+            Array.from(new Set(
+                savedDashboards
+                    .map(d => d.folder)
+                    .filter((f): f is string => !!f)
+            )),
+        [savedDashboards]
+    );
 
     const handleApplyFilter = async (filterData: any) => {
         setFilterLoading(true);
@@ -777,6 +795,7 @@ export default function AnalystDashboard() {
                 availableBranches={availableOptions.branches}
                 availableAirlines={availableOptions.airlines}
                 availableCategories={availableOptions.categories}
+                existingFolders={existingFolders}
             />
 
             <TriageModal 
