@@ -7,7 +7,7 @@ import { Upload, FileUp, AlertCircle, CheckCircle, Loader2, X, Database, Truck, 
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Type Definitions ---
-type ImportType = 'NON_CARGO' | 'CARGO' | 'HUB';
+type ImportType = 'NON_CARGO' | 'CARGO';
 
 // Define strict mapping based on reports-service.ts
 // Key = CSV Header, Value = DB Column
@@ -155,9 +155,6 @@ const mapRowToReport = (row: any, importType: ImportType) => {
       // Ensure area is set if possible
       if (!report.area && report.terminal_area_category) report.area = 'TERMINAL';
       if (!report.area && report.apron_area_category) report.area = 'APRON';
-  } else if (importType === 'HUB') {
-      report.source_sheet = 'HUB';
-      report.hub = report.hub || 'CGK'; // Default to CGK if missing for Hub report?
   }
 
   // Generate a robust reference number if ID exists
@@ -309,7 +306,7 @@ export default function ImportDataPage() {
                 <Database size={18} className="text-blue-600" />
                 1. Pilih Tipe Data
             </h3>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
                 <button
                     onClick={() => setImportType('NON_CARGO')}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
@@ -320,7 +317,7 @@ export default function ImportDataPage() {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${importType === 'NON_CARGO' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                             <Plane size={16} />
                         </div>
-                        <span className="font-bold text-gray-900">Non Cargo</span>
+                        <span className="font-bold text-gray-900">Landside & Airside</span>
                     </div>
                     <p className="text-xs text-gray-500">Laporan reguler (Terminal, Apron, General). Sheet: 'NON CARGO'</p>
                 </button>
@@ -340,20 +337,6 @@ export default function ImportDataPage() {
                     <p className="text-xs text-gray-500">Laporan khusus Cargo. Sheet: 'CGO'</p>
                 </button>
 
-                <button
-                    onClick={() => setImportType('HUB')}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        importType === 'HUB' ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                >
-                     <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${importType === 'HUB' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                            <Database size={16} />
-                        </div>
-                        <span className="font-bold text-gray-900">HUB Data</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Data rekapitulasi HUB. Sheet: 'HUB'</p>
-                </button>
             </div>
           </div>
       </div>

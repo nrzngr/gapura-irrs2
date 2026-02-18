@@ -61,7 +61,6 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   flight_number: ['Flight_Number', 'Flight Number', 'No Penerbangan'],
   reporting_branch: ['Reporting_Branch', 'Reporting Branch'],
   branch: ['Branch', 'Cabang', 'Reporting_Branch'],
-  hub: ['HUB', 'Hub'],
   route: ['Route', 'Rute'],
   main_category: ['Report_Category', 'Report Category', 'Kategori Laporan', 'Main Category', 'Irregularity_Complain_Category'],
   category: ['Report_Category', 'Report Category', 'Kategori Laporan', 'Main Category', 'Irregularity_Complain_Category'],
@@ -82,7 +81,6 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   status: ['Status'],
   week_in_month: ['Per_Week_in_Month', 'Per Week in Month'],
   kode_cabang: ['KODE_CABANG_VLOOKUP', 'KODE CABANG (VLOOKUP)'],
-  kode_hub: ['KODE_HUB_VLOOKUP', 'KODE HUB (VLOOKUP)'],
   maskapai_lookup: ['MASKAPAI_VLOOKUP', 'MASKAPAI (VLOOKUP)'],
   lokal_mpa_lookup: ['Lokal_MPA_VLOOKUP', 'Lokal / MPA (VLOOKUP)'],
   
@@ -111,7 +109,6 @@ const WRITE_MAPPING: Record<string, string> = {
   airline: 'Airlines',
   flight_number: 'Flight Number',
   branch: 'Branch',
-  hub: 'HUB',
   main_category: 'Report Category',
   description: 'Report',
   root_caused: 'Root Caused',
@@ -419,18 +416,16 @@ export class ReportsService {
     const cached = getCache<Station[]>(cacheKey, CACHE_TTL);
     if (cached) return cached;
 
-    const sheets = await this.getSheets();
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'HUB!A2:C', // Assuming A: Code, B: Name, C: Hub
-    });
-
-    const rows = response.data.values || [];
-    const stations: Station[] = rows.map((row, idx) => ({
-      id: row[0] || `station_${idx}`,
-      code: row[0] || '',
-      name: row[1] || row[0] || '',
-    })).filter(s => s.code);
+    // Use reported branches from existing data as fallback for stations list
+    // This avoids needing a separate 'HUB' sheet just for mapping
+    const reports = await this.getReports();
+    const branchNames = Array.from(new Set(reports.map(r => r.branch).filter(Boolean)));
+    
+    const stations: Station[] = branchNames.map((name, idx) => ({
+      id: name as string,
+      code: name as string,
+      name: name as string,
+    }));
 
     setCache(cacheKey, stations);
     return stations;

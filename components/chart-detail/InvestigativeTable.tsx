@@ -201,14 +201,14 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
   return (
     <div className={`flex flex-col h-full bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
       {/* ─── 1. HEADER STRIP ─────────────────────────────────────────────────── */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white sticky top-0 z-30">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-bold text-gray-800 truncate">{title}</h3>
+      <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white sticky top-0 z-30 overflow-hidden">
+        <div className="flex flex-col gap-1 min-w-0">
+          <h3 className="text-sm font-bold text-gray-800 break-words">{title}</h3>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
            {/* Summary Stats Pucks */}
-           <div className="flex items-center gap-2 text-xs font-medium">
+           <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
              {stats.complaints > 0 && (
                <span className="px-2 py-1 rounded-md bg-red-50 text-red-700 border border-red-100 flex items-center gap-1 shrink-0">
                  <AlertCircle size={12} /> {stats.complaints}
@@ -227,8 +227,8 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
            </div>
 
            {/* Search & Actions */}
-           <div className="flex items-center gap-2 flex-1 sm:flex-none justify-between sm:justify-end">
-            <div className="relative group flex-1 sm:flex-none">
+           <div className="flex items-center gap-2 flex-1 sm:flex-none justify-between sm:justify-end w-full sm:w-auto">
+            <div className="relative group flex-1 sm:flex-none min-w-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
               <input
                 type="text"
@@ -239,7 +239,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
               />
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button 
                 onClick={handleExport}
                 className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100" 
@@ -271,20 +271,20 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
               <th className="px-3 py-3 text-left w-10 shrink-0" />
               <th className="px-2 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider w-10 text-center shrink-0">#</th>
               {categoryCol && (
-                <th onClick={() => handleSort(categoryCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[120px] max-w-[160px]">
-                  <div className="flex items-center gap-1">{categoryCol} {sortCol === categoryCol && (sortDir === 'asc' ? '▲' : '▼')}</div>
+                <th onClick={() => handleSort(categoryCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[120px] max-w-[160px] break-words">
+                  <div className="flex items-center gap-1 whitespace-normal">{categoryCol} {sortCol === categoryCol && (sortDir === 'asc' ? '▲' : '▼')}</div>
                 </th>
               )}
               {dateCol && (
-                <th onClick={() => handleSort(dateCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[100px] whitespace-nowrap">
+                <th onClick={() => handleSort(dateCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[80px] sm:min-w-[100px] whitespace-nowrap">
                   <div className="flex items-center gap-1">{dateCol} {sortCol === dateCol && (sortDir === 'asc' ? '▲' : '▼')}</div>
                 </th>
               )}
               {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => {
                 const isLongText = ['root_cause', 'root caused', 'root cause', 'action_taken', 'action taken', 'action', 'corrective_action'].includes(col.toLowerCase());
                 return (
-                  <th key={col} onClick={() => handleSort(col)} className={`px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${isLongText ? 'min-w-[200px]' : 'min-w-[100px]'} break-words whitespace-nowrap`}>
-                    <div className="flex items-center gap-1">
+                  <th key={col} onClick={() => handleSort(col)} className={`px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${isLongText ? 'min-w-[150px] sm:min-w-[200px]' : 'min-w-[80px] sm:min-w-[100px]'} break-words`}>
+                    <div className="flex items-center gap-1 whitespace-normal">
                       {col.replace(/_/g, ' ')}
                       {sortCol === col && <span className="text-indigo-500">{sortDir === 'asc' ? '▲' : '▼'}</span>}
                     </div>
@@ -292,8 +292,8 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                 );
               })}
               {reportCol && (
-                <th className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider min-w-[250px]">
-                  Report Preview
+                <th className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider min-w-[200px] sm:min-w-[250px] break-words">
+                  <div className="whitespace-normal">Report Preview</div>
                 </th>
               )}
             </tr>
@@ -323,21 +323,21 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                       `}
                     >
                       {/* Toggle & Number */}
-                      <td className="px-3 py-3 text-center align-top">
+                      <td className="px-3 py-3 text-center align-top w-10 shrink-0">
                         <button className={`p-1 rounded-full transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'text-gray-300 group-hover:text-gray-500'}`}>
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </button>
                       </td>
-                      <td className="px-2 py-3 text-center text-xs font-mono text-gray-400 group-hover:text-gray-600 align-top">
+                      <td className="px-2 py-3 text-center text-xs font-mono text-gray-400 group-hover:text-gray-600 align-top w-10 shrink-0">
                         {idx + 1}
                       </td>
 
                       {/* Category Badge */}
                       {categoryCol && (
-                        <td className="px-3 py-3 align-top">
-                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold border shadow-sm ring-1 ring-inset w-fit whitespace-normal break-words leading-tight ${badges}`}>
+                        <td className="px-3 py-3 align-top min-w-0 max-w-0">
+                           <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[9px] sm:text-[10px] font-semibold border shadow-sm ring-1 ring-inset w-fit whitespace-normal break-words leading-tight ${badges}`}>
                              <span className="shrink-0">{Icon}</span>
-                             <span>{String(row[categoryCol])}</span>
+                             <span className="break-words">{String(row[categoryCol])}</span>
                            </span>
                         </td>
                       )}
@@ -361,7 +361,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                           const urls = parseEvidenceLinks(row[col]);
                           return (
                             <td key={col} className="px-3 py-3 text-xs align-top">
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-2 min-w-0">
                                 {urls.map((url, uIdx) => (
                                   <a 
                                     key={uIdx} 
@@ -380,11 +380,11 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                         }
 
                         return (
-                          <td key={col} className={`px-3 py-3 text-xs text-gray-700 align-top break-words ${isLongText ? 'font-normal' : 'font-medium'}`}>
+                          <td key={col} className={`px-3 py-3 text-xs text-gray-700 align-top break-words min-w-0 max-w-0 ${isLongText ? 'font-normal' : 'font-medium'}`}>
                             {col === 'flight' || col === 'airlines' ? (
-                              <span className="font-mono">{formatDisplayValue(row[col], col)}</span>
+                              <span className="font-mono break-all line-clamp-2 md:line-clamp-none whitespace-normal inline-block w-full">{formatDisplayValue(row[col], col)}</span>
                             ) : (
-                              formatDisplayValue(row[col], col)
+                              <span className="break-words line-clamp-3 md:line-clamp-none whitespace-normal inline-block w-full">{formatDisplayValue(row[col], col)}</span>
                             )}
                           </td>
                         );
@@ -392,8 +392,8 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
 
                       {/* Report Preview (Truncated) */}
                       {reportCol && (
-                        <td className="px-3 py-3 text-xs text-gray-600 align-top">
-                          <div className="line-clamp-2 leading-relaxed break-words">
+                        <td className="px-3 py-3 text-xs text-gray-600 align-top min-w-0 max-w-0">
+                          <div className="line-clamp-2 leading-relaxed break-words whitespace-normal font-normal">
                             {String(row[reportCol])}
                           </div>
                           <span className="text-[10px] text-indigo-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">

@@ -361,8 +361,8 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
     }
 
     return (
-        <div className="space-y-6 pb-24 stagger-children">
-            <header className={`relative overflow-hidden rounded-3xl p-8 lg:p-10 animate-fade-in-up bg-gradient-to-br ${division.gradient}`}>
+        <div className="px-3 sm:px-6 py-6 sm:py-8 lg:p-12 space-y-6 sm:space-y-8 lg:space-y-12 pb-24 stagger-children overflow-x-hidden">
+            <header className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10 animate-fade-in-up bg-gradient-to-br ${division.gradient}`}>
                 <NoiseTexture />
                 <div className="absolute -top-20 -right-20 w-60 h-60 bg-white/10 rounded-full blur-2xl" />
                 
@@ -374,34 +374,47 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                                 <span className="text-white text-xs font-bold uppercase tracking-wider">{division.code}</span>
                             </span>
                         </div>
-                        <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-white mb-2">
+                        <h1 className="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white mb-2 leading-tight break-words">
                             Dashboard {division.name}
                         </h1>
-                        <p className="text-white/80 text-sm">Analisis data dan laporan divisi</p>
+                        <p className="text-white/80 text-xs sm:text-sm">Pusat Komando & Analytics Operational Services</p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
                         {showGenerateFeedback && (
                             <button 
                                 onClick={handleCustomerFeedbackShortcut}
                                 disabled={cfLoading}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white text-[var(--brand-primary)] hover:bg-white/90 shadow-xl disabled:opacity-50"
+                                title="Customer Feedback Dashboard"
+                                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-[var(--brand-primary)] hover:bg-white/90 shadow-xl disabled:opacity-50"
                             >
                                 {cfLoading ? <Loader2 size={16} className="animate-spin" /> : <LayoutDashboard size={16} />}
-                                Customer Feedback
+                                <span className="hidden sm:inline">Customer Feedback</span>
+                                <span className="sm:hidden">Feedback</span>
                             </button>
                         )}
-                        <button onClick={() => setShowFilterModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm">
-                            <Plus size={16} /> Filter L&A
+                        <button 
+                            onClick={() => setShowFilterModal(true)} 
+                            title="Filter Laporan"
+                            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm"
+                        >
+                            <Plus size={16} /> 
+                            <span className="hidden sm:inline">Filter L&A</span>
+                            <span className="sm:hidden">Filter</span>
                         </button>
-                        <button onClick={() => fetchData(true)} disabled={refreshing} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm disabled:opacity-50">
+                        <button 
+                            onClick={() => fetchData(true)} 
+                            disabled={refreshing} 
+                            title="Refresh Data"
+                            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm disabled:opacity-50"
+                        >
                             {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                            Refresh
+                            <span className="hidden sm:inline">Refresh</span>
                         </button>
                     </div>
                 </div>
 
-                <div className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/20">
+                <div className="relative z-10 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mt-8 pt-6 border-t border-white/20">
                     <MiniStat icon={FileText} label="Total Laporan" value={analytics?.summary.totalReports || 0} />
                     <MiniStat icon={CheckCircle2} label="Selesai" value={analytics?.summary.resolvedReports || 0} />
                     <MiniStat icon={Clock} label="Pending" value={analytics?.summary.pendingReports || 0} highlight />
@@ -432,33 +445,33 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             </div>
 
             <div className="card-solid p-0 overflow-hidden animate-fade-in-up">
-                <div className={cn("p-6 border-b border-[var(--surface-4)]", division.bgLight)}>
+                <div className={cn("p-4 sm:p-6 border-b border-[var(--surface-4)]", division.bgLight)}>
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <ClipboardList size={20} className={division.textColor} />
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Daftar Laporan</h3>
-                                <p className="text-xs text-[var(--text-muted)]">{filteredReportsList.length} laporan ditampilkan</p>
+                                <h3 className="font-bold text-base sm:text-lg text-[var(--text-primary)]">Daftar Laporan</h3>
+                                <p className="text-[10px] sm:text-xs text-[var(--text-muted)]">{filteredReportsList.length} laporan ditampilkan</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <div className="relative flex-1 min-w-[240px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            <div className="relative flex-1 sm:min-w-[240px]">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] border-none" size={14} />
                                 <input
                                     type="text"
-                                    placeholder="Cari maskapai, flight, atau judul..."
+                                    placeholder="Cari maskapai, flight..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-white border border-[var(--surface-4)] rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+                                    className="w-full bg-white border border-[var(--surface-4)] rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
                                 />
                             </div>
-                            <div className="flex bg-[var(--surface-3)] p-1 rounded-xl border border-[var(--surface-4)]">
+                            <div className="flex bg-[var(--surface-3)] p-1 rounded-xl border border-[var(--surface-4)] self-start sm:self-auto">
                                 {(['all', 'week', 'month'] as const).map((r) => (
                                     <button
                                         key={r}
                                         onClick={() => setDateRange(r)}
                                         className={cn(
-                                            "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all",
+                                            "px-3 py-1 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold uppercase transition-all",
                                             dateRange === r ? "bg-white text-[var(--brand-primary)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                                         )}
                                     >
@@ -561,11 +574,13 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
 
 function MiniStat({ icon: Icon, label, value, highlight }: { icon: any; label: string; value: string | number; highlight?: boolean }) {
     return (
-        <div className="flex items-center gap-3">
-            <div className={cn("p-2.5 rounded-xl", highlight ? "bg-white/30" : "bg-white/20")}><Icon size={18} className="text-white" /></div>
-            <div>
-                <p className="text-white/70 text-[10px] uppercase tracking-wider font-medium">{label}</p>
-                <p className="text-white text-xl font-bold">{value}</p>
+        <div className="flex items-center gap-2 sm:gap-3">
+            <div className={cn("p-2 sm:p-2.5 rounded-lg sm:rounded-xl", highlight ? "bg-white/30" : "bg-white/20")}>
+                <Icon size={16} className="text-white sm:w-[18px] sm:h-[18px]" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-white/70 text-[8px] sm:text-[10px] uppercase tracking-wider font-medium truncate">{label}</p>
+                <p className="text-white text-base sm:text-xl font-bold leading-tight">{value}</p>
             </div>
         </div>
     );

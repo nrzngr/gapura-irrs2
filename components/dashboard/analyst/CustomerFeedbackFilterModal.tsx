@@ -106,9 +106,9 @@ export function CustomerFeedbackFilterModal({
                         <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
                             <Calendar size={14} /> Periode Tanggal
                         </h4>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Dari</label>
+                                <label className="block text-[10px] sm:text-xs font-medium text-gray-500 mb-1">Dari</label>
                                 <input 
                                     type="date" 
                                     value={dateFrom}
@@ -117,7 +117,7 @@ export function CustomerFeedbackFilterModal({
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Sampai</label>
+                                <label className="block text-[10px] sm:text-xs font-medium text-gray-500 mb-1">Sampai</label>
                                 <input 
                                     type="date" 
                                     value={dateTo}

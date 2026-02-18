@@ -253,17 +253,16 @@ export default function AnalystCharts({
                             </div>
                             <CalendarDays size={20} className="text-[var(--text-muted)]" />
                         </div>
-                        <div className="flex justify-end gap-4 mb-3">
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
+                        <div className="flex flex-wrap justify-center sm:justify-end gap-3 sm:gap-4 mb-4">
                             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
                             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#f43f5e]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
                             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0ea5e9]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
                         </div>
-                        <div className="h-[280px]">
+                        <div className="h-[240px] sm:h-[280px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
                                     data={monthlyReportData as MonthlyReportItem[]}
-                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                                    margin={{ top: 10, right: 10, left: -15, bottom: 5 }}
                                     onClick={(state) => {
                                         const s = state as { activeLabel?: string };
                                         if (s?.activeLabel) onDrilldown(drilldownUrl('month', String(s.activeLabel)));
@@ -271,17 +270,26 @@ export default function AnalystCharts({
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                    <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} dy={10} />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        tick={{fill: 'var(--text-secondary)', fontSize: 9}} 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        height={50}
+                                        interval={0}
+                                        angle={-45}
+                                        textAnchor="end"
+                                    />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32}>
-                                        <LabelList dataKey="irregularity" position="top" fill="var(--text-secondary)" fontSize={10} formatter={(v: any) => v > 0 ? v : ''} />
+                                    <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
+                                        <LabelList dataKey="irregularity" position="top" fill="var(--text-secondary)" fontSize={9} formatter={(v: any) => v > 0 ? v : ''} />
                                     </Bar>
-                                    <Bar dataKey="complaint" name="Complaint" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={32}>
-                                        <LabelList dataKey="complaint" position="top" fill="var(--text-secondary)" fontSize={10} formatter={(v: any) => v > 0 ? v : ''} />
+                                    <Bar dataKey="complaint" name="Complaint" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={24}>
+                                        <LabelList dataKey="complaint" position="top" fill="var(--text-secondary)" fontSize={9} formatter={(v: any) => v > 0 ? v : ''} />
                                     </Bar>
-                                    <Bar dataKey="compliment" name="Compliment" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={32}>
-                                        <LabelList dataKey="compliment" position="top" fill="var(--text-secondary)" fontSize={10} formatter={(v: any) => v > 0 ? v : ''} />
+                                    <Bar dataKey="compliment" name="Compliment" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={24}>
+                                        <LabelList dataKey="compliment" position="top" fill="var(--text-secondary)" fontSize={9} formatter={(v: any) => v > 0 ? v : ''} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -326,11 +334,11 @@ export default function AnalystCharts({
                             <p className="text-sm text-[var(--text-muted)] text-center py-12">Belum ada data perbandingan bulanan</p>
                         ) : (
                             <>
-                                <div className="h-[320px] w-full">
+                                <div className="h-[260px] sm:h-[320px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <ComposedChart
                                             data={monthlyComparisonData as MonthlyComparisonItem[]}
-                                            margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
+                                            margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
                                             onClick={(state) => {
                                                 if (state?.activeLabel) onDrilldown(drilldownUrl('month', String(state.activeLabel)));
                                             }}
@@ -339,15 +347,18 @@ export default function AnalystCharts({
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
                                             <XAxis 
                                                 dataKey="month" 
-                                                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} 
+                                                tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} 
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                dy={10}
+                                                height={50}
+                                                interval={0}
+                                                angle={-45}
+                                                textAnchor="end"
                                             />
                                             {/* Primary Axis (Volume) */}
                                             <YAxis 
                                                 yAxisId="left" 
-                                                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} 
+                                                tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} 
                                                 axisLine={false} 
                                                 tickLine={false} 
                                             />
@@ -438,18 +449,18 @@ export default function AnalystCharts({
                                         </ComposedChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <div className="flex justify-center gap-6 mt-6">
+                                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6">
                                     <div className="flex items-center gap-2">
                                         <div className="w-3 h-3 rounded" style={{ background: '#cbd5e1' }} />
-                                        <span className="text-xs text-[var(--text-muted)]">Masuk (Volume)</span>
+                                        <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Masuk</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <div className="w-3 h-3 rounded" style={{ background: '#10b981' }} />
-                                        <span className="text-xs text-[var(--text-muted)]">Selesai (Resolved)</span>
+                                        <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Selesai</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <div className="w-3 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
-                                        <span className="text-xs text-[var(--text-muted)]">Completion Rate %</span>
+                                        <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Rate %</span>
                                     </div>
                                 </div>
                             </>
@@ -474,15 +485,15 @@ export default function AnalystCharts({
                                 <p className="text-xs text-[var(--text-muted)]">Proporsi Tipe Laporan</p>
                             </div>
                         </div>
-                        <div className="h-[200px] relative">
+                        <div className="h-[180px] sm:h-[200px] relative">
                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsPie>
                                     <Pie
                                         data={caseCategoryData as CaseCategoryItem[]}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={85}
+                                        innerRadius={45}
+                                        outerRadius={75}
                                         paddingAngle={3}
                                         dataKey="value"
                                         cornerRadius={4}
@@ -499,10 +510,10 @@ export default function AnalystCharts({
                                 </RechartsPie>
                             </ResponsiveContainer>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-2xl font-bold text-[var(--text-primary)]">
+                                <span className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
                                     {(caseCategoryData as CaseCategoryItem[]).reduce((sum, d) => sum + d.value, 0)}
                                 </span>
-                                <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
+                                <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
                             </div>
                         </div>
                         <div className="flex flex-wrap justify-center gap-3 mt-2">
@@ -546,8 +557,17 @@ export default function AnalystCharts({
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="month" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <XAxis 
+                                        dataKey="month" 
+                                        tick={{fill: 'var(--text-secondary)', fontSize: 9}} 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        height={50}
+                                        interval={0}
+                                        angle={-45}
+                                        textAnchor="end"
+                                    />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Area type="monotone" dataKey="total" name="Total" stroke="var(--brand-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
                                     <Area type="monotone" dataKey="resolved" name="Selesai" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorResolved)" />
@@ -576,8 +596,17 @@ export default function AnalystCharts({
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                    <XAxis dataKey="name" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <XAxis 
+                                        dataKey="name" 
+                                        tick={{fill: 'var(--text-secondary)', fontSize: 9}} 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        height={60}
+                                        interval={0}
+                                        angle={-45}
+                                        textAnchor="end"
+                                    />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar dataKey="value" name="Laporan" radius={[4, 4, 0, 0]} barSize={40}>
                                         {(categoryByAreaData as any[]).map((entry, index) => (
@@ -599,19 +628,19 @@ export default function AnalystCharts({
                             </div>
                             <Activity size={20} className="text-[var(--text-muted)]" />
                         </div>
-                        <div className="h-[320px]">
+                        <div className="h-[260px] sm:h-[320px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
                                     data={areaSubCategoryData as any[]}
-                                    margin={{ top: 25, right: 30, left: 0, bottom: 5 }}
+                                    margin={{ top: 25, right: 10, left: -20, bottom: 5 }}
                                     onClick={(state) => {
                                         if (state?.activeLabel) onDrilldown(drilldownUrl('area', String(state.activeLabel)));
                                     }}
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                    <XAxis dataKey="area" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="area" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     {allSubCategories.map((cat, idx) => (
                                         <Bar 
@@ -620,13 +649,13 @@ export default function AnalystCharts({
                                             name={cat} 
                                             fill={COLORS[idx % COLORS.length]} 
                                             radius={[4, 4, 0, 0]}
-                                            barSize={16}
+                                            barSize={12}
                                         >
                                             <LabelList 
                                                 dataKey={cat} 
                                                 position="top" 
                                                 fill="var(--text-secondary)" 
-                                                fontSize={10} 
+                                                fontSize={9} 
                                                 formatter={(v: any) => v > 0 ? v : ''}
                                             />
                                         </Bar>
@@ -662,12 +691,12 @@ export default function AnalystCharts({
                                 <p className="text-xs text-[var(--text-muted)]">Top 10 Stasiun dengan volume tertinggi</p>
                             </div>
                         </div>
-                        <div className="h-[300px]">
+                        <div className="h-[250px] sm:h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={branchReportData as BranchReportItem[]} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                <BarChart data={branchReportData as BranchReportItem[]} margin={{ top: 10, right: 10, left: -25, bottom: 10 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="station" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="station" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={50} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar
                                         dataKey="count"
@@ -679,8 +708,9 @@ export default function AnalystCharts({
                                             if (d?.station) onDrilldown(drilldownUrl('station', d.station));
                                         }}
                                         style={{ cursor: 'pointer' }}
+                                        barSize={20}
                                     >
-                                        <LabelList dataKey="count" position="top" fill="var(--text-secondary)" fontSize={10} />
+                                        <LabelList dataKey="count" position="top" fill="var(--text-secondary)" fontSize={9} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -736,11 +766,11 @@ export default function AnalystCharts({
                                 <p className="text-xs text-[var(--text-muted)]">Top Maskapai dengan laporan terbanyak</p>
                             </div>
                         </div>
-                        <div className="h-[300px]">
+                        <div className="h-[280px] sm:h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={airlinesTotalData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                                <BarChart data={airlinesTotalData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} interval={0} height={60} />
+                                    <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} interval={0} height={70} angle={-45} textAnchor="end" />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar
@@ -753,8 +783,9 @@ export default function AnalystCharts({
                                             if (d?.airline) onDrilldown(drilldownUrl('airline', d.airline));
                                         }}
                                         style={{ cursor: 'pointer' }}
+                                        barSize={20}
                                     >
-                                        <LabelList dataKey="total" position="top" fill="var(--text-secondary)" fontSize={10} />
+                                        <LabelList dataKey="total" position="top" fill="var(--text-secondary)" fontSize={9} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>

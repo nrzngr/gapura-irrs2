@@ -143,10 +143,24 @@ function ExpandableTableCell({ content }: { content: string }) {
     </div>
   );
 }
+// Custom hook for mobile detection
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  return isMobile;
+}
 
 export function ChartPreview({ visualization, result, compact = false, tile, dashboardId, viewMode = 'values', normalization = 'none', isThumbnail = false }: ChartPreviewProps) {
   const { colorField, showLabels, colors } = visualization;
   let { chartType } = visualization;
+  const isMobile = useIsMobile();
   
   // Normalize chartType - default to 'bar' if not provided or invalid
   const validChartTypes = ['bar', 'horizontal_bar', 'line', 'area', 'pie', 'donut', 'heatmap', 'table', 'pivot', 'kpi', 'branch_area_grid'];
@@ -731,7 +745,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       : { cx: '50%', cy: '50%', innerRadius: isDonut ? 80 : 0, outerRadius: 110 };
 
     // Use fixed height for pie charts to ensure they render properly, prevent scrollbars
-    const pieHeight = compact ? 250 : 380; 
+    const pieHeight = isMobile ? (compact ? 300 : 350) : (compact ? 250 : 380); 
     
     return wrap(
       <div style={{ width: '100%', height: pieHeight, overflow: 'hidden' }} className="flex flex-col items-center justify-center">
@@ -742,12 +756,13 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
               verticalAlign="bottom"
               align="center"
               layout="horizontal"
-              iconSize={8}
+              iconSize={isMobile ? 6 : 8}
               iconType="circle"
               wrapperStyle={{ 
-                fontSize: '11px',
+                fontSize: isMobile ? '10px' : '11px',
                 width: '100%',
-                paddingTop: '10px'
+                paddingTop: isMobile ? '5px' : '10px',
+                lineHeight: '1.2'
               }}
             />
             <Pie
@@ -799,7 +814,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
     tickLine: false,
   };
 
-  const chartHeight = compact ? 220 : 400;
+  const chartHeight = isMobile ? (compact ? 280 : 350) : (compact ? 220 : 400);
 
   // Calculate margins based on rotation and labels for all charts except pie/heatmap
   const isXLong = data.some(d => String(d[activeXKey] ?? '').length > (compact ? 6 : 10));

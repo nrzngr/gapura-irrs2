@@ -798,7 +798,7 @@ export function CustomDashboardContent() {
                 )}
                 
                 <div className="min-w-0">
-                  <h1 className="text-lg md:text-2xl font-bold text-gray-800 leading-tight truncate">
+                  <h1 className="text-lg md:text-2xl font-bold text-gray-800 leading-tight break-words">
                     {(() => {
                       const pName = pages[activePage]?.name || '';
                       const cfFrom = dateFrom || dashboard?.config?.dateFrom;
@@ -829,7 +829,7 @@ export function CustomDashboardContent() {
                     })()}
                   </h1>
                   {hasMultiplePages && pages[activePage] && (
-                    <span className="text-sm text-gray-500 font-medium block mt-1 truncate">{pages[activePage].name}</span>
+                    <span className="text-sm text-gray-500 font-medium block mt-1 break-words">{pages[activePage].name}</span>
                   )}
                 </div>
               </div>
@@ -938,7 +938,7 @@ export function CustomDashboardContent() {
 
             {/* KPI Stats Row */}
             {kpiTiles.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-4 mt-6 relative z-0">
+              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mt-6 relative z-0">
                 {kpiTiles.slice(0, 5).map(tile => {
                   const cr = chartsData.get(tile.id);
                   let value: string | number = '-';
@@ -963,18 +963,14 @@ export function CustomDashboardContent() {
                           );
                         }
                       }}
-                      className="relative bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.08)] transition-all cursor-pointer group overflow-hidden flex flex-col items-center justify-center text-center min-h-[120px] flex-1 min-w-[200px] max-w-[280px]"
+                      className="relative bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden flex flex-col items-center justify-center text-center min-h-[100px] sm:min-h-[120px] w-full"
                     >
-                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#6b8e3d] to-[#aed581] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <div className="flex flex-col gap-1 items-center relative z-10 w-full">
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full">{tile.title}</div>
-                        <div className="text-3xl md:text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-[#6b8e3d] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="flex flex-col gap-1 items-center relative z-10 w-full min-w-0">
+                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full truncate px-1">{tile.title}</div>
+                        <div className="text-xl sm:text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full truncate px-1">
                           {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
                         </div>
-                      </div>
-                      <div className="absolute bottom-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500 pointer-events-none">
-                         {/* Abstract decoration */}
-                         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#6b8e3d] to-transparent blur-xl" />
                       </div>
                     </div>
                   );
@@ -983,17 +979,17 @@ export function CustomDashboardContent() {
             )}
 
             {kpiTiles.length === 0 && (
-              <div className="flex flex-wrap justify-center gap-4 mt-6 relative z-0">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6 relative z-0">
                 {[
                   { label: 'Total Report', value: totalReport > 0 ? totalReport : '-' },
-                  { label: 'Halaman', value: pages.length },
+                  { label: 'Halamans', value: pages.length },
                   { label: 'Total Chart', value: dashboard.dashboard_charts.length },
                   { label: 'Filter Aktif', value: activeFilterCount || '-' }
                 ].map((stat, i) => (
-                  <div key={i} className="relative bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] flex flex-col gap-1 items-center justify-center text-center group overflow-hidden flex-1 min-w-[200px] max-w-[280px] min-h-[120px]">
-                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#6b8e3d] to-[#aed581] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full">{stat.label}</div>
-                     <div className="text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full">
+                  <div key={i} className="relative bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1 items-center justify-center text-center group overflow-hidden w-full min-h-[100px] sm:min-h-[120px]">
+                     <div className="absolute top-0 left-0 w-1 h-full bg-[#6b8e3d] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                     <div className="text-[8px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full truncate px-1">{stat.label}</div>
+                     <div className="text-xl sm:text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full truncate px-1">
                         {typeof stat.value === 'number' ? stat.value.toLocaleString('id-ID') : stat.value}
                      </div>
                   </div>
