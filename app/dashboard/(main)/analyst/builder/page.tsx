@@ -15,7 +15,7 @@ interface SavedDashboard {
 
 export default function DashboardBuilderPage() {
   const [savedDashboards, setSavedDashboards] = useState<SavedDashboard[]>([]);
-  const [savedExpanded, setSavedExpanded] = useState(false);
+  const [savedExpanded, setSavedExpanded] = useState(true);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function DashboardBuilderPage() {
         setSavedDashboards(dashboards);
         
         // Auto-expand all folders initially
-        const uniqueFolders = Array.from(new Set(dashboards.map((d: any) => d.folder || 'Uncategorized')));
+        const uniqueFolders = Array.from(new Set(dashboards.map((d: any) => d.folder || 'Lainnya')));
         const initialExpanded: Record<string, boolean> = {};
         uniqueFolders.forEach(f => {
           initialExpanded[f as string] = true;
@@ -141,7 +141,7 @@ export default function DashboardBuilderPage() {
                         <BarChart3 size={10} />
                         {folderName}
                         <span className="opacity-50">({dashboards.length})</span>
-                        {expandedFolders[folderName] !== false ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
+                        {expandedFolders[folderName] !== false ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                       </div>
                       <div className="flex-1 h-px bg-[var(--surface-4)] group-hover:bg-[var(--brand-primary)]/30 transition-colors" />
                     </button>
