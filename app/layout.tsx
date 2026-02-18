@@ -20,6 +20,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
     title: 'Gapura Operations Dashboard',
     description: 'Sistem Pelaporan & Monitoring Operasional Bandara',
+    icons: {
+        icon: '/logo.png',
+        shortcut: '/logo.png',
+        apple: '/logo.png',
+    },
     appleWebApp: {
         capable: true,
         statusBarStyle: 'black-translucent',
