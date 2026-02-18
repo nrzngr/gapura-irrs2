@@ -133,7 +133,7 @@ interface CustomTooltipProps {
     label?: string;
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#81c784', '#13b5cb', '#cddc39', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const WrappedXAxisTick = (props: any) => {
     const { x, y, payload } = props;
@@ -243,6 +243,16 @@ export default function AnalystCharts({
         });
         return Array.from(cats);
     }, [areaSubCategoryData]);
+    // Derived Data: Sorted Case Category with Rank Colors
+    const sortedCaseCategoryData = useMemo(() => {
+        return [...caseCategoryData]
+            .sort((a, b) => b.value - a.value)
+            .map((item, index) => ({
+                ...item,
+                fill: COLORS[index % COLORS.length]
+            }));
+    }, [caseCategoryData]);
+
     // Derived Data: Airlines Total (Sum of categories)
     const airlinesTotalData = useMemo(() => {
         return categoryByAirlinesData.map(item => ({
@@ -278,18 +288,24 @@ export default function AnalystCharts({
         const resolved = safeTrendData.reduce((acc, curr) => acc + curr.resolved, 0);
         const pending = total - resolved;
         return [
-            { name: 'Selesai', value: resolved, fill: '#10b981' },
+            { name: 'Selesai', value: resolved, fill: '#81c784' },
             { name: 'Belum Selesai', value: pending, fill: '#cbd5e1' }
         ];
     }, [safeTrendData]);
 
     // Derived Data: Monthly Volume Distribution (Pie Chart)
     const monthlyVolumeData = useMemo(() => {
-        return monthlyReportData.map((item, index) => ({
-            name: item.month,
-            value: item.irregularity + item.complaint + item.compliment,
-            fill: COLORS[index % COLORS.length]
-        })).filter(item => item.value > 0);
+        return monthlyReportData
+            .map(item => ({
+                name: item.month,
+                value: item.irregularity + item.complaint + item.compliment
+            }))
+            .filter(item => item.value > 0)
+            .sort((a, b) => b.value - a.value)
+            .map((item, index) => ({
+                ...item,
+                fill: COLORS[index % COLORS.length]
+            }));
     }, [monthlyReportData]);
 
     return (
@@ -314,7 +330,7 @@ export default function AnalystCharts({
                             <ResponsiveContainer width="100%" height="100%">
                                 <RechartsPie>
                                     <Pie
-                                        data={caseCategoryData as CaseCategoryItem[]}
+                                        data={sortedCaseCategoryData}
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={45}
@@ -327,7 +343,7 @@ export default function AnalystCharts({
                                         }}
                                         style={{ cursor: 'pointer' }}
                                     >
-                                        {(caseCategoryData as CaseCategoryItem[]).map((entry, index) => (
+                                        {sortedCaseCategoryData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}
                                     </Pie>
@@ -336,13 +352,13 @@ export default function AnalystCharts({
                             </ResponsiveContainer>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <span className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
-                                    {(caseCategoryData as CaseCategoryItem[]).reduce((sum, d) => sum + d.value, 0)}
+                                    {sortedCaseCategoryData.reduce((sum, d) => sum + d.value, 0)}
                                 </span>
                                 <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
                             </div>
                         </div>
                         <div className="flex flex-wrap justify-center gap-3 mt-2">
-                             {(caseCategoryData as CaseCategoryItem[]).map((s) => (
+                             {sortedCaseCategoryData.map((s) => (
                                 <div key={s.name} className="flex items-center gap-1.5 cursor-pointer" onClick={() => onDrilldown(drilldownUrl('category', s.name))}>
                                     <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
                                     <span className="text-[10px] text-[var(--text-secondary)]">{s.name}</span>
