@@ -978,7 +978,7 @@ export default function AnalystCharts({
         <>
             {/* Slide 2: General Categories & Volume Trends */}
             <PresentationSlide
-                title="Tren & Distribusi Kategori"
+                title="Tren & Distribusi Kategori Landside & Airside + CGO"
                 subtitle="Volume laporan dan proporsi kategori"
                 icon={PieChartIcon}
                 hint="Klik segmen untuk filter berdasarkan kategori"
@@ -1376,7 +1376,7 @@ export default function AnalystCharts({
 
             {/* Slide 3: Station Analysis (Total & Category Breakdown) */}
             <PresentationSlide
-                title="Analisis Stasiun"
+                title="Analisis Stasiun Landside & Airside + CGO"
                 subtitle="Performa dan kategori laporan per cabang"
                 icon={Building2}
                 hint="Klik bar untuk filter per stasiun"
@@ -1676,7 +1676,7 @@ export default function AnalystCharts({
 
             {/* Slide 4: Airline Analysis (Total & Category Breakdown) */}
             <PresentationSlide
-                title="Analisis Maskapai"
+                title="Analisis Maskapai Landside & Airside + CGO"
                 subtitle="Volume dan kategori laporan berdasarkan maskapai"
                 icon={TrendingUp}
                 hint="Klik chart untuk filter per maskapai"
