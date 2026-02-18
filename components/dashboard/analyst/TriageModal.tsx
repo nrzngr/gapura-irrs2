@@ -152,16 +152,16 @@ export function TriageModal({ isOpen, onClose, report, onSubmit }: TriageModalPr
                             />
                         </div>
 
-                        {/* Sub Category / Notes */}
+                        {/* Remarks Gapura KPS */}
                         <div className="space-y-2">
                             <label htmlFor="sub_note" className="text-sm font-semibold text-gray-700 block">
-                                Sub Category / Notes
+                                Remarks Gapura KPS
                             </label>
                             <textarea
                                 id="sub_note"
                                 value={subCategoryNote}
                                 onChange={(e) => setSubCategoryNote(e.target.value)}
-                                placeholder="Add detailed categorization notes, context, or specific instructions..."
+                                placeholder="Tambahkan catatan, konteks, atau instruksi khusus Gapura KPS..."
                                 className={cn(
                                     "w-full min-h-[120px] p-4 rounded-xl resize-y",
                                     "bg-gray-50 border-2 border-gray-200",

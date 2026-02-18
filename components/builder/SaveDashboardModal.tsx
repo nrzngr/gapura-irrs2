@@ -9,7 +9,8 @@ interface SaveDashboardModalProps {
   onClose: () => void;
   initialName: string;
   initialDescription: string;
-  onSave: (name: string, description: string) => Promise<{ embedUrl: string } | null>;
+  initialFolder?: string;
+  onSave: (name: string, description: string, folder: string | null) => Promise<{ embedUrl: string } | null>;
   tileCount?: number;
   pageCount?: number;
 }
@@ -19,12 +20,14 @@ export function SaveDashboardModal({
   onClose,
   initialName,
   initialDescription,
+  initialFolder = '',
   onSave,
   tileCount = 0,
   pageCount = 0,
 }: SaveDashboardModalProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
+  const [folder, setFolder] = useState(initialFolder);
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -34,7 +37,7 @@ export function SaveDashboardModal({
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const result = await onSave(name, description);
+    const result = await onSave(name, description, folder.trim() || null);
     setSaving(false);
     if (result) {
       setSavedUrl(result.embedUrl);
@@ -87,8 +90,20 @@ export function SaveDashboardModal({
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   placeholder="Deskripsi singkat dashboard..."
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">
+                  Folder (Opsional)
+                </label>
+                <input
+                  type="text"
+                  value={folder}
+                  onChange={e => setFolder(e.target.value)}
+                  placeholder="Contoh: Laporan Bulanan"
+                  className="w-full px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
                 />
               </div>
 

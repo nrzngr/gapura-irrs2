@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, Filter, Loader2, FileText } from 'lucide-react';
+import { X, Calendar, Filter, Loader2, FileText, Box } from 'lucide-react';
 import { PrismMultiSelect } from '@/components/ui/PrismMultiSelect';
 
 interface CustomerFeedbackFilterModalProps {
@@ -16,7 +16,8 @@ interface CustomerFeedbackFilterModalProps {
             branches: string[];
             airlines: string[];
             categories: string[];
-        }
+        };
+        folder?: string;
     }) => void;
     loading?: boolean;
     availableHubs: string[];
@@ -40,6 +41,7 @@ export function CustomerFeedbackFilterModal({
     const [dateFrom, setDateFrom] = useState(initialDateRange?.from || '');
     const [dateTo, setDateTo] = useState(initialDateRange?.to || '');
     const [customTitle, setCustomTitle] = useState('');
+    const [folder, setFolder] = useState('');
     
     const [selectedHubs, setSelectedHubs] = useState<string[]>([]);
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
@@ -50,6 +52,7 @@ export function CustomerFeedbackFilterModal({
     useEffect(() => {
         if (isOpen) {
             setCustomTitle(''); // Reset title on open
+            setFolder('');      // Reset folder on open
             if (initialDateRange) {
                 setDateFrom(initialDateRange.from);
                 setDateTo(initialDateRange.to);
@@ -69,7 +72,8 @@ export function CustomerFeedbackFilterModal({
                 branches: selectedBranches,
                 airlines: selectedAirlines,
                 categories: selectedCategories
-            }
+            },
+            folder: folder.trim() || undefined
         });
     };
 
@@ -134,6 +138,23 @@ export function CustomerFeedbackFilterModal({
                             value={customTitle}
                             onChange={(e) => setCustomTitle(e.target.value)}
                             placeholder="Contoh: Laporan Q1 2024 Branch CGK"
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+                        />
+                    </div>
+
+                    <div className="h-px bg-gray-100" />
+
+                    {/* Filters */}
+                    {/* Dashboard Folder */}
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                            <Box size={14} /> Simpan di Folder (Opsional)
+                        </h4>
+                        <input 
+                            type="text" 
+                            value={folder}
+                            onChange={(e) => setFolder(e.target.value)}
+                            placeholder="Contoh: Quarterly Reports, Branch Analytics"
                             className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
                         />
                     </div>

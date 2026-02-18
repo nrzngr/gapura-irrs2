@@ -46,6 +46,7 @@ export function useDashboardState() {
   const [pages, setPages] = useState<DashboardPage[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [folder, setFolder] = useState('');
   const [globalFilters, setGlobalFilters] = useState<GlobalFilter[]>([]);
 
   const addTile = useCallback((query: QueryDefinition, visualization: ChartVisualization) => {
@@ -109,14 +110,17 @@ export function useDashboardState() {
     return {
       name,
       description: description || undefined,
+      folder: folder || undefined,
       tiles,
+      pages: pages.length > 0 ? pages : undefined,
       globalFilters: globalFilters.length > 0 ? globalFilters : undefined,
     };
-  }, [name, description, tiles, globalFilters]);
+  }, [name, description, folder, tiles, pages, globalFilters]);
 
   const loadDashboard = useCallback((def: DashboardDefinition) => {
     setName(def.name);
     setDescription(def.description || '');
+    setFolder(def.folder || '');
     
     // Robustly handle tiles from pages if top-level tiles are missing
     let allTiles = def.tiles || [];
@@ -134,9 +138,11 @@ export function useDashboardState() {
     pages,
     name,
     description,
+    folder,
     globalFilters,
     setName,
     setDescription,
+    setFolder,
     setGlobalFilters,
     addTile,
     addEmptyTile,

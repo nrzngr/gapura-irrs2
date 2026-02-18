@@ -124,6 +124,7 @@ export interface DashboardPage {
 export interface DashboardDefinition {
   name: string;
   description?: string;
+  folder?: string;
   tiles: DashboardTile[];
   pages?: DashboardPage[];
   globalFilters?: GlobalFilter[];

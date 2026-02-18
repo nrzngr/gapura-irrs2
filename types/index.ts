@@ -128,6 +128,8 @@ export interface Report {
     immediate_action?: string;
     kps_remarks?: string;
     gapura_kps_action_taken?: string;
+    preventive_action?: string;
+    remarks_gapura_kps?: string;
     area?: string;
     terminal_area_category?: string;
     apron_area_category?: string;

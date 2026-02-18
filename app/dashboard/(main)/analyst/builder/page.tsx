@@ -9,12 +9,14 @@ interface SavedDashboard {
   name: string;
   description: string | null;
   slug: string;
+  folder: string | null;
   created_at: string;
 }
 
 export default function DashboardBuilderPage() {
   const [savedDashboards, setSavedDashboards] = useState<SavedDashboard[]>([]);
   const [savedExpanded, setSavedExpanded] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchDashboards();
@@ -25,12 +27,21 @@ export default function DashboardBuilderPage() {
       const res = await fetch('/api/dashboards');
       if (res.ok) {
         const data = await res.json();
-        setSavedDashboards(data.dashboards || []);
+        const dashboards = data.dashboards || [];
+        setSavedDashboards(dashboards);
+        
+        // Auto-expand all folders initially
+        const uniqueFolders = Array.from(new Set(dashboards.map((d: any) => d.folder || 'Uncategorized')));
+        const initialExpanded: Record<string, boolean> = {};
+        uniqueFolders.forEach(f => {
+          initialExpanded[f as string] = true;
+        });
+        setExpandedFolders(initialExpanded);
       }
     } catch { /* ignore */ }
   };
 
-  const handleSave = async (name: string, description: string, tiles: SaveTile[], config?: SaveConfig) => {
+  const handleSave = async (name: string, description: string, tiles: SaveTile[], config?: SaveConfig, folder?: string | null) => {
     try {
       const response = await fetch('/api/dashboards', {
         method: 'POST',
@@ -38,6 +49,7 @@ export default function DashboardBuilderPage() {
         body: JSON.stringify({
           name,
           description,
+          folder,
           charts: tiles.map((t, i) => ({
             title: t.title,
             chartType: t.chartType,
@@ -108,41 +120,76 @@ export default function DashboardBuilderPage() {
 
           {/* Expandable content */}
           {savedExpanded && (
-            <div className="px-6 pb-3 max-h-[300px] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {savedDashboards.map(d => (
-                  <div
-                    key={d.id}
-                    className="group flex items-center justify-between p-4 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:shadow-md hover:border-[var(--brand-primary)]/30 hover:-translate-y-px transition-all"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-[var(--text-primary)] truncate">{d.name}</p>
-                      {d.description && (
-                        <p className="text-xs text-[var(--text-muted)] truncate">{d.description}</p>
-                      )}
-                      <div className="flex items-center gap-1 mt-1 text-[11px] text-[var(--text-muted)]">
-                        <Clock size={12} />
-                        {new Date(d.created_at).toLocaleDateString('id-ID')}
+            <div className="px-6 pb-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="space-y-4 pt-2">
+                {Object.entries(
+                  savedDashboards.reduce((acc, d) => {
+                    const folderName = d.folder || 'Lainnya';
+                    if (!acc[folderName]) acc[folderName] = [];
+                    acc[folderName].push(d);
+                    return acc;
+                  }, {} as Record<string, SavedDashboard[]>)
+                ).sort(([a], [b]) => (a === 'Lainnya' ? 1 : b === 'Lainnya' ? -1 : a.localeCompare(b)))
+                .map(([folderName, dashboards]) => (
+                  <div key={folderName} className="space-y-2">
+                    <button
+                      onClick={() => setExpandedFolders(prev => ({ ...prev, [folderName]: !prev[folderName] }))}
+                      className="flex items-center gap-2 group w-full text-left"
+                    >
+                      <div className="flex-1 h-px bg-[var(--surface-4)] group-hover:bg-[var(--brand-primary)]/30 transition-colors" />
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-full text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-colors">
+                        <BarChart3 size={10} />
+                        {folderName}
+                        <span className="opacity-50">({dashboards.length})</span>
+                        {expandedFolders[folderName] !== false ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <a
-                        href={`/embed/custom/${d.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors"
-                        title="Preview"
-                      >
-                        <ExternalLink size={14} />
-                      </a>
-                      <button
-                        onClick={() => handleDelete(d.id)}
-                        className="p-1.5 text-[var(--text-muted)] hover:text-red-500 transition-colors"
-                        title="Hapus"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                      <div className="flex-1 h-px bg-[var(--surface-4)] group-hover:bg-[var(--brand-primary)]/30 transition-colors" />
+                    </button>
+
+                    {expandedFolders[folderName] !== false && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-in">
+                        {dashboards.map(d => (
+                          <div
+                            key={d.id}
+                            className="group flex items-center justify-between p-3 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-xl hover:shadow-md hover:border-[var(--brand-primary)]/40 hover:-translate-y-px transition-all duration-200"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[13px] font-bold text-[var(--text-primary)] truncate leading-tight mb-0.5">{d.name}</p>
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                                  <Clock size={10} />
+                                  {new Date(d.created_at).toLocaleDateString('id-ID')}
+                                </span>
+                                {d.description && (
+                                  <span className="w-1 h-1 rounded-full bg-[var(--surface-4)]" />
+                                )}
+                                {d.description && (
+                                  <p className="text-[10px] text-[var(--text-muted)] truncate">{d.description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-all">
+                              <a
+                                href={`/embed/custom/${d.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 rounded-lg transition-all"
+                                title="Preview"
+                              >
+                                <ExternalLink size={14} />
+                              </a>
+                              <button
+                                onClick={() => handleDelete(d.id)}
+                                className="p-1.5 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Hapus"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

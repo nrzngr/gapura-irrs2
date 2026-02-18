@@ -216,7 +216,7 @@ export default function AnalystDashboard() {
         return Array.from(dataMap.entries())
             .sort((a, b) => b[0].localeCompare(a[0])) 
             .map(([_, val]) => ({
-                month: val.date.toLocaleString('en-US', { month: 'short', year: '2-digit' }), // "Jan 26"
+                month: `${val.date.getFullYear()} ${val.date.toLocaleString('en-US', { month: 'short' })}`, // "2025 Jan"
                 irregularity: val.irregularity,
                 complaint: val.complaint,
                 compliment: val.compliment
@@ -250,6 +250,25 @@ export default function AnalystDashboard() {
             .map(([branch, data]) => ({ branch, ...data }))
             .sort((a, b) => (b.irregularity + b.complaint + b.compliment) - (a.irregularity + a.complaint + a.compliment))
             .slice(0, 10);
+    }, [filteredReports]);
+
+    const areaSubCategoryData = useMemo(() => {
+        const dataMap: Record<string, Record<string, number>> = {};
+        const subCategories = new Set<string>();
+
+        filteredReports.forEach(r => {
+            const area = r.area || 'General';
+            const subCat = r.category || 'Uncategorized';
+            
+            if (!dataMap[area]) dataMap[area] = {};
+            dataMap[area][subCat] = (dataMap[area][subCat] || 0) + 1;
+            subCategories.add(subCat);
+        });
+
+        return Object.entries(dataMap).map(([area, counts]) => ({
+            area,
+            ...counts
+        }));
     }, [filteredReports]);
 
     const categoryByAirlinesData = useMemo(() => {
@@ -317,7 +336,7 @@ export default function AnalystDashboard() {
             .map(([_, val]) => {
                 const rate = val.masuk > 0 ? Math.round((val.selesai / val.masuk) * 100) : 0;
                 return {
-                    month: val.date.toLocaleString('en-US', { month: 'short', year: '2-digit' }), // "Jan 26"
+                    month: `${val.date.getFullYear()} ${val.date.toLocaleString('en-US', { month: 'short' })}`, // "2025 Jan"
                     masuk: val.masuk,
                     selesai: val.selesai,
                     rate
@@ -726,6 +745,7 @@ export default function AnalystDashboard() {
                 monthlyReportData={monthlyReportData}
                 categoryByAreaData={categoryByAreaData}
                 categoryByBranchData={categoryByBranchData}
+                areaSubCategoryData={areaSubCategoryData}
                 categoryByAirlinesData={categoryByAirlinesData}
                 topReportersData={topReportersData}
                 monthlyComparisonData={monthlyComparisonData}

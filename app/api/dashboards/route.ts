@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     // List all public dashboards
     const { data: dashboards, error } = await supabase
       .from('custom_dashboards')
-      .select('id, name, description, slug, created_at')
+      .select('id, name, description, slug, folder, created_at')
       .eq('is_public', true)
       .order('created_at', { ascending: false });
 
@@ -141,11 +141,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, charts, config } = body as {
+    const { name, description, charts, config, folder } = body as {
       name: string;
       description?: string;
       charts: ChartConfig[];
       config?: DashboardConfig;
+      folder?: string;
     };
 
     if (!name || !charts || charts.length === 0) {
@@ -168,7 +169,8 @@ export async function POST(request: NextRequest) {
         description: description || null,
         slug,
         config: config || { dateRange: '7d', autoRefresh: true, theme: 'dark' },
-        is_public: true
+        is_public: true,
+        folder: folder || null
       })
       .select('id, slug')
       .single();
@@ -233,6 +235,32 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase
       .from('custom_dashboards')
       .delete()
+      .eq('id', id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// PATCH - Update dashboard (folder move)
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, folder } = body as { id: string; folder: string | null };
+
+    if (!id) {
+       return NextResponse.json({ error: 'Dashboard ID required' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('custom_dashboards')
+      .update({ folder })
       .eq('id', id);
 
     if (error) {

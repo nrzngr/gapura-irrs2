@@ -46,6 +46,11 @@ const HEADER_MAPPING: Record<string, string> = {
   'Action Taken': 'action_taken',
   'Gapura KPS Remarks': 'kps_remarks',
   'Gapura KPS Action Taken': 'gapura_kps_action_taken',
+  'Preventive Action': 'preventive_action',
+
+  // Remarks Gapura KPS -> maps to sub_category_note (replaces Sub Category Note direction)
+  'Remarks Gapura KPS': 'sub_category_note',
+  'Sub Category Note': 'sub_category_note',
   
   // Meta
   'Report By': 'reporter_name',

@@ -42,7 +42,7 @@ interface GlobalFilters {
 }
 
 interface BuilderLayoutProps {
-  onSaveDashboard: (name: string, description: string, tiles: SaveTile[], config?: SaveConfig) => Promise<{ embedUrl: string } | null>;
+  onSaveDashboard: (name: string, description: string, tiles: SaveTile[], config?: SaveConfig, folder?: string | null) => Promise<{ embedUrl: string } | null>;
 }
 
 export interface SaveTile {
@@ -81,11 +81,13 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
   const [showWelcome, setShowWelcome] = useState(true);
 
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiFolder, setAiFolder] = useState('');
   const [aiStep, setAiStep] = useState(0);
 
   // Customer Feedback template
   const [cfDateFrom, setCfDateFrom] = useState('');
   const [cfDateTo, setCfDateTo] = useState('');
+  const [cfFolder, setCfFolder] = useState('');
   const [globalFilters, setGlobalFilters] = useState<GlobalFilters>({
     hub: 'all',
     branch: 'all',
@@ -231,10 +233,10 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
     if (!aiPrompt.trim()) return;
     const def = await ai.generate(aiPrompt.trim());
     if (def) {
-      dash.loadDashboard(def);
+      dash.loadDashboard({ ...def, folder: aiFolder.trim() || undefined });
       setMode('dashboard');
     }
-  }, [aiPrompt, ai, dash]);
+  }, [aiPrompt, ai, aiFolder, dash]);
 
   const yearRange = useMemo(() => {
     if (!cfDateFrom || !cfDateTo) return '';
@@ -247,10 +249,10 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
     if (!cfDateFrom || !cfDateTo) return;
     const def = await ai.generateCustomerFeedback(cfDateFrom, cfDateTo);
     if (def) {
-      dash.loadDashboard(def);
+      dash.loadDashboard({ ...def, folder: cfFolder.trim() || undefined });
       setMode('dashboard');
     }
-  }, [cfDateFrom, cfDateTo, ai, dash]);
+  }, [cfDateFrom, cfDateTo, cfFolder, ai, dash]);
 
   const addCurrentAsTile = useCallback(() => {
     if (!hasQuery) return;
@@ -282,7 +284,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
     setMode('dashboard');
   }, [editingTileId, qb.query, visualization, dash, handleExecute]);
 
-  const handleSave = useCallback(async (name: string, description: string) => {
+  const handleSave = useCallback(async (name: string, description: string, folder: string | null) => {
     // Build a tile -> page_name lookup from pages
     const tilePageMap = new Map<string, string>();
     if (dash.pages.length > 0) {
@@ -313,7 +315,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
       dateTo: cfDateTo || undefined,
     };
 
-    return onSaveDashboard(name, description, tiles, config);
+    return onSaveDashboard(name, description, tiles, config, folder);
   }, [dash.tiles, dash.pages, onSaveDashboard, cfDateFrom, cfDateTo]);
 
   const updateVisualization = useCallback((updates: Partial<ChartVisualization>) => {
@@ -471,6 +473,18 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                           disabled={ai.loading}
                         />
 
+                        <div className="mt-3">
+                          <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">Simpan di Folder (Opsional)</label>
+                          <input
+                            type="text"
+                            value={aiFolder}
+                            onChange={(e) => setAiFolder(e.target.value)}
+                            placeholder="Contoh: AI Dashboards"
+                            className="w-full px-3 py-2 text-xs bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                            disabled={ai.loading}
+                          />
+                        </div>
+
                         {/* Prompt suggestion chips */}
                         {!ai.loading && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -567,6 +581,17 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
                               type="date"
                               value={cfDateTo}
                               onChange={(e) => setCfDateTo(e.target.value)}
+                              className="w-full mt-1 px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 text-[var(--text-primary)]"
+                              disabled={ai.loading}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Folder</label>
+                            <input
+                              type="text"
+                              value={cfFolder}
+                              onChange={(e) => setCfFolder(e.target.value)}
+                              placeholder="Folder..."
                               className="w-full mt-1 px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 text-[var(--text-primary)]"
                               disabled={ai.loading}
                             />
@@ -670,6 +695,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
         onClose={() => setShowSaveModal(false)}
         initialName={dash.name}
         initialDescription={dash.description}
+        initialFolder={dash.folder}
         onSave={handleSave}
         tileCount={dash.tiles.length}
         pageCount={dash.pages.length}

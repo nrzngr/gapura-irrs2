@@ -81,6 +81,11 @@ interface ResolutionByBranchItem {
     rate: number;
 }
 
+interface AreaSubCategoryItem {
+    area: string;
+    [key: string]: string | number;
+}
+
 interface AnalyticsData {
     summary: {
         totalReports: number;
@@ -104,6 +109,7 @@ export interface AnalystChartsProps {
     readonly monthlyReportData: readonly MonthlyReportItem[];
     readonly categoryByAreaData: readonly CategoryByAreaItem[];
     readonly categoryByBranchData: readonly CategoryByBranchItem[];
+    readonly areaSubCategoryData: readonly AreaSubCategoryItem[];
     readonly categoryByAirlinesData: readonly CategoryByAirlinesItem[];
     readonly topReportersData: readonly TopReporterItem[];
     readonly monthlyComparisonData: readonly MonthlyComparisonItem[];
@@ -179,6 +185,7 @@ export default function AnalystCharts({
     monthlyReportData,
     categoryByAreaData,
     categoryByBranchData,
+    areaSubCategoryData,
     categoryByAirlinesData,
     topReportersData,
     monthlyComparisonData,
@@ -188,6 +195,16 @@ export default function AnalystCharts({
     onDrilldown,
     drilldownUrl,
 }: AnalystChartsProps) {
+    // Extract unique sub-categories for stacked bar chart
+    const allSubCategories = useMemo(() => {
+        const cats = new Set<string>();
+        areaSubCategoryData.forEach(item => {
+            Object.keys(item).forEach(key => {
+                if (key !== 'area' && typeof item[key] === 'number') cats.add(key);
+            });
+        });
+        return Array.from(cats);
+    }, [areaSubCategoryData]);
     // Derived Data: Airlines Total (Sum of categories)
     const airlinesTotalData = useMemo(() => {
         return categoryByAirlinesData.map(item => ({
@@ -536,6 +553,94 @@ export default function AnalystCharts({
                                     <Area type="monotone" dataKey="resolved" name="Selesai" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorResolved)" />
                                 </AreaChart>
                             </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Summary by Area (Full Width) */}
+                    <div className="card-solid lg:col-span-3 p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Summary by Area</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Distribusi laporan per wilayah kerja</p>
+                            </div>
+                            <MapPin size={20} className="text-[var(--text-muted)]" />
+                        </div>
+                        <div className="h-[280px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={categoryByAreaData}
+                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                                    onClick={(state) => {
+                                        if (state?.activeLabel) onDrilldown(drilldownUrl('area', String(state.activeLabel)));
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
+                                    <XAxis dataKey="name" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar dataKey="value" name="Laporan" radius={[4, 4, 0, 0]} barSize={40}>
+                                        {(categoryByAreaData as any[]).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill || COLORS[index % COLORS.length]} />
+                                        ))}
+                                        <LabelList dataKey="value" position="top" fill="var(--text-secondary)" fontSize={10} />
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Area and Sub-Category Breakdown (Full Width) */}
+                    <div className="card-solid lg:col-span-3 p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Area and Sub-Category Breakdown</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Detail kategori per wilayah</p>
+                            </div>
+                            <Activity size={20} className="text-[var(--text-muted)]" />
+                        </div>
+                        <div className="h-[320px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={areaSubCategoryData as any[]}
+                                    margin={{ top: 25, right: 30, left: 0, bottom: 5 }}
+                                    onClick={(state) => {
+                                        if (state?.activeLabel) onDrilldown(drilldownUrl('area', String(state.activeLabel)));
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
+                                    <XAxis dataKey="area" tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    {allSubCategories.map((cat, idx) => (
+                                        <Bar 
+                                            key={cat} 
+                                            dataKey={cat} 
+                                            name={cat} 
+                                            fill={COLORS[idx % COLORS.length]} 
+                                            radius={[4, 4, 0, 0]}
+                                            barSize={16}
+                                        >
+                                            <LabelList 
+                                                dataKey={cat} 
+                                                position="top" 
+                                                fill="var(--text-secondary)" 
+                                                fontSize={10} 
+                                                formatter={(v: any) => v > 0 ? v : ''}
+                                            />
+                                        </Bar>
+                                    ))}
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-3 mt-4">
+                            {allSubCategories.map((cat, idx) => (
+                                <div key={cat} className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[idx % COLORS.length] }} />
+                                    <span className="text-[10px] text-[var(--text-secondary)]">{cat}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>

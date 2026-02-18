@@ -71,6 +71,8 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   action_taken: ['Action_Taken', 'Action Taken', 'Tindakan'],
   kps_remarks: ['Gapura_KPS_Remarks', 'Gapura KPS Remarks', 'KPS Remarks'],
   gapura_kps_action_taken: ['Gapura_KPS_Action_Taken', 'Gapura KPS Action Taken'],
+  preventive_action: ['Preventive Action', 'Preventive_Action'],
+  remarks_gapura_kps: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS'],
   reporter_name: ['Report_By', 'Report By', 'Pelapor', 'Reporter'],
   evidence_url: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti'],
   area: ['Area', 'Wilayah'],
@@ -86,7 +88,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   
   // Triage Columns
   primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
-  sub_category_note: ['Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
+  sub_category_note: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS', 'Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
   target_division: ['Target Division', 'Target_Division', 'Divisi', 'Division'],
   
   // Standard fields
@@ -114,6 +116,9 @@ const WRITE_MAPPING: Record<string, string> = {
   description: 'Report',
   root_caused: 'Root Caused',
   action_taken: 'Action Taken',
+  kps_remarks: 'Gapura KPS Remarks',
+  gapura_kps_action_taken: 'Gapura KPS Action Taken',
+  preventive_action: 'Preventive Action',
   reporter_name: 'Report By',
   evidence_url: 'Upload Irregularity Photo',
   area: 'Area',
@@ -121,10 +126,10 @@ const WRITE_MAPPING: Record<string, string> = {
   apron_area_category: 'Apron Area Category',
   general_category: 'General Category',
   status: 'Status',
-  
+
   // Triage Write Mappings
   primary_tag: 'Primary Tag',
-  sub_category_note: 'Sub Category Note',
+  sub_category_note: 'Remarks Gapura KPS',
   target_division: 'Target Division',
 };
 
