@@ -330,6 +330,103 @@ function CategoryBarList({ data, color = '#4ade80', title }: { data: readonly { 
     );
 }
 
+const DETAIL_PAGE_SIZE = 10;
+
+function DetailReportTable({ data }: { data: Report[] }) {
+    const [page, setPage] = useState(0);
+    const totalPages = Math.ceil(data.length / DETAIL_PAGE_SIZE);
+    const pageItems = data.slice(page * DETAIL_PAGE_SIZE, (page + 1) * DETAIL_PAGE_SIZE);
+    const startIdx = page * DETAIL_PAGE_SIZE + 1;
+    const endIdx = Math.min((page + 1) * DETAIL_PAGE_SIZE, data.length);
+
+    if (data.length === 0) {
+        return <p className="text-xs text-gray-400 text-center py-4">Tidak ada data</p>;
+    }
+
+    return (
+        <div>
+            <div className="overflow-x-auto">
+                <div className="max-h-[300px] overflow-y-auto">
+                    <table className="w-full text-xs min-w-[800px]">
+                        <thead className="sticky top-0 z-10 bg-white">
+                            <tr className="border-b border-gray-200">
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700 whitespace-nowrap">Date</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700 whitespace-nowrap">Tag</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700 whitespace-nowrap">Category</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700 whitespace-nowrap">Branch</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700 whitespace-nowrap">Airlines</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700 whitespace-nowrap">Flight</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Report</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Root Caused</th>
+                                <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Action Taken</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pageItems.map((r, idx) => {
+                                const date = r.date_of_event
+                                    ? new Date(r.date_of_event).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })
+                                    : '-';
+                                const tag = (r as any).primary_tag || '-';
+                                const tagColor = tag === 'Landside' ? 'bg-blue-100 text-blue-700' : tag === 'Airside' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600';
+                                const branch = r.stations?.code || r.branch || '-';
+                                return (
+                                    <tr key={`${r.id || idx}-${idx}`} className="border-b border-gray-100 hover:bg-gray-50 align-top">
+                                        <td className="py-1.5 px-2 whitespace-nowrap text-gray-700">{date}</td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap">
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${tagColor}`}>{tag}</span>
+                                        </td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap text-gray-700">{r.category || r.main_category || '-'}</td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap font-medium text-gray-800">{branch}</td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap text-gray-700">{r.airlines || '-'}</td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap text-gray-700">{(r as any).flight_number || '-'}</td>
+                                        <td className="py-1.5 px-2 text-gray-700 max-w-[160px]">
+                                            <p className="line-clamp-2">{(r as any).description || (r as any).report || '-'}</p>
+                                        </td>
+                                        <td className="py-1.5 px-2 text-gray-700 max-w-[140px]">
+                                            <p className="line-clamp-2">{(r as any).root_caused || '-'}</p>
+                                        </td>
+                                        <td className="py-1.5 px-2 text-gray-700 max-w-[140px]">
+                                            <p className="line-clamp-2">{(r as any).action_taken || '-'}</p>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] text-gray-500">
+                        {startIdx}-{endIdx} / {data.length} records
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-30"
+                            disabled={page === 0}
+                            onClick={() => setPage((p) => p - 1)}
+                        >
+                            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <span className="text-[10px] text-gray-600">Page {page + 1}/{totalPages}</span>
+                        <button
+                            className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-30"
+                            disabled={page >= totalPages - 1}
+                            onClick={() => setPage((p) => p + 1)}
+                        >
+                            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function AnalystCharts({
     analytics,
     caseCategoryData,
@@ -676,6 +773,206 @@ export default function AnalystCharts({
     const generalCategoryByAirline = useMemo(() => {
         return computeAirlinePivotData('general_category');
     }, [filteredReports]);
+
+    // ── CGO-only data ──────────────────────────────────────────────────────────
+    const cgoReports = useMemo(() =>
+        filteredReports.filter(r => r.source_sheet === 'CGO'),
+    [filteredReports]);
+
+    // 1. Report by Case Category (Complaint / Irregularity / Compliment)
+    const cgoCaseCategoryData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        cgoReports.forEach(r => {
+            const cat = r.category || r.main_category || 'Unknown';
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        const colorMap: Record<string, string> = {
+            Complaint: '#4fc3f7',
+            Irregularity: '#81c784',
+            Compliment: '#dce775',
+        };
+        return Object.entries(counts)
+            .map(([name, value]) => ({ name, value, color: colorMap[name] || '#94a3b8' }))
+            .sort((a, b) => b.value - a.value);
+    }, [cgoReports]);
+
+    // 2. Branch Reporting — top 10 branches by count
+    const cgoBranchData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        cgoReports.forEach(r => {
+            const branch = r.stations?.code || r.branch || r.station_code || 'Unknown';
+            counts[branch] = (counts[branch] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([branch, count]) => ({ branch, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+    }, [cgoReports]);
+
+    // 3. Airlines Report — top 10 airlines by count
+    const cgoAirlinesData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        cgoReports.forEach(r => {
+            const airline = (r.airlines || (r as any).airline || 'Unknown').trim() || 'Unknown';
+            counts[airline] = (counts[airline] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([airline, count]) => ({ airline, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+    }, [cgoReports]);
+
+    // 4. Monthly Report — last 12 months
+    const cgoMonthlyData = useMemo(() => {
+        const counts: Record<string, { count: number; date: Date }> = {};
+        cgoReports.forEach(r => {
+            const raw = r.date_of_event || r.event_date || r.created_at;
+            if (!raw) return;
+            const d = new Date(raw);
+            if (isNaN(d.getTime())) return;
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (!counts[key]) counts[key] = { count: 0, date: d };
+            counts[key].count++;
+        });
+        return Object.entries(counts)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .slice(-12)
+            .map(([, v]) => ({
+                month: v.date.toLocaleString('en-US', { month: 'long' }),
+                count: v.count,
+            }));
+    }, [cgoReports]);
+
+    // 5. Category by Area
+    const cgoCategoryByAreaData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        cgoReports.forEach(r => {
+            const area = r.area || 'Unknown';
+            counts[area] = (counts[area] || 0) + 1;
+        });
+        const colorMap: Record<string, string> = {
+            'Apron Area': '#4fc3f7',
+            APRON: '#4fc3f7',
+            'Terminal Area': '#81c784',
+            TERMINAL: '#81c784',
+            General: '#dce775',
+            CARGO: '#fb923c',
+        };
+        return Object.entries(counts)
+            .map(([name, value]) => ({ name, value, color: colorMap[name] || '#94a3b8' }))
+            .sort((a, b) => b.value - a.value);
+    }, [cgoReports]);
+
+    // 6. Case Category by Branch pivot — { branch, complaint, irregularity, compliment, total }[]
+    const cgoPivotByBranch = useMemo(() => {
+        const map: Record<string, { complaint: number; irregularity: number; compliment: number }> = {};
+        cgoReports.forEach(r => {
+            const branch = r.stations?.code || r.branch || r.station_code || 'Unknown';
+            if (!map[branch]) map[branch] = { complaint: 0, irregularity: 0, compliment: 0 };
+            const cat = (r.category || r.main_category || '').toLowerCase();
+            if (cat === 'complaint') map[branch].complaint++;
+            else if (cat === 'irregularity') map[branch].irregularity++;
+            else if (cat === 'compliment') map[branch].compliment++;
+        });
+        return Object.entries(map)
+            .map(([branch, d]) => ({ branch, ...d, total: d.complaint + d.irregularity + d.compliment }))
+            .sort((a, b) => b.total - a.total);
+    }, [cgoReports]);
+
+    // 7. Case Category by Airlines pivot — { airline, complaint, irregularity, compliment, total }[]
+    const cgoPivotByAirlines = useMemo(() => {
+        const map: Record<string, { complaint: number; irregularity: number; compliment: number }> = {};
+        cgoReports.forEach(r => {
+            const airline = ((r.airlines || (r as any).airline || 'Unknown') as string).trim() || 'Unknown';
+            if (!map[airline]) map[airline] = { complaint: 0, irregularity: 0, compliment: 0 };
+            const cat = (r.category || r.main_category || '').toLowerCase();
+            if (cat === 'complaint') map[airline].complaint++;
+            else if (cat === 'irregularity') map[airline].irregularity++;
+            else if (cat === 'compliment') map[airline].compliment++;
+        });
+        return Object.entries(map)
+            .map(([airline, d]) => ({ airline, ...d, total: d.complaint + d.irregularity + d.compliment }))
+            .sort((a, b) => b.total - a.total);
+    }, [cgoReports]);
+
+    // CGO Detail Report useMemos
+    // 8. CGO Case Report by Area pivot — Branch → Airlines → { terminal, apron, general }
+    const cgoCaseReportByArea = useMemo((): CaseReportByAreaBranchItem[] => {
+        const branchMap: Record<string, Record<string, { terminal: number; apron: number; general: number }>> = {};
+        cgoReports.forEach((r) => {
+            const branch = r.branch || r.stations?.code || 'Unknown';
+            const airline = ((r.airlines || (r as any).airline || 'Unknown') as string).trim() || 'Unknown';
+            const area = (r.area || '').toLowerCase();
+            if (!branchMap[branch]) branchMap[branch] = {};
+            if (!branchMap[branch][airline]) branchMap[branch][airline] = { terminal: 0, apron: 0, general: 0 };
+            if (area.includes('terminal')) branchMap[branch][airline].terminal++;
+            else if (area.includes('apron')) branchMap[branch][airline].apron++;
+            else if (area.includes('general')) branchMap[branch][airline].general++;
+        });
+        return Object.entries(branchMap)
+            .map(([branch, airlineData]) => {
+                const airlines: CaseReportByAreaAirlineItem[] = Object.entries(airlineData)
+                    .map(([name, counts]) => ({ name, ...counts, total: counts.terminal + counts.apron + counts.general }))
+                    .sort((a, b) => b.total - a.total);
+                return {
+                    branch,
+                    airlines,
+                    totalTerminal: airlines.reduce((s, a) => s + a.terminal, 0),
+                    totalApron: airlines.reduce((s, a) => s + a.apron, 0),
+                    totalGeneral: airlines.reduce((s, a) => s + a.general, 0),
+                    grandTotal: airlines.reduce((s, a) => s + a.total, 0),
+                };
+            })
+            .sort((a, b) => b.grandTotal - a.grandTotal);
+    }, [cgoReports]);
+
+    // 9. CGO Terminal Area Category
+    const cgoTerminalAreaCategoryData = useMemo(() => {
+        const map: Record<string, number> = {};
+        cgoReports.forEach((r) => {
+            const cat = ((r as any).terminal_area_category || '').trim();
+            if (cat) map[cat] = (map[cat] || 0) + 1;
+        });
+        return Object.entries(map)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [cgoReports]);
+
+    // 10. CGO Apron Area Category
+    const cgoApronAreaCategoryData = useMemo(() => {
+        const map: Record<string, number> = {};
+        cgoReports.forEach((r) => {
+            const cat = ((r as any).apron_area_category || '').trim();
+            if (cat) map[cat] = (map[cat] || 0) + 1;
+        });
+        return Object.entries(map)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [cgoReports]);
+
+    // 11. CGO General Category
+    const cgoGeneralCategoryData = useMemo(() => {
+        const map: Record<string, number> = {};
+        cgoReports.forEach((r) => {
+            const cat = ((r as any).general_category || '').trim();
+            if (cat) map[cat] = (map[cat] || 0) + 1;
+        });
+        return Object.entries(map)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [cgoReports]);
+
+    // 12. CGO HUB Report
+    const cgoHubData = useMemo(() => {
+        const map: Record<string, number> = {};
+        cgoReports.forEach((r) => {
+            const hub = ((r as any).hub || '').trim();
+            if (hub) map[hub] = (map[hub] || 0) + 1;
+        });
+        return Object.entries(map)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [cgoReports]);
 
     return (
         <>
@@ -1651,6 +1948,438 @@ export default function AnalystCharts({
                         </div>
                     </div>
                 </div>
+            </PresentationSlide>
+
+            {/* Slide CGO: CGO Case Category — filtered to source_sheet === 'CGO' */}
+            <PresentationSlide
+                title="CGO - Case Category"
+                subtitle="Laporan dari CGO Sheet"
+                icon={BarChart3}
+            >
+                {cgoReports.length === 0 ? (
+                    <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+                        Tidak ada data CGO untuk periode ini
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {/* Row 1: 4 horizontal bar charts */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+                            {/* Report by Case Category */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-3">Report by Case Category</h3>
+                                <div className="h-[200px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={cgoCaseCategoryData}
+                                            layout="vertical"
+                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                {cgoCaseCategoryData.map((entry, idx) => (
+                                                    <Cell key={`cgo-cat-${idx}`} fill={entry.color} />
+                                                ))}
+                                                <LabelList dataKey="value" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Branch Reporting */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-3">Branch Reporting</h3>
+                                <div className="h-[200px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={cgoBranchData}
+                                            layout="vertical"
+                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="branch" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="count" name="Laporan" fill="#81c784" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                                                <LabelList dataKey="count" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Airlines Report */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-3">Airlines Report</h3>
+                                <div className="h-[200px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={cgoAirlinesData}
+                                            layout="vertical"
+                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="airline" tick={{ fill: '#374151', fontSize: 10 }} axisLine={false} tickLine={false} width={90} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="count" name="Laporan" fill="#81c784" radius={[0, 4, 4, 0]} maxBarSize={16}>
+                                                <LabelList dataKey="count" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Monthly Report */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-3">Monthly Report</h3>
+                                <div className="h-[200px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={cgoMonthlyData}
+                                            layout="vertical"
+                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="month" tick={{ fill: '#374151', fontSize: 10 }} axisLine={false} tickLine={false} width={65} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="count" name="Laporan" fill="#81c784" radius={[0, 4, 4, 0]} maxBarSize={16}>
+                                                <LabelList dataKey="count" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Row 2: Category by Area + 2 pivot tables */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                            {/* Category by Area */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-3">Category by Area</h3>
+                                <div className="h-[220px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={cgoCategoryByAreaData}
+                                            layout="vertical"
+                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                {cgoCategoryByAreaData.map((entry, idx) => (
+                                                    <Cell key={`cgo-area-${idx}`} fill={entry.color} />
+                                                ))}
+                                                <LabelList dataKey="value" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Case Category by Branch pivot */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Category by Branch</h3>
+                                <p className="text-[10px] text-gray-500 mb-3">Report Category / Record Count</p>
+                                {(() => {
+                                    const maxC = Math.max(...cgoPivotByBranch.map(r => r.complaint), 1);
+                                    const maxI = Math.max(...cgoPivotByBranch.map(r => r.irregularity), 1);
+                                    const maxCo = Math.max(...cgoPivotByBranch.map(r => r.compliment), 1);
+                                    const maxTot = Math.max(...cgoPivotByBranch.map(r => r.total), 1);
+                                    return (
+                                        <div className="overflow-x-auto">
+                                            <div className="max-h-[188px] overflow-y-auto">
+                                                <table className="w-full text-xs min-w-[320px]">
+                                                    <thead className="sticky top-0 z-10 bg-white">
+                                                        <tr className="border-b border-gray-200">
+                                                            <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Reporting Br...</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Complaint</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Irregularity</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Compliment</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Grand total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {cgoPivotByBranch.map(row => {
+                                                            const cC = heatColor(row.complaint, maxC);
+                                                            const iC = heatColor(row.irregularity, maxI);
+                                                            const coC = heatColor(row.compliment, maxCo);
+                                                            const tC = heatColor(row.total, maxTot);
+                                                            return (
+                                                                <tr key={row.branch} className="border-b border-gray-100 hover:bg-gray-50">
+                                                                    <td className="py-1.5 px-2 font-medium text-gray-800">{row.branch}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-medium" style={{ backgroundColor: cC.bg, color: cC.fg }}>{row.complaint || '-'}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-medium" style={{ backgroundColor: iC.bg, color: iC.fg }}>{row.irregularity || '-'}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-medium" style={{ backgroundColor: coC.bg, color: coC.fg }}>{row.compliment || '-'}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-bold" style={{ backgroundColor: tC.bg, color: tC.fg }}>{row.total}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <table className="w-full text-xs min-w-[320px] border-t-2 border-gray-300">
+                                                <tbody>
+                                                    <tr className="bg-gray-100 font-bold">
+                                                        <td className="py-1.5 px-2 text-gray-800">Grand total</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByBranch.reduce((s, r) => s + r.complaint, 0)}</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByBranch.reduce((s, r) => s + r.irregularity, 0)}</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByBranch.reduce((s, r) => s + r.compliment, 0)}</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByBranch.reduce((s, r) => s + r.total, 0)}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Case Category by Airlines pivot */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Category by Airlines</h3>
+                                <p className="text-[10px] text-gray-500 mb-3">Report Category / Record Count</p>
+                                {(() => {
+                                    const maxC = Math.max(...cgoPivotByAirlines.map(r => r.complaint), 1);
+                                    const maxI = Math.max(...cgoPivotByAirlines.map(r => r.irregularity), 1);
+                                    const maxCo = Math.max(...cgoPivotByAirlines.map(r => r.compliment), 1);
+                                    const maxTot = Math.max(...cgoPivotByAirlines.map(r => r.total), 1);
+                                    return (
+                                        <div className="overflow-x-auto">
+                                            <div className="max-h-[188px] overflow-y-auto">
+                                                <table className="w-full text-xs min-w-[340px]">
+                                                    <thead className="sticky top-0 z-10 bg-white">
+                                                        <tr className="border-b border-gray-200">
+                                                            <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Airlines</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Complaint</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Irregularity</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Compliment</th>
+                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Grand total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {cgoPivotByAirlines.map(row => {
+                                                            const cC = heatColor(row.complaint, maxC);
+                                                            const iC = heatColor(row.irregularity, maxI);
+                                                            const coC = heatColor(row.compliment, maxCo);
+                                                            const tC = heatColor(row.total, maxTot);
+                                                            return (
+                                                                <tr key={row.airline} className="border-b border-gray-100 hover:bg-gray-50">
+                                                                    <td className="py-1.5 px-2 font-medium text-gray-800 whitespace-nowrap">{row.airline}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-medium" style={{ backgroundColor: cC.bg, color: cC.fg }}>{row.complaint || '-'}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-medium" style={{ backgroundColor: iC.bg, color: iC.fg }}>{row.irregularity || '-'}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-medium" style={{ backgroundColor: coC.bg, color: coC.fg }}>{row.compliment || '-'}</td>
+                                                                    <td className="py-1.5 px-2 text-center font-bold" style={{ backgroundColor: tC.bg, color: tC.fg }}>{row.total}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <table className="w-full text-xs min-w-[340px] border-t-2 border-gray-300">
+                                                <tbody>
+                                                    <tr className="bg-gray-100 font-bold">
+                                                        <td className="py-1.5 px-2 text-gray-800">Grand total</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByAirlines.reduce((s, r) => s + r.complaint, 0)}</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByAirlines.reduce((s, r) => s + r.irregularity, 0)}</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByAirlines.reduce((s, r) => s + r.compliment, 0)}</td>
+                                                        <td className="py-1.5 px-2 text-center text-gray-800">{cgoPivotByAirlines.reduce((s, r) => s + r.total, 0)}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </PresentationSlide>
+
+            {/* Slide CGO Detail Report */}
+            <PresentationSlide
+                title="CGO - Detail Report"
+                subtitle="Detail laporan area dan kategori CGO"
+                icon={MapPin}
+            >
+                {cgoReports.length === 0 ? (
+                    <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+                        Tidak ada data CGO untuk periode ini
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {/* Row 1: Case Report by Area + 3 CategoryBarList */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+                            {/* Case Report by Area */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Report by Area</h3>
+                                <p className="text-[10px] text-gray-500 mb-3">Area Report / Branch by Airlines</p>
+                                {cgoCaseReportByArea.length === 0 ? (
+                                    <p className="text-xs text-gray-400 text-center py-6">Tidak ada data</p>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <div className="max-h-[188px] overflow-y-auto">
+                                            <table className="w-full text-xs min-w-[320px]">
+                                                <thead className="sticky top-0 z-10 bg-white">
+                                                    <tr className="border-b border-gray-200">
+                                                        <th className="text-left py-1.5 px-1.5 font-semibold text-gray-700">Branch</th>
+                                                        <th className="text-left py-1.5 px-1.5 font-semibold text-gray-700">Airlines</th>
+                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Terminal<br/>Area</th>
+                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Apron<br/>Area</th>
+                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">General</th>
+                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Grand<br/>total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(() => {
+                                                        const allRows = cgoCaseReportByArea.flatMap(b => b.airlines);
+                                                        const maxT = Math.max(...allRows.map(a => a.terminal), 1);
+                                                        const maxA = Math.max(...allRows.map(a => a.apron), 1);
+                                                        const maxG = Math.max(...allRows.map(a => a.general), 1);
+                                                        const maxTotal = Math.max(...allRows.map(a => a.total), 1);
+                                                        return cgoCaseReportByArea.flatMap((branchRow) =>
+                                                            branchRow.airlines.map((airline, aIdx) => {
+                                                                const tC = heatColor(airline.terminal, maxT);
+                                                                const aC = heatColor(airline.apron, maxA);
+                                                                const gC = heatColor(airline.general, maxG);
+                                                                const totC = heatColor(airline.total, maxTotal);
+                                                                return (
+                                                                    <tr
+                                                                        key={`${branchRow.branch}-${airline.name}`}
+                                                                        className={`border-b border-gray-100 hover:bg-gray-50${aIdx === 0 ? ' border-t border-t-gray-300' : ''}`}
+                                                                    >
+                                                                        <td className="py-1.5 px-1.5 font-bold text-gray-800 border-r border-gray-100 whitespace-nowrap">
+                                                                            {aIdx === 0 ? branchRow.branch : ''}
+                                                                        </td>
+                                                                        <td className="py-1.5 px-1.5 text-gray-700 whitespace-nowrap">{airline.name}</td>
+                                                                        <td className="py-1.5 px-1.5 text-center font-medium" style={{ backgroundColor: tC.bg, color: tC.fg }}>
+                                                                            {airline.terminal || '-'}
+                                                                        </td>
+                                                                        <td className="py-1.5 px-1.5 text-center font-medium" style={{ backgroundColor: aC.bg, color: aC.fg }}>
+                                                                            {airline.apron || '-'}
+                                                                        </td>
+                                                                        <td className="py-1.5 px-1.5 text-center font-medium" style={{ backgroundColor: gC.bg, color: gC.fg }}>
+                                                                            {airline.general || '-'}
+                                                                        </td>
+                                                                        <td className="py-1.5 px-1.5 text-center font-bold" style={{ backgroundColor: totC.bg, color: totC.fg }}>
+                                                                            {airline.total}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })
+                                                        );
+                                                    })()}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {/* Grand Total pinned below scroll area */}
+                                        <table className="w-full text-xs min-w-[320px] border-t-2 border-gray-300">
+                                            <tbody>
+                                                <tr className="bg-gray-100 font-bold">
+                                                    <td className="py-1.5 px-1.5 text-gray-800" colSpan={2}>Grand total</td>
+                                                    <td className="py-1.5 px-1.5 text-center text-gray-800">
+                                                        {cgoCaseReportByArea.reduce((s, b) => s + b.totalTerminal, 0)}
+                                                    </td>
+                                                    <td className="py-1.5 px-1.5 text-center text-gray-800">
+                                                        {cgoCaseReportByArea.reduce((s, b) => s + b.totalApron, 0)}
+                                                    </td>
+                                                    <td className="py-1.5 px-1.5 text-center text-gray-800">
+                                                        {cgoCaseReportByArea.reduce((s, b) => s + b.totalGeneral, 0)}
+                                                    </td>
+                                                    <td className="py-1.5 px-1.5 text-center text-gray-800">
+                                                        {cgoCaseReportByArea.reduce((s, b) => s + b.grandTotal, 0)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Terminal Area Category */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-1">Terminal Area Category</h3>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                </div>
+                                <CategoryBarList data={cgoTerminalAreaCategoryData} color="#4ade80" />
+                            </div>
+
+                            {/* Apron Area Category */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-1">Apron Area Category</h3>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                </div>
+                                <CategoryBarList data={cgoApronAreaCategoryData} color="#60a5fa" />
+                            </div>
+
+                            {/* General Category */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-1">General Category</h3>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                </div>
+                                <CategoryBarList data={cgoGeneralCategoryData} color="#f97316" />
+                            </div>
+                        </div>
+
+                        {/* Row 2: HUB Report + Detail Report table */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                            {/* HUB Report */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">HUB Report</h3>
+                                <p className="text-[10px] text-gray-500 mb-3">Distribusi laporan berdasarkan HUB</p>
+                                {cgoHubData.length === 0 ? (
+                                    <p className="text-xs text-gray-400 text-center py-6">Tidak ada data HUB</p>
+                                ) : (
+                                    <div className="h-[220px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={cgoHubData}
+                                                layout="vertical"
+                                                margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                                                <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" name="Count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                    <LabelList dataKey="value" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Detail Report Landside & Airside */}
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Detail Report Landside &amp; Airside</h3>
+                                <p className="text-[10px] text-gray-500 mb-3">Data laporan CGO diurutkan berdasarkan tanggal</p>
+                                <DetailReportTable
+                                    data={[...cgoReports].sort((a, b) => {
+                                        const dA = a.date_of_event ? new Date(a.date_of_event).getTime() : 0;
+                                        const dB = b.date_of_event ? new Date(b.date_of_event).getTime() : 0;
+                                        return dB - dA;
+                                    })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </PresentationSlide>
 
             {/* Slide 5: Additional Insights (Top Reporters & Status Flow) */}
