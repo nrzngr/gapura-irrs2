@@ -379,8 +379,7 @@ export function CustomDashboardContent() {
       const pageCharts = getPageCharts(dashboardRef.current, activePage);
       fetchChartData(pageCharts);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePage, activeFilters, dateFrom, dateTo]);
+  }, [activePage, activeFilters, dateFrom, dateTo, fetchChartData]);
 
   // ─── Computed: pages ──────────────────────────────────────────────────────
   const pages = useMemo(() => {
