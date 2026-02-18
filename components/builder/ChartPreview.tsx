@@ -41,6 +41,21 @@ const GAPURA_ORANGE = '#ffa726';
 const GAPURA_GREY = '#bdbdbd';
 const GAPURA_AMBER = '#ffca28';
 
+// Specific Rank Colors requested by user
+const RANK_COLOR_1 = '#81c784'; // rgb(129,199,132)
+const RANK_COLOR_2 = '#13b5cb'; // rgb(19,181,203)
+const RANK_COLOR_3 = '#cddc39'; // rgb(205,220,57)
+const RANK_COLORS = [RANK_COLOR_1, RANK_COLOR_2, RANK_COLOR_3];
+
+// Intensity Colors (5-step Green Scale from light to dark)
+const INTENSITY_COLORS = [
+    '#e8f5e9', // Level 1 (Lightest)
+    '#a5d6a7', // Level 2
+    '#66bb6a', // Level 3
+    '#388e3c', // Level 4
+    '#1b5e20'  // Level 5 (Darkest)
+];
+
 const DEFAULT_COLORS = [
   GAPURA_GREEN_LIGHT, GAPURA_BLUE, GAPURA_YELLOW, GAPURA_GREEN_DARK, '#aed581',
   '#33691e', '#9ccc65', '#689f38', '#c5e1a5', '#43a047', '#81c784', '#4caf50',
@@ -726,10 +741,8 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
       };
     }).filter(d => d.value > 0);
     
-    // Sort data for better visualization in small charts
-    if (compact) {
-      pieData.sort((a, b) => b.value - a.value);
-    }
+    // Sort data for better visualization and consistent coloring by rank
+    pieData.sort((a, b) => b.value - a.value);
     
     // Apply display limit
     if (displayLimit && displayLimit > 0) {
@@ -798,9 +811,14 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 );
               } : false}
             >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getSemanticColor(entry.name, index, palette)} stroke="white" strokeWidth={2} />
-              ))}
+              {pieData.map((entry, index) => {
+                // Apply rank colors for top 3
+                let fill = getSemanticColor(entry.name, index, palette);
+                if (index < 3) {
+                  fill = RANK_COLORS[index];
+                }
+                return <Cell key={`cell-${index}`} fill={fill} stroke="white" strokeWidth={2} />;
+              })}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
@@ -818,8 +836,14 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
 
   // Calculate margins based on rotation and labels for all charts except pie/heatmap
   const isXLong = data.some(d => String(d[activeXKey] ?? '').length > (compact ? 6 : 10));
-  const shouldRotateX = !(['pie', 'donut', 'heatmap', 'horizontal_bar'] as string[]).includes(chartType) && (isXLong || data.length > (compact ? 4 : 8));
-  const bottomMargin = shouldRotateX ? (compact ? 45 : 65) : (compact ? 30 : 20);
+  // User requested grouped bar (vertical bar) to NOT rotate labels.
+  const shouldRotateX = !(['pie', 'donut', 'heatmap', 'horizontal_bar', 'bar'] as string[]).includes(chartType) && (isXLong || data.length > (compact ? 4 : 8));
+  
+  // Custom bottom margin logic: Vertical Bar needs more space for wrapped text
+  let bottomMargin = shouldRotateX ? (compact ? 45 : 65) : (compact ? 30 : 20);
+  if (chartType === 'bar') {
+      bottomMargin = 70; // Extra space for wrapped horizontal labels
+  }
 
   // KPI
   if (chartType === 'kpi') {
@@ -859,6 +883,16 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
   if (chartType === 'bar' || chartType === 'horizontal_bar') {
     const horizontal = chartType === 'horizontal_bar';
     
+    // Pre-calculate ranks for single-series bar charts
+    let sortedValues: number[] = [];
+    if (activeYKeys.length === 1) {
+        const yKey = activeYKeys[0];
+        sortedValues = data.map(d => {
+            const val = d[yKey];
+            return typeof val === 'number' ? val : Number(val) || 0;
+        }).sort((a, b) => b - a);
+    }
+    
     // Compact adjustments for supporting charts
     const fontSize = compact ? 9 : 10;
     // Taller item height for horizontal bars to reduce spacing
@@ -890,7 +924,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
               left: 0, 
               bottom: horizontal ? 5 : bottomMargin
             }}
-            barCategoryGap={compact ? "15%" : "20%"}
+            barCategoryGap={compact ? "20%" : "30%"}
             barSize={horizontal ? (compact ? 20 : 32) : undefined}
           >
             {/* Minimal Grid: only vertical lines for vertical bars, only horizontal for horizontal (if any) - actually user wants minimal noise, so remove relevant grid lines */}
@@ -936,31 +970,48 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                 <XAxis 
                   dataKey={activeXKey} 
                   {...commonProps} 
-                  height={shouldRotateX ? (compact ? 55 : 75) : (compact ? 35 : 30)}
-                  interval={data.length > (compact ? 10 : 20) ? 'preserveStartEnd' : 0} 
+                  height={80}
+                  interval={0} 
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    let label = String(payload.value);
-                    if (label.includes(' ') && label.length > 10) {
-                      const parts = label.split(' ');
-                      if (parts.length >= 2 && (compact || data.length > 10)) {
-                        label = `${parts[0]} ${parts[1]}`;
-                      }
+                    const label = String(payload.value);
+                    const words = label.split(/\s+/);
+                    const lines: string[] = [];
+                    let currentLine = words[0] || '';
+
+                    // Wrap text logic: max ~15 chars per line
+                    for (let i = 1; i < words.length; i++) {
+                        if ((currentLine + ' ' + words[i]).length < 15) {
+                            currentLine += ' ' + words[i];
+                        } else {
+                            lines.push(currentLine);
+                            currentLine = words[i];
+                        }
                     }
+                    lines.push(currentLine);
+                    
+                    // Limit to 3 lines
+                    const displayLines = lines.slice(0, 3);
+                    if (lines.length > 3) {
+                        displayLines[2] += '...';
+                    }
+
                     return (
                       <g transform={`translate(${x},${y})`}>
-                        <text
-                          x={0}
-                          y={0}
-                          dy={10}
-                          textAnchor={shouldRotateX ? "end" : "middle"}
-                          fill="#6b7280"
-                          fontSize={fontSize}
-                          transform={shouldRotateX ? "rotate(-45)" : undefined} 
-                          fontWeight={400}
-                        >
-                          {label.length > (compact ? 12 : 25) ? label.substring(0, compact ? 10 : 22) + '...' : label}
-                        </text>
+                        {displayLines.map((line, i) => (
+                            <text
+                              key={i}
+                              x={0}
+                              y={0}
+                              dy={16 + (i * 12)}
+                              textAnchor="middle"
+                              fill="#6b7280"
+                              fontSize={fontSize}
+                              fontWeight={400}
+                            >
+                              {line}
+                            </text>
+                        ))}
                       </g>
                     );
                   }}
@@ -985,21 +1036,47 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
                   offset: 5
                 } : false}
               >
-                {/* Smart Coloring: Highlight Top Performer if not semantic */}
+                {/* Smart Coloring: Highlight Top 3 Performers based on Rank */}
                 {activeYKeys.length === 1 && data.map((entry, index) => {
                   const xVal = String(entry[activeXKey]);
-                  const semanticColor = getSemanticColor(xVal, index, palette);
-                  const isSemantic = SEMANTIC_COLORS[xVal.toLowerCase()] || 
-                                     xVal.toLowerCase().includes('terminal') || 
-                                     xVal.toLowerCase().includes('apron');
+                  const yKey = activeYKeys[0];
+                  const val = entry[yKey];
+                  const numericVal = typeof val === 'number' ? val : Number(val) || 0;
                   
-                  let finalColor = semanticColor;
-                  if (!isSemantic) {
-                    // Highlight top ranked item (index 0) with Dark Green, others lighter
-                    finalColor = index === 0 ? GAPURA_GREEN_DARK : '#a3d162'; 
+                  // Default to semantic or palette color
+                  let finalColor = getSemanticColor(xVal, index, palette);
+                  let finalOpacity = 1;
+                  
+                  if (horizontal) {
+                      // Intensity Logic for Horizontal Bar: Darkest color for highest value
+                      const maxValue = sortedValues.length > 0 ? sortedValues[0] : 0;
+                      // Calculate ratio (0 to 1)
+                      const ratio = maxValue > 0 ? (numericVal / maxValue) : 0;
+                      
+                      // Map ratio to 5 intensity levels (0-4)
+                      // ratio 0-0.2 -> 0
+                      // ratio 0.2-0.4 -> 1
+                      // ...
+                      // ratio 0.8-1.0 -> 4
+                      let intensityIndex = Math.floor(ratio * 5);
+                      // Clamp index to 0-4
+                      if (intensityIndex >= 5) intensityIndex = 4;
+                      if (intensityIndex < 0) intensityIndex = 0;
+                      
+                      // Use the intensity color map
+                      finalColor = INTENSITY_COLORS[intensityIndex];
+                      finalOpacity = 1; // Solid colors as requested
+                  } else {
+                      // Rank Logic for Vertical Bar: Specific colors for Top 3
+                      if (sortedValues.length > 0) {
+                          const rankIndex = sortedValues.indexOf(numericVal);
+                          if (rankIndex >= 0 && rankIndex < 3) {
+                              finalColor = RANK_COLORS[rankIndex];
+                          }
+                      }
                   }
                   
-                  return <Cell key={`cell-${index}`} fill={finalColor} />;
+                  return <Cell key={`cell-${index}`} fill={finalColor} fillOpacity={finalOpacity} />;
                 })}
               </Bar>
             ))}

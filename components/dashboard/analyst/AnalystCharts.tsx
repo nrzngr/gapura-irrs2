@@ -135,6 +135,44 @@ interface CustomTooltipProps {
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
+const WrappedXAxisTick = (props: any) => {
+    const { x, y, payload } = props;
+    const label = String(payload.value);
+    const words = label.split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = words[0] || '';
+
+    for (let i = 1; i < words.length; i++) {
+        if ((currentLine + ' ' + words[i]).length < 15) {
+            currentLine += ' ' + words[i];
+        } else {
+            lines.push(currentLine);
+            currentLine = words[i];
+        }
+    }
+    lines.push(currentLine);
+    const displayLines = lines.slice(0, 3);
+    if (lines.length > 3) displayLines[2] += '...';
+
+    return (
+        <g transform={`translate(${x},${y})`}>
+            {displayLines.map((line, i) => (
+                <text
+                    key={i}
+                    x={0}
+                    y={0}
+                    dy={16 + (i * 12)}
+                    textAnchor="middle"
+                    fill="#6b7280"
+                    fontSize={10}
+                >
+                    {line}
+                </text>
+            ))}
+        </g>
+    );
+};
+
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     if (!active || !payload?.length) return null;
 
@@ -234,241 +272,28 @@ export default function AnalystCharts({
         }));
     }, [analytics?.trendData, monthlyComparisonData, monthlyReportData]);
 
+    // Derived Data: Completion Status (Total vs Resolved)
+    const completionStatusData = useMemo(() => {
+        const total = safeTrendData.reduce((acc, curr) => acc + curr.total, 0);
+        const resolved = safeTrendData.reduce((acc, curr) => acc + curr.resolved, 0);
+        const pending = total - resolved;
+        return [
+            { name: 'Selesai', value: resolved, fill: '#10b981' },
+            { name: 'Belum Selesai', value: pending, fill: '#cbd5e1' }
+        ];
+    }, [safeTrendData]);
+
+    // Derived Data: Monthly Volume Distribution (Pie Chart)
+    const monthlyVolumeData = useMemo(() => {
+        return monthlyReportData.map((item, index) => ({
+            name: item.month,
+            value: item.irregularity + item.complaint + item.compliment,
+            fill: COLORS[index % COLORS.length]
+        })).filter(item => item.value > 0);
+    }, [monthlyReportData]);
+
     return (
         <>
-            {/* Slide 1: Monthly Analytics (grouped side-by-side) */}
-            <PresentationSlide
-                title="Analisis Bulanan"
-                subtitle="Tren laporan dan perbandingan performa bulanan"
-                icon={CalendarDays}
-                hint="Klik chart untuk melihat detail laporan per bulan"
-            >
-                <div className="flex flex-col gap-6">
-                    {/* Monthly Report (Horizontal Stacked Bar) */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Monthly Report</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Tren bulanan</p>
-                            </div>
-                            <CalendarDays size={20} className="text-[var(--text-muted)]" />
-                        </div>
-                        <div className="flex flex-wrap justify-center sm:justify-end gap-3 sm:gap-4 mb-4">
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" /><span className="text-[10px] text-[var(--text-muted)]">Irregularity</span></div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#f43f5e]" /><span className="text-[10px] text-[var(--text-muted)]">Complaint</span></div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0ea5e9]" /><span className="text-[10px] text-[var(--text-muted)]">Compliment</span></div>
-                        </div>
-                        <div className="h-[240px] sm:h-[280px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={monthlyReportData as MonthlyReportItem[]}
-                                    margin={{ top: 10, right: 10, left: -15, bottom: 5 }}
-                                    onClick={(state) => {
-                                        const s = state as { activeLabel?: string };
-                                        if (s?.activeLabel) onDrilldown(drilldownUrl('month', String(s.activeLabel)));
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                    <XAxis 
-                                        dataKey="month" 
-                                        tick={{fill: 'var(--text-secondary)', fontSize: 9}} 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                        height={50}
-                                        interval={0}
-                                        angle={-45}
-                                        textAnchor="end"
-                                    />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24}>
-                                        <LabelList dataKey="irregularity" position="top" fill="var(--text-secondary)" fontSize={9} formatter={(v: any) => v > 0 ? v : ''} />
-                                    </Bar>
-                                    <Bar dataKey="complaint" name="Complaint" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={24}>
-                                        <LabelList dataKey="complaint" position="top" fill="var(--text-secondary)" fontSize={9} formatter={(v: any) => v > 0 ? v : ''} />
-                                    </Bar>
-                                    <Bar dataKey="compliment" name="Compliment" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={24}>
-                                        <LabelList dataKey="compliment" position="top" fill="var(--text-secondary)" fontSize={9} formatter={(v: any) => v > 0 ? v : ''} />
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    {/* Monthly Comparison (Redesigned) */}
-                    <div className="card-solid p-6">
-                        {/* Header with Insights */}
-                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-4">
-                            <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Perbandingan Bulanan</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Volume Masuk vs Selesai & Completion Rate</p>
-                            </div>
-                            
-                            {/* YTD Summary Stats */}
-                            <div className="flex items-center gap-4 bg-[var(--surface-2)] p-2 rounded-xl border border-[var(--surface-4)]">
-                                <div className="px-3 border-r border-[var(--surface-4)]">
-                                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Total Masuk</p>
-                                    <p className="text-lg font-bold text-[var(--text-primary)]">
-                                        {monthlyComparisonData.reduce((acc, curr) => acc + curr.masuk, 0).toLocaleString('id-ID')}
-                                    </p>
-                                </div>
-                                <div className="px-3 border-r border-[var(--surface-4)]">
-                                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Total Selesai</p>
-                                    <p className="text-lg font-bold text-[#10b981]">
-                                        {monthlyComparisonData.reduce((acc, curr) => acc + curr.selesai, 0).toLocaleString('id-ID')}
-                                    </p>
-                                </div>
-                                <div className="px-3">
-                                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Avg Rate</p>
-                                    <p className="text-lg font-bold text-[#3b82f6]">
-                                        {monthlyComparisonData.length > 0
-                                            ? Math.round((monthlyComparisonData.reduce((acc, curr) => acc + curr.selesai, 0) / monthlyComparisonData.reduce((acc, curr) => acc + curr.masuk, 0)) * 100)
-                                            : 0}%
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {monthlyComparisonData.length === 0 ? (
-                            <p className="text-sm text-[var(--text-muted)] text-center py-12">Belum ada data perbandingan bulanan</p>
-                        ) : (
-                            <>
-                                <div className="h-[260px] sm:h-[320px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart
-                                            data={monthlyComparisonData as MonthlyComparisonItem[]}
-                                            margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
-                                            onClick={(state) => {
-                                                if (state?.activeLabel) onDrilldown(drilldownUrl('month', String(state.activeLabel)));
-                                            }}
-                                            style={{ cursor: 'pointer' }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                            <XAxis 
-                                                dataKey="month" 
-                                                tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} 
-                                                axisLine={false} 
-                                                tickLine={false} 
-                                                height={50}
-                                                interval={0}
-                                                angle={-45}
-                                                textAnchor="end"
-                                            />
-                                            {/* Primary Axis (Volume) */}
-                                            <YAxis 
-                                                yAxisId="left" 
-                                                tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} 
-                                                axisLine={false} 
-                                                tickLine={false} 
-                                            />
-                                            {/* Secondary Axis (Rate) - Hidden but functional */}
-                                            <YAxis 
-                                                yAxisId="right" 
-                                                orientation="right" 
-                                                domain={[0, 100]} 
-                                                hide={true} 
-                                            />
-                                            
-                                            <Tooltip 
-                                                cursor={{ fill: 'var(--surface-2)', opacity: 0.4 }}
-                                                content={({ active, payload, label }) => {
-                                                    if (!active || !payload?.length) return null;
-                                                    const masuk = payload.find(p => p.name === 'Masuk')?.value as number || 0;
-                                                    const selesai = payload.find(p => p.name === 'Selesai')?.value as number || 0;
-                                                    const rate = payload.find(p => p.name === 'Rate %')?.value as number || 0;
-                                                    const gap = masuk - selesai;
-
-                                                    return (
-                                                        <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[200px]">
-                                                            <p className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">{label}</p>
-                                                            <div className="space-y-3">
-                                                                <div className="flex justify-between items-center">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-2.5 h-2.5 rounded-sm bg-[#cbd5e1]" />
-                                                                        <span className="text-xs text-gray-600">Masuk</span>
-                                                                    </div>
-                                                                    <span className="text-sm font-bold text-gray-900">{masuk}</span>
-                                                                </div>
-                                                                <div className="flex justify-between items-center">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-2.5 h-2.5 rounded-sm bg-[#10b981]" />
-                                                                        <span className="text-xs text-gray-600">Selesai</span>
-                                                                    </div>
-                                                                    <span className="text-sm font-bold text-[#10b981]">{selesai}</span>
-                                                                </div>
-                                                                <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
-                                                                        <span className="text-xs text-gray-600">Completion</span>
-                                                                    </div>
-                                                                    <span className="text-sm font-bold text-[#3b82f6]">{rate}%</span>
-                                                                </div>
-                                                                {gap > 0 && (
-                                                                    <div className="flex justify-between items-center pt-1">
-                                                                         <span className="text-[10px] text-red-500 font-medium">Gap (Pending)</span>
-                                                                         <span className="text-xs font-bold text-red-500">+{gap}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }}
-                                            />
-
-                                            {/* Bars */}
-                                            <Bar 
-                                                yAxisId="left" 
-                                                dataKey="masuk" 
-                                                name="Masuk" 
-                                                fill="#cbd5e1" 
-                                                radius={[4, 4, 0, 0]} 
-                                                barSize={32}
-                                            />
-                                            <Bar 
-                                                yAxisId="left" 
-                                                dataKey="selesai" 
-                                                name="Selesai" 
-                                                fill="#10b981" 
-                                                radius={[4, 4, 0, 0]} 
-                                                barSize={32}
-                                            />
-
-                                            
-                                            {/* Line Overlay */}
-                                            <Line 
-                                                yAxisId="right" 
-                                                type="monotone" 
-                                                dataKey="rate" 
-                                                name="Rate %" 
-                                                stroke="#3b82f6" 
-                                                strokeWidth={2} 
-                                                dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }} 
-                                                activeDot={{ r: 5, strokeWidth: 0 }}
-                                            />
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded" style={{ background: '#cbd5e1' }} />
-                                        <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Masuk</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded" style={{ background: '#10b981' }} />
-                                        <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Selesai</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
-                                        <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">Rate %</span>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </PresentationSlide>
-
             {/* Slide 2: General Categories & Volume Trends */}
             <PresentationSlide
                 title="Tren & Distribusi Kategori"
@@ -526,96 +351,100 @@ export default function AnalystCharts({
                         </div>
                     </div>
 
-                    {/* Trend Volume (Area) - Col 2 (Span 2) */}
-                    <div className="card-solid lg:col-span-2 p-6">
-                         <div className="flex items-center justify-between mb-6">
+                    {/* Completion Status (Donut) */}
+                    <div className="card-solid p-6">
+                        <div className="flex items-center justify-between mb-4">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Tren Volume</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Pergerakan total kasus</p>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Status Penyelesaian</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Total vs Selesai</p>
                             </div>
                         </div>
-                        <div className="h-[240px]">
+                        <div className="h-[180px] sm:h-[200px] relative">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart
-                                    data={safeTrendData}
-                                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                    onClick={(state) => {
-                                        const s = state as { activeLabel?: string; activePayload?: Array<{ payload?: { month?: string } }> };
-                                        const label = s?.activeLabel || (s?.activePayload?.[0]?.payload?.month);
-                                        if (label) onDrilldown(drilldownUrl('month', String(label)));
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <defs>
-                                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="var(--brand-primary)" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="var(--brand-primary)" stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis 
-                                        dataKey="month" 
-                                        tick={{fill: 'var(--text-secondary)', fontSize: 9}} 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                        height={50}
-                                        interval={0}
-                                        angle={-45}
-                                        textAnchor="end"
-                                    />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
+                                <RechartsPie>
+                                    <Pie
+                                        data={completionStatusData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={45}
+                                        outerRadius={75}
+                                        paddingAngle={3}
+                                        dataKey="value"
+                                        cornerRadius={4}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        {completionStatusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Area type="monotone" dataKey="total" name="Total" stroke="var(--brand-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
-                                    <Area type="monotone" dataKey="resolved" name="Selesai" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorResolved)" />
-                                </AreaChart>
+                                </RechartsPie>
                             </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
+                                    {completionStatusData.reduce((sum, d) => sum + d.value, 0)}
+                                </span>
+                                <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-3 mt-2">
+                             {completionStatusData.map((s) => (
+                                <div key={s.name} className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
+                                    <span className="text-[10px] text-[var(--text-secondary)]">{s.name}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Summary by Area (Full Width) */}
-                    <div className="card-solid lg:col-span-3 p-6">
-                        <div className="flex items-center justify-between mb-6">
+
+
+                    {/* Monthly Volume Distribution (Pie) */}
+                    <div className="card-solid p-6">
+                        <div className="flex items-center justify-between mb-4">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Summary by Area</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Distribusi laporan per wilayah kerja</p>
+                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Volume per Bulan</h3>
+                                <p className="text-xs text-[var(--text-muted)]">Distribusi laporan bulanan</p>
                             </div>
-                            <MapPin size={20} className="text-[var(--text-muted)]" />
                         </div>
-                        <div className="h-[280px]">
+                        <div className="h-[180px] sm:h-[200px] relative">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={categoryByAreaData}
-                                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                                    onClick={(state) => {
-                                        if (state?.activeLabel) onDrilldown(drilldownUrl('area', String(state.activeLabel)));
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                    <XAxis 
-                                        dataKey="name" 
-                                        tick={{fill: 'var(--text-secondary)', fontSize: 9}} 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                        height={60}
-                                        interval={0}
-                                        angle={-45}
-                                        textAnchor="end"
-                                    />
-                                    <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="value" name="Laporan" radius={[4, 4, 0, 0]} barSize={40}>
-                                        {(categoryByAreaData as any[]).map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill || COLORS[index % COLORS.length]} />
+                                <RechartsPie>
+                                    <Pie
+                                        data={monthlyVolumeData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={45}
+                                        outerRadius={75}
+                                        paddingAngle={3}
+                                        dataKey="value"
+                                        cornerRadius={4}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={(data) => {
+                                            if (data?.name) onDrilldown(drilldownUrl('month', data.name));
+                                        }}
+                                    >
+                                        {monthlyVolumeData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}
-                                        <LabelList dataKey="value" position="top" fill="var(--text-secondary)" fontSize={10} />
-                                    </Bar>
-                                </BarChart>
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </RechartsPie>
                             </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
+                                    {monthlyVolumeData.reduce((sum, d) => sum + d.value, 0)}
+                                </span>
+                                <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-[var(--text-muted)]">Total</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-3 mt-2">
+                             {monthlyVolumeData.map((s) => (
+                                <div key={s.name} className="flex items-center gap-1.5 cursor-pointer" onClick={() => onDrilldown(drilldownUrl('month', s.name))}>
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
+                                    <span className="text-[10px] text-[var(--text-secondary)]">{s.name}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -633,13 +462,14 @@ export default function AnalystCharts({
                                 <BarChart
                                     data={areaSubCategoryData as any[]}
                                     margin={{ top: 25, right: 10, left: -20, bottom: 5 }}
+                                    barCategoryGap="30%"
                                     onClick={(state) => {
                                         if (state?.activeLabel) onDrilldown(drilldownUrl('area', String(state.activeLabel)));
                                     }}
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--surface-4)" opacity={0.5} />
-                                    <XAxis dataKey="area" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="area" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     {allSubCategories.map((cat, idx) => (
@@ -693,9 +523,9 @@ export default function AnalystCharts({
                         </div>
                         <div className="h-[250px] sm:h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={branchReportData as BranchReportItem[]} margin={{ top: 10, right: 10, left: -25, bottom: 10 }}>
+                                <BarChart data={branchReportData as BranchReportItem[]} margin={{ top: 10, right: 10, left: -25, bottom: 10 }} barCategoryGap="30%">
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="station" tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={50} />
+                                    <XAxis dataKey="station" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} interval={0} height={80} />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar
@@ -768,9 +598,9 @@ export default function AnalystCharts({
                         </div>
                         <div className="h-[280px] sm:h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={airlinesTotalData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }}>
+                                <BarChart data={airlinesTotalData} margin={{ top: 10, right: 10, left: -15, bottom: 20 }} barCategoryGap="30%">
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} interval={0} height={70} angle={-45} textAnchor="end" />
+                                    <XAxis dataKey="airline" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} interval={0} height={80} />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar
@@ -805,13 +635,14 @@ export default function AnalystCharts({
                                 <BarChart
                                     data={categoryByAirlinesData as CategoryByAirlinesItem[]}
                                     margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                                    barCategoryGap="30%"
                                     onClick={(state) => {
                                         if (state?.activeLabel) onDrilldown(drilldownUrl('airline', String(state.activeLabel)));
                                     }}
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--surface-4)" />
-                                    <XAxis dataKey="airline" tick={{fill: 'var(--text-secondary)', fontSize: 9}} axisLine={false} tickLine={false} height={60} interval={0} />
+                                    <XAxis dataKey="airline" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} />
