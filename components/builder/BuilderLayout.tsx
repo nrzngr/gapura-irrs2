@@ -43,6 +43,7 @@ interface GlobalFilters {
 
 interface BuilderLayoutProps {
   onSaveDashboard: (name: string, description: string, tiles: SaveTile[], config?: SaveConfig, folder?: string | null) => Promise<{ embedUrl: string } | null>;
+  existingFolders?: string[];
 }
 
 export interface SaveTile {
@@ -72,7 +73,7 @@ const defaultVisualization: ChartVisualization = {
   showLabels: false,
 };
 
-export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
+export function BuilderLayout({ onSaveDashboard, existingFolders = [] }: BuilderLayoutProps) {
   const [mode, setMode] = useState<Mode>('explore');
   const [visualization, setVisualization] = useState<ChartVisualization>({ ...defaultVisualization });
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -696,6 +697,7 @@ export function BuilderLayout({ onSaveDashboard }: BuilderLayoutProps) {
         initialName={dash.name}
         initialDescription={dash.description}
         initialFolder={dash.folder}
+        existingFolders={existingFolders}
         onSave={handleSave}
         tileCount={dash.tiles.length}
         pageCount={dash.pages.length}

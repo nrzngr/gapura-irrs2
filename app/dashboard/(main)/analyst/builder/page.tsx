@@ -95,7 +95,16 @@ export default function DashboardBuilderPage() {
     >
       {/* Builder — takes remaining space, scrolls internally */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <BuilderLayout onSaveDashboard={handleSave} />
+        <BuilderLayout
+          onSaveDashboard={handleSave}
+          existingFolders={
+            Array.from(new Set(
+              savedDashboards
+                .map(d => d.folder)
+                .filter((f): f is string => !!f)
+            ))
+          }
+        />
       </div>
 
       {/* Saved Dashboards — fixed at bottom, collapsible */}
