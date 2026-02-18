@@ -48,11 +48,7 @@ export function getCacheStats() {
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '1TFPZOAWAKubPl7iaUk8BXt2BabY1N-AcLgi-_zBQGzk';
 const REPORT_SHEETS = ['NON CARGO', 'CGO'];
-const SHEET_IDS: Record<string, number> = {
-  'NON CARGO': 847305549,
-  'CGO': 2038497965,
-  'HUB': 1950360673
-};
+const SHEET_IDS: Record<string, number> = {}; // Empty to force dynamic lookup for new sheet
 
 // Mapping from Report properties to likely Header names (for writing/reading)
 // Note: Google Sheets headers use underscores (e.g., "Date_of_Event") not spaces
@@ -669,6 +665,70 @@ export class ReportsService {
         ],
       },
     });
+
+    invalidateCache(CACHE_KEY_ALL_REPORTS);
+    return true;
+  }
+
+  async batchCreateReports(reports: Partial<Report>[]): Promise<boolean> {
+    if (!reports.length) return true;
+    const sheets = await this.getSheets();
+    if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
+
+    // Group by target sheet to minimize API calls
+    const grouped: Record<string, Partial<Report>[]> = {
+      'NON CARGO': [],
+      'CGO': []
+    };
+
+    reports.forEach(reportData => {
+      let targetSheet = 'NON CARGO';
+      const category = (reportData.category || '').toLowerCase();
+      const area = (reportData.area || '').toLowerCase();
+      const primaryTag = (reportData.primary_tag || '').toUpperCase();
+      
+      if (area === 'cargo' || category.includes('cargo') || reportData.is_gse_related || primaryTag === 'CGO' || primaryTag === 'CARGO') {
+          targetSheet = 'CGO';
+      }
+      grouped[targetSheet].push(reportData);
+    });
+
+    for (const [targetSheet, reportsInSheet] of Object.entries(grouped)) {
+      if (!reportsInSheet.length) continue;
+
+      const headers = await this.getHeaderRow(targetSheet);
+      const rows = reportsInSheet.map(reportData => {
+        const newReport = {
+          ...reportData,
+          created_at: reportData.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          status: reportData.status || 'MENUNGGU_FEEDBACK',
+          severity: reportData.severity || 'low',
+          title: reportData.title || 'Untitled',
+          description: reportData.description || '',
+          location: reportData.location || '',
+        };
+
+        return headers.map((header: string) => {
+          const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === header.trim().toLowerCase());
+          if (propEntry) {
+            const prop = propEntry[0] as keyof Report;
+            // @ts-ignore
+            return newReport[prop] !== undefined ? newReport[prop] : '';
+          }
+          // @ts-ignore
+          if (newReport[header]) return newReport[header];
+          return '';
+        });
+      });
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${targetSheet}!A1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: rows },
+      });
+    }
 
     invalidateCache(CACHE_KEY_ALL_REPORTS);
     return true;

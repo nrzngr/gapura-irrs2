@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
-import { supabase } from '@/lib/supabase';
 import { Upload, FileUp, AlertCircle, CheckCircle, Loader2, X, Database, Truck, Plane, FileSpreadsheet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -242,45 +241,26 @@ export default function ImportDataPage() {
       // 1. Map Data
       const mappedData = previewData.map((row) => mapRowToReport(row, importType));
 
-      // 2. Batch Insert
-      const chunkSize = 50;
-      let totalInserted = 0;
+      // 2. Batch Insert to Sheets API
+      const response = await fetch('/api/reports/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reports: mappedData })
+      });
 
-      for (let i = 0; i < mappedData.length; i += chunkSize) {
-        const chunk = mappedData.slice(i, i + chunkSize);
-        
-        // Removing undefined/null keys that might violate DB constraints if DB expects default
-        // Supabase/Postgres is usually fine with missing keys (defaults apply), but explicit undefined might be weird.
-        const cleanChunk = chunk.map(r => {
-            const clean: any = {};
-            Object.keys(r).forEach(k => {
-                if (r[k] !== undefined && r[k] !== null && r[k] !== '') clean[k] = r[k];
-                // Allow explicit nulls if needed? Usually empty string -> null in robust apps, but here let's stick to truthy or explicit
-            });
-            // Ensure mandatory fields
-            if (!clean.title) clean.title = 'Untitled Report';
-            return clean;
-        });
-
-        const { error } = await supabase
-          .from('reports')
-          .insert(cleanChunk);
-          
-        if (error) {
-           console.error('Batch Insert Error:', error);
-           throw error;
-        }
-        totalInserted += chunk.length;
+      const result = await response.json();
+      
+      if (!response.ok) {
+          throw new Error(result.error || 'Gagal mengimport ke Google Sheets');
       }
 
-      setSuccessCount(totalInserted);
+      setSuccessCount(result.count || mappedData.length);
       setUploadStatus('success');
     } catch (error) {
       console.error('Import Error:', error);
       setUploadStatus('error');
       const message = error instanceof Error ? error.message : 'Gagal mengimport data.';
-      const detail = (error as any)?.details || (error as any)?.message || '';
-      setErrorMessage(`${message} ${detail}`);
+      setErrorMessage(message);
     } finally {
       setIsUploading(false);
     }
