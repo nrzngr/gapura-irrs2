@@ -255,21 +255,27 @@ export async function PATCH(request: NextRequest) {
 
     // Bulk rename: { action: 'rename', oldFolder, newFolder }
     if (body.action === 'rename') {
-      const { oldFolder, newFolder } = body as { action: string; oldFolder: string; newFolder: string };
+      const { oldFolder: rawOld, newFolder: rawNew } = body as { action: string; oldFolder: string; newFolder: string };
+      const oldFolder = typeof rawOld === 'string' ? rawOld.trim() : '';
+      const newFolder = typeof rawNew === 'string' ? rawNew.trim() : '';
       if (!oldFolder || !newFolder) {
         return NextResponse.json({ error: 'oldFolder and newFolder required' }, { status: 400 });
       }
+      if (oldFolder === newFolder) {
+        return NextResponse.json({ success: true });
+      }
       const { error } = await supabase
         .from('custom_dashboards')
-        .update({ folder: newFolder.trim() || null })
+        .update({ folder: newFolder || null })
         .eq('folder', oldFolder);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ success: true });
     }
 
-    // Bulk delete folder: { action: 'delete', folder }
+    // Dissolve folder (move all dashboards to no-folder): { action: 'delete', folder }
     if (body.action === 'delete') {
-      const { folder } = body as { action: string; folder: string };
+      const rawFolder = body.folder;
+      const folder = typeof rawFolder === 'string' ? rawFolder.trim() : '';
       if (!folder) {
         return NextResponse.json({ error: 'folder required' }, { status: 400 });
       }
@@ -279,6 +285,11 @@ export async function PATCH(request: NextRequest) {
         .eq('folder', folder);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ success: true });
+    }
+
+    // Reject unknown action values
+    if (body.action !== undefined) {
+      return NextResponse.json({ error: `Unknown action: ${String(body.action)}` }, { status: 400 });
     }
 
     // Single dashboard move: { id, folder }
