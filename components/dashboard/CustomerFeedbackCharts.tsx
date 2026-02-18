@@ -217,8 +217,8 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                     dimensions: [{ table: 'reports', field: 'created_at', alias: 'name', dateGranularity: 'month' }],
                     measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
                     filters: apiFilters,
-                    sorts: [],
-                    limit: 12
+                    sorts: [{ field: 'name', direction: 'asc' }],
+                    limit: 1000 // Ensure we fetch enough to reach 2026
                 };
 
                 // Execute all queries in parallel
@@ -240,7 +240,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                     caseCategory: coloredCaseCat,
                     branch: branches,
                     airlines: airlines,
-                    monthly: monthly
+                    monthly: [...monthly].slice(-14)
                 });
             } catch (err) {
                 console.error('Failed to load dashboard data:', err);

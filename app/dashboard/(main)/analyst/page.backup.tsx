@@ -770,6 +770,10 @@ export default function AnalystDashboard() {
                 hubDistributionData={hubDistributionData}
                 resolutionByBranchData={resolutionByBranchData}
                 filteredReports={filteredReports}
+                caseReportByAreaData={[]}
+                terminalAreaCategoryData={[]}
+                apronAreaCategoryData={[]}
+                generalCategoryData={[]}
                 onDrilldown={(url) => router.push(url)}
                 drilldownUrl={drilldownUrl}
             />

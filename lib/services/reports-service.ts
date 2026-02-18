@@ -83,6 +83,8 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   kode_cabang: ['KODE_CABANG_VLOOKUP', 'KODE CABANG (VLOOKUP)'],
   maskapai_lookup: ['MASKAPAI_VLOOKUP', 'MASKAPAI (VLOOKUP)'],
   lokal_mpa_lookup: ['Lokal_MPA_VLOOKUP', 'Lokal / MPA (VLOOKUP)'],
+  hub: ['Hub', 'HUB'],
+  kode_hub: ['KODE_HUB_VLOOKUP', 'KODE HUB (VLOOKUP)', 'Kode Hub'],
   
   // Triage Columns
   primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
@@ -123,6 +125,8 @@ const WRITE_MAPPING: Record<string, string> = {
   apron_area_category: 'Apron Area Category',
   general_category: 'General Category',
   status: 'Status',
+  hub: 'Hub',
+  kode_hub: 'Kode Hub',
 
   // Triage Write Mappings
   primary_tag: 'Primary Tag',
@@ -163,6 +167,13 @@ function parseDate(dateStr: string | number | Date): Date | null {
    const d = new Date(str);
    if (!isNaN(d.getTime())) return d;
    
+   // Handle common Indonesian formats or 2024-05-30
+   const isoMatch = str.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+   if (isoMatch) {
+      const d = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+      if (!isNaN(d.getTime())) return d;
+   }
+
    return null;
 }
 
@@ -297,9 +308,24 @@ export class ReportsService {
         if (parsedEventDate) {
           report.date_of_event = parsedEventDate.toISOString();
           if (!report.created_at) report.created_at = report.date_of_event;
+        } else if (report.created_at) {
+          // If event date fails, try parsing created_at to clean it up
+          const parsedCreated = parseDate(report.created_at as string);
+          if (parsedCreated) {
+            report.created_at = parsedCreated.toISOString();
+          } else {
+            report.created_at = new Date().toISOString();
+          }
         } else {
           // If no date, use current time (fallback)
-          if (!report.created_at) report.created_at = new Date().toISOString();
+          report.created_at = new Date().toISOString();
+        }
+
+        if (report.resolved_at) {
+          const parsedResolved = parseDate(report.resolved_at as string);
+          if (parsedResolved) {
+            report.resolved_at = parsedResolved.toISOString();
+          }
         }
 
         // Map Google Sheets status to internal status
@@ -317,8 +343,15 @@ export class ReportsService {
         };
         
         if (report.status) {
-          const normalizedStatus = report.status.toString().trim();
+          const normalizedStatus = report.status.toString().trim().toUpperCase();
           report.status = statusMapping[normalizedStatus] || normalizedStatus;
+          
+          // Legacy check for specific Indonesian words if not in map
+          if (report.status === 'SELESAI' || report.status === 'CLOSED') {
+            report.status = 'SELESAI';
+          } else if (report.status === 'OPEN' || report.status === 'MENUNGGU' || report.status === 'ACTIVE') {
+            report.status = 'MENUNGGU_FEEDBACK';
+          }
         } else {
           report.status = 'MENUNGGU_FEEDBACK';
         }

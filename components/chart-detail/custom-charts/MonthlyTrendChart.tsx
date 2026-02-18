@@ -19,9 +19,18 @@ interface MonthlyTrendChartProps {
 }
 
 const MONTH_NAMES: Record<string, string> = {
-  '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
-  '05': 'Mei', '06': 'Jun', '07': 'Jul', '08': 'Agu',
-  '09': 'Sep', '10': 'Okt', '11': 'Nov', '12': 'Des'
+  '01': 'Jan',
+  '02': 'Feb',
+  '03': 'Mar',
+  '04': 'Apr',
+  '05': 'Mei',
+  '06': 'Jun',
+  '07': 'Jul',
+  '08': 'Agu',
+  '09': 'Sep',
+  '10': 'Okt',
+  '11': 'Nov',
+  '12': 'Des'
 };
 
 export function MonthlyTrendChart({ 
@@ -60,10 +69,14 @@ export function MonthlyTrendChart({
     );
   }
 
+// Sort by year then month robustly
   const sortedData = [...data].sort((a, b) => {
-    const aMonth = a.month?.padStart(2, '0') || '00';
-    const bMonth = b.month?.padStart(2, '0') || '00';
-    return aMonth.localeCompare(bMonth);
+    const ay = Number(a.year ?? 0);
+    const by = Number(b.year ?? 0);
+    const aMonthKey = String(a.month ?? '00').padStart(2, '0');
+    const bMonthKey = String(b.month ?? '00').padStart(2, '0');
+    if (ay !== by) return ay - by;
+    return aMonthKey.localeCompare(bMonthKey);
   });
 
   const total = sortedData.reduce((sum, item) => sum + item.count, 0);
@@ -71,13 +84,11 @@ export function MonthlyTrendChart({
   const maxCount = Math.max(...sortedData.map(d => d.count), 1);
   const minCount = Math.min(...sortedData.map(d => d.count));
   
-  // Calculate overall trend
-  const firstHalf = sortedData.slice(0, Math.floor(sortedData.length / 2));
-  const secondHalf = sortedData.slice(Math.floor(sortedData.length / 2));
-  const firstAvg = firstHalf.reduce((sum, item) => sum + item.count, 0) / firstHalf.length || 0;
-  const secondAvg = secondHalf.reduce((sum, item) => sum + item.count, 0) / secondHalf.length || 0;
-  const overallTrend = secondAvg - firstAvg;
-  const overallTrendPercent = firstAvg > 0 ? (overallTrend / firstAvg) * 100 : 0;
+  // Calculate overall trend using first vs last data points to avoid division by zero
+  const firstValue = sortedData.length > 0 ? sortedData[0].count : 0;
+  const lastValue = sortedData.length > 0 ? sortedData[sortedData.length - 1].count : 0;
+  const overallTrend = lastValue - firstValue;
+  const overallTrendPercent = firstValue > 0 ? (overallTrend / firstValue) * 100 : 0;
 
   const TrendIcon = overallTrend > 0 ? TrendingUp : overallTrend < 0 ? TrendingDown : Minus;
   const trendColor = overallTrend > 0 ? 'text-red-600' : overallTrend < 0 ? 'text-green-600' : 'text-gray-500';
@@ -91,7 +102,7 @@ export function MonthlyTrendChart({
         <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
       </div>
       
-      <div className="p-4 flex-1 flex flex-col">
+      <div className="p-4 pt-10 flex-1 flex flex-col">
         {/* Trend Summary */}
         <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
@@ -116,11 +127,12 @@ export function MonthlyTrendChart({
         <div className="flex-1 flex flex-col min-h-[150px]">
           {/* Peak indicator */}
           <div className="relative flex-1 flex items-end gap-1">
-            {sortedData.map((item, idx) => {
-              const height = (item.count / maxCount) * 100;
-              const monthName = MONTH_NAMES[item.month?.padStart(2, '0')] || item.month;
-              const isPeak = item.count === maxCount;
-              const isLow = item.count === minCount;
+        {sortedData.map((item, idx) => {
+          const height = (item.count / maxCount) * 100;
+          const monthKey = String(item.month ?? '00').padStart(2, '0');
+          const monthName = MONTH_NAMES[monthKey] ?? monthKey;
+          const isPeak = item.count === maxCount;
+          const isLow = item.count === minCount;
               
               return (
                 <div key={idx} className="flex-1 flex flex-col items-center">
@@ -185,7 +197,8 @@ export function MonthlyTrendChart({
           <div className="text-[9px] font-bold text-gray-500 uppercase mb-2">3 Bulan Terakhir</div>
           <div className="grid grid-cols-3 gap-2">
             {sortedData.slice(-3).map((item, idx) => {
-              const monthName = MONTH_NAMES[item.month?.padStart(2, '0')] || item.month;
+              const monthKey = String(item.month ?? '00').padStart(2, '0');
+              const monthName = MONTH_NAMES[monthKey] ?? monthKey;
               const changePercent = item.changePercent || 0;
               
               return (

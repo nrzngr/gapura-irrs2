@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
+import type { ChartData } from 'chart.js';
 import { LineChart, Line as RechartsLine, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer as RechartsContainer, Area, AreaChart } from 'recharts';
 import { useViewport } from '@/hooks/useViewport';
 import { adaptToChartJSData } from '@/lib/utils/chartAdapters';
@@ -94,7 +95,7 @@ export function ResponsiveLineChart({
   if (useMobileCharts) {
     return (
       <div className={cn('w-full', height, className)}>
-        <Line data={styledData} options={chartJSOptions} />
+        <Line data={styledData as any} options={chartJSOptions as any} />
       </div>
     );
   }

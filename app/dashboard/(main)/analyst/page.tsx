@@ -381,8 +381,8 @@ export default function AnalystDashboard() {
       else if (r.category === 'Compliment') entry.compliment++;
     });
 
-    return Array.from(dataMap.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
+    const result = Array.from(dataMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([_, val]) => ({
         month: `${val.date.getFullYear()} ${val.date.toLocaleString('en-US', {
           month: 'short',
@@ -391,7 +391,10 @@ export default function AnalystDashboard() {
         complaint: val.complaint,
         compliment: val.compliment,
       }))
-      .slice(0, 14);
+      .slice(-14);
+    
+    console.log('[AnalystPage] monthlyReportData:', result.length, 'items');
+    return result;
   }, [filteredReports]);
 
   const categoryByAreaData = useMemo(() => {
@@ -570,6 +573,78 @@ export default function AnalystDashboard() {
       .slice(0, 10);
   }, [filteredReports]);
 
+  // Case Report by Area: Branch → Airlines hierarchy, counts by area type
+  const caseReportByAreaData = useMemo(() => {
+    const branchMap: Record<string, Record<string, { terminal: number; apron: number; general: number }>> = {};
+    filteredReports.forEach((r) => {
+      const branch = r.branch || r.stations?.code || 'Unknown';
+      const airline = (r.airlines || (r as any).airline || 'Unknown').trim() || 'Unknown';
+      const area = (r.area || '').toLowerCase();
+      if (!branchMap[branch]) branchMap[branch] = {};
+      if (!branchMap[branch][airline]) branchMap[branch][airline] = { terminal: 0, apron: 0, general: 0 };
+      if (area.includes('terminal')) branchMap[branch][airline].terminal++;
+      else if (area.includes('apron')) branchMap[branch][airline].apron++;
+      else if (area.includes('general')) branchMap[branch][airline].general++;
+    });
+    return Object.entries(branchMap)
+      .map(([branch, airlineData]) => {
+        const airlines = Object.entries(airlineData)
+          .map(([name, c]) => ({
+            name,
+            terminal: c.terminal,
+            apron: c.apron,
+            general: c.general,
+            total: c.terminal + c.apron + c.general,
+          }))
+          .sort((a, b) => b.total - a.total);
+        return {
+          branch,
+          airlines,
+          totalTerminal: Object.values(airlineData).reduce((s, v) => s + v.terminal, 0),
+          totalApron: Object.values(airlineData).reduce((s, v) => s + v.apron, 0),
+          totalGeneral: Object.values(airlineData).reduce((s, v) => s + v.general, 0),
+          grandTotal: Object.values(airlineData).reduce((s, v) => s + v.terminal + v.apron + v.general, 0),
+        };
+      })
+      .sort((a, b) => b.grandTotal - a.grandTotal);
+  }, [filteredReports]);
+
+  // Terminal Area Category counts sorted descending
+  const terminalAreaCategoryData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredReports.forEach((r) => {
+      const cat = (r as any).terminal_area_category as string | undefined;
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredReports]);
+
+  // Apron Area Category counts sorted descending
+  const apronAreaCategoryData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredReports.forEach((r) => {
+      const cat = (r as any).apron_area_category as string | undefined;
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredReports]);
+
+  // General Category counts sorted descending
+  const generalCategoryData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredReports.forEach((r) => {
+      const cat = (r as any).general_category as string | undefined;
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredReports]);
+
   // Loading state
   if (loading) {
     return (
@@ -681,6 +756,10 @@ export default function AnalystDashboard() {
         hubDistributionData={hubDistributionData}
         resolutionByBranchData={resolutionByBranchData}
         filteredReports={filteredReports}
+        caseReportByAreaData={caseReportByAreaData}
+        terminalAreaCategoryData={terminalAreaCategoryData}
+        apronAreaCategoryData={apronAreaCategoryData}
+        generalCategoryData={generalCategoryData}
         onDrilldown={(url) => router.push(url)}
         drilldownUrl={drilldownUrl}
       />

@@ -77,9 +77,9 @@ export function ParetoChart({ result, title, explanation }: ParetoChartProps) {
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
       </div>
 
-      <div className="flex-1 p-2 min-h-[250px]">
+      <div className="flex-1 p-2 pt-8 min-h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={processedData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+          <ComposedChart data={processedData} margin={{ top: 35, right: 20, bottom: 20, left: 0 }}>
             <CartesianGrid stroke="#f5f5f5" vertical={false} />
             <XAxis 
               dataKey="name" 

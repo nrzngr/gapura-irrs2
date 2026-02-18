@@ -114,11 +114,11 @@ export function GroupedBarChart({ visualization, result, title, explanation, cla
       </div>
 
       {/* 3. CHART AREA */}
-      <div className="flex-1 w-full min-h-[300px] p-4 pt-6">
+      <div className="flex-1 w-full min-h-[300px] p-4 pt-10">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={processedData}
-            margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+            margin={{ top: 30, right: 10, left: 0, bottom: 20 }}
             barGap={2} // Gap between bars in a group
             barCategoryGap="20%" // Gap between groups
           >

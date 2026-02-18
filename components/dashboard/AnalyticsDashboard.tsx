@@ -209,14 +209,14 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             else if (r.category === 'Compliment') entry.compliment++;
         });
         return Array.from(dataMap.entries())
-            .sort((a, b) => b[0].localeCompare(a[0])) 
+            .sort((a, b) => a[0].localeCompare(b[0])) 
             .map(([_, val]) => ({
                 month: val.date.toLocaleString('en-US', { month: 'short', year: '2-digit' }),
                 irregularity: val.irregularity,
                 complaint: val.complaint,
                 compliment: val.compliment
             }))
-            .slice(0, 12);
+            .slice(-14);
     }, [filteredReportsList]);
 
     const categoryByAreaData = useMemo(() => {
@@ -318,7 +318,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                 selesai: val.selesai,
                 rate: val.masuk > 0 ? Math.round((val.selesai / val.masuk) * 100) : 0
             }))
-            .slice(-12);
+            .slice(-14);
     }, [filteredReportsList]);
 
     const hubDistributionData = useMemo(() => {
@@ -438,6 +438,10 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         hubDistributionData={hubDistributionData}
                         resolutionByBranchData={resolutionByBranchData}
                         filteredReports={filteredReportsList}
+                        caseReportByAreaData={[]}
+                        terminalAreaCategoryData={[]}
+                        apronAreaCategoryData={[]}
+                        generalCategoryData={[]}
                         onDrilldown={(url) => router.push(url)}
                         drilldownUrl={drilldownUrl}
                     />

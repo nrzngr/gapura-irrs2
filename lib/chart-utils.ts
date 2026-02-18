@@ -1,10 +1,20 @@
 // ISO datetime pattern: 2026-01-23T00:00:00+00:00 or 2026-01-23T00:00:00.000Z
 // Also matches 2026-01-23 00:00:00+00
-export const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/;
+// AND 2026-01-23 (YYYY-MM-DD)
+// AND 2026-01 (YYYY-MM)
+export const ISO_DATETIME_RE = /^(\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2})?|\d{4}-\d{2}|\d{4})$/;
 
 export function formatDateValue(val: unknown): string {
   if (typeof val !== 'string' || !ISO_DATETIME_RE.test(val)) return String(val ?? '');
   
+  // Format YYYY-MM as "Jan 2026"
+  if (/^\d{4}-\d{2}$/.test(val)) {
+    const [year, month] = val.split('-');
+    const d = new Date(parseInt(year), parseInt(month) - 1);
+    const monthStr = d.toLocaleDateString('id-ID', { month: 'short' });
+    return `${monthStr} ${year}`;
+  }
+
   const normalized = val.includes(' ') && !val.includes('T') ? val.replace(' ', 'T') : val;
   const d = new Date(normalized);
   
@@ -68,7 +78,13 @@ export function processChartData(
   xKey: string,
 ): Record<string, unknown>[] {
   if (!isDateColumn(rows, xKey)) return rows;
-  return rows.map(row => ({
+  // Sort by raw date value (oldest to newest) before formatting
+  const sorted = [...rows].sort((a, b) => {
+    const aVal = String(a[xKey] ?? '');
+    const bVal = String(b[xKey] ?? '');
+    return aVal.localeCompare(bVal);
+  });
+  return sorted.map(row => ({
     ...row,
     [xKey]: formatDateValue(row[xKey]),
   }));

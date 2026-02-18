@@ -144,7 +144,7 @@ export function ResponsiveDashboardComposer({
 
                   {/* Tile Content - Expanded when selected */}
                   {isSelected && (
-                    <div className="border-t border-[#e0e0e0]">
+                  <div className="border-t border-[#e0e0e0]">
                       {/* Preview */}
                       <div className="p-4 bg-[#fafafa]">
                         <TileCard
@@ -154,7 +154,6 @@ export function ResponsiveDashboardComposer({
                           onEdit={onEditTile}
                           onRemove={onRemoveTile}
                           onResize={onResizeTile}
-                          compact
                         />
                       </div>
 

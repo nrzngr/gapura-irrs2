@@ -41,9 +41,15 @@ const getDateKey = (dateStr: string, granularity?: string) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     
-    if (granularity === 'month') return `${d.getFullYear()} ${d.toLocaleString('en-US', { month: 'short' })}`; // YYYY MMM
+    if (granularity === 'month') {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // 2025-01
+    }
     if (granularity === 'year') return d.getFullYear().toString();
     if (granularity === 'day') return d.toISOString().slice(0, 10);
+    if (granularity === 'quarter') {
+      const q = Math.ceil((d.getMonth() + 1) / 3);
+      return `${d.getFullYear()} Q${q}`;
+    }
     return dateStr;
   } catch (e) {
     return dateStr;
@@ -112,6 +118,9 @@ export function processQuery(query: QueryDefinition, data: any[]): QueryResult {
         query.dimensions!.forEach((d, idx) => {
           const alias = d.alias || d.field;
           groups[key][alias] = dimValues[idx];
+          if (d.dateGranularity) {
+            groups[key][`_raw_${alias}`] = getVal(row, d.field);
+          }
         });
         
         // Initialize measures
@@ -218,12 +227,17 @@ export function processQuery(query: QueryDefinition, data: any[]): QueryResult {
       for (const s of query.sorts!) {
         // Try field name first, then alias
         const field = s.alias || s.field;
-        let valA = a[field];
-        let valB = b[field];
+        // Try raw sort key first if it's a date dimension
+        let valA = a[`_raw_${field}`] ?? a[field];
+        let valB = b[`_raw_${field}`] ?? b[field];
 
         // If not found by alias, try to find by raw field name if it exists in row
         if (valA === undefined) valA = a[s.field] || 0;
         if (valB === undefined) valB = b[s.field] || 0;
+        
+        // Handle date strings in raw values for better comparison
+        if (typeof valA === 'string' && !isNaN(Date.parse(valA))) valA = new Date(valA).getTime();
+        if (typeof valB === 'string' && !isNaN(Date.parse(valB))) valB = new Date(valB).getTime();
         
         if (valA < valB) return s.direction === 'asc' ? -1 : 1;
         if (valA > valB) return s.direction === 'asc' ? 1 : -1;

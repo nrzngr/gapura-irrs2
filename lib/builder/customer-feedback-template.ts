@@ -108,16 +108,16 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   
   const fromDate = parseDate(dateFrom);
   const toDate = parseDate(dateTo);
+  // Dynamic year range for title
   const fromYear = fromDate.getFullYear();
   const toYear = toDate.getFullYear();
-  
-  // Check if using full date range (1900-2099), if so don't show year range in title
-  const isFullRange = fromYear === 1900 && toYear === 2099;
+  const isFullRange = fromYear <= 1900 && toYear >= 2099;
   const yearRange = fromYear === toYear ? `${fromYear}` : `${fromYear} - ${toYear}`;
-  const displayTitle = isFullRange ? 'Customer Feedback' : `Landside & Airside Customer Feedback ${yearRange}`;
+  
+  const displayTitle = isFullRange ? 'Customer Feedback' : `Customer Feedback ${yearRange}`;
   const displayDescription = isFullRange 
-    ? 'Landside & Airside Customer Feedback – Irregularity, Complaint & Compliment Report'
-    : `Landside & Airside Customer Feedback ${yearRange} – Irregularity, Complaint & Compliment Report`;
+    ? 'Comprehensive Customer Feedback – Irregularity, Complaint & Compliment Report'
+    : `Customer Feedback ${yearRange} – Irregularity, Complaint & Compliment Report`;
   
   console.log('[Customer Feedback] Date range:', { dateFrom, dateTo, fromYear, toYear, yearRange });
 
@@ -216,9 +216,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'date_of_event', alias: 'month', dateGranularity: 'month' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'count' }],
         filters: [...baseFilters],
-        sorts: [{ field: 'month', direction: 'desc' }], limit: 10000,
+        sorts: [{ field: 'month', direction: 'asc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'month', yAxis: ['count'], showLegend: false, showLabels: true, displayLimit: 12 },
+      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'month', yAxis: ['count'], showLegend: false, showLabels: true, displayLimit: 14 },
       layout: { x: 6, y: 3, w: 6, h: 2 },
     },
 
@@ -387,7 +387,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         ],
         measures: [],
         filters: [...baseFilters],
-        sorts: [{ field: 'Date', direction: 'desc' }], limit: 10000,
+        sorts: [{ field: 'Date', direction: 'asc' }], limit: 10000,
       },
       visualization: { chartType: 'table', title: 'Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },
       layout: { x: 0, y: 7, w: 12, h: 4 }, // WIDTH 12, HEIGHT 4 (Table Exception)
@@ -644,9 +644,9 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         dimensions: [{ table: 'reports', field: 'date_of_event', alias: 'Month', dateGranularity: 'month' }],
         measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'Total' }],
         filters: [...df, cgoFilter, ...hubFilters, ...branchFilters, ...airlineFilters, ...categoryFilters, ...divisionFilter],
-        sorts: [{ field: 'Month', direction: 'desc' }], limit: 10000,
+        sorts: [{ field: 'Month', direction: 'asc' }], limit: 10000,
       },
-      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'Month', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 12 },
+      visualization: { chartType: 'horizontal_bar', title: 'Monthly Report', xAxis: 'Month', yAxis: ['Total'], showLegend: false, showLabels: true, colors: ['#81c784'], displayLimit: 14 },
       layout: { x: 6, y: 3, w: 6, h: 2 }, // WIDTH 6, HEIGHT 2, Row 2
     },
 
@@ -858,7 +858,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
         ],
         measures: [],
         filters: [...cgoBaseFilters],
-        sorts: [{ field: 'Date', direction: 'desc' }], limit: 5000,
+        sorts: [{ field: 'Date', direction: 'asc' }], limit: 5000,
       },
       visualization: { chartType: 'table', title: 'Detail Report Landside & Airside', yAxis: [], showLegend: false, showLabels: false },
       layout: { x: 0, y: 13, w: 12, h: 6 }, // Full width at y: 13, taller

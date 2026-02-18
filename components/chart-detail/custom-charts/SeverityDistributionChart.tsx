@@ -94,7 +94,7 @@ export function SeverityDistributionChart({
         <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
       </div>
       
-      <div className="p-4 flex-1 flex flex-col">
+      <div className="p-4 pt-10 flex-1 flex flex-col">
         {/* Summary Cards */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           {sortedData.map((item) => {

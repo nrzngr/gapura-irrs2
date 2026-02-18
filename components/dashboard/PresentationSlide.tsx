@@ -11,6 +11,7 @@ interface PresentationSlideProps {
     children: ReactNode;
     className?: string;
     hint?: string;
+    style?: React.CSSProperties;
 }
 
 export function PresentationSlide({
@@ -20,9 +21,11 @@ export function PresentationSlide({
     children,
     className,
     hint,
+    style,
 }: PresentationSlideProps) {
     return (
         <section
+            style={style}
             className={cn(
                 'bg-white rounded-2xl shadow-sm border border-[var(--surface-4)] p-6 lg:p-8 min-h-[40vh] snap-start',
                 className

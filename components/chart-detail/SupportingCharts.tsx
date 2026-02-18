@@ -388,7 +388,7 @@ function calculateChartHeight(chartType: string, rowCount: number): string {
     case 'bar':
     case 'line':
     case 'area':
-      return '220px';
+      return '280px';
     case 'grouped_bar':
       return '400px';
     case 'table':
@@ -456,10 +456,10 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-1 h-3 bg-[#6b8e3d] rounded-full" />
-          <h3 className="text-[10px] font-bold text-[#6b8e3d] uppercase tracking-[0.1em]">
+          <div className="w-1.5 h-6 bg-[#6b8e3d] rounded-full" />
+          <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">
             Eksplorasi Pendukung
           </h3>
           {source === 'ai' ? (
@@ -696,7 +696,7 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
               </div>
               
               <div 
-                className="p-3 overflow-hidden"
+                className="p-3 pt-6 overflow-hidden"
                 style={{ height: chartHeight }}
               >
                 <ChartPreview 

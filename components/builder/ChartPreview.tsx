@@ -19,7 +19,7 @@ import { ViewMode, Normalization } from '@/components/chart-detail/GlobalControl
 // ... existing imports
 
 
-import { formatDateValue, ISO_DATETIME_RE, processChartData, formatDisplayValue } from '@/lib/chart-utils';
+import { formatDateValue, ISO_DATETIME_RE, processChartData, formatDisplayValue, isDateColumn } from '@/lib/chart-utils';
 
 interface ChartPreviewProps {
   visualization: ChartVisualization;
@@ -398,7 +398,15 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
 
   const fullData = processChartData(rawData, activeXKey);
   const displayLimit = visualization.displayLimit;
-  const data = displayLimit && displayLimit > 0 ? fullData.slice(0, displayLimit) : fullData;
+  
+  // For trend charts (date-based X axis), we want the MOST RECENT N items.
+  // Since processChartData sorts everything chronologically (oldest to newest),
+  // taking the FIRST N items (slice(0, N)) would take the OLDEST data.
+  // Instead, we take the LAST N items (slice(-N)) for date-based visualizations.
+  const isDateTrend = isDateColumn(rawData, activeXKey);
+  const data = (displayLimit && displayLimit > 0)
+    ? (isDateTrend ? fullData.slice(-displayLimit) : fullData.slice(0, displayLimit))
+    : fullData;
 
   // HEATMAP
   if (chartType === 'heatmap') {
@@ -919,7 +927,7 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
             data={data} 
             layout={horizontal ? 'vertical' : 'horizontal'}
             margin={{ 
-              top: 5, 
+              top: compact ? 30 : 25, 
               right: horizontal ? (compact ? 40 : 60) : 10, 
               left: 0, 
               bottom: horizontal ? 5 : bottomMargin

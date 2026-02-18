@@ -102,7 +102,7 @@ export function PriorityChart({
         <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
       </div>
       
-      <div className="p-4 flex-1 flex flex-col">
+      <div className="p-4 pt-10 flex-1 flex flex-col">
         {/* High Priority Alert */}
         <div className={`p-3 rounded-lg border mb-4 ${
           highPriorityPercentage > 30 

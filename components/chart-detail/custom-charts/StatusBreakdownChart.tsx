@@ -123,7 +123,7 @@ export function StatusBreakdownChart({
         <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
       </div>
       
-      <div className="p-4 flex-1 flex flex-col">
+      <div className="p-4 pt-10 flex-1 flex flex-col">
         {/* Completion Rate Indicator */}
         <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
           <div className="flex items-center justify-between mb-2">

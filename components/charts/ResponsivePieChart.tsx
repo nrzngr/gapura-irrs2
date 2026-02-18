@@ -66,8 +66,8 @@ export function ResponsivePieChart({
     return (
       <div className={cn('w-full', height, className)}>
         <ChartComponent
-          data={chartJSData}
-          options={chartJSOptions}
+          data={chartJSData as any}
+          options={chartJSOptions as any}
         />
       </div>
     );
