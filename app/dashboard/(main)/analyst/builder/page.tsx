@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { BuilderLayout, type SaveTile, type SaveConfig } from '@/components/builder/BuilderLayout';
-import { Trash2, ExternalLink, Clock, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { Trash2, ExternalLink, Clock, ChevronDown, ChevronUp, BarChart3, Pencil, FolderInput, Check } from 'lucide-react';
 
 interface SavedDashboard {
   id: string;
@@ -17,6 +17,9 @@ export default function DashboardBuilderPage() {
   const [savedDashboards, setSavedDashboards] = useState<SavedDashboard[]>([]);
   const [savedExpanded, setSavedExpanded] = useState(true);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deletingFolder, setDeletingFolder] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboards();
@@ -88,6 +91,48 @@ export default function DashboardBuilderPage() {
     } catch { /* ignore */ }
   };
 
+  const handleRenameFolder = async (oldFolder: string, newFolder: string) => {
+    const trimmed = newFolder.trim();
+    if (!trimmed || trimmed === oldFolder) {
+      setRenamingFolder(null);
+      return;
+    }
+    // Optimistic update
+    setSavedDashboards(prev =>
+      prev.map(d => d.folder === oldFolder ? { ...d, folder: trimmed } : d)
+    );
+    setExpandedFolders(prev => {
+      const next = { ...prev };
+      next[trimmed] = next[oldFolder] ?? true;
+      delete next[oldFolder];
+      return next;
+    });
+    setRenamingFolder(null);
+    await fetch('/api/dashboards', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rename', oldFolder, newFolder: trimmed }),
+    });
+  };
+
+  const handleDeleteFolder = async (folder: string) => {
+    // Optimistic update — dissolve folder, move all to 'Lainnya' (null)
+    setSavedDashboards(prev =>
+      prev.map(d => d.folder === folder ? { ...d, folder: null } : d)
+    );
+    setDeletingFolder(null);
+    setExpandedFolders(prev => {
+      const next = { ...prev };
+      delete next[folder];
+      return next;
+    });
+    await fetch('/api/dashboards', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', folder }),
+    });
+  };
+
   const existingFolders = useMemo(
     () =>
       Array.from(new Set(
@@ -145,19 +190,77 @@ export default function DashboardBuilderPage() {
                 ).sort(([a], [b]) => (a === 'Lainnya' ? 1 : b === 'Lainnya' ? -1 : a.localeCompare(b)))
                 .map(([folderName, dashboards]) => (
                   <div key={folderName} className="space-y-2">
-                    <button
-                      onClick={() => setExpandedFolders(prev => ({ ...prev, [folderName]: !prev[folderName] }))}
-                      className="flex items-center gap-2 group w-full text-left"
-                    >
-                      <div className="flex-1 h-px bg-[var(--surface-4)] group-hover:bg-[var(--brand-primary)]/30 transition-colors" />
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-full text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-colors">
-                        <BarChart3 size={10} />
-                        {folderName}
-                        <span className="opacity-50">({dashboards.length})</span>
-                        {expandedFolders[folderName] !== false ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                      </div>
-                      <div className="flex-1 h-px bg-[var(--surface-4)] group-hover:bg-[var(--brand-primary)]/30 transition-colors" />
-                    </button>
+                    <div className="flex items-center gap-2 group/folder w-full">
+                      {/* Left line */}
+                      <div className="flex-1 h-px bg-[var(--surface-4)] group-hover/folder:bg-[var(--brand-primary)]/30 transition-colors" />
+
+                      {/* Folder label — rename mode, delete confirmation, or normal display */}
+                      {renamingFolder === folderName ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={e => setRenameValue(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleRenameFolder(folderName, renameValue);
+                              if (e.key === 'Escape') setRenamingFolder(null);
+                            }}
+                            onBlur={() => handleRenameFolder(folderName, renameValue)}
+                            className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest bg-[var(--surface-1)] border border-[var(--brand-primary)] rounded text-[var(--text-primary)] focus:outline-none w-32"
+                          />
+                        </div>
+                      ) : deletingFolder === folderName ? (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 border border-red-200 rounded-full text-[10px]">
+                          <span className="text-red-600 font-medium">Hapus folder ini? Dashboard dipindah ke Lainnya</span>
+                          <button
+                            onClick={() => handleDeleteFolder(folderName)}
+                            className="font-bold text-red-600 hover:text-red-700 underline"
+                          >
+                            Hapus
+                          </button>
+                          <button
+                            onClick={() => setDeletingFolder(null)}
+                            className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setExpandedFolders(prev => ({ ...prev, [folderName]: !prev[folderName] }))}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-2)] border border-[var(--surface-4)] rounded-full text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors"
+                          >
+                            <BarChart3 size={10} />
+                            {folderName}
+                            <span className="opacity-50">({dashboards.length})</span>
+                            {expandedFolders[folderName] !== false ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                          </button>
+                          {/* Rename & Delete icons — hidden for 'Lainnya' */}
+                          {folderName !== 'Lainnya' && (
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover/folder:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => { setRenamingFolder(folderName); setRenameValue(folderName); }}
+                                className="p-1 text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 rounded transition-colors"
+                                title="Ganti nama folder"
+                              >
+                                <Pencil size={10} />
+                              </button>
+                              <button
+                                onClick={() => setDeletingFolder(folderName)}
+                                className="p-1 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                title="Hapus folder"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Right line */}
+                      <div className="flex-1 h-px bg-[var(--surface-4)] group-hover/folder:bg-[var(--brand-primary)]/30 transition-colors" />
+                    </div>
 
                     {expandedFolders[folderName] !== false && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-in">
