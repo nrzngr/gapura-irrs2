@@ -283,6 +283,27 @@ export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]>
   }
 }
 
+export async function fetchRootCauseCategories(): Promise<Record<string, {
+  name: string;
+  description: string;
+  keyword_count: number;
+  severity_multiplier: number;
+}> | null> {
+  try {
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/categories`, {}, 120000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch root cause categories:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching root cause categories:', error);
+    return null;
+  }
+}
+
 export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseStatsAi | null> {
   try {
     const query = source ? `?source=${encodeURIComponent(source)}` : '';
