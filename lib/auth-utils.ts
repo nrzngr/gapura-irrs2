@@ -51,13 +51,13 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
         const session = payload as unknown as SessionPayload;
 
         if (session.sid) {
-            const queryPromise = supabaseAdmin
+            const queryResult = await supabaseAdmin
                 .from('security_sessions')
                 .select('is_revoked')
                 .eq('session_id', session.sid)
                 .single();
             
-            const data = await queryWithTimeout(queryPromise, 2000);
+            const data = queryResult.data;
             
             if (data?.is_revoked) {
                 console.warn(`[AUTH_UTILS] Session ${session.sid} is REVOKED`);
