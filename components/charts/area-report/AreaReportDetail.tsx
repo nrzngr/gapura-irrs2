@@ -32,7 +32,7 @@ import {
   ResponsiveContainer,
   Bar as RechartsBar
 } from 'recharts';
-import { fetchSeverityDistributionsAi, fetchRiskSummaryAi, fetchRootCauseSummaryAi, AiRiskSummary } from '@/lib/services/gapura-ai';
+import { fetchSeverityDistributionsAi, fetchRiskSummaryAi, AiRiskSummary } from '@/lib/services/gapura-ai';
 import { useSearchParams } from 'next/navigation';
 import { Bar, Line } from 'react-chartjs-2';
 import {
