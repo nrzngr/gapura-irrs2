@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import {
   fetchAirlineSummary,
   fetchMonthlyTrendByAirline,
@@ -65,6 +65,49 @@ import { DataTableWithPagination } from '@/components/chart-detail/DataTableWith
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import { AirlineAIVisualization } from '@/components/chart-detail/ai/AirlineAIVisualization';
 import type { QueryResult } from '@/types/builder';
+
+function HeatmapChartRisk() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRiskData() {
+      try {
+        const res = await fetchRiskSummaryAi();
+        if (res && res.airline_details) {
+          const heatmapData = res.airline_details.flatMap((a: any) => 
+            Object.entries(a.severity_distribution).map(([sev, count]) => ({
+              airline: a.name,
+              severity: sev,
+              count: count
+            }))
+          );
+          setData(heatmapData);
+        }
+      } catch (e) {
+        console.error('Failed to fetch risk data:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRiskData();
+  }, []);
+
+  if (loading) return <div className="h-[400px] bg-gray-50 animate-pulse rounded-lg"></div>;
+  if (data.length === 0) return null;
+
+  return (
+    <div className="h-[400px]">
+      <HeatmapChart 
+        data={data}
+        xAxis="severity"
+        yAxis="airline"
+        metric="count"
+        showTitle={false}
+      />
+    </div>
+  );
+}
 
 ChartJS.register(
   CategoryScale,
@@ -839,21 +882,37 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
         </section>
       )}
 
-      {/* AI Root Cause Investigation - Full Width */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
-            <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
-          </div>
+      {/* AI Risk Heatmap */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Brain className="w-5 h-5 text-emerald-600" />
+          <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
         </div>
-        <AiRootCauseInvestigation source={filters.sourceSheet || "CGO"} />
+        <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across airlines</p>
+        <Suspense fallback={<div className="h-[400px] bg-gray-50 animate-pulse rounded-lg"></div>}>
+          <HeatmapChartRisk />
+        </Suspense>
       </section>
 
+      {/* AI Root Cause Investigation - Full Width */}
+      <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#6b8e3d]"></div></div>}>
+        <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
+              <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
+            </div>
+          </div>
+          <AiRootCauseInvestigation source={filters.sourceSheet || "CGO"} />
+        </section>
+      </Suspense>
+
       {/* AI Airline Risk Visualization */}
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <AirlineAIVisualization filters={filters.airlines ? [{ field: 'airlines', value: filters.airlines }] : []} />
-      </section>
+      <Suspense fallback={<div className="h-[300px] bg-gray-50 rounded-xl animate-pulse"></div>}>
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <AirlineAIVisualization filters={filters.airlines ? [{ field: 'airlines', value: filters.airlines }] : []} />
+        </section>
+      </Suspense>
 
       {/* Split View: Area Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

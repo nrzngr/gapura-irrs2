@@ -197,7 +197,7 @@ export async function fetchSeverityDistributionsAi(): Promise<SeverityDistributi
 
 export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
   try {
-    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/summary`;
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/categories`;
     console.log('[gapura-ai] Fetching risk summary from:', url);
     const response = await fetchWithTimeout(url, {}, 120000);
     if (!response.ok) {
