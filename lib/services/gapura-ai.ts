@@ -320,20 +320,3 @@ export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseS
     return null;
   }
 }
-
-export async function fetchRootCauseSummaryAi(source?: string): Promise<RootCauseSummary | null> {
-  try {
-    const query = source ? `?source=${encodeURIComponent(source)}` : '';
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/summary${query}`, {}, 120000);
-    if (!response.ok) {
-      console.error('[gapura-ai] Failed to fetch root cause summary:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    return data as RootCauseSummary;
-  } catch (error) {
-    console.error('[gapura-ai] Error fetching root cause summary:', error);
-    return null;
-  }
-}

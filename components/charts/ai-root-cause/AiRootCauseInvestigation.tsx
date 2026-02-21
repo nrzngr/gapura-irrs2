@@ -4,19 +4,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   fetchRootCauseStatsAi, 
-  fetchRootCauseSummaryAi, 
   fetchRootCauseCategories,
-  RootCauseStatsAi, 
-  RootCauseSummary 
+  RootCauseStatsAi
 } from '@/lib/services/gapura-ai';
 import { 
   Zap, 
   Search, 
   AlertCircle, 
   Activity, 
-  ShieldCheck, 
-  ArrowRight,
-  List
+  ShieldCheck
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -27,13 +23,20 @@ import {
 } from 'recharts';
 
 const COLORS = [
-  'oklch(0.65 0.22 260)', // Tech Blue
-  'oklch(0.7 0.25 30)',   // Energetic Orange
-  'oklch(0.6 0.2 160)',   // Success Green
-  'oklch(0.65 0.2 60)',   // Warning Amber
-  'oklch(0.55 0.2 320)',  // Deep Purple
-  'oklch(0.6 0.25 5)',    // Urgent Red
+  'oklch(0.65 0.22 260)',
+  'oklch(0.7 0.25 30)',
+  'oklch(0.6 0.2 160)',
+  'oklch(0.65 0.2 60)',
+  'oklch(0.55 0.2 320)',
+  'oklch(0.6 0.25 5)',
 ];
+
+interface RootCauseCategory {
+  name: string;
+  description: string;
+  keyword_count: number;
+  severity_multiplier: number;
+}
 
 export function AiRootCauseInvestigation({ 
   title = "AI Root Cause Investigation",
@@ -44,13 +47,7 @@ export function AiRootCauseInvestigation({
 }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<RootCauseStatsAi | null>(null);
-  const [summary, setSummary] = useState<RootCauseSummary | null>(null);
-  const [categories, setCategories] = useState<Record<string, {
-    name: string;
-    description: string;
-    keyword_count: number;
-    severity_multiplier: number;
-  }> | null>(null);
+  const [categories, setCategories] = useState<Record<string, RootCauseCategory> | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,16 +55,14 @@ export function AiRootCauseInvestigation({
     async function init() {
       try {
         setLoading(true);
-        const [statsData, summaryData, categoriesData] = await Promise.all([
+        const [statsData, categoriesData] = await Promise.all([
           fetchRootCauseStatsAi(source),
-          fetchRootCauseSummaryAi(source),
           fetchRootCauseCategories()
         ]);
         setStats(statsData);
-        setSummary(summaryData);
         setCategories(categoriesData);
-        if (summaryData && summaryData.top_categories.length > 0) {
-          setActiveCategory(summaryData.top_categories[0][0]);
+        if (statsData && statsData.top_categories && statsData.top_categories.length > 0) {
+          setActiveCategory(statsData.top_categories[0][0]);
         }
       } catch (err) {
         console.error('AI Root Cause Fetch Error:', err);
@@ -79,86 +74,18 @@ export function AiRootCauseInvestigation({
     init();
   }, [source]);
 
-  // --- STRICT FILTERING LOGIC ---
-  const filteredData = useMemo(() => {
-    if (!stats || !summary) return { stats: null, summary: null };
-
-    const prefix = source === 'CGO' ? 'CGO' : 'NON CARGO';
-    
-    // 1. Filter Audit Trail Records & Summaries
-    const newCategoryDistribution: RootCauseSummary['category_distribution'] = {};
-    let totalFilteredRecords = 0;
-    let totalWithRootCause = 0;
-    const catCounts: Record<string, number> = {};
-
-    Object.entries(summary.category_distribution).forEach(([cat, data]) => {
-      const filteredRecords = data.records.filter(r => r.record_id.startsWith(prefix));
-      if (filteredRecords.length > 0 || cat === "Unknown") {
-        newCategoryDistribution[cat] = {
-          ...data,
-          records: filteredRecords,
-          count: filteredRecords.length
-        };
-        totalFilteredRecords += filteredRecords.length;
-        if (cat !== "Unknown") {
-          totalWithRootCause += filteredRecords.length;
-          catCounts[cat] = filteredRecords.length;
-        }
-      }
-    });
-
-    // 2. Build Filtered Summary
-    const sortedCategories = Object.entries(catCounts)
-      .sort((a, b) => b[1] - a[1]) as [string, number][];
-
-    const filteredSummary: RootCauseSummary = {
-      ...summary,
-      total_records: totalFilteredRecords,
-      with_root_cause: totalWithRootCause,
-      without_root_cause: totalFilteredRecords - totalWithRootCause,
-      root_cause_coverage: totalFilteredRecords > 0 ? `${((totalWithRootCause / totalFilteredRecords) * 100).toFixed(1)}%` : "0%",
-      top_categories: sortedCategories,
-      category_distribution: newCategoryDistribution
-    };
-
-    // 3. Build Filtered Stats
-    const filteredStats: RootCauseStatsAi = {
-      ...stats,
-      total_records: totalFilteredRecords,
-      classified: totalWithRootCause,
-      unknown: totalFilteredRecords - totalWithRootCause,
-      classification_rate: totalFilteredRecords > 0 ? ((totalWithRootCause / totalFilteredRecords) * 100).toFixed(1) : "0",
-      top_categories: sortedCategories,
-      by_category: { ...stats.by_category }
-    };
-
-    // Patch by_category counts
-    Object.keys(filteredStats.by_category).forEach(cat => {
-      if (catCounts[cat]) {
-        filteredStats.by_category[cat].count = catCounts[cat];
-      }
-    });
-
-    return { stats: filteredStats, summary: filteredSummary };
-  }, [stats, summary, source]);
-
-  const activeStats = filteredData.stats;
-  const activeSummary = filteredData.summary;
-
   const chartData = useMemo(() => {
-    if (!activeSummary) return [];
-    return activeSummary.top_categories.map(([name, count]) => ({ name, value: count }));
-  }, [activeSummary]);
+    if (!stats?.top_categories) return [];
+    return stats.top_categories.map(([name, data]) => ({ 
+      name, 
+      value: typeof data === 'object' ? (data as any).count : data 
+    }));
+  }, [stats]);
 
   const activeCategoryData = useMemo(() => {
-    if (!activeCategory || !activeStats?.by_category) return null;
-    return activeStats.by_category[activeCategory];
-  }, [activeCategory, activeStats]);
-
-  const activeRecords = useMemo(() => {
-    if (!activeCategory || !activeSummary?.category_distribution) return [];
-    return activeSummary.category_distribution[activeCategory]?.records || [];
-  }, [activeCategory, activeSummary]);
+    if (!activeCategory || !stats?.by_category) return null;
+    return stats.by_category[activeCategory];
+  }, [activeCategory, stats]);
 
   const activeColor = useMemo(() => {
     if (!activeCategory || chartData.length === 0) return COLORS[0];
@@ -175,7 +102,7 @@ export function AiRootCauseInvestigation({
     );
   }
 
-  if (error || !activeSummary || !activeStats) {
+  if (error || !stats) {
     return (
       <div className="h-[200px] flex items-center justify-center text-slate-500 bg-red-50/50 rounded-3xl border border-red-100 italic">
         <AlertCircle className="mr-2" size={18} />
@@ -189,20 +116,20 @@ export function AiRootCauseInvestigation({
       {/* Header Stat Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Coverage</p>
-          <p className="text-2xl font-black text-slate-900">{activeSummary.root_cause_coverage}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Records</p>
+          <p className="text-2xl font-black text-slate-900">{stats.total_records}</p>
         </div>
         <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Clarity</p>
-          <p className="text-2xl font-black text-indigo-600">{activeStats.classification_rate}%</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Classified</p>
+          <p className="text-2xl font-black text-indigo-600">{stats.classified}</p>
         </div>
         <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Audit Log</p>
-          <p className="text-2xl font-black text-slate-900">{activeSummary.total_records}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Unknown</p>
+          <p className="text-2xl font-black text-slate-900">{stats.unknown}</p>
         </div>
         <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Verified</p>
-          <p className="text-2xl font-black text-emerald-600">{activeSummary.with_root_cause}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Classification Rate</p>
+          <p className="text-2xl font-black text-emerald-600">{stats.classification_rate}%</p>
         </div>
       </div>
 
@@ -212,7 +139,7 @@ export function AiRootCauseInvestigation({
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
               <Zap size={20} className="text-amber-500 fill-amber-500" />
-              Intelligence Distribution
+              Root Cause Distribution
             </h3>
           </div>
 
@@ -250,10 +177,9 @@ export function AiRootCauseInvestigation({
                 />
               </PieChart>
             </ResponsiveContainer>
-            {/* Center Label */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Classified</span>
-                <span className="text-xl font-black text-slate-900">{activeStats.classified}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Categories</span>
+                <span className="text-xl font-black text-slate-900">{chartData.length}</span>
             </div>
           </div>
 
@@ -300,11 +226,7 @@ export function AiRootCauseInvestigation({
                 </div>
 
                 <p className="text-slate-200 text-sm leading-relaxed mb-8 max-w-xl font-medium">
-                  {activeCategoryData?.description || (
-                    activeCategory === "Unknown" 
-                      ? "Intelligence patterns currently undergoing classification. These cases represent complex or multi-faceted operational events requiring further data points for precise categorization."
-                      : "Analyzing behavioral patterns and operational friction points identified by AI logic engine."
-                  )}
+                  {activeCategoryData?.description || categories?.[activeCategory || '']?.description || "Analyzing behavioral patterns and operational friction points identified by AI logic engine."}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -315,16 +237,16 @@ export function AiRootCauseInvestigation({
                       Critical Hotspots (Area)
                     </h5>
                     <div className="space-y-3">
-                      {activeCategoryData && Object.entries(activeCategoryData.top_areas).slice(0, 3).map(([area, val]) => (
+                      {activeCategoryData && Object.entries(activeCategoryData.top_areas || {}).slice(0, 3).map(([area, val]) => (
                         <div key={area} className="group cursor-default">
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-xs font-bold text-slate-200">{area}</span>
-                            <span className="text-[10px] text-slate-500">{val}</span>
+                            <span className="text-[10px] text-slate-500">{String(val)}</span>
                           </div>
                           <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                             <motion.div 
                               initial={{ width: 0 }}
-                              animate={{ width: `${(val / activeCategoryData.count) * 100}%` }}
+                              animate={{ width: `${(Number(val) / activeCategoryData.count) * 100}%` }}
                               transition={{ duration: 1, ease: 'easeOut' }}
                               className="h-full transition-colors"
                               style={{ backgroundColor: activeColor }}
@@ -339,19 +261,19 @@ export function AiRootCauseInvestigation({
                   <div>
                     <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 flex items-center gap-2">
                       <Activity size={12} style={{ color: activeColor }} />
-                      Impact Dist (Airline)
+                      Impact Distribution (Airline)
                     </h5>
                     <div className="space-y-3">
-                      {activeCategoryData && Object.entries(activeCategoryData.top_airlines).slice(0, 3).map(([airline, val]) => (
+                      {activeCategoryData && Object.entries(activeCategoryData.top_airlines || {}).slice(0, 3).map(([airline, val]) => (
                         <div key={airline} className="group cursor-default">
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-xs font-bold text-slate-200">{airline}</span>
-                            <span className="text-[10px] text-slate-500">{val}</span>
+                            <span className="text-[10px] text-slate-500">{String(val)}</span>
                           </div>
                           <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                             <motion.div 
                               initial={{ width: 0 }}
-                              animate={{ width: `${(val / activeCategoryData.count) * 100}%` }}
+                              animate={{ width: `${(Number(val) / activeCategoryData.count) * 100}%` }}
                               transition={{ duration: 1, ease: 'easeOut' }}
                               className="h-full transition-colors"
                               style={{ backgroundColor: activeColor }}
@@ -362,59 +284,28 @@ export function AiRootCauseInvestigation({
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
 
-          {/* Audit Trail */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white overflow-hidden shadow-xl shadow-slate-200/40">
-            <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-              <h5 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <List size={14} className="text-indigo-500" />
-                Intelligence Audit Trail
-              </h5>
-              <div className="flex items-center gap-2">
-                 <span className="px-2 py-0.5 bg-indigo-100 text-[9px] font-black text-indigo-600 rounded-full tracking-tighter">
-                    {activeRecords.length} VERIFIED
-                 </span>
-              </div>
-            </div>
-            <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
-              <div className="divide-y divide-slate-100">
-                {activeRecords.map((record, i) => (
-                  <div key={i} className="p-4 hover:bg-slate-50/80 transition-colors group">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-black text-slate-600 rounded uppercase tracking-tighter">
-                        {record.airline}
-                      </span>
-                      <span className="px-2 py-0.5 bg-indigo-50 text-[10px] font-black text-indigo-600 rounded uppercase tracking-tighter">
-                        {record.branch}
-                      </span>
-                      <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ArrowRight size={14} className="text-slate-300" />
-                      </div>
+                {/* Issue Categories */}
+                {activeCategoryData && Object.keys(activeCategoryData.top_issue_categories || {}).length > 0 && (
+                  <div className="mt-8">
+                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">
+                      Top Issue Categories
+                    </h5>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(activeCategoryData.top_issue_categories || {}).slice(0, 5).map(([issue, count]) => (
+                        <span 
+                          key={issue}
+                          className="px-3 py-1.5 bg-white/10 rounded-full text-xs font-medium text-slate-200"
+                        >
+                          {issue || '(empty)'} ({count})
+                        </span>
+                      ))}
                     </div>
-                    <p className="text-xs text-slate-800 font-medium mb-1 line-clamp-2 leading-relaxed">
-                      {record.report}
-                    </p>
-                    {record.root_cause && !['-', 'NIL', '#N/A', ''].includes(record.root_cause) && (
-                      <div className="flex items-start gap-1 p-2 bg-amber-50/80 rounded-xl border border-amber-100/50 mt-2">
-                        <ShieldCheck size={12} className="text-amber-600 mt-0.5 shrink-0" />
-                        <p className="text-[10px] text-amber-900 font-semibold italic leading-relaxed">
-                          {record.root_cause}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {activeRecords.length === 0 && (
-                  <div className="p-12 text-center text-slate-400 text-xs italic">
-                    No verified records in this intelligence pool.
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>
