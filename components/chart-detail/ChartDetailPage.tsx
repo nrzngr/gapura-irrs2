@@ -6,7 +6,7 @@ import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { saveAs } from 'file-saver';
 import { Download, FileText, Link as LinkIcon, Check, Share2 } from 'lucide-react';
-import type { DashboardTile, QueryResult } from '@/types/builder';
+import type { DashboardTile, QueryResult, QueryFilter } from '@/types/builder';
 import { EnlargedChart } from './EnlargedChart';
 import { InvestigativeTable } from './InvestigativeTable';
 import { AIInsightsPanel } from './AIInsightsPanel';
@@ -16,7 +16,9 @@ import { GlobalControlBar, ViewMode, Normalization } from './GlobalControlBar';
 import { InsightPanel } from '@/components/chart-detail/InsightPanel';
 import { generateAnalyticalCharts, fetchAnalyticalChartData } from '@/lib/chart-detail-generator';
 import type { AnalyticalChart } from '@/lib/chart-detail-generator';
-import { MapPin, Plane, Layers, Crosshair, Target, Bug } from 'lucide-react';
+import { MapPin, Plane, Layers, Crosshair, Target, Bug, Sparkles } from 'lucide-react';
+import { AirlineAIVisualization } from './ai/AirlineAIVisualization';
+import { BranchAIVisualization } from './ai/BranchAIVisualization';
 
 interface ChartDetailData {
   tile: DashboardTile;
@@ -123,6 +125,25 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
 
   // Debug panel state
   const [showDebug, setShowDebug] = useState(false);
+
+  // AI Context detection
+  const [aiContext, setAiContext] = useState<'airline' | 'branch' | null>(null);
+
+  // Helper to detect main context from filters
+  const detectContext = useCallback((filters: QueryFilter[]): 'airline' | 'branch' | null => {
+    const hasAirlineFilter = filters.some(f => 
+      ['airline', 'airlines'].includes(f.field.toLowerCase())
+    );
+    if (hasAirlineFilter) return 'airline';
+
+    const hasBranchFilter = filters.some(f => 
+      ['branch', 'reporting_branch', 'station_code'].includes(f.field.toLowerCase())
+    );
+    if (hasBranchFilter) return 'branch';
+
+    // Check query dimensions
+    return null;
+  }, []);
 
   // Compute chart definitions from tile + result (synchronous, no fetch)
   // Complexity: Time O(1) | Space O(charts)
@@ -383,6 +404,15 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
     }
   }, [data?.tile.id, insights, insightsLoading, analyticalCharts.length, generateInsights]);
 
+  // Detect AI context (airline vs branch) from filters
+  useEffect(() => {
+    if (data) {
+      const filters = data.tile.query.filters || [];
+      const context = detectContext(filters);
+      setAiContext(context);
+    }
+  }, [data?.tile.id, detectContext]);
+
   // Fetch cross-dimensional analytical chart data once definitions are ready
   // Complexity: Time O(k * API_latency) parallelized | Space O(k * n)
   useEffect(() => {
@@ -556,6 +586,28 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
               </div>
             </div>
           </div>
+
+          {/* AI CONTEXT VISUALIZATION */}
+          {aiContext && (
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#6b8e3d]" />
+                <h3 className="text-lg font-bold text-gray-800">
+                  AI Context Analysis
+                </h3>
+              </div>
+              {aiContext === 'airline' && (
+                <AirlineAIVisualization 
+                  filters={tile.query.filters}
+                />
+              )}
+              {aiContext === 'branch' && (
+                <BranchAIVisualization 
+                  filters={tile.query.filters}
+                />
+              )}
+            </div>
+          )}
 
         {(insightsLoading || analyticalLoading) && (
           <div className="flex justify-center p-12">
