@@ -94,7 +94,7 @@ export interface RootCauseSummary {
   }>;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 30000): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 120000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
@@ -136,7 +136,7 @@ function calculateTopRisky(
 
 export async function fetchSeverityDistributionsAi(): Promise<SeverityDistributionsAiResponse | null> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 30000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch severity distributions:', response.status);
       return null;
@@ -199,7 +199,7 @@ export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
   try {
     const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/summary`;
     console.log('[gapura-ai] Fetching risk summary from:', url);
-    const response = await fetchWithTimeout(url, {}, 30000);
+    const response = await fetchWithTimeout(url, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch risk summary:', response.status);
       return null;
@@ -228,7 +228,7 @@ export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
 export async function fetchDashboardSummaryAi(bypassCache = false): Promise<DashboardSummaryAi | null> {
   try {
     const url = `${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000${bypassCache ? '&bypass_cache=true' : ''}`;
-    const response = await fetchWithTimeout(url, {}, 30000);
+    const response = await fetchWithTimeout(url, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch dashboard summary:', response.status);
       return null;
@@ -256,7 +256,7 @@ export async function fetchDashboardSummaryAi(bypassCache = false): Promise<Dash
 
 export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 30000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause categories:', response.status);
       return [];
@@ -286,7 +286,7 @@ export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]>
 export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseStatsAi | null> {
   try {
     const query = source ? `?source=${encodeURIComponent(source)}` : '';
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/stats${query}`, {}, 30000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/stats${query}`, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause stats:', response.status);
       return null;
@@ -303,7 +303,7 @@ export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseS
 export async function fetchRootCauseSummaryAi(source?: string): Promise<RootCauseSummary | null> {
   try {
     const query = source ? `?source=${encodeURIComponent(source)}` : '';
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/summary${query}`, {}, 30000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/summary${query}`, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause summary:', response.status);
       return null;
