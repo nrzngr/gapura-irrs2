@@ -100,6 +100,11 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout - AI service took too long to respond');
+    }
+    throw error;
   } finally {
     clearTimeout(id);
   }
