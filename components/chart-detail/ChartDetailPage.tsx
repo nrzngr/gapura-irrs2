@@ -598,12 +598,12 @@ export default function ChartDetailPage({ isPublic = false }: { isPublic?: boole
               </div>
               {aiContext === 'airline' && (
                 <AirlineAIVisualization 
-                  filters={tile.query.filters}
+                  filters={tile.query.filters?.map(f => ({ field: f.field, value: String(f.value) }))}
                 />
               )}
               {aiContext === 'branch' && (
                 <BranchAIVisualization 
-                  filters={tile.query.filters}
+                  filters={tile.query.filters?.map(f => ({ field: f.field, value: String(f.value) }))}
                 />
               )}
             </div>
