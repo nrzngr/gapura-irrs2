@@ -127,16 +127,6 @@ export default function LoginPage() {
                     <p className="text-white/80 text-lg max-w-md">
                         Platform digital untuk pelaporan, pelacakan, dan penyelesaian masalah operasional penerbangan.
                     </p>
-                    
-                    <div className="flex items-center gap-4 pt-4">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm rounded-full">
-                            <Shield size={16} className="text-white" />
-                            <span className="text-sm font-medium text-white">Enterprise Ready</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm rounded-full">
-                            <span className="text-sm font-medium text-white">ISO 27001</span>
-                        </div>
-                    </div>
                 </div>
 
                 <div className="relative z-10 text-white/60 text-sm">
