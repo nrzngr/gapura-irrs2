@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   fetchRootCauseStatsAi, 
   fetchRootCauseSummaryAi, 
+  fetchRootCauseCategories,
   RootCauseStatsAi, 
   RootCauseSummary 
 } from '@/lib/services/gapura-ai';
@@ -44,6 +45,12 @@ export function AiRootCauseInvestigation({
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<RootCauseStatsAi | null>(null);
   const [summary, setSummary] = useState<RootCauseSummary | null>(null);
+  const [categories, setCategories] = useState<Record<string, {
+    name: string;
+    description: string;
+    keyword_count: number;
+    severity_multiplier: number;
+  }> | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,12 +58,14 @@ export function AiRootCauseInvestigation({
     async function init() {
       try {
         setLoading(true);
-        const [statsData, summaryData] = await Promise.all([
+        const [statsData, summaryData, categoriesData] = await Promise.all([
           fetchRootCauseStatsAi(source),
-          fetchRootCauseSummaryAi(source)
+          fetchRootCauseSummaryAi(source),
+          fetchRootCauseCategories()
         ]);
         setStats(statsData);
         setSummary(summaryData);
+        setCategories(categoriesData);
         if (summaryData && summaryData.top_categories.length > 0) {
           setActiveCategory(summaryData.top_categories[0][0]);
         }
