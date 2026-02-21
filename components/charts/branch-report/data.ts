@@ -121,7 +121,7 @@ async function fetchReportsFromSheets(): Promise<Report[]> {
   }
 
   try {
-    const response = await fetch('/api/reports/analytics?refresh=true', {
+    const response = await fetch('/api/reports/analytics', {
       credentials: 'include',
     });
     

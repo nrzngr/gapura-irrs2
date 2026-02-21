@@ -619,6 +619,7 @@ export default function AreaReportDetail({ filters = {} }: { filters?: FilterPar
 
   useEffect(() => {
     async function loadData() {
+      console.time('AreaReportDetail: loadData parallel fetches');
       setLoading(true);
       setError(null);
 
@@ -629,29 +630,35 @@ export default function AreaReportDetail({ filters = {} }: { filters?: FilterPar
       };
 
       try {
-        const promises: [
-          Promise<AreaSummary[]>,
-          Promise<TrendDataPoint[]>,
-          Promise<AreaCategoryData[]>,
-          Promise<RootCauseByAreaData[]>,
-          Promise<BranchByAreaData[]>,
-          Promise<AirlineByAreaData[]>,
-          Promise<AreaReportRecord[]>,
-          Promise<CellIntelligence | null>,
-          Promise<BranchAreaPareto[]>
-        ] = [
-          fetchAreaSummary(activeFilters as any),
-          fetchMonthlyTrendByArea(activeFilters as any),
-          fetchCategoryByArea(activeFilters as any),
-          fetchRootCauseByArea(activeFilters as any),
-          fetchBranchByArea(activeFilters as any),
-          fetchAirlineByArea(activeFilters as any),
-          fetchAllAreaReports(activeFilters as any),
-          isFocused ? fetchCellIntelligence(focusedBranch!, focusedArea!, activeFilters as any) : Promise.resolve(null),
-          isFocused ? fetchBranchAreaPareto(activeFilters as any) : Promise.resolve([])
-        ];
+        // Similar configuration to BranchReportDetail: run fetches in parallel but guard each to avoid
+        // a single failure blocking all data. This helps prevent infinite loading when one endpoint fails.
+        const safeFetch = <T,>(fn: Promise<T>) => fn.catch((err) => {
+          console.error('Safe fetch failed:', err);
+          return null as unknown as T;
+        });
 
-        const [area, trend, category, rootCause, branch, airline, table, intel, pareto] = await Promise.all(promises);
+        const areaPromise = safeFetch(fetchAreaSummary(activeFilters as any));
+        const trendPromise = safeFetch(fetchMonthlyTrendByArea(activeFilters as any));
+        const categoryPromise = safeFetch(fetchCategoryByArea(activeFilters as any));
+        const rootCausePromise = safeFetch(fetchRootCauseByArea(activeFilters as any));
+        const branchPromise = safeFetch(fetchBranchByArea(activeFilters as any));
+        const airlinePromise = safeFetch(fetchAirlineByArea(activeFilters as any));
+        const tablePromise = safeFetch(fetchAllAreaReports(activeFilters as any));
+        const intelPromise = isFocused ? safeFetch(fetchCellIntelligence(focusedBranch!, focusedArea!, activeFilters as any)) : Promise.resolve(null);
+        const paretoPromise = isFocused ? safeFetch(fetchBranchAreaPareto(activeFilters as any)) : Promise.resolve([]);
+
+        const [area, trend, category, rootCause, branch, airline, table, intel, pareto] = await Promise.all([
+          areaPromise,
+          trendPromise,
+          categoryPromise,
+          rootCausePromise,
+          branchPromise,
+          airlinePromise,
+          tablePromise,
+          intelPromise,
+          paretoPromise,
+        ]);
+        console.timeEnd('AreaReportDetail: loadData parallel fetches');
 
         setAreaData(area);
         setTrendData(trend);

@@ -14,10 +14,11 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { Loader2 } from 'lucide-react';
+import { Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import type { QueryResult } from '@/types/builder';
-import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
+import { fetchRootCauseStatsAi, fetchRootCauseCategories } from '@/lib/services/gapura-ai';
 
 type CategoryField = 'terminal_area_category' | 'apron_area_category' | 'general_category';
 
@@ -149,8 +150,80 @@ export default function AreaSubCategoryDetail({
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(true);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiData, setAiData] = useState<any>(null);
+  const [aiStatus, setAiStatus] = useState<'loading' | 'success' | 'error' | 'timeout'>('loading');
+  const aiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [focusedCategory, setFocusedCategory] = useState<string>('');
   const hasAutoSelected = useRef(false);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const response = await fetch('/api/reports/analytics');
+        if (!response.ok) throw new Error('Failed to fetch reports');
+        const data = await response.json();
+        setReports(data.reports || []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  useEffect(() => {
+    if (!reports.length) {
+      setAiLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        // Set timeout for AI call (48 seconds as specified)
+        aiTimeoutRef.current = setTimeout(() => {
+          setAiError('AI service is taking longer than expected. Please try again later.');
+          setAiStatus('timeout');
+          setAiLoading(false);
+        }, 48000);
+
+        const [statsData, categoriesData] = await Promise.all([
+          fetchRootCauseStatsAi(filters.sourceSheet),
+          fetchRootCauseCategories()
+        ]);
+
+        if (aiTimeoutRef.current) {
+          clearTimeout(aiTimeoutRef.current);
+          aiTimeoutRef.current = null;
+        }
+
+        setAiData({ stats: statsData, categories: categoriesData });
+        setAiStatus('success');
+      } catch (err: any) {
+        if (aiTimeoutRef.current) {
+          clearTimeout(aiTimeoutRef.current);
+          aiTimeoutRef.current = null;
+        }
+
+        console.error('AI Root Cause Fetch Error:', err);
+        setAiError(err.message || 'Failed to load AI intelligence data');
+        setAiStatus('error');
+      } finally {
+        setAiLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [reports, filters.sourceSheet]);
+
+  const handleRetryAi = () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiStatus('loading');
+    setAiData(null);
+  };
 
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
