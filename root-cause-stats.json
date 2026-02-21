@@ -1,0 +1,281 @@
+{
+    "total_records": 1006,
+    "classified": 473,
+    "unknown": 533,
+    "classification_rate": 47.0,
+    "by_category": {
+        "Equipment Failure": {
+            "count": 140,
+            "percentage": 29.6,
+            "top_issue_categories": {
+                "Cargo Problems": 87,
+                "": 27,
+                "Baggage Handling": 10
+            },
+            "top_areas": {
+                "Apron Area": 120,
+                "Terminal Area": 17,
+                "General": 3
+            },
+            "top_airlines": {
+                "Thai Airways": 27,
+                "China Airlines": 21,
+                "Garuda Indonesia": 16
+            },
+            "description": "Issues caused by equipment malfunction or failure"
+        },
+        "Staff Competency": {
+            "count": 133,
+            "percentage": 28.1,
+            "top_issue_categories": {
+                "": 72,
+                "Cargo Problems": 21,
+                "Operation": 17
+            },
+            "top_areas": {
+                "Apron Area": 60,
+                "Terminal Area": 57,
+                "General": 16
+            },
+            "top_airlines": {
+                "Garuda Indonesia": 52,
+                "Citilink": 18,
+                "Scoot": 9
+            },
+            "description": "Issues caused by staff knowledge or skill gaps"
+        },
+        "Communication": {
+            "count": 45,
+            "percentage": 9.5,
+            "top_issue_categories": {
+                "": 25,
+                "Operation": 8,
+                "Baggage Handling": 5
+            },
+            "top_areas": {
+                "Terminal Area": 20,
+                "Apron Area": 15,
+                "General": 10
+            },
+            "top_airlines": {
+                "Garuda Indonesia": 12,
+                "Pelita Air": 6,
+                "KLM": 4
+            },
+            "description": "Issues caused by communication breakdowns"
+        },
+        "External Factors": {
+            "count": 25,
+            "percentage": 5.3,
+            "top_issue_categories": {
+                "": 7,
+                "Operation": 6,
+                "Cargo Problems": 5
+            },
+            "top_areas": {
+                "General": 11,
+                "Apron Area": 8,
+                "Terminal Area": 6
+            },
+            "top_airlines": {
+                "Garuda Indonesia": 9,
+                "VietJet Air": 3,
+                "China Airlines": 3
+            },
+            "description": "Issues caused by external events or parties"
+        },
+        "Resource/Manpower": {
+            "count": 3,
+            "percentage": 0.6,
+            "top_issue_categories": {
+                "Operation": 2,
+                "Pax Handling": 1
+            },
+            "top_areas": {
+                "Apron Area": 2,
+                "Terminal Area": 1
+            },
+            "top_airlines": {
+                "Pelita Air": 2,
+                "Garuda Indonesia": 1
+            },
+            "description": "Issues caused by resource or manpower constraints"
+        },
+        "Process/Procedure": {
+            "count": 79,
+            "percentage": 16.7,
+            "top_issue_categories": {
+                "": 47,
+                "Cargo Problems": 12,
+                "Baggage Handling": 8
+            },
+            "top_areas": {
+                "Terminal Area": 38,
+                "Apron Area": 34,
+                "General": 7
+            },
+            "top_airlines": {
+                "Garuda Indonesia": 27,
+                "Pelita Air": 11,
+                "Scoot": 6
+            },
+            "description": "Issues caused by procedure violations or process failures"
+        },
+        "Documentation": {
+            "count": 45,
+            "percentage": 9.5,
+            "top_issue_categories": {
+                "": 19,
+                "Pax Handling": 9,
+                "Cargo Problems": 8
+            },
+            "top_areas": {
+                "Terminal Area": 28,
+                "Apron Area": 13,
+                "General": 4
+            },
+            "top_airlines": {
+                "Garuda Indonesia": 15,
+                "China Southern": 4,
+                "China Airlines": 4
+            },
+            "description": "Issues caused by documentation errors or missing documents"
+        },
+        "Training Gap": {
+            "count": 3,
+            "percentage": 0.6,
+            "top_issue_categories": {
+                "Baggage Handling": 1,
+                "Operation": 1,
+                "": 1
+            },
+            "top_areas": {
+                "Terminal Area": 2,
+                "Apron Area": 1
+            },
+            "top_airlines": {
+                "Korean Air": 1,
+                "Garuda Indonesia": 1,
+                "KLM": 1
+            },
+            "description": "Issues caused by lack of training or refresher"
+        }
+    },
+    "top_categories": [
+        [
+            "Equipment Failure",
+            {
+                "count": 140,
+                "percentage": 29.6,
+                "top_issue_categories": {
+                    "Cargo Problems": 87,
+                    "": 27,
+                    "Baggage Handling": 10
+                },
+                "top_areas": {
+                    "Apron Area": 120,
+                    "Terminal Area": 17,
+                    "General": 3
+                },
+                "top_airlines": {
+                    "Thai Airways": 27,
+                    "China Airlines": 21,
+                    "Garuda Indonesia": 16
+                },
+                "description": "Issues caused by equipment malfunction or failure"
+            }
+        ],
+        [
+            "Staff Competency",
+            {
+                "count": 133,
+                "percentage": 28.1,
+                "top_issue_categories": {
+                    "": 72,
+                    "Cargo Problems": 21,
+                    "Operation": 17
+                },
+                "top_areas": {
+                    "Apron Area": 60,
+                    "Terminal Area": 57,
+                    "General": 16
+                },
+                "top_airlines": {
+                    "Garuda Indonesia": 52,
+                    "Citilink": 18,
+                    "Scoot": 9
+                },
+                "description": "Issues caused by staff knowledge or skill gaps"
+            }
+        ],
+        [
+            "Process/Procedure",
+            {
+                "count": 79,
+                "percentage": 16.7,
+                "top_issue_categories": {
+                    "": 47,
+                    "Cargo Problems": 12,
+                    "Baggage Handling": 8
+                },
+                "top_areas": {
+                    "Terminal Area": 38,
+                    "Apron Area": 34,
+                    "General": 7
+                },
+                "top_airlines": {
+                    "Garuda Indonesia": 27,
+                    "Pelita Air": 11,
+                    "Scoot": 6
+                },
+                "description": "Issues caused by procedure violations or process failures"
+            }
+        ],
+        [
+            "Communication",
+            {
+                "count": 45,
+                "percentage": 9.5,
+                "top_issue_categories": {
+                    "": 25,
+                    "Operation": 8,
+                    "Baggage Handling": 5
+                },
+                "top_areas": {
+                    "Terminal Area": 20,
+                    "Apron Area": 15,
+                    "General": 10
+                },
+                "top_airlines": {
+                    "Garuda Indonesia": 12,
+                    "Pelita Air": 6,
+                    "KLM": 4
+                },
+                "description": "Issues caused by communication breakdowns"
+            }
+        ],
+        [
+            "Documentation",
+            {
+                "count": 45,
+                "percentage": 9.5,
+                "top_issue_categories": {
+                    "": 19,
+                    "Pax Handling": 9,
+                    "Cargo Problems": 8
+                },
+                "top_areas": {
+                    "Terminal Area": 28,
+                    "Apron Area": 13,
+                    "General": 4
+                },
+                "top_airlines": {
+                    "Garuda Indonesia": 15,
+                    "China Southern": 4,
+                    "China Airlines": 4
+                },
+                "description": "Issues caused by documentation errors or missing documents"
+            }
+        ]
+    ]
+}

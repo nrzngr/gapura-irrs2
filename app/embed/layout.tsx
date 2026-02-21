@@ -11,10 +11,18 @@ export default function EmbedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="embed-body">
-      <main className="embed-container">
-        {children}
-      </main>
-    </div>
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+      
+      <div className="embed-body">
+        <div className="noise-overlay" />
+        <div className="aurora-glow" />
+        <main className="embed-container">
+          {children}
+        </main>
+      </div>
+    </>
   );
 }

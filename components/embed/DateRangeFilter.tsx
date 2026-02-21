@@ -15,23 +15,27 @@ export function DateRangeFilter({ className = '' }: DateRangeFilterProps) {
   const handleRangeChange = (range: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('range', range);
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
   
   return (
-    <div className={`date-filter ${className}`}>
-      <button
-        className={`date-filter-btn ${currentRange === '7d' ? 'active' : ''}`}
-        onClick={() => handleRangeChange('7d')}
-      >
-        7 Hari Terakhir
-      </button>
-      <button
-        className={`date-filter-btn ${currentRange === '30d' ? 'active' : ''}`}
-        onClick={() => handleRangeChange('30d')}
-      >
-        30 Hari Terakhir
-      </button>
+    <div className={`date-filter-wrap ${className}`}>
+      <div className="date-filter-pill">
+        <button
+          className={`date-filter-item ${currentRange === '7d' ? 'active' : ''}`}
+          onClick={() => handleRangeChange('7d')}
+        >
+          <span>7D</span>
+          <small>Past Week</small>
+        </button>
+        <button
+          className={`date-filter-item ${currentRange === '30d' ? 'active' : ''}`}
+          onClick={() => handleRangeChange('30d')}
+        >
+          <span>30D</span>
+          <small>Past Month</small>
+        </button>
+      </div>
     </div>
   );
 }

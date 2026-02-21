@@ -1,6 +1,6 @@
 # Gapura AI API Quick Reference
 
-**Base URL:** `http://localhost:8000`
+**Base URL:** `http://localhost:7860`
 
 ## Endpoints Summary
 
@@ -21,7 +21,7 @@
 
 ### Analyze Single Report
 ```bash
-curl -X POST http://localhost:8000/api/ai/predict-single \
+curl -X POST http://localhost:7860/api/ai/predict-single \
   -H "Content-Type: application/json" \
   -d '{
     "Date_of_Event": "2025-02-22",
@@ -38,12 +38,12 @@ curl -X POST http://localhost:8000/api/ai/predict-single \
 
 ### Analyze All Sheets
 ```bash
-curl "http://localhost:8000/api/ai/analyze-all?max_rows_per_sheet=500"
+curl "http://localhost:7860/api/ai/analyze-all?max_rows_per_sheet=500"
 ```
 
 ### Batch Analysis
 ```bash
-curl -X POST http://localhost:8000/api/ai/analyze \
+curl -X POST http://localhost:7860/api/ai/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "data": [

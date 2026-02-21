@@ -6,6 +6,7 @@ export interface ViewportState {
   isMobile: boolean;
   isTablet: boolean;
   isDesktop: boolean;
+  isVeryLargeDesktop: boolean;
   width: number;
   height: number;
 }
@@ -21,6 +22,7 @@ export function useViewport(): ViewportState {
     isMobile: false,
     isTablet: false,
     isDesktop: true,
+    isVeryLargeDesktop: false,
     width: 1920,
     height: 1080,
   });
@@ -30,13 +32,14 @@ export function useViewport(): ViewportState {
       const width = window.innerWidth;
       const height = window.innerHeight;
       
-      setViewport({
-        isMobile: width <= 768,
-        isTablet: width > 768 && width <= 1024,
-        isDesktop: width > 1024,
-        width,
-        height,
-      });
+    setViewport({
+      isMobile: width <= 768,
+      isTablet: width > 768 && width <= 1024,
+      isDesktop: width > 1024 && width <= 1536,
+      isVeryLargeDesktop: width > 1536,
+      width,
+      height,
+    });
     };
 
     // Set initial state

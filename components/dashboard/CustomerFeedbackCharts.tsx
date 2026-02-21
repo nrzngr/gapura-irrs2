@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye } from 'lucide-react';
 import {
@@ -29,6 +29,8 @@ const COLORS = {
     general: '#facc15',
     barGreen: '#4ade80'
 };
+const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
+const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
 
 interface ChartDataItem extends Record<string, unknown> {
     name: string;
@@ -44,6 +46,15 @@ interface ChartDataItem extends Record<string, unknown> {
 // --- COMPONENTS ---
 
 export function DonutChart({ title, data, onViewDetail }: { title: string, data: ChartDataItem[], onViewDetail?: () => void }) {
+    const rankedData = useMemo(() => {
+        return [...data].sort((a, b) => b.value - a.value);
+    }, [data]);
+
+    const getSliceColor = (index: number): string => {
+        if (index < FIXED_DONUT_RANK_COLORS.length) return FIXED_DONUT_RANK_COLORS[index];
+        return DONUT_FALLBACK_COLORS[(index - FIXED_DONUT_RANK_COLORS.length) % DONUT_FALLBACK_COLORS.length];
+    };
+
     return (
         <GlassCard className="h-full flex flex-col relative" padding="md">
             <div className="flex items-center justify-between mb-4">
@@ -64,16 +75,36 @@ export function DonutChart({ title, data, onViewDetail }: { title: string, data:
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={data}
+                            data={rankedData}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
                             outerRadius={90}
                             paddingAngle={2}
                             dataKey="value"
+                            labelLine={false}
+                            label={({ cx, cy, midAngle, outerRadius, value }) => {
+                                const RADIAN = Math.PI / 180;
+                                const radius = Number(outerRadius || 0) + 12;
+                                const x = Number(cx || 0) + radius * Math.cos(-Number(midAngle || 0) * RADIAN);
+                                const y = Number(cy || 0) + radius * Math.sin(-Number(midAngle || 0) * RADIAN);
+                                return (
+                                    <text
+                                        x={x}
+                                        y={y}
+                                        fill="#374151"
+                                        textAnchor={x > Number(cx || 0) ? 'start' : 'end'}
+                                        dominantBaseline="central"
+                                        fontSize={11}
+                                        fontWeight={700}
+                                    >
+                                        {Number(value || 0).toLocaleString('id-ID')}
+                                    </text>
+                                );
+                            }}
                         >
-                            {data.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
+                            {rankedData.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={getSliceColor(index)} strokeWidth={0} />
                             ))}
                         </Pie>
                         <Tooltip />
@@ -82,7 +113,7 @@ export function DonutChart({ title, data, onViewDetail }: { title: string, data:
                 </ResponsiveContainer>
                 {/* Center Text */}
                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
-                    <span className="text-3xl font-bold">{data.reduce((acc, cur) => acc + cur.value, 0)}</span>
+                    <span className="text-3xl font-bold">{rankedData.reduce((acc, cur) => acc + cur.value, 0)}</span>
                 </div>
             </div>
         </GlassCard>
@@ -309,12 +340,12 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                  <DonutChart 
                     title="Report by Case Category" 
                     data={data.caseCategory} 
-                    onViewDetail={() => handleViewDetail('Report by Case Category', data.caseCategory, 'pie', '5078762d-d71d-472d-a9b1-d69872bef570')}
+                    onViewDetail={() => router.push('/dashboard/charts/report-by-case-category/detail')}
                 />
                 <HorizontalBarChart 
                     title="Branch Report" 
                     data={data.branch} 
-                    onViewDetail={() => handleViewDetail('Branch Report', data.branch, 'horizontal_bar', 'e6f8a48b-302a-466d-8e4a-5813350e8f7a')}
+                    onViewDetail={() => router.push('/dashboard/charts/branch-report/detail')}
                 />
                 <HorizontalBarChart 
                     title="Airlines Report" 

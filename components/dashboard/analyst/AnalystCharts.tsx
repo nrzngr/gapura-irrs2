@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -15,7 +16,10 @@ import {
 import { BarChart3 } from 'lucide-react';
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
 import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
+import { cn } from '@/lib/utils';
 import type { Report } from '@/types';
+import { AVIATION_CHART_COLORS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE, CHART_LEGEND_STYLE } from '@/lib/aviation-chart-config';
+import { ChartTitle } from '@/components/charts/ChartTitle';
 
 // Complexity: Time O(n) per render | Space O(k) where k = chart data points (pre-computed by parent)
 
@@ -160,14 +164,36 @@ interface CustomTooltipProps {
     label?: string;
 }
 
-// Reference color scheme
+// Semantic color palette — Gapura Emerald + complementary hues
+// PRISM V3 Semantic color palette (OKLCH)
 const REFERENCE_COLORS = {
-    irregularity: '#81c784',  // Light green
-    complaint: '#4fc3f7',     // Light blue
-    compliment: '#dce775',    // Light yellow-green
+    irregularity: 'oklch(0.65 0.18 160)', // PRISM Emerald
+    complaint: 'oklch(0.6 0.14 240)',    // PRISM Blue
+    compliment: 'oklch(0.8 0.15 80)',     // PRISM Amber
+    trend: 'oklch(0.65 0.18 160)',
+    neutral: 'oklch(0.55 0.02 250)',
 };
 
-const COLORS = ['#81c784', '#13b5cb', '#cddc39', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const CHART_PALETTE = [
+    'oklch(0.65 0.18 160)',
+    'oklch(0.6 0.14 240)',
+    'oklch(0.7 0.2 330)',
+    'oklch(0.8 0.15 80)',
+    'oklch(0.6 0.2 25)',
+    'oklch(0.75 0.1 190)',
+];
+
+const COLORS = [
+    REFERENCE_COLORS.irregularity,
+    REFERENCE_COLORS.complaint,
+    REFERENCE_COLORS.compliment,
+    'oklch(0.6 0.2 280)', // Indigo
+    'oklch(0.7 0.2 330)', // Pink
+    'oklch(0.65 0.2 180)', // Teal
+    'oklch(0.75 0.18 50)',  // Orange
+    'oklch(0.6 0.2 285)',   // Violet
+    'oklch(0.6 0.05 240)',  // Slate-ish
+];
 
 const WrappedXAxisTick = (props: any) => {
     const { x, y, payload } = props;
@@ -197,8 +223,10 @@ const WrappedXAxisTick = (props: any) => {
                     y={0}
                     dy={16 + (i * 12)}
                     textAnchor="middle"
-                    fill="#6b7280"
+                    fill="var(--text-muted)"
                     fontSize={10}
+                    fontWeight={600}
+                    className="tracking-tighter"
                 >
                     {line}
                 </text>
@@ -210,38 +238,23 @@ const WrappedXAxisTick = (props: any) => {
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     if (!active || !payload?.length) return null;
 
-    const isPieChart = !label && (payload[0]?.payload?.name || payload[0]?.payload?.division);
-
-    if (isPieChart) {
-        const data = payload[0];
-        const displayName = (data.name || data.payload?.name || data.payload?.division || data.payload?.category || 'Unknown') as string;
-        const displayValue = data.value;
-        const color = data.fill || data.color || '#10b981';
-
-        return (
-            <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[140px]">
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-3 rounded-full" style={{ background: color }} />
-                    <p className="text-sm font-bold text-gray-900">{displayName}</p>
-                </div>
-                <p className="text-2xl font-bold" style={{ color }}>{displayValue as number}</p>
-                <p className="text-xs text-gray-500">laporan</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-2xl min-w-[160px]">
-            <p className="text-sm font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">{label}</p>
+        <div className="bg-[oklch(1_0_0_/_0.8)] backdrop-blur-xl p-4 border border-[oklch(1_0_0_/_0.1)] shadow-2xl rounded-2xl min-w-[140px] animate-scale-in">
+            {label && <p className="text-[11px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-3 border-b border-[oklch(0_0_0_/_0.05)] pb-1.5">{label}</p>}
             <div className="space-y-2">
                 {payload.map((entry, idx) => (
-                    <div key={idx} className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ background: entry.color || entry.fill }} />
-                            <span className="text-xs text-gray-600">{entry.name}</span>
+                    <div key={idx} className="flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-2.5">
+                            <div 
+                                className="w-2.5 h-2.5 rounded-full shadow-sm" 
+                                style={{ backgroundColor: entry.fill || entry.color || '#10b981' }} 
+                            />
+                            <span className="text-[11px] font-bold text-[var(--text-secondary)]">
+                                {entry.name || 'Value'}
+                            </span>
                         </div>
-                        <span className="text-sm font-bold" style={{ color: entry.color || entry.fill }}>
-                            {entry.value}{entry.name?.includes('%') || entry.dataKey === 'rate' ? '%' : ''}
+                        <span className="text-[11px] font-black text-[var(--text-primary)]">
+                            {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
                         </span>
                     </div>
                 ))}
@@ -250,15 +263,21 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     );
 }
 
-/** Returns HSL background + foreground color for heat-map cells.
- *  ratio 0 → very light green (#90% L)  |  ratio 1 → dark green (#28% L, white text) */
+/** Returns perceptual emerald-scale background + foreground for heat-map cells. */
 function heatColor(value: number, max: number): { bg: string; fg: string } {
-    if (value === 0 || max === 0) return { bg: 'transparent', fg: '#374151' };
-    const ratio = value / max;
-    const lightness = Math.round(90 - ratio * 62); // 90% → 28%
+    if (value === 0 || max === 0) return { bg: 'transparent', fg: 'var(--text-muted)' };
+    const ratio = Math.min(1, Math.max(0, value / max));
+    
+    // Using PRISM Emerald: oklch(0.65 0.18 160)
+    // For bg, we'll scale the lightness and chroma for depth
+    // Low: oklch(0.95 0.03 160) | High: oklch(0.5 0.2 160)
+    const l = 0.95 - (0.45 * ratio);
+    const c = 0.03 + (0.17 * ratio);
+    const h = 160;
+    
     return {
-        bg: `hsl(142, 55%, ${lightness}%)`,
-        fg: lightness < 52 ? '#ffffff' : '#374151',
+        bg: `oklch(${l} ${c} ${h})`,
+        fg: l < 0.65 ? '#ffffff' : '#0f172a',
     };
 }
 
@@ -274,15 +293,15 @@ function CategoryBarList({ data, color = '#4ade80', title }: { data: readonly { 
 
     return (
         <div>
-            {title && <h3 className="font-bold text-sm text-gray-800 mb-3">{title}</h3>}
+            {title && <h3 className="font-semibold text-[13px] tracking-tight text-slate-900 mb-3">{title}</h3>}
             <div className="space-y-2">
                 {pageItems.map((item) => (
                     <div key={item.name} className="flex items-center gap-2">
-                        <span className="text-xs text-gray-700 w-[140px] shrink-0 truncate" title={item.name}>
+                        <span className="text-[11px] font-medium text-slate-600 w-[140px] shrink-0 truncate" title={item.name}>
                             {item.name}
                         </span>
                         <div className="flex-1 flex items-center gap-1.5">
-                            <div className="flex-1 bg-gray-100 rounded-sm h-4 overflow-hidden">
+                            <div className="flex-1 bg-slate-100 rounded-sm h-3.5 overflow-hidden">
                                 <div
                                     className="h-full rounded-sm transition-all duration-300"
                                     style={{
@@ -291,7 +310,7 @@ function CategoryBarList({ data, color = '#4ade80', title }: { data: readonly { 
                                     }}
                                 />
                             </div>
-                            <span className="text-xs font-semibold text-gray-700 w-7 text-right shrink-0">
+                            <span className="text-[11px] font-semibold text-slate-700 w-7 text-right shrink-0">
                                 {item.value}
                             </span>
                         </div>
@@ -448,6 +467,17 @@ export default function AnalystCharts({
     onDrilldown,
     drilldownUrl,
 }: AnalystChartsProps) {
+    const TABS = ['tren', 'stasiun', 'maskapai', 'cgo', 'insights'] as const;
+    type AnalystTab = typeof TABS[number];
+    const TAB_LABELS: Record<AnalystTab, string> = {
+        tren: 'Tren & Kategori',
+        stasiun: 'Stasiun',
+        maskapai: 'Maskapai',
+        cgo: 'CGO',
+        insights: 'Insights',
+    };
+    const [activeTab, setActiveTab] = useState<AnalystTab>('tren');
+
     // Extract unique sub-categories for stacked bar chart
     const allSubCategories = useMemo(() => {
         const cats = new Set<string>();
@@ -975,8 +1005,36 @@ export default function AnalystCharts({
     }, [cgoReports]);
 
     return (
-        <>
+        <div className="space-y-6">
+            {/* Tab Bar - PRISM Floating Capsule */}
+            <div className="flex justify-center sticky top-0 z-40 py-2">
+                <div className="flex p-1.5 rounded-2xl bg-[oklch(1_0_0_/_0.4)] backdrop-blur-2xl border border-[oklch(1_0_0_/_0.1)] shadow-inner-rim max-w-full overflow-x-auto no-scrollbar">
+                    {TABS.map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cn(
+                                'px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap relative flex items-center gap-2',
+                                activeTab === tab
+                                    ? 'text-white'
+                                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[oklch(1_0_0_/_0.1)]'
+                            )}
+                        >
+                            {activeTab === tab && (
+                                <motion.div
+                                    layoutId="activeTab"
+                                    className="absolute inset-0 bg-gradient-to-br from-[var(--brand-aurora-1)] to-[var(--brand-aurora-2)] rounded-xl shadow-lg shadow-emerald-500/20"
+                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                />
+                            )}
+                            <span className="relative z-10">{TAB_LABELS[tab]}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {/* Slide 2: General Categories & Volume Trends */}
+            {activeTab === 'tren' && (
             <PresentationSlide
                 title="Tren & Distribusi Kategori Landside & Airside + CGO"
                 subtitle="Volume laporan dan proporsi kategori"
@@ -987,107 +1045,107 @@ export default function AnalystCharts({
                     {/* Row 1 */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Card 1: Report by Case Category */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-base text-gray-800 mb-1">Report by Case Category</h3>
-                            <div className="h-[220px] relative">
+                        <div
+                            className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl relative"
+                            style={{
+                                backgroundImage: `
+                                    repeating-linear-gradient(
+                                        2deg,
+                                        transparent,
+                                        transparent 20px,
+                                        oklch(0.65 0.18 160 / 0.02) 20px,
+                                        oklch(0.65 0.18 160 / 0.02) 21px
+                                    )
+                                `,
+                            }}
+                        >
+                            <ChartTitle
+                                title="Case Category Distribution"
+                                subtitle="Landside, Airside & CGO"
+                            />
+                            <div className="h-[280px] relative">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <RechartsPie>
                                         <Pie
                                             data={sortedCaseCategoryData}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={55}
-                                            outerRadius={85}
-                                            paddingAngle={2}
-                                            dataKey="value"
-                                            label={({ value }) => value}
                                             labelLine={false}
+                                            outerRadius={100}
+                                            fill={AVIATION_CHART_COLORS.primary}
+                                            dataKey="value"
+                                            animationBegin={200}
+                                            animationDuration={600}
                                         >
                                             {sortedCaseCategoryData.map((entry, index) => (
-                                                <Cell 
-                                                    key={`cell-${index}`} 
-                                                    fill={[
-                                                        REFERENCE_COLORS.irregularity,
-                                                        REFERENCE_COLORS.complaint,
-                                                        REFERENCE_COLORS.compliment
-                                                    ][index % 3]} 
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={
+                                                        entry.name === 'Irregularity' ? AVIATION_CHART_COLORS.irregularity :
+                                                        entry.name === 'Complaint' ? AVIATION_CHART_COLORS.complaint :
+                                                        AVIATION_CHART_COLORS.compliment
+                                                    }
                                                 />
                                             ))}
                                         </Pie>
-                                        <Tooltip content={<CustomTooltip />} />
+                                        <Tooltip {...CHART_TOOLTIP_STYLE} />
+                                        <Legend {...CHART_LEGEND_STYLE} />
                                     </RechartsPie>
                                 </ResponsiveContainer>
-                            </div>
-                            <div className="flex flex-wrap justify-center gap-4 mt-2">
-                                {sortedCaseCategoryData.map((s, idx) => (
-                                    <div key={s.name} className="flex items-center gap-1.5">
-                                        <div 
-                                            className="w-3 h-3 rounded-full" 
-                                            style={{ 
-                                                background: [
-                                                    REFERENCE_COLORS.irregularity,
-                                                    REFERENCE_COLORS.complaint,
-                                                    REFERENCE_COLORS.compliment
-                                                ][idx % 3] 
-                                            }} 
-                                        />
-                                        <span className="text-xs text-gray-600">{s.name}</span>
-                                    </div>
-                                ))}
                             </div>
                         </div>
 
                         {/* Card 2: Tren Penyelesaian Bulanan */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-base text-gray-800 mb-1">Tren Penyelesaian Bulanan</h3>
-                            <div className="h-[220px]">
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Tren Penyelesaian Bulanan</h3>
+                            <div className="h-[280px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart
                                         data={safeTrendData.slice(-12)}
                                         margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                        <XAxis 
-                                            dataKey="month" 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{ fill: '#374151', fontSize: 10 }}
+                                        <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="oklch(0 0 0 / 0.05)" />
+                                        <XAxis
+                                            dataKey="month"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }}
                                         />
-                                        <YAxis 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{ fill: '#374151', fontSize: 10 }}
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }}
                                         />
                                         <Tooltip content={<CustomTooltip />} />
-                                        <Line 
-                                            type="monotone" 
-                                            dataKey="total" 
+                                        <Line
+                                            type="monotone"
+                                            dataKey="total"
                                             name="Laporan Masuk"
-                                            stroke="#4fc3f7" 
-                                            strokeWidth={2}
-                                            dot={{ fill: '#4fc3f7', strokeWidth: 0, r: 3 }}
-                                            activeDot={{ r: 5 }}
+                                            stroke={REFERENCE_COLORS.complaint}
+                                            strokeWidth={3}
+                                            dot={{ fill: REFERENCE_COLORS.complaint, strokeWidth: 0, r: 4 }}
+                                            activeDot={{ r: 6, stroke: 'white', strokeWidth: 2 }}
                                         />
-                                        <Line 
-                                            type="monotone" 
-                                            dataKey="resolved" 
+                                        <Line
+                                            type="monotone"
+                                            dataKey="resolved"
                                             name="Selesai"
-                                            stroke="#81c784" 
-                                            strokeWidth={2}
-                                            dot={{ fill: '#81c784', strokeWidth: 0, r: 3 }}
-                                            activeDot={{ r: 5 }}
+                                            stroke={REFERENCE_COLORS.irregularity}
+                                            strokeWidth={3}
+                                            dot={{ fill: REFERENCE_COLORS.irregularity, strokeWidth: 0, r: 4 }}
+                                            activeDot={{ r: 6, stroke: 'white', strokeWidth: 2 }}
                                         />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="flex flex-wrap justify-center gap-4 mt-2">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full" style={{ background: '#4fc3f7' }} />
-                                    <span className="text-xs text-gray-600">Laporan Masuk</span>
+                            <div className="flex flex-wrap justify-center gap-6 mt-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-blue-500/20" style={{ background: REFERENCE_COLORS.complaint }} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Laporan Masuk</span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded-full" style={{ background: '#81c784' }} />
-                                    <span className="text-xs text-gray-600">Selesai</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-emerald-500/20" style={{ background: REFERENCE_COLORS.irregularity }} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Selesai</span>
                                 </div>
                             </div>
                         </div>
@@ -1096,18 +1154,18 @@ export default function AnalystCharts({
                     {/* Row 2 */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Card 3: Category by Area */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-base text-gray-800 mb-1">Category by Area</h3>
-                            <div className="h-[220px] relative">
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Category by Area</h3>
+                            <div className="h-[280px] relative">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <RechartsPie>
                                         <Pie
                                             data={categoryByAreaWithColors}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={55}
-                                            outerRadius={85}
-                                            paddingAngle={2}
+                                            innerRadius={65}
+                                            outerRadius={100}
+                                            paddingAngle={3}
                                             dataKey="value"
                                             label={({ value }) => value}
                                             labelLine={false}
@@ -1123,7 +1181,7 @@ export default function AnalystCharts({
                             <div className="flex flex-wrap justify-center gap-4 mt-2">
                                 {categoryByAreaWithColors.map((s) => (
                                     <div key={s.name} className="flex items-center gap-1.5">
-                                        <div className="w-3 h-3 rounded-full" style={{ background: s.fill }} />
+                                        <div className="w-2.5 h-2.5 rounded-sm" style={{ background: s.fill }} />
                                         <span className="text-xs text-gray-600">{s.name}</span>
                                     </div>
                                 ))}
@@ -1131,9 +1189,9 @@ export default function AnalystCharts({
                         </div>
 
                         {/* Card 4: Case Category by Branch (Pivot Table) */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-base text-gray-800 mb-1">Case Category by Branch</h3>
-                            <p className="text-xs text-gray-500 mb-3">Report Category / Record Count</p>
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl overflow-hidden">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Case Category by Branch</h3>
+                            <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Report Category / Record Count</p>
                             
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs">
@@ -1201,43 +1259,44 @@ export default function AnalystCharts({
                         </div>
                     </div>
 
-                    {/* Row 3: Area and Sub-Category Breakdown (Full Width - PRESERVED) */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4">
-                        <div className="flex items-center justify-between mb-4">
+                    {/* Row 3: Area and Sub-Category Breakdown */}
+                    <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                        <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-base text-gray-800">Area and Sub-Category Breakdown</h3>
-                                <p className="text-xs text-gray-500">Detail kategori per wilayah</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Area and Sub-Category Breakdown</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)]">Detail kategori per wilayah</p>
                             </div>
                         </div>
-                        <div className="h-[280px] sm:h-[320px]">
+                        <div className="h-[320px] sm:h-[360px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
                                     data={areaSubCategoryData as any[]}
                                     margin={{ top: 25, right: 10, left: -20, bottom: 5 }}
                                     barCategoryGap="30%"
                                 >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
-                                    <XAxis dataKey="area" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
-                                    <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    {allSubCategories.map((cat, idx) => (
-                                        <Bar 
-                                            key={cat} 
-                                            dataKey={cat} 
-                                            name={cat} 
-                                            fill={COLORS[idx % COLORS.length]} 
-                                            radius={[4, 4, 0, 0]}
-                                            barSize={12}
-                                        >
-                                            <LabelList 
-                                                dataKey={cat} 
-                                                position="top" 
-                                                fill="#6b7280" 
-                                                fontSize={9} 
-                                                formatter={(v: any) => v > 0 ? v : ''}
-                                            />
-                                        </Bar>
-                                    ))}
+                                     <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="oklch(0 0 0 / 0.05)" />
+                                     <XAxis dataKey="area" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
+                                     <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                     <Tooltip content={<CustomTooltip />} />
+                                     {allSubCategories.map((cat, idx) => (
+                                         <Bar 
+                                             key={cat} 
+                                             dataKey={cat} 
+                                             name={cat} 
+                                             fill={COLORS[idx % COLORS.length]} 
+                                             radius={[4, 4, 0, 0]}
+                                             maxBarSize={16}
+                                         >
+                                             <LabelList
+                                                 dataKey={cat}
+                                                 position="top"
+                                                 fill="var(--text-muted)"
+                                                 fontSize={9}
+                                                 fontWeight={700}
+                                                 formatter={(v: any) => v > 0 ? v : ''}
+                                             />
+                                         </Bar>
+                                     ))}
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -1245,7 +1304,7 @@ export default function AnalystCharts({
                             {allSubCategories.map((cat, idx) => (
                                 <div key={cat} className="flex items-center gap-1.5">
                                     <div className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[idx % COLORS.length] }} />
-                                    <span className="text-[10px] text-gray-600">{cat}</span>
+                                    <span className="text-[11px] font-medium text-slate-600">{cat}</span>
                                 </div>
                             ))}
                         </div>
@@ -1254,9 +1313,9 @@ export default function AnalystCharts({
                     {/* Row 4: Case Report by Area table + 3 Category Bar Charts */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         {/* Case Report by Area */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Report by Area</h3>
-                            <p className="text-[10px] text-gray-500 mb-3">Area Report / Branch by Airlines</p>
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl overflow-hidden">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Case Report by Area</h3>
+                            <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Area Report / Branch by Airlines</p>
                             {caseReportByAreaData.length === 0 ? (
                                 <p className="text-xs text-gray-400 text-center py-6">Tidak ada data</p>
                             ) : (
@@ -1264,14 +1323,14 @@ export default function AnalystCharts({
                                     {/* scrollable body — ~5 rows visible */}
                                     <div className="max-h-[188px] overflow-y-auto">
                                         <table className="w-full text-xs min-w-[320px]">
-                                            <thead className="sticky top-0 z-10 bg-white">
-                                                <tr className="border-b border-gray-200">
-                                                    <th className="text-left py-1.5 px-1.5 font-semibold text-gray-700">Branch</th>
-                                                    <th className="text-left py-1.5 px-1.5 font-semibold text-gray-700">Airlines</th>
-                                                    <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Terminal<br/>Area</th>
-                                                    <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Apron<br/>Area</th>
-                                                    <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">General</th>
-                                                    <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Grand<br/>total</th>
+                                            <thead className="sticky top-0 z-10">
+                                                <tr className="bg-slate-100 text-black border-b border-gray-300">
+                                                    <th className="text-left py-2 px-3 font-black uppercase tracking-widest text-[9px] w-32">Branch</th>
+                                                    <th className="text-left py-2 px-3 font-black uppercase tracking-widest text-[9px]">Airlines</th>
+                                                    <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[9px]">Terminal<br/>Area</th>
+                                                    <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[9px]">Apron<br/>Area</th>
+                                                    <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[9px]">General</th>
+                                                    <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[9px]">Grand<br/>total</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1342,39 +1401,41 @@ export default function AnalystCharts({
                         </div>
 
                         {/* Terminal Area Category */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-sm text-gray-800 mb-1">Terminal Area Category</h3>
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Terminal Area Category</h3>
                             <div className="flex items-center justify-between mb-3">
-                                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
-                                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Category</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
                             </div>
-                            <CategoryBarList data={terminalAreaCategoryData} color="#4ade80" />
+                            <CategoryBarList data={terminalAreaCategoryData} color="oklch(0.65 0.18 160)" />
                         </div>
 
                         {/* Apron Area Category */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-sm text-gray-800 mb-1">Apron Area Category</h3>
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Apron Area Category</h3>
                             <div className="flex items-center justify-between mb-3">
-                                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
-                                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Category</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
                             </div>
-                            <CategoryBarList data={apronAreaCategoryData} color="#4ade80" />
+                            <CategoryBarList data={apronAreaCategoryData} color="oklch(0.6 0.14 240)" />
                         </div>
 
                         {/* General Category */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h3 className="font-bold text-sm text-gray-800 mb-1">General Category</h3>
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">General Category</h3>
                             <div className="flex items-center justify-between mb-3">
-                                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
-                                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Category</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
                             </div>
-                            <CategoryBarList data={generalCategoryData} color="#4ade80" />
+                            <CategoryBarList data={generalCategoryData} color="oklch(0.8 0.15 80)" />
                         </div>
                     </div>
                 </div>
             </PresentationSlide>
+            )}
 
             {/* Slide 3: Station Analysis (Total & Category Breakdown) */}
+            {activeTab === 'stasiun' && (
             <PresentationSlide
                 title="Analisis Stasiun Landside & Airside + CGO"
                 subtitle="Performa dan kategori laporan per cabang"
@@ -1383,11 +1444,11 @@ export default function AnalystCharts({
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Branch Report (Total - Simple Bar) */}
-                    <div className="card-solid p-6">
+                    <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Total Laporan per Stasiun</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Top 10 Stasiun dengan volume tertinggi</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Total Laporan per Stasiun</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)]">Top 10 Stasiun dengan volume tertinggi</p>
                             </div>
                         </div>
                         <div className="h-[250px] sm:h-[300px]">
@@ -1400,7 +1461,7 @@ export default function AnalystCharts({
                                     <Bar
                                         dataKey="count"
                                         name="Laporan"
-                                        fill="#10b981"
+                                        fill={REFERENCE_COLORS.irregularity}
                                         radius={[4, 4, 0, 0]}
                                         onClick={() => {
                                             handleViewDetail(
@@ -1430,11 +1491,11 @@ export default function AnalystCharts({
                     </div>
 
                     {/* Category by Branch (Grouped Vertical) */}
-                    <div className="card-solid p-6">
+                    <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Kategori per Stasiun</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Breakdown tipe laporan per cabang</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Kategori per Stasiun</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)]">Breakdown tipe laporan per cabang</p>
                             </div>
                         </div>
                         {/* Scrollable so all branches are visible */}
@@ -1483,14 +1544,14 @@ export default function AnalystCharts({
                                             iconType="square"
                                             iconSize={10}
                                         />
-                                        <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28}>
-                                            <LabelList dataKey="irregularity" position="top" style={{ fill: '#6b7280', fontSize: 9 }} formatter={(v: any) => v > 0 ? v : ''} />
+                                        <Bar dataKey="irregularity" name="Irregularity" fill={REFERENCE_COLORS.irregularity} radius={[6, 6, 0, 0]} maxBarSize={28}>
+                                            <LabelList dataKey="irregularity" position="top" style={{ fill: 'var(--text-muted)', fontSize: 9, fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                                         </Bar>
-                                        <Bar dataKey="complaint" name="Complaint" fill="#ec4899" radius={[4, 4, 0, 0]} maxBarSize={28}>
-                                            <LabelList dataKey="complaint" position="top" style={{ fill: '#6b7280', fontSize: 9 }} formatter={(v: any) => v > 0 ? v : ''} />
+                                        <Bar dataKey="complaint" name="Complaint" fill={REFERENCE_COLORS.complaint} radius={[6, 6, 0, 0]} maxBarSize={28}>
+                                            <LabelList dataKey="complaint" position="top" style={{ fill: 'var(--text-muted)', fontSize: 9, fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                                         </Bar>
-                                        <Bar dataKey="compliment" name="Compliment" fill="#06b6d4" radius={[4, 4, 0, 0]} maxBarSize={28}>
-                                            <LabelList dataKey="compliment" position="top" style={{ fill: '#6b7280', fontSize: 9 }} formatter={(v: any) => v > 0 ? v : ''} />
+                                        <Bar dataKey="compliment" name="Compliment" fill={REFERENCE_COLORS.compliment} radius={[6, 6, 0, 0]} maxBarSize={28}>
+                                            <LabelList dataKey="compliment" position="top" style={{ fill: 'var(--text-muted)', fontSize: 9, fontWeight: 700 }} formatter={(v: any) => v > 0 ? v : ''} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -1502,18 +1563,18 @@ export default function AnalystCharts({
                 {/* Row 2: Detail Area/Category by Branch Pivot Tables */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
                     {/* Card 3: Detail Terminal Area by Branch */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ height: '400px' }}>
-                        <h3 className="font-bold text-base text-gray-800 mb-1 shrink-0">Detail Terminal Area by Branch</h3>
+                    <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl flex flex-col" style={{ height: '400px' }}>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-4 opacity-70">Detail Terminal Area by Branch</h3>
                         <div className="flex-1 mt-2 overflow-hidden flex flex-col min-h-0">
                             <div className="overflow-auto border border-gray-200 flex-1">
                                 <table className="w-full text-xs" style={{ minWidth: '300px' }}>
-                                    <thead className="bg-green-500 text-white sticky top-0 z-10">
+                                    <thead className="bg-slate-100 text-black border-b border-gray-300 sticky top-0 z-10">
                                         <tr>
-                                            <th className="text-left py-2 px-2 font-semibold w-32">Category</th>
+                                            <th className="text-left py-2.5 px-3 font-black uppercase tracking-widest text-[9px] w-32">Category</th>
                                             {terminalAreaByBranch.branches.map((branch: string) => (
-                                                <th key={branch} className="text-center py-2 px-1 font-semibold whitespace-nowrap">{branch}</th>
+                                                <th key={branch} className="text-center py-2.5 px-1 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">{branch}</th>
                                             ))}
-                                            <th className="text-center py-2 px-2 font-semibold whitespace-nowrap">Total</th>
+                                            <th className="text-center py-2.5 px-3 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1522,19 +1583,21 @@ export default function AnalystCharts({
                                                 <td className="py-2 px-2 font-medium text-gray-800 truncate w-32" title={row.category}>
                                                     {row.category}
                                                 </td>
-                                                {terminalAreaByBranch.branches.map((branch: string) => (
-                                                    <td 
-                                                        key={branch}
-                                                        className="py-2 px-1 text-center font-medium whitespace-nowrap"
-                                                        style={{
-                                                            backgroundColor: row.branches[branch] 
-                                                                ? `rgba(129, 199, 132, ${(row.branches[branch] || 0) / terminalAreaByBranch.maxValues[branch] * 0.5 + 0.1})`
-                                                                : 'transparent'
-                                                        }}
-                                                    >
-                                                        {row.branches[branch] || '-'}
-                                                    </td>
-                                                ))}
+                                                {terminalAreaByBranch.branches.map((branch: string) => {
+                                                    const cell = heatColor(row.branches[branch] || 0, terminalAreaByBranch.maxValues[branch]);
+                                                    return (
+                                                        <td 
+                                                            key={branch}
+                                                            className="py-2 px-1 text-center font-medium whitespace-nowrap"
+                                                            style={{
+                                                                backgroundColor: cell.bg,
+                                                                color: cell.fg
+                                                            }}
+                                                        >
+                                                            {row.branches[branch] || '-'}
+                                                        </td>
+                                                    );
+                                                })}
                                                 <td className="py-2 px-2 text-center font-bold text-gray-800 bg-gray-50 whitespace-nowrap">
                                                     {row.total}
                                                 </td>
@@ -1559,18 +1622,18 @@ export default function AnalystCharts({
                     </div>
 
                     {/* Card 4: Detail Apron Area by Branch */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ height: '400px' }}>
-                        <h3 className="font-bold text-base text-gray-800 mb-1 shrink-0">Detail Apron Area by Branch</h3>
+                    <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl flex flex-col" style={{ height: '400px' }}>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-4 opacity-70">Detail Apron Area by Branch</h3>
                         <div className="flex-1 mt-2 overflow-hidden flex flex-col min-h-0">
                             <div className="overflow-auto border border-gray-200 flex-1">
                                 <table className="w-full text-xs" style={{ minWidth: '300px' }}>
-                                    <thead className="bg-green-500 text-white sticky top-0 z-10">
+                                    <thead className="bg-slate-100 text-black border-b border-gray-300 sticky top-0 z-10">
                                         <tr>
-                                            <th className="text-left py-2 px-2 font-semibold w-32">Category</th>
+                                            <th className="text-left py-2.5 px-3 font-black uppercase tracking-widest text-[9px] w-32">Category</th>
                                             {apronAreaByBranch.branches.map((branch: string) => (
-                                                <th key={branch} className="text-center py-2 px-1 font-semibold whitespace-nowrap">{branch}</th>
+                                                <th key={branch} className="text-center py-2.5 px-1 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">{branch}</th>
                                             ))}
-                                            <th className="text-center py-2 px-2 font-semibold whitespace-nowrap">Total</th>
+                                            <th className="text-center py-2.5 px-3 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1579,19 +1642,21 @@ export default function AnalystCharts({
                                                 <td className="py-2 px-2 font-medium text-gray-800 truncate w-32" title={row.category}>
                                                     {row.category}
                                                 </td>
-                                                {apronAreaByBranch.branches.map((branch: string) => (
-                                                    <td 
-                                                        key={branch}
-                                                        className="py-2 px-1 text-center font-medium whitespace-nowrap"
-                                                        style={{
-                                                            backgroundColor: row.branches[branch] 
-                                                                ? `rgba(129, 199, 132, ${(row.branches[branch] || 0) / apronAreaByBranch.maxValues[branch] * 0.5 + 0.1})`
-                                                                : 'transparent'
-                                                        }}
-                                                    >
-                                                        {row.branches[branch] || '-'}
-                                                    </td>
-                                                ))}
+                                                {apronAreaByBranch.branches.map((branch: string) => {
+                                                    const cell = heatColor(row.branches[branch] || 0, apronAreaByBranch.maxValues[branch]);
+                                                    return (
+                                                        <td 
+                                                            key={branch}
+                                                            className="py-2 px-1 text-center font-medium whitespace-nowrap"
+                                                            style={{
+                                                                backgroundColor: cell.bg,
+                                                                color: cell.fg
+                                                            }}
+                                                        >
+                                                            {row.branches[branch] || '-'}
+                                                        </td>
+                                                    );
+                                                })}
                                                 <td className="py-2 px-2 text-center font-bold text-gray-800 bg-gray-50 whitespace-nowrap">
                                                     {row.total}
                                                 </td>
@@ -1616,18 +1681,18 @@ export default function AnalystCharts({
                     </div>
 
                     {/* Card 5: Detail General Category by Branch */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ height: '400px' }}>
-                        <h3 className="font-bold text-base text-gray-800 mb-1 shrink-0">Detail General Category by Branch</h3>
+                    <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl flex flex-col" style={{ height: '400px' }}>
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-4 opacity-70">Detail General Category by Branch</h3>
                         <div className="flex-1 mt-2 overflow-hidden flex flex-col min-h-0">
                             <div className="overflow-auto border border-gray-200 flex-1">
                                 <table className="w-full text-xs" style={{ minWidth: '300px' }}>
-                                    <thead className="bg-green-500 text-white sticky top-0 z-10">
+                                    <thead className="bg-slate-100 text-black border-b border-gray-300 sticky top-0 z-10">
                                         <tr>
-                                            <th className="text-left py-2 px-2 font-semibold w-32">Category</th>
+                                            <th className="text-left py-2.5 px-3 font-black uppercase tracking-widest text-[9px] w-32">Category</th>
                                             {generalCategoryByBranch.branches.map((branch: string) => (
-                                                <th key={branch} className="text-center py-2 px-1 font-semibold whitespace-nowrap">{branch}</th>
+                                                <th key={branch} className="text-center py-2.5 px-1 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">{branch}</th>
                                             ))}
-                                            <th className="text-center py-2 px-2 font-semibold whitespace-nowrap">Total</th>
+                                            <th className="text-center py-2.5 px-3 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1636,19 +1701,21 @@ export default function AnalystCharts({
                                                 <td className="py-2 px-2 font-medium text-gray-800 truncate w-32" title={row.category}>
                                                     {row.category}
                                                 </td>
-                                                {generalCategoryByBranch.branches.map((branch: string) => (
-                                                    <td 
-                                                        key={branch}
-                                                        className="py-2 px-1 text-center font-medium whitespace-nowrap"
-                                                        style={{
-                                                            backgroundColor: row.branches[branch] 
-                                                                ? `rgba(129, 199, 132, ${(row.branches[branch] || 0) / generalCategoryByBranch.maxValues[branch] * 0.5 + 0.1})`
-                                                                : 'transparent'
-                                                        }}
-                                                    >
-                                                        {row.branches[branch] || '-'}
-                                                    </td>
-                                                ))}
+                                                {generalCategoryByBranch.branches.map((branch: string) => {
+                                                    const cell = heatColor(row.branches[branch] || 0, generalCategoryByBranch.maxValues[branch]);
+                                                    return (
+                                                        <td 
+                                                            key={branch}
+                                                            className="py-2 px-1 text-center font-medium whitespace-nowrap"
+                                                            style={{
+                                                                backgroundColor: cell.bg,
+                                                                color: cell.fg
+                                                            }}
+                                                        >
+                                                            {row.branches[branch] || '-'}
+                                                        </td>
+                                                    );
+                                                })}
                                                 <td className="py-2 px-2 text-center font-bold text-gray-800 bg-gray-50 whitespace-nowrap">
                                                     {row.total}
                                                 </td>
@@ -1673,21 +1740,23 @@ export default function AnalystCharts({
                     </div>
                 </div>
             </PresentationSlide>
+            )}
 
             {/* Slide 4: Airline Analysis (Total & Category Breakdown) */}
+            {activeTab === 'maskapai' && (
             <PresentationSlide
-                title="Analisis Maskapai Landside & Airside + CGO"
-                subtitle="Volume dan kategori laporan berdasarkan maskapai"
+                title="Analisis Maskapai"
+                subtitle="Performance Metrics & Distribution"
                 icon={TrendingUp}
                 hint="Klik chart untuk filter per maskapai"
             >
                 <div className="grid grid-cols-1 gap-6">
                     {/* Airlines Total (Derived) */}
-                    <div className="card-solid p-6">
+                    <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Total Laporan Maskapai</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Top Maskapai dengan laporan terbanyak</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Total Laporan Maskapai</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)]">Top Maskapai dengan laporan terbanyak</p>
                             </div>
                         </div>
                         <div className="h-[280px] sm:h-[300px]">
@@ -1700,7 +1769,7 @@ export default function AnalystCharts({
                                     <Bar
                                         dataKey="total"
                                         name="Total"
-                                        fill="#3b82f6"
+                                        fill={CHART_PALETTE[1]}
                                         radius={[4, 4, 0, 0]}
                                         onClick={() => {
                                             handleViewDetail(
@@ -1730,11 +1799,11 @@ export default function AnalystCharts({
                     </div>
 
                     {/* Category by Airline (Grouped Bar) */}
-                    <div className="card-solid p-6">
-                         <div className="flex items-center justify-between mb-6">
+                    <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl overflow-hidden">
+                        <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Kategori per Maskapai</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Breakdown tipe laporan</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Kategori per Maskapai</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)]">Breakdown tipe laporan</p>
                             </div>
                         </div>
                         <div className="h-[300px]">
@@ -1766,9 +1835,9 @@ export default function AnalystCharts({
                                     <XAxis dataKey="airline" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
                                     <YAxis tick={{fill: 'var(--text-secondary)', fontSize: 10}} axisLine={false} tickLine={false} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="irregularity" name="Irregularity" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="complaint" name="Complaint" fill="#ec4899" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="compliment" name="Compliment" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="irregularity" name="Irregularity" fill={REFERENCE_COLORS.irregularity} radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="complaint" name="Complaint" fill={REFERENCE_COLORS.complaint} radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="compliment" name="Compliment" fill={REFERENCE_COLORS.compliment} radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -1777,18 +1846,18 @@ export default function AnalystCharts({
                     {/* Row 2: Detail Area/Category by Airlines Pivot Tables */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
                         {/* Card 1: Detail Terminal Area by Airlines */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ height: '400px' }}>
-                            <h3 className="font-bold text-base text-gray-800 mb-1 shrink-0">Detail Terminal Area by Airlines</h3>
+                        <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl flex flex-col" style={{ height: '400px' }}>
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-4 opacity-70">Detail Terminal Area by Airlines</h3>
                             <div className="flex-1 mt-2 overflow-hidden flex flex-col min-h-0">
                                 <div className="overflow-auto border border-gray-200 flex-1">
                                     <table className="w-full text-xs" style={{ minWidth: '400px' }}>
-                                        <thead className="bg-green-500 text-white sticky top-0 z-10">
+                                        <thead className="bg-slate-100 text-black border-b border-gray-300 sticky top-0 z-10">
                                             <tr>
-                                                <th className="text-left py-2 px-2 font-semibold w-32">Category</th>
+                                                <th className="text-left py-2.5 px-3 font-black uppercase tracking-widest text-[9px] w-32">Category</th>
                                                 {terminalAreaByAirline.airlines.map((airline: string) => (
-                                                    <th key={airline} className="text-center py-2 px-1 font-semibold whitespace-nowrap">{airline}</th>
+                                                    <th key={airline} className="text-center py-2.5 px-1 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">{airline}</th>
                                                 ))}
-                                                <th className="text-center py-2 px-2 font-semibold whitespace-nowrap">Total</th>
+                                                <th className="text-center py-2.5 px-3 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1834,18 +1903,18 @@ export default function AnalystCharts({
                         </div>
 
                         {/* Card 2: Detail Apron Area by Airlines */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ height: '400px' }}>
-                            <h3 className="font-bold text-base text-gray-800 mb-1 shrink-0">Detail Apron Area by Airlines</h3>
+                        <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl flex flex-col" style={{ height: '400px' }}>
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-4 opacity-70">Detail Apron Area by Airlines</h3>
                             <div className="flex-1 mt-2 overflow-hidden flex flex-col min-h-0">
                                 <div className="overflow-auto border border-gray-200 flex-1">
                                     <table className="w-full text-xs" style={{ minWidth: '400px' }}>
-                                        <thead className="bg-green-500 text-white sticky top-0 z-10">
+                                        <thead className="bg-slate-100 text-black border-b border-gray-300 sticky top-0 z-10">
                                             <tr>
-                                                <th className="text-left py-2 px-2 font-semibold w-32">Category</th>
+                                                <th className="text-left py-2.5 px-3 font-black uppercase tracking-widest text-[9px] w-32">Category</th>
                                                 {apronAreaByAirline.airlines.map((airline: string) => (
-                                                    <th key={airline} className="text-center py-2 px-1 font-semibold whitespace-nowrap">{airline}</th>
+                                                    <th key={airline} className="text-center py-2.5 px-1 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">{airline}</th>
                                                 ))}
-                                                <th className="text-center py-2 px-2 font-semibold whitespace-nowrap">Total</th>
+                                                <th className="text-center py-2.5 px-3 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1854,19 +1923,21 @@ export default function AnalystCharts({
                                                     <td className="py-2 px-2 font-medium text-gray-800 truncate w-32" title={row.category}>
                                                         {row.category}
                                                     </td>
-                                                    {apronAreaByAirline.airlines.map((airline: string) => (
-                                                        <td 
-                                                            key={airline}
-                                                            className="py-2 px-1 text-center font-medium whitespace-nowrap"
-                                                            style={{
-                                                                backgroundColor: row.airlines[airline] 
-                                                                    ? `rgba(129, 199, 132, ${(row.airlines[airline] || 0) / apronAreaByAirline.maxValues[airline] * 0.5 + 0.1})`
-                                                                    : 'transparent'
-                                                            }}
-                                                        >
-                                                            {row.airlines[airline] || '-'}
-                                                        </td>
-                                                    ))}
+                                                    {apronAreaByAirline.airlines.map((airline: string) => {
+                                                        const cell = heatColor(row.airlines[airline] || 0, apronAreaByAirline.maxValues[airline]);
+                                                        return (
+                                                            <td 
+                                                                key={airline}
+                                                                className="py-2 px-1 text-center font-medium whitespace-nowrap"
+                                                                style={{
+                                                                    backgroundColor: cell.bg,
+                                                                    color: cell.fg
+                                                                }}
+                                                            >
+                                                                {row.airlines[airline] || '-'}
+                                                            </td>
+                                                        );
+                                                    })}
                                                     <td className="py-2 px-2 text-center font-bold text-gray-800 bg-gray-50 whitespace-nowrap">
                                                         {row.total}
                                                     </td>
@@ -1891,18 +1962,18 @@ export default function AnalystCharts({
                         </div>
 
                         {/* Card 3: Detail General Category by Airlines */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col" style={{ height: '400px' }}>
-                            <h3 className="font-bold text-base text-gray-800 mb-1 shrink-0">Detail General Category by Airlines</h3>
+                        <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl flex flex-col" style={{ height: '400px' }}>
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-4 opacity-70">Detail General Category by Airlines</h3>
                             <div className="flex-1 mt-2 overflow-hidden flex flex-col min-h-0">
                                 <div className="overflow-auto border border-gray-200 flex-1">
                                     <table className="w-full text-xs" style={{ minWidth: '400px' }}>
-                                        <thead className="bg-green-500 text-white sticky top-0 z-10">
+                                        <thead className="bg-slate-100 text-black border-b border-gray-300 sticky top-0 z-10">
                                             <tr>
-                                                <th className="text-left py-2 px-2 font-semibold w-32">Category</th>
+                                                <th className="text-left py-2.5 px-3 font-black uppercase tracking-widest text-[9px] w-32">Category</th>
                                                 {generalCategoryByAirline.airlines.map((airline: string) => (
-                                                    <th key={airline} className="text-center py-2 px-1 font-semibold whitespace-nowrap">{airline}</th>
+                                                    <th key={airline} className="text-center py-2.5 px-1 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">{airline}</th>
                                                 ))}
-                                                <th className="text-center py-2 px-2 font-semibold whitespace-nowrap">Total</th>
+                                                <th className="text-center py-2.5 px-3 font-black uppercase tracking-widest text-[9px] whitespace-nowrap">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1911,19 +1982,21 @@ export default function AnalystCharts({
                                                     <td className="py-2 px-2 font-medium text-gray-800 truncate w-32" title={row.category}>
                                                         {row.category}
                                                     </td>
-                                                    {generalCategoryByAirline.airlines.map((airline: string) => (
-                                                        <td 
-                                                            key={airline}
-                                                            className="py-2 px-1 text-center font-medium whitespace-nowrap"
-                                                            style={{
-                                                                backgroundColor: row.airlines[airline] 
-                                                                    ? `rgba(129, 199, 132, ${(row.airlines[airline] || 0) / generalCategoryByAirline.maxValues[airline] * 0.5 + 0.1})`
-                                                                    : 'transparent'
-                                                            }}
-                                                        >
-                                                            {row.airlines[airline] || '-'}
-                                                        </td>
-                                                    ))}
+                                                    {generalCategoryByAirline.airlines.map((airline: string) => {
+                                                        const cell = heatColor(row.airlines[airline] || 0, generalCategoryByAirline.maxValues[airline]);
+                                                        return (
+                                                            <td 
+                                                                key={airline}
+                                                                className="py-2 px-1 text-center font-medium whitespace-nowrap"
+                                                                style={{
+                                                                    backgroundColor: cell.bg,
+                                                                    color: cell.fg
+                                                                }}
+                                                            >
+                                                                {row.airlines[airline] || '-'}
+                                                            </td>
+                                                        );
+                                                    })}
                                                     <td className="py-2 px-2 text-center font-bold text-gray-800 bg-gray-50 whitespace-nowrap">
                                                         {row.total}
                                                     </td>
@@ -1949,8 +2022,11 @@ export default function AnalystCharts({
                     </div>
                 </div>
             </PresentationSlide>
+            )}
 
             {/* Slide CGO: CGO Case Category — filtered to source_sheet === 'CGO' */}
+            {activeTab === 'cgo' && (
+            <>
             <PresentationSlide
                 title="CGO - Case Category"
                 subtitle="Laporan dari CGO Sheet"
@@ -1966,8 +2042,8 @@ export default function AnalystCharts({
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
                             {/* Report by Case Category */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-3">Report by Case Category</h3>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Report by Case Category</h3>
                                 <div className="h-[200px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
@@ -1975,15 +2051,15 @@ export default function AnalystCharts({
                                             layout="vertical"
                                             margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
+                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={80} />
                                             <Tooltip content={<CustomTooltip />} />
                                             <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
                                                 {cgoCaseCategoryData.map((entry, idx) => (
                                                     <Cell key={`cgo-cat-${idx}`} fill={entry.color} />
                                                 ))}
-                                                <LabelList dataKey="value" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                                <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -1991,8 +2067,8 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Branch Reporting */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-3">Branch Reporting</h3>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Branch Reporting</h3>
                                 <div className="h-[200px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
@@ -2000,12 +2076,12 @@ export default function AnalystCharts({
                                             layout="vertical"
                                             margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="branch" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="branch" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={40} />
                                             <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="count" name="Laporan" fill="#81c784" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                                                <LabelList dataKey="count" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            <Bar dataKey="count" name="Laporan" fill={REFERENCE_COLORS.irregularity} radius={[0, 4, 4, 0]} maxBarSize={20}>
+                                                <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -2013,8 +2089,8 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Airlines Report */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-3">Airlines Report</h3>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Airlines Report</h3>
                                 <div className="h-[200px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
@@ -2022,12 +2098,12 @@ export default function AnalystCharts({
                                             layout="vertical"
                                             margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="airline" tick={{ fill: '#374151', fontSize: 10 }} axisLine={false} tickLine={false} width={90} />
+                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="airline" tick={{ fill: 'var(--text-primary)', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} width={90} />
                                             <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="count" name="Laporan" fill="#81c784" radius={[0, 4, 4, 0]} maxBarSize={16}>
-                                                <LabelList dataKey="count" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            <Bar dataKey="count" name="Laporan" fill={REFERENCE_COLORS.complaint} radius={[0, 4, 4, 0]} maxBarSize={16}>
+                                                <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -2035,8 +2111,8 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Monthly Report */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-3">Monthly Report</h3>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Monthly Report</h3>
                                 <div className="h-[200px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
@@ -2044,12 +2120,12 @@ export default function AnalystCharts({
                                             layout="vertical"
                                             margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="month" tick={{ fill: '#374151', fontSize: 10 }} axisLine={false} tickLine={false} width={65} />
+                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="month" tick={{ fill: 'var(--text-primary)', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} width={65} />
                                             <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="count" name="Laporan" fill="#81c784" radius={[0, 4, 4, 0]} maxBarSize={16}>
-                                                <LabelList dataKey="count" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                            <Bar dataKey="count" name="Laporan" fill={CHART_PALETTE[2]} radius={[0, 4, 4, 0]} maxBarSize={16}>
+                                                <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -2061,8 +2137,8 @@ export default function AnalystCharts({
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
                             {/* Category by Area */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-3">Category by Area</h3>
+                            <div className="bg-white rounded-xl border border-slate-200/70 shadow-sm p-5">
+                                <h3 className="font-semibold text-[13px] tracking-tight text-slate-900 mb-3">Category by Area</h3>
                                 <div className="h-[220px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
@@ -2070,15 +2146,15 @@ export default function AnalystCharts({
                                             layout="vertical"
                                             margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                                            <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={90} />
                                             <Tooltip content={<CustomTooltip />} />
                                             <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
                                                 {cgoCategoryByAreaData.map((entry, idx) => (
                                                     <Cell key={`cgo-area-${idx}`} fill={entry.color} />
                                                 ))}
-                                                <LabelList dataKey="value" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                                <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -2086,9 +2162,9 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Case Category by Branch pivot */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Category by Branch</h3>
-                                <p className="text-[10px] text-gray-500 mb-3">Report Category / Record Count</p>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl overflow-hidden">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Case Category by Branch</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Report Category / Record Count</p>
                                 {(() => {
                                     const maxC = Math.max(...cgoPivotByBranch.map(r => r.complaint), 1);
                                     const maxI = Math.max(...cgoPivotByBranch.map(r => r.irregularity), 1);
@@ -2098,13 +2174,13 @@ export default function AnalystCharts({
                                         <div className="overflow-x-auto">
                                             <div className="max-h-[188px] overflow-y-auto">
                                                 <table className="w-full text-xs min-w-[320px]">
-                                                    <thead className="sticky top-0 z-10 bg-white">
-                                                        <tr className="border-b border-gray-200">
-                                                            <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Reporting Br...</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Complaint</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Irregularity</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Compliment</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Grand total</th>
+                                                    <thead className="sticky top-0 z-10">
+                                                        <tr className="bg-slate-100 text-black border-b border-gray-300">
+                                                            <th className="text-left py-2 px-3 font-black uppercase tracking-widest text-[9px] w-32">Reporting Br...</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Complaint</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Irregularity</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Compliment</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Grand total</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -2143,9 +2219,9 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Case Category by Airlines pivot */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Category by Airlines</h3>
-                                <p className="text-[10px] text-gray-500 mb-3">Report Category / Record Count</p>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl overflow-hidden">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Case Category by Airlines</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Report Category / Record Count</p>
                                 {(() => {
                                     const maxC = Math.max(...cgoPivotByAirlines.map(r => r.complaint), 1);
                                     const maxI = Math.max(...cgoPivotByAirlines.map(r => r.irregularity), 1);
@@ -2155,13 +2231,13 @@ export default function AnalystCharts({
                                         <div className="overflow-x-auto">
                                             <div className="max-h-[188px] overflow-y-auto">
                                                 <table className="w-full text-xs min-w-[340px]">
-                                                    <thead className="sticky top-0 z-10 bg-white">
-                                                        <tr className="border-b border-gray-200">
-                                                            <th className="text-left py-1.5 px-2 font-semibold text-gray-700">Airlines</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Complaint</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Irregularity</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Compliment</th>
-                                                            <th className="text-center py-1.5 px-2 font-semibold text-gray-700">Grand total</th>
+                                                    <thead className="sticky top-0 z-10">
+                                                        <tr className="bg-slate-100 text-black border-b border-gray-300">
+                                                            <th className="text-left py-2 px-3 font-black uppercase tracking-widest text-[9px] w-32">Airlines</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Complaint</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Irregularity</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Compliment</th>
+                                                            <th className="text-center py-2 px-2 font-black uppercase tracking-widest text-[9px]">Grand total</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -2219,23 +2295,23 @@ export default function AnalystCharts({
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
                             {/* Case Report by Area */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Case Report by Area</h3>
-                                <p className="text-[10px] text-gray-500 mb-3">Area Report / Branch by Airlines</p>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl overflow-hidden">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Case Report by Area</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Area Report / Branch by Airlines</p>
                                 {cgoCaseReportByArea.length === 0 ? (
                                     <p className="text-xs text-gray-400 text-center py-6">Tidak ada data</p>
                                 ) : (
                                     <div className="overflow-x-auto">
                                         <div className="max-h-[188px] overflow-y-auto">
                                             <table className="w-full text-xs min-w-[320px]">
-                                                <thead className="sticky top-0 z-10 bg-white">
-                                                    <tr className="border-b border-gray-200">
-                                                        <th className="text-left py-1.5 px-1.5 font-semibold text-gray-700">Branch</th>
-                                                        <th className="text-left py-1.5 px-1.5 font-semibold text-gray-700">Airlines</th>
-                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Terminal<br/>Area</th>
-                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Apron<br/>Area</th>
-                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">General</th>
-                                                        <th className="text-center py-1.5 px-1.5 font-semibold text-gray-700">Grand<br/>total</th>
+                                                <thead className="sticky top-0 z-10">
+                                                    <tr className="bg-slate-100 text-black border-b border-gray-300">
+                                                        <th className="text-left py-2 px-2 font-black uppercase tracking-widest text-[8px]">Branch</th>
+                                                        <th className="text-left py-2 px-2 font-black uppercase tracking-widest text-[8px]">Airlines</th>
+                                                        <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[8px]">Terminal<br/>Area</th>
+                                                        <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[8px]">Apron<br/>Area</th>
+                                                        <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[8px]">General</th>
+                                                        <th className="text-center py-2 px-1 font-black uppercase tracking-widest text-[8px]">Grand<br/>total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -2245,37 +2321,61 @@ export default function AnalystCharts({
                                                         const maxA = Math.max(...allRows.map(a => a.apron), 1);
                                                         const maxG = Math.max(...allRows.map(a => a.general), 1);
                                                         const maxTotal = Math.max(...allRows.map(a => a.total), 1);
-                                                        return cgoCaseReportByArea.flatMap((branchRow) =>
-                                                            branchRow.airlines.map((airline, aIdx) => {
-                                                                const tC = heatColor(airline.terminal, maxT);
-                                                                const aC = heatColor(airline.apron, maxA);
-                                                                const gC = heatColor(airline.general, maxG);
-                                                                const totC = heatColor(airline.total, maxTotal);
-                                                                return (
-                                                                    <tr
-                                                                        key={`${branchRow.branch}-${airline.name}`}
-                                                                        className={`border-b border-gray-100 hover:bg-gray-50${aIdx === 0 ? ' border-t border-t-gray-300' : ''}`}
-                                                                    >
-                                                                        <td className="py-1.5 px-1.5 font-bold text-gray-800 border-r border-gray-100 whitespace-nowrap">
-                                                                            {aIdx === 0 ? branchRow.branch : ''}
-                                                                        </td>
-                                                                        <td className="py-1.5 px-1.5 text-gray-700 whitespace-nowrap">{airline.name}</td>
-                                                                        <td className="py-1.5 px-1.5 text-center font-medium" style={{ backgroundColor: tC.bg, color: tC.fg }}>
-                                                                            {airline.terminal || '-'}
-                                                                        </td>
-                                                                        <td className="py-1.5 px-1.5 text-center font-medium" style={{ backgroundColor: aC.bg, color: aC.fg }}>
-                                                                            {airline.apron || '-'}
-                                                                        </td>
-                                                                        <td className="py-1.5 px-1.5 text-center font-medium" style={{ backgroundColor: gC.bg, color: gC.fg }}>
-                                                                            {airline.general || '-'}
-                                                                        </td>
-                                                                        <td className="py-1.5 px-1.5 text-center font-bold" style={{ backgroundColor: totC.bg, color: totC.fg }}>
-                                                                            {airline.total}
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })
-                                                        );
+                                                            return cgoCaseReportByArea.flatMap((branchRow) =>
+                                                                branchRow.airlines.map((airline, aIdx) => {
+                                                                    const tC = heatColor(airline.terminal, maxT);
+                                                                    const aC = heatColor(airline.apron, maxA);
+                                                                    const gC = heatColor(airline.general, maxG);
+                                                                    const totC = heatColor(airline.total, maxTotal);
+
+                                                                    const handleCellClick = (area: string) => {
+                                                                        const params = new URLSearchParams(window.location.search);
+                                                                        params.set('branch', branchRow.branch);
+                                                                        params.set('area', area);
+                                                                        window.location.href = `/dashboard/charts/area-report/detail?${params.toString()}`;
+                                                                    };
+
+                                                                    return (
+                                                                        <tr
+                                                                            key={`${branchRow.branch}-${airline.name}`}
+                                                                            className={`border-b border-gray-100 hover:bg-gray-50${aIdx === 0 ? ' border-t border-t-gray-300' : ''}`}
+                                                                        >
+                                                                            <td className="py-1.5 px-1.5 font-bold text-gray-800 border-r border-gray-100 whitespace-nowrap">
+                                                                                {aIdx === 0 ? branchRow.branch : ''}
+                                                                            </td>
+                                                                            <td className="py-1.5 px-1.5 text-gray-700 whitespace-nowrap">{airline.name}</td>
+                                                                            <td 
+                                                                                className="py-1.5 px-1.5 text-center font-medium cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all" 
+                                                                                style={{ backgroundColor: tC.bg, color: tC.fg }}
+                                                                                onClick={() => handleCellClick('Terminal Area')}
+                                                                            >
+                                                                                {airline.terminal || '-'}
+                                                                            </td>
+                                                                            <td 
+                                                                                className="py-1.5 px-1.5 text-center font-medium cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all" 
+                                                                                style={{ backgroundColor: aC.bg, color: aC.fg }}
+                                                                                onClick={() => handleCellClick('Apron Area')}
+                                                                            >
+                                                                                {airline.apron || '-'}
+                                                                            </td>
+                                                                            <td 
+                                                                                className="py-1.5 px-1.5 text-center font-medium cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all" 
+                                                                                style={{ backgroundColor: gC.bg, color: gC.fg }}
+                                                                                onClick={() => handleCellClick('General')}
+                                                                            >
+                                                                                {airline.general || '-'}
+                                                                            </td>
+                                                                            <td 
+                                                                                className="py-1.5 px-1.5 text-center font-bold cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all" 
+                                                                                style={{ backgroundColor: totC.bg, color: totC.fg }}
+                                                                                onClick={() => handleCellClick('all')}
+                                                                            >
+                                                                                {airline.total}
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })
+                                                            );
                                                     })()}
                                                 </tbody>
                                             </table>
@@ -2305,33 +2405,36 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Terminal Area Category */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-1">Terminal Area Category</h3>
+                            {/* Terminal Area Category */}
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Terminal Area Category</h3>
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                    <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Category</span>
+                                    <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
                                 </div>
-                                <CategoryBarList data={cgoTerminalAreaCategoryData} color="#4ade80" />
+                                <CategoryBarList data={cgoTerminalAreaCategoryData} color="oklch(0.65 0.18 160)" />
                             </div>
 
                             {/* Apron Area Category */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-1">Apron Area Category</h3>
+                            {/* Apron Area Category */}
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Apron Area Category</h3>
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                    <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Category</span>
+                                    <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
                                 </div>
-                                <CategoryBarList data={cgoApronAreaCategoryData} color="#60a5fa" />
+                                <CategoryBarList data={cgoApronAreaCategoryData} color="oklch(0.6 0.14 240)" />
                             </div>
 
                             {/* General Category */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-1">General Category</h3>
+                            {/* General Category */}
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">General Category</h3>
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Category</span>
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total</span>
+                                    <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Category</span>
+                                    <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
                                 </div>
-                                <CategoryBarList data={cgoGeneralCategoryData} color="#f97316" />
+                                <CategoryBarList data={cgoGeneralCategoryData} color="oklch(0.8 0.15 80)" />
                             </div>
                         </div>
 
@@ -2339,9 +2442,9 @@ export default function AnalystCharts({
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                             {/* HUB Report */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">HUB Report</h3>
-                                <p className="text-[10px] text-gray-500 mb-3">Distribusi laporan berdasarkan HUB</p>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">HUB Report</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Distribusi laporan berdasarkan HUB</p>
                                 {cgoHubData.length === 0 ? (
                                     <p className="text-xs text-gray-400 text-center py-6">Tidak ada data HUB</p>
                                 ) : (
@@ -2352,12 +2455,12 @@ export default function AnalystCharts({
                                                 layout="vertical"
                                                 margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
                                             >
-                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                                                <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                                <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
+                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={80} />
                                                 <Tooltip content={<CustomTooltip />} />
-                                                <Bar dataKey="value" name="Count" fill="#8b5cf6" radius={[0, 4, 4, 0]} maxBarSize={28}>
-                                                    <LabelList dataKey="value" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 600 }} />
+                                                <Bar dataKey="value" name="Count" fill="oklch(0.6 0.2 280)" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                    <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
                                                 </Bar>
                                             </BarChart>
                                         </ResponsiveContainer>
@@ -2366,9 +2469,9 @@ export default function AnalystCharts({
                             </div>
 
                             {/* Detail Report Landside & Airside */}
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h3 className="font-bold text-sm text-gray-800 mb-0.5">Detail Report Landside &amp; Airside</h3>
-                                <p className="text-[10px] text-gray-500 mb-3">Data laporan CGO diurutkan berdasarkan tanggal</p>
+                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">Detail Report Landside & Airside</h3>
+                                <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Data laporan CGO diurutkan berdasarkan tanggal</p>
                                 <DetailReportTable
                                     data={[...cgoReports].sort((a, b) => {
                                         const dA = a.date_of_event ? new Date(a.date_of_event).getTime() : 0;
@@ -2381,22 +2484,27 @@ export default function AnalystCharts({
                     </div>
                 )}
             </PresentationSlide>
+            </>
+            )}
 
-            {/* Slide 5: Additional Insights (Top Reporters & Status Flow) */}
+            {/* Insights Section */}
+            {activeTab === 'insights' && (
             <PresentationSlide
-                title="Wawasan Tambahan"
-                subtitle="Kontributor dan Alur Status"
-                icon={Activity}
+                title="AI Behavioral Insights"
+                subtitle="Predictive patterns & anomalous behavior detection"
+                icon={TrendingUp}
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                     {/* Top Reporters — real data */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-4">
+                    {/* Top Reporters */}
+                    <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl">
+                        <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Top Pelapor</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Kontributor terbanyak</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Top Pelapor</h3>
+                                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Kontributor Utama</p>
                             </div>
-                            <Users size={20} className="text-[var(--text-muted)]" />
+                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[var(--brand-aurora-3)] to-[var(--brand-aurora-4)] text-white shadow-lg shadow-blue-500/20">
+                                <Users size={18} strokeWidth={2.5} />
+                            </div>
                         </div>
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {topReportersData.length === 0 ? (
@@ -2405,7 +2513,7 @@ export default function AnalystCharts({
                                 (topReportersData as TopReporterItem[]).map((reporter, idx) => (
                                     <div 
                                         key={reporter.name} 
-                                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors"
+                                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/40 transition-all border border-transparent hover:border-white/60 cursor-pointer group"
                                         onClick={() => {
                                             handleViewDetail(
                                                 'Top Pelapor',
@@ -2425,15 +2533,18 @@ export default function AnalystCharts({
                                             );
                                         }}
                                     >
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0 shadow-lg group-hover:scale-110 transition-transform"
                                             style={{ background: COLORS[idx % COLORS.length] }}>
                                             {idx + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-[var(--text-primary)] truncate">{reporter.name}</p>
-                                            <p className="text-[10px] text-[var(--text-muted)]">{reporter.station}</p>
+                                            <p className="text-sm font-black text-[var(--text-primary)] truncate group-hover:text-[var(--brand-aurora-1)] transition-colors">{reporter.name}</p>
+                                            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">{reporter.station}</p>
                                         </div>
-                                        <span className="text-sm font-bold shrink-0" style={{ color: COLORS[idx % COLORS.length] }}>{reporter.count}</span>
+                                        <div className="text-right">
+                                            <p className="text-sm font-black tracking-tight" style={{ color: COLORS[idx % COLORS.length] }}>{reporter.count}</p>
+                                            <p className="text-[8px] font-black text-[var(--text-muted)] uppercase">Laporan</p>
+                                        </div>
                                     </div>
                                 ))
                             )}
@@ -2441,15 +2552,17 @@ export default function AnalystCharts({
                     </div>
 
                     {/* Status Flow */}
-                    <div className="card-solid p-6">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="card-glass p-6 transition-all duration-500 hover:shadow-2xl">
+                        <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="font-bold text-lg text-[var(--text-primary)]">Alur Status</h3>
-                                <p className="text-xs text-[var(--text-muted)]">Distribusi status laporan</p>
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Alur Status</h3>
+                                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Distribusi Operasional</p>
                             </div>
-                            <Activity size={20} className="text-[var(--text-muted)]" />
+                            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[var(--brand-aurora-5)] to-[var(--brand-aurora-6)] text-white shadow-lg shadow-amber-500/20">
+                                <Activity size={18} strokeWidth={2.5} />
+                            </div>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                         {statusFlowData.map((item) => {
                             const cfg = STATUS_CONFIG[item.status as ReportStatus];
                             const percentage = filteredReports.length > 0 ? (item.count / filteredReports.length) * 100 : 0;
@@ -2457,7 +2570,7 @@ export default function AnalystCharts({
                             return (
                                 <div 
                                     key={item.status} 
-                                    className="cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                                    className="p-3 rounded-xl hover:bg-white/40 transition-all border border-transparent hover:border-white/60 cursor-pointer group"
                                     onClick={() => {
                                         handleViewDetail(
                                             'Alur Status',
@@ -2476,12 +2589,31 @@ export default function AnalystCharts({
                                         );
                                     }}
                                 >
-                                    <div className="flex justify-between mb-1">
-                                        <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ backgroundColor: `${cfg?.color}20`, color: cfg?.color }}>{item.label}</span>
-                                        <span className="text-sm font-medium">{item.count} ({percentage.toFixed(1)}%)</span>
+                                    <div className="flex justify-between items-end mb-2">
+                                        <div>
+                                            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border" 
+                                                  style={{ 
+                                                      backgroundColor: `${cfg?.color}10`, 
+                                                      color: cfg?.color,
+                                                      borderColor: `${cfg?.color}30` 
+                                                  }}
+                                            >
+                                                {item.label}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm font-black text-[var(--text-primary)]">{item.count}</span>
+                                            <span className="text-[10px] font-bold text-[var(--text-muted)] ml-1.5 opacity-60">({percentage.toFixed(1)}%)</span>
+                                        </div>
                                     </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div className="h-2 rounded-full" style={{ width: `${percentage}%`, backgroundColor: cfg?.color }}></div>
+                                    <div className="w-full bg-gray-100/50 rounded-full h-1.5 overflow-hidden">
+                                        <div 
+                                            className="h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(0,0,0,0.1)]" 
+                                            style={{ 
+                                                width: `${percentage}%`, 
+                                                backgroundColor: cfg?.color 
+                                            }}
+                                        />
                                     </div>
                                 </div>
                             )
@@ -2490,6 +2622,7 @@ export default function AnalystCharts({
                     </div>
                 </div>
             </PresentationSlide>
-        </>
+            )}
+        </div>
     );
 }

@@ -83,7 +83,7 @@ export function ResponsiveLineChart({
     const colors = generateChartColors(dataKeys.length);
     return {
       ...chartJSData,
-      datasets: chartJSData.datasets.map((dataset, index) => ({
+      datasets: chartJSData.datasets.map((dataset: any, index: number) => ({
         ...dataset,
         backgroundColor: showArea ? generateChartColors(1, 0.2)[0] : 'transparent',
         borderColor: colors[index],

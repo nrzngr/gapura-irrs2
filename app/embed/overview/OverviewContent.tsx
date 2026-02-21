@@ -29,6 +29,7 @@ const CHART_COLORS = [
   '#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171',
   '#2dd4bf', '#f472b6', '#818cf8', '#fb923c', '#4ade80'
 ];
+const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
 
 const STATUS_MAP: Record<string, string> = {
   'MENUNGGU_FEEDBACK': 'Menunggu',
@@ -103,6 +104,9 @@ export function OverviewContent() {
   const completedCount = statusCounts.find(s => s.name === 'SELESAI')?.count || 0;
   const severityCounts = severityData?.distribution || [];
   const highSeverity = severityCounts.find(s => s.name === 'high')?.count || 0;
+  const statusDonutData = [...(statusData?.distribution || [])]
+    .map((s) => ({ ...s, name: STATUS_MAP[s.name] || s.name }))
+    .sort((a, b) => b.count - a.count);
   
   return (
     <>
@@ -222,17 +226,20 @@ export function OverviewContent() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={(statusData?.distribution || []).map(s => ({ ...s, name: STATUS_MAP[s.name] || s.name }))}
+                    data={statusDonutData}
                     cx="50%"
                     cy="50%"
                     innerRadius={50}
                     outerRadius={80}
                     dataKey="count"
-                    label={({ name, percent }: { name?: string; percent?: number }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    label={({ name, value }: { name?: string; value?: number }) => `${name}: ${Number(value || 0).toLocaleString('id-ID')}`}
                   >
-                    <Cell fill="#fbbf24" />
-                    <Cell fill="#60a5fa" />
-                    <Cell fill="#22c55e" />
+                    {statusDonutData.map((_, index) => {
+                      const fill = index < FIXED_DONUT_RANK_COLORS.length
+                        ? FIXED_DONUT_RANK_COLORS[index]
+                        : CHART_COLORS[(index - FIXED_DONUT_RANK_COLORS.length) % CHART_COLORS.length];
+                      return <Cell key={`status-donut-${index}`} fill={fill} />;
+                    })}
                   </Pie>
                   <Tooltip />
                 </PieChart>

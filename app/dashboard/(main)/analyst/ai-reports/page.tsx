@@ -113,6 +113,7 @@ interface AIReport {
   action_taken?: string;
   photo_url?: string;
   flightNumber?: string;
+  source_sheet?: string;
 }
 
 interface RootCauseStats {
@@ -1270,15 +1271,25 @@ export default function AIReportsPage() {
             )}
             {/* Single Analysis Tab */}
             {activeTab === 'single' && (
-              <ReportAnalysisTable
-                title="Analisis Laporan Individual"
-                reports={reports}
-                onAnalyze={(report) => handleReportSelect(report.id)}
-                analysisResult={singleAnalysis}
-                analyzing={loading.single || false}
-                selectedId={selectedReportId}
-                className="min-h-[600px]"
-              />
+              <div className="space-y-6">
+                <ReportAnalysisTable 
+                  title="Laporan Landside & Airside (Non-Cargo)"
+                  reports={reports.filter(r => r.source_sheet === 'NON CARGO')}
+                  onAnalyze={(report) => handleReportSelect(report.id)}
+                  analysisResult={singleAnalysis}
+                  analyzing={loading.single || false}
+                  selectedId={selectedReportId}
+                />
+                
+                <ReportAnalysisTable 
+                  title="Laporan Cargo (CGO)"
+                  reports={reports.filter(r => r.source_sheet === 'CGO')}
+                  onAnalyze={(report) => handleReportSelect(report.id)}
+                  analysisResult={singleAnalysis}
+                  analyzing={loading.single || false}
+                  selectedId={selectedReportId}
+                />
+              </div>
             )}
 
           </div>

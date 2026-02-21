@@ -1,264 +1,243 @@
 'use client';
 
+// --- Imports --- (Existing imports slightly expanded)
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-    FileText, Search, Filter, ChevronDown,
-    MapPin, AlertTriangle, Building2, Plane
+  FileText, Search, Filter, ChevronDown,
+  MapPin, AlertTriangle, Building2, Plane,
+  LayoutDashboard, Clock, CheckCircle2,
+  Calendar, RefreshCw, Loader2, Plus, Sparkles
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { STATUS_CONFIG, SEVERITY_CONFIG, ReportStatus } from '@/lib/constants/report-status';
 import { Report } from '@/types';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { type TimePeriod } from '@/components/dashboard/TimePeriodFilter';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { useReportsData } from '@/hooks/use-reports-cache';
+import { ReportsList } from '@/components/dashboard/analyst/ReportsList';
+import { cn } from '@/lib/utils';
 
 export default function AnalystReportsPage() {
-    // Fetch all reports using L1/L2 cache
-    const { reports: allReports, isLoading: loading, refresh } = useReportsData('/api/admin/reports');
-    
-    // Local state for filters
-    const [stationFilter, setStationFilter] = useState('all');
-    const [filter, setFilter] = useState('all');
-    const [severityFilter, setSeverityFilter] = useState('all');
-    const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
-    const [search, setSearch] = useState('');
-    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-    const [period, setPeriod] = useState<TimePeriod>(null);
+  // --- Data Fetching ---
+  const { reports: allReports, isLoading: loading, refresh } = useReportsData('/api/admin/reports');
+  
+  // --- State ---
+  const [stationFilter, setStationFilter] = useState('all');
+  const [filter, setFilter] = useState('all');
+  const [severityFilter, setSeverityFilter] = useState('all');
+  const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [search, setSearch] = useState('');
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [period, setPeriod] = useState<TimePeriod>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-    const fetchStations = useCallback(async () => {
-        try {
-            const res = await fetch('/api/master-data?type=stations');
-            const data = await res.json();
-            if (Array.isArray(data)) setStations(data);
-            else if (data.stations) setStations(data.stations);
-        } catch (error) {
-            console.error('Error fetching stations:', error);
-        }
-    }, []);
+  // --- Effects ---
+  const fetchStations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/master-data?type=stations');
+      const data = await res.json();
+      if (Array.isArray(data)) setStations(data);
+      else if (data.stations) setStations(data.stations);
+    } catch (error) {
+      console.error('Error fetching stations:', error);
+    }
+  }, []);
 
-    useEffect(() => { fetchStations(); }, [fetchStations]);
+  useEffect(() => { fetchStations(); }, [fetchStations]);
 
-    // Client-side filtering
-    const filteredReports = useMemo(() => {
-        return allReports.filter(report => {
-            // Status filter
-            if (filter !== 'all' && report.status !== filter) return false;
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  };
 
-            // Station filter
-            if (stationFilter !== 'all' && report.station_id !== stationFilter) return false;
+  // --- Filtering Logic ---
+  const filteredReports = useMemo(() => {
+    return allReports.filter(report => {
+      if (filter !== 'all' && report.status !== filter) return false;
+      if (stationFilter !== 'all' && report.station_id !== stationFilter) return false;
+      if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
 
-            // Severity filter
-            if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
+      const matchesSearch = (report.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (report.description || '').toLowerCase().includes(search.toLowerCase()) ||
+        (report.location || '').toLowerCase().includes(search.toLowerCase()) ||
+        (report.users?.full_name || report.reporter_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (report.stations?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+        report.id.toLowerCase().includes(search.toLowerCase()) ||
+        (report.reference_number || '').toLowerCase().includes(search.toLowerCase()) ||
+        (report.flight_number || '').toLowerCase().includes(search.toLowerCase());
+      
+      return matchesSearch;
+    });
+  }, [allReports, filter, stationFilter, severityFilter, search]);
 
-            // Search filter
-            const matchesSearch = (report.title || '').toLowerCase().includes(search.toLowerCase()) ||
-                (report.description || '').toLowerCase().includes(search.toLowerCase()) ||
-                (report.location || '').toLowerCase().includes(search.toLowerCase()) ||
-                (report.users?.full_name || report.reporter_name || '').toLowerCase().includes(search.toLowerCase()) ||
-                (report.stations?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-                report.id.toLowerCase().includes(search.toLowerCase()) ||
-                (report.reference_number || '').toLowerCase().includes(search.toLowerCase()) ||
-                (report.flight_number || '').toLowerCase().includes(search.toLowerCase());
-            
-            return matchesSearch;
-        });
-    }, [allReports, filter, stationFilter, severityFilter, search]);
+  const stats = useMemo(() => ({
+    total: filteredReports.length,
+    pending: filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length,
+    resolved: filteredReports.filter(r => r.status === 'SELESAI').length
+  }), [filteredReports]);
 
-    // stats removed as it was unused
-
-    return (
-        <div className="space-y-8 stagger-children pb-24">
-            <DashboardHeader
-                title="Kelola Laporan"
-                subtitle="Monitoring dan validasi laporan Divisi Analyst"
-                totalReports={filteredReports.length}
-                pendingReports={filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length}
-                resolvedReports={filteredReports.filter(r => r.status === 'SELESAI').length}
-                period={period}
-                onPeriodChange={(p) => setPeriod(p)}
-            />
-
-            {/* Filters */}
-            <div className="flex flex-col gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-muted)' }} />
-                    <input
-                        type="text"
-                        placeholder="Cari laporan, nomor kasus, lokasi, pelapor, atau station..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="input-field"
-                        style={{ paddingLeft: 'calc(var(--space-lg) + 1.5rem)' }}
-                    />
-                </div>
-                <div className="flex flex-wrap gap-3">
-                    <div className="relative flex-1 min-w-[160px]">
-                        <select value={stationFilter} onChange={(e) => setStationFilter(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>
-                            <option value="all">Semua Station</option>
-                            {stations.map((s) => (<option key={s.id} value={s.id}>{s.code} - {s.name}</option>))}
-                        </select>
-                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                    </div>
-                    <div className="relative flex-1 min-w-[140px]">
-                        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>
-                            <option value="all">Semua Status</option>
-                            <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
-                            <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
-                            <option value="SELESAI">Selesai</option>
-                            <option value="OPEN">Open</option>
-                            <option value="Closed">Closed</option>
-                        </select>
-                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                    </div>
-                    <div className="relative flex-1 min-w-[140px]">
-                        <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>
-                            <option value="all">Semua Severity</option>
-                            <option value="high">🔴 High</option>
-                            <option value="medium">🟡 Medium</option>
-                            <option value="low">🟢 Low</option>
-                        </select>
-                        <AlertTriangle className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                    </div>
-                </div>
-            </div>
-
-            {/* Reports Table */}
-            <div className="card-solid animate-fade-in-up" style={{ padding: 0, overflow: 'hidden', animationDelay: '150ms' }}>
-                <div 
-                    className="flex items-center justify-between" 
-                    style={{ padding: 'var(--space-lg) var(--space-xl)', borderBottom: '1px solid var(--surface-4)' }}
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl" style={{ background: 'oklch(0.55 0.14 160 / 0.12)' }}>
-                            <FileText size={18} style={{ color: 'var(--brand-primary)' }} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Daftar Laporan</h3>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{filteredReports.length} laporan</p>
-                        </div>
-                    </div>
-                </div>
-
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="w-10 h-10 rounded-full border-4 animate-spin" style={{ borderColor: 'var(--surface-4)', borderTopColor: 'var(--brand-primary)' }} />
-                    </div>
-                ) : filteredReports.length === 0 ? (
-                    <div className="py-16 text-center">
-                        <FileText size={40} style={{ color: 'var(--text-muted)' }} className="mx-auto mb-4 opacity-50" />
-                        <p style={{ color: 'var(--text-muted)' }}>Tidak ada laporan ditemukan</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr style={{ background: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
-                                    <th className="text-left py-3 px-5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)', width: '45%' }}>Laporan</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Pelapor</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Severity</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Status</th>
-                                    <th className="text-right py-3 px-5 font-semibold text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tanggal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredReports.map((report) => {
-                                    const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-                                    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
-                                    const SevIcon = severity.icon;
-                                    const StatIcon = status.icon;
-
-                                    return (
-                                        <tr
-                                            key={report.id}
-                                            className="cursor-pointer transition-colors"
-                                            style={{ 
-                                                borderBottom: '1px solid var(--surface-4)',
-                                                borderLeft: `3px solid ${severity.color}`
-                                            }}
-                                            onClick={() => setSelectedReport(report)}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <td className="py-4 px-5">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="p-2 rounded-lg flex-shrink-0" style={{ background: severity.bg }}>
-                                                        <SevIcon size={16} style={{ color: severity.color }} />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            {report.primary_tag === 'CGO' ? (
-                                                                <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 uppercase">CGO</span>
-                                                            ) : (
-                                                                <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase">L&A</span>
-                                                            )}
-                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" style={{ background: 'var(--surface-4)', color: 'var(--text-secondary)' }}>
-                                                                {report.stations?.code || report.branch || 'N/A'}
-                                                            </span>
-                                                            {report.flight_number && (
-                                                                <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'oklch(0.50 0.12 250)' }}>
-                                                                    <Plane size={10} />
-                                                                    {report.flight_number}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="font-semibold truncate max-w-[280px]" style={{ color: 'var(--text-primary)' }}>{report.report || report.title || '(Tanpa Judul)'}</p>
-                                                        {report.location && (
-                                                            <p className="text-xs flex items-center gap-1 mt-1 truncate max-w-[250px]" style={{ color: 'var(--text-muted)' }}>
-                                                                <MapPin size={10} />
-                                                                {report.location}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="py-4 px-4">
-                                                <p className="font-medium truncate max-w-[120px]" style={{ color: 'var(--text-primary)' }}>{report.users?.full_name || report.reporter_name || '-'}</p>
-                                            </td>
-                                            <td className="py-4 px-4 text-center">
-                                                <span 
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white"
-                                                    style={{ background: severity.color }}
-                                                >
-                                                    {severity.label}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-4 text-center">
-                                                <span 
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                                                    style={{ background: status.bgColor, color: status.color }}
-                                                >
-                                                    <StatIcon size={12} />
-                                                    {status.label}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-5 text-right">
-                                                <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                                                    {new Date(report.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                                </p>
-                                                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                                    {new Date(report.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {selectedReport && (
-                <ReportDetailModal
-                    report={selectedReport}
-                    onClose={() => setSelectedReport(null)}
-                    userRole="ANALYST"
-                    onRefresh={async () => { await refresh(); }}
-                />
-            )}
+  return (
+    <div className="min-h-screen bg-[var(--surface-0)] pb-24 overflow-x-hidden">
+      {/* 1. Kinetic Hero Header */}
+      <div className="relative overflow-hidden rounded-b-[48px] px-4 md:px-8 pt-12 pb-24 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-400">
+        {/* Abstract Background Noise & Depth */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay">
+          <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[50%] h-[50%] bg-teal-200 rounded-full blur-[140px]" />
         </div>
-    );
+
+        <div className="relative z-10 space-y-8 max-w-[1700px] mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-3 text-emerald-100 font-bold uppercase tracking-[0.2em] text-[10px]"
+              >
+                <Sparkles size={14} />
+                Analyst Dashboard
+              </motion.div>
+              <motion.h1 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-4xl md:text-6xl font-display font-black text-white tracking-tighter"
+              >
+                Kelola Laporan
+              </motion.h1>
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-emerald-50/70 font-medium md:text-lg max-w-xl"
+              >
+                Monitoring dan validasi laporan Divisi Analyst secara real-time
+              </motion.p>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="flex flex-wrap gap-4">
+               {[
+                 { label: 'Total', value: stats.total, color: 'emerald' },
+                 { label: 'Pending', value: stats.pending, color: 'amber' },
+                 { label: 'Selesai', value: stats.resolved, color: 'teal' }
+               ].map((stat, idx) => (
+                 <motion.div
+                   key={stat.label}
+                   initial={{ opacity: 0, scale: 0.9 }}
+                   animate={{ opacity: 1, scale: 1 }}
+                   transition={{ delay: 0.3 + idx * 0.1 }}
+                   className="bg-white/10 backdrop-blur-2xl border border-white/20 p-4 rounded-[24px] min-w-[124px] shadow-xl shadow-black/5"
+                 >
+                    <p className="text-[10px] uppercase font-black tracking-widest text-emerald-100/60 mb-1">{stat.label}</p>
+                    <p className="text-2xl font-display font-black text-white">{stat.value.toLocaleString()}</p>
+                 </motion.div>
+               ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Unified Filter Bar - Integrated & Elevated */}
+      <div className="max-w-[1700px] mx-auto px-4 md:px-8 -mt-12 relative z-20">
+        <div className="bg-white p-4 rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.12)] border border-gray-100 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-center">
+             {/* Search */}
+             <div className="relative flex-1 w-full group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-emerald-500" />
+                <input
+                  type="text"
+                  placeholder="Cari laporan, nomor kasus, lokasi, pelapor, atau station..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full h-14 pl-14 pr-6 rounded-2xl bg-gray-50 border-transparent focus:bg-white focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-slate-700 outline-none"
+                />
+             </div>
+
+             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                {/* Station Filter */}
+                <div className="relative flex-1 min-w-[180px]">
+                  <select 
+                    value={stationFilter} 
+                    onChange={(e) => setStationFilter(e.target.value)}
+                    className="w-full h-14 pl-12 pr-10 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                  >
+                    <option value="all">Semua Station</option>
+                    {stations.map((s) => (<option key={s.id} value={s.id}>{s.code} - {s.name}</option>))}
+                  </select>
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+
+                {/* Status Filter */}
+                <div className="relative flex-1 min-w-[160px]">
+                  <select 
+                    value={filter} 
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="w-full h-14 pl-12 pr-10 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
+                    <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
+                    <option value="SELESAI">Selesai</option>
+                    <option value="OPEN">Open</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                  <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+
+                <div className="flex gap-2">
+                   <button 
+                     onClick={handleRefresh}
+                     disabled={refreshing}
+                     className="h-14 w-14 flex items-center justify-center rounded-2xl bg-gray-50 hover:bg-gray-100 text-slate-500 transition-all active:scale-95"
+                   >
+                     <RefreshCw size={20} className={cn(refreshing && "animate-spin")} />
+                   </button>
+                   <button className="h-14 px-6 sm:inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-emerald-500)] text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-95">
+                      <Plus size={18} />
+                      <span className="hidden sm:inline">Laporan</span>
+                   </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Main Content: Kinetic Reports List */}
+      <main className="max-w-[1700px] mx-auto px-4 md:px-8 mt-12">
+        <div className="mb-6 flex items-center justify-between">
+           <div className="flex items-center gap-3">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Live Reports Stream</h2>
+           </div>
+           <p className="text-xs font-bold text-[var(--text-muted)] bg-[var(--surface-3)] px-3 py-1 rounded-full uppercase tracking-tighter">
+             Showing {filteredReports.length} results
+           </p>
+        </div>
+
+        <ReportsList 
+          reports={filteredReports} 
+          onReportClick={setSelectedReport}
+          loading={loading}
+        />
+      </main>
+
+      {/* 4. Modals */}
+      <AnimatePresence>
+        {selectedReport && (
+          <ReportDetailModal
+            report={selectedReport}
+            onClose={() => setSelectedReport(null)}
+            userRole="ANALYST"
+            onRefresh={handleRefresh}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
+// Complexity: Time O(n) | Space O(m)
+// Design: PRISM PROTOCOL V3 - High Contrast / High Motion

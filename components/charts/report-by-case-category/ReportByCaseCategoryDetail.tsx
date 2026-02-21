@@ -1,0 +1,824 @@
+'use client';
+
+import { useEffect, useState, useMemo } from 'react';
+import {
+  fetchCategoryBreakdown,
+  fetchMonthlyTrend,
+  fetchCategoryByBranch,
+  fetchCategoryByAirline,
+  fetchRootCauses,
+  fetchAllReports,
+  fetchCategoryKPIs,
+  CategoryData,
+  TrendDataPoint,
+  BranchCategoryData,
+  AirlineCategoryData,
+  RootCauseData,
+  ReportRecord,
+  CategoryKPIs,
+  SeverityDistribution,
+} from './data';
+import { barLabelsPlugin } from '../chartConfig';
+import { Bar, Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, Bar as RechartsBar } from 'recharts';
+import { ArrowUp, ArrowDown, Minus, Download, FileText, Filter, X, Zap } from 'lucide-react';
+import { saveAs } from 'file-saver';
+import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
+import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
+import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
+import type { QueryResult } from '@/types/builder';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+interface FilterParams {
+  hub?: string;
+  branch?: string;
+  airlines?: string;
+  area?: string;
+  sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+interface KPICardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  trend?: number;
+  color?: 'green' | 'red' | 'yellow' | 'blue';
+}
+
+function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+  const colorClasses = {
+    green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+    red: 'bg-red-50 border-red-200 text-red-700',
+    yellow: 'bg-amber-50 border-amber-200 text-amber-700',
+    blue: 'bg-blue-50 border-blue-200 text-blue-700',
+  };
+
+  return (
+    <div className={`p-4 rounded-xl border ${colorClasses[color]} transition-all hover:shadow-md`}>
+      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
+      <div className="text-2xl font-black tracking-tight">{value}</div>
+      {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
+      {trend !== undefined && (
+        <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+          {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
+          <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AutoInsight({ categoryData, total }: { categoryData: CategoryData[], total: number }) {
+  if (categoryData.length === 0) return null;
+
+  const irregularity = categoryData.find(d => d.name === 'Irregularity');
+  const complaint = categoryData.find(d => d.name === 'Complaint');
+  const compliment = categoryData.find(d => d.name === 'Compliment');
+
+  const insightParts: string[] = [];
+  if (irregularity && irregularity.count > 0) {
+    insightParts.push(`Irregularity represents ${(irregularity.percentage).toFixed(1)}% of total volume`);
+  }
+  if (complaint && complaint.count > 0) {
+    insightParts.push(`Complaint rate stands at ${(complaint.percentage).toFixed(1)}%`);
+  }
+  if (compliment && compliment.count > 0) {
+    insightParts.push(`Positive feedback (Compliment) at ${(compliment.percentage).toFixed(1)}%`);
+  }
+
+  const mainInsight = (irregularity?.percentage || 0) > 50
+    ? "High Irregularity: Operational focus recommended."
+    : "Balanced Categories: General feedback distribution is within normal ranges.";
+
+  return (
+    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 mb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <Zap size={18} className="text-amber-600" />
+        <h3 className="font-bold text-gray-800">Auto-Insight</h3>
+      </div>
+      <p className="text-sm font-semibold text-gray-800 mb-2">{mainInsight}</p>
+      <ul className="space-y-1.5">
+        {insightParts.map((insight, idx) => (
+          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+            <span className="text-amber-500 mt-0.5">•</span>
+            {insight}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CategoryBarChart({ data }: { data: CategoryData[] }) {
+  const colors = {
+    Irregularity: { bg: '#ef4444', border: '#dc2626' },
+    Complaint: { bg: '#f97316', border: '#ea580c' },
+    Compliment: { bg: '#22c55e', border: '#16a34a' },
+  };
+
+  const chartData = {
+    labels: data.map(d => d.name),
+    datasets: [
+      {
+        label: 'Count',
+        data: data.map(d => d.count),
+        backgroundColor: data.map(d => colors[d.name as keyof typeof colors]?.bg || '#6b7280'),
+        borderColor: data.map(d => colors[d.name as keyof typeof colors]?.border || '#4b5563'),
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const options = {
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx: { dataIndex: number; raw: unknown }) => {
+            const item = data[ctx.dataIndex];
+            return `${item.count} (${item.percentage.toFixed(1)}%)`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: { font: { size: 11 } },
+        suggestedMax: data.length > 0 ? Math.max(...data.map(d => d.count)) * 1.15 : undefined,
+      },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 12 } },
+      },
+    },
+  };
+
+  return (
+    <div className="h-[200px]">
+      <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
+    </div>
+  );
+}
+
+function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
+  const chartData = {
+    labels: data.map(d => d.month),
+    datasets: [
+      {
+        label: 'Irregularity',
+        data: data.map(d => d.Irregularity),
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'Complaint',
+        data: data.map(d => d.Complaint),
+        borderColor: '#f97316',
+        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'Compliment',
+        data: data.map(d => d.Compliment),
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: { usePointStyle: true, padding: 20, font: { size: 11 } },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 10 } },
+      },
+      y: {
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: { font: { size: 10 } },
+        suggestedMax: data.length > 0 ? Math.max(...data.map(d => Math.max(d.Irregularity, d.Complaint, d.Compliment))) * 1.2 : undefined,
+      },
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index' as const,
+    },
+  };
+
+  return (
+    <div className="h-[250px]">
+      <Line data={chartData} options={options} plugins={[barLabelsPlugin]} />
+    </div>
+  );
+}
+
+function BranchStackedBar({ data }: { data: BranchCategoryData[] }) {
+  const chartData = {
+    labels: data.slice(0, 8).map(d => d.branch),
+    datasets: [
+      {
+        label: 'Irregularity',
+        data: data.slice(0, 8).map(d => d.Irregularity),
+        backgroundColor: '#ef4444',
+        borderRadius: 4,
+      },
+      {
+        label: 'Complaint',
+        data: data.slice(0, 8).map(d => d.Complaint),
+        backgroundColor: '#f97316',
+        borderRadius: 4,
+      },
+      {
+        label: 'Compliment',
+        data: data.slice(0, 8).map(d => d.Compliment),
+        backgroundColor: '#22c55e',
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: { usePointStyle: true, padding: 15, font: { size: 10 } },
+      },
+    },
+    scales: {
+      x: {
+        stacked: false,
+        grid: { display: false },
+        ticks: { font: { size: 10 } },
+      },
+      y: {
+        stacked: false,
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: { font: { size: 10 } },
+        suggestedMax: data.length > 0 ? Math.max(...data.slice(0, 8).map(d => Math.max(d.Irregularity, d.Complaint, d.Compliment))) * 1.15 : undefined,
+      },
+    },
+  };
+
+  return (
+    <div className="h-[220px]">
+      <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
+    </div>
+  );
+}
+
+function AirlineTop10Chart({ data }: { data: AirlineCategoryData[] }) {
+  const chartData = {
+    labels: data.map(d => d.airline),
+    datasets: [
+      {
+        label: 'Irregularity',
+        data: data.map(d => d.Irregularity),
+        backgroundColor: '#ef4444',
+        borderRadius: 4,
+      },
+      {
+        label: 'Complaint',
+        data: data.map(d => d.Complaint),
+        backgroundColor: '#f97316',
+        borderRadius: 4,
+      },
+      {
+        label: 'Compliment',
+        data: data.map(d => d.Compliment),
+        backgroundColor: '#22c55e',
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'x' as const,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: { usePointStyle: true, padding: 15, font: { size: 10 } },
+      },
+    },
+    scales: {
+      x: {
+        stacked: false,
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: { font: { size: 10 } },
+      },
+      y: {
+        stacked: false,
+        grid: { display: false },
+        ticks: { font: { size: 10 } },
+        suggestedMax: data.length > 0 ? Math.max(...data.map(d => Math.max(d.Irregularity, d.Complaint, d.Compliment))) * 1.15 : undefined,
+      },
+    },
+  };
+
+  return (
+    <div className="h-[280px]">
+      <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
+    </div>
+  );
+}
+
+function RootCauseChart({ data }: { data: RootCauseData[] }) {
+  const categories = ['Irregularity', 'Complaint', 'Compliment'];
+  const colors: Record<string, string> = {
+    Irregularity: '#ef4444',
+    Complaint: '#f97316',
+    Compliment: '#22c55e',
+  };
+
+  const chartData = {
+    labels: data.slice(0, 10).map(d => d.cause),
+    datasets: [
+      {
+        label: 'Count',
+        data: data.slice(0, 10).map(d => d.count),
+        backgroundColor: data.slice(0, 10).map(d => colors[d.category] || '#6b7280'),
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y' as const,
+    plugins: {
+      legend: { display: false },
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: { font: { size: 10 } },
+        suggestedMax: data.length > 0 ? Math.max(...data.slice(0, 10).map(d => d.count)) * 1.15 : undefined,
+      },
+      y: {
+        grid: { display: false },
+        ticks: { font: { size: 10 } },
+      },
+    },
+  };
+
+  return (
+    <div className="h-[250px]">
+      <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
+    </div>
+  );
+}
+
+function DataTable({ data }: { data: ReportRecord[] }) {
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortField, setSortField] = useState('Date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  if (!data || data.length === 0) {
+    return <div className="p-8 text-center text-gray-500">No data available</div>;
+  }
+
+  const columns = Object.keys(data[0]);
+
+  const filteredData = data
+    .filter(row => {
+      const matchesSearch = search === '' || 
+        columns.some(col => String(row[col]).toLowerCase().includes(search.toLowerCase()));
+      const matchesCategory = categoryFilter === 'all' || 
+        String(row.Category)?.toLowerCase() === categoryFilter.toLowerCase();
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      const aVal = a[sortField] as string | number;
+      const bVal = b[sortField] as string | number;
+      if (aVal === bVal) return 0;
+      const cmp = aVal < bVal ? -1 : 1;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
+  const handleExportCSV = () => {
+    const headers = columns.join(',');
+    const rows = filteredData.map(row =>
+      columns.map(col => {
+        const cell = row[col];
+        return typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell;
+      }).join(',')
+    ).join('\n');
+    const csv = `${headers}\n${rows}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'report-by-case-category.csv');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d] focus:border-transparent"
+          />
+        </div>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
+        >
+          <option value="all">All Categories</option>
+          <option value="Irregularity">Irregularity</option>
+          <option value="Complaint">Complaint</option>
+          <option value="Compliment">Compliment</option>
+        </select>
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium hover:bg-[#5a7a3a] transition-colors"
+        >
+          <Download size={16} />
+          Export CSV
+        </button>
+      </div>
+
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              {columns.map(col => (
+                <th
+                  key={col}
+                  onClick={() => handleSort(col)}
+                  className="px-4 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    {col}
+                    {sortField === col && (
+                      <span className="text-[#6b8e3d]">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.slice(0, 100).map((row, idx) => (
+              <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
+                {columns.map(col => (
+                  <td key={col} className="px-4 py-2.5 text-gray-700">
+                    {row[col] !== null && row[col] !== undefined ? String(row[col]) : '-'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filteredData.length > 100 && (
+          <div className="p-3 text-center text-sm text-gray-500 bg-gray-50 border-t">
+            Showing 100 of {filteredData.length} rows
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ManagementSummary({ 
+  categoryData, 
+  branchData 
+}: { 
+  categoryData: CategoryData[]; 
+  branchData: BranchCategoryData[];
+}) {
+  const total = categoryData.reduce((sum, d) => sum + d.count, 0);
+  const irregularity = categoryData.find(d => d.name === 'Irregularity');
+  const complaint = categoryData.find(d => d.name === 'Complaint');
+  const compliment = categoryData.find(d => d.name === 'Compliment');
+
+  const topBranch = branchData[0];
+  const topBranchPct = topBranch ? (topBranch.Irregularity / (topBranch.Irregularity + topBranch.Complaint + topBranch.Compliment)) * 100 : 0;
+
+  const insights = [
+    irregularity && `${irregularity.name} dominates ${irregularity.percentage.toFixed(1)}% of total reports.`,
+    topBranch && `${topBranch.branch} contributes ${topBranchPct.toFixed(0)}% of total irregularity.`,
+    compliment && compliment.percentage < 5 && `Compliment rate remains at ${compliment.percentage.toFixed(1)}% — improvement opportunity.`,
+  ].filter(Boolean);
+
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+        <span className="text-xl">🏆</span> Management Summary
+      </h3>
+      <ul className="space-y-2">
+        {insights.map((insight, idx) => (
+          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+            <span className="text-[#6b8e3d] mt-0.5">•</span>
+            {insight}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function ReportByCaseCategoryDetail({ 
+  filters = {},
+  dateRange
+}: { 
+  filters?: FilterParams;
+  dateRange?: { from: string; to: string };
+}) {
+  // Merge dateRange into filters for data fetching
+  const effectiveFilters = useMemo(() => ({
+    ...filters,
+    ...(dateRange?.from ? { dateFrom: dateRange.from } : {}),
+    ...(dateRange?.to ? { dateTo: dateRange.to } : {}),
+  }), [filters, dateRange]);
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
+  const [branchData, setBranchData] = useState<BranchCategoryData[]>([]);
+  const [airlineData, setAirlineData] = useState<AirlineCategoryData[]>([]);
+  const [rootCauseData, setRootCauseData] = useState<RootCauseData[]>([]);
+  const [tableData, setTableData] = useState<ReportRecord[]>([]);
+  const [kpis, setKpis] = useState<CategoryKPIs | null>(null);
+  const investigativeData: QueryResult = useMemo(() => {
+    const rows = tableData as unknown as Record<string, unknown>[];
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+    return {
+      columns,
+      rows,
+      rowCount: rows.length,
+      executionTimeMs: 0,
+    };
+  }, [tableData]);
+  const fullTableData: QueryResult = useMemo(() => {
+    const rows = categoryData.map(item => ({ ...item })) as unknown as Record<string, unknown>[];
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+    return {
+      columns,
+      rows,
+      rowCount: rows.length,
+      executionTimeMs: 0,
+    };
+  }, [categoryData]);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [
+          category,
+          trend,
+          branch,
+          airline,
+          rootCause,
+          table,
+          kpiData,
+        ] = await Promise.all([
+          fetchCategoryBreakdown(effectiveFilters),
+          fetchMonthlyTrend(effectiveFilters),
+          fetchCategoryByBranch(effectiveFilters),
+          fetchCategoryByAirline(effectiveFilters),
+          fetchRootCauses(effectiveFilters),
+          fetchAllReports(effectiveFilters),
+          fetchCategoryKPIs(effectiveFilters),
+        ]);
+
+        setCategoryData(category);
+        setTrendData(trend);
+        setBranchData(branch);
+        setAirlineData(airline);
+        setRootCauseData(rootCause);
+        setTableData(table);
+        setKpis(kpiData);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        setError('Failed to load data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [effectiveFilters]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[600px] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#6b8e3d]"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-2">⚠️ {error}</div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const total = categoryData.reduce((sum, d) => sum + d.count, 0);
+  const irregularity = categoryData.find(d => d.name === 'Irregularity');
+  const complaint = categoryData.find(d => d.name === 'Complaint');
+  const compliment = categoryData.find(d => d.name === 'Compliment');
+
+  const netSentimentDenominator = (compliment?.count || 0) + (complaint?.count || 0);
+  const netSentiment = netSentimentDenominator > 0
+    ? (((compliment?.count || 0) - (complaint?.count || 0)) / netSentimentDenominator * 100).toFixed(1)
+    : '0.0';
+  
+  const irregularityRate = irregularity && total > 0
+    ? ((irregularity.count / total) * 100).toFixed(1)
+    : '0.0';
+
+  return (
+    <div className="space-y-8">
+      {/* Auto-Insight Block */}
+      <AutoInsight categoryData={categoryData} total={total} />
+
+      {/* Enhanced KPI Cards - Row 1 */}
+      {kpis && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KPICard
+            title="Total Reports"
+            value={kpis.totalReports.toLocaleString('id-ID')}
+            color="blue"
+          />
+          <KPICard
+            title="Most Affected Branch"
+            value={kpis.mostAffectedBranch.name}
+            subtitle={`${kpis.mostAffectedBranch.count} reports`}
+            color="red"
+          />
+          <KPICard
+            title="Top Airline"
+            value={kpis.topAirline.name}
+            subtitle={`${kpis.topAirline.count} reports`}
+            color="yellow"
+          />
+          <KPICard
+            title="Avg Resolution Time"
+            value={kpis.avgResolutionTime > 0 ? `${kpis.avgResolutionTime}h` : 'N/A'}
+            color="green"
+          />
+        </div>
+      )}
+
+      {/* Primary Chart - Category Breakdown */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Category Breakdown</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <CategoryBarChart data={categoryData} />
+          </div>
+          <div className="space-y-3">
+            {categoryData.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    item.name === 'Irregularity' ? 'bg-red-500' : 
+                    item.name === 'Complaint' ? 'bg-orange-500' : 'bg-green-500'
+                  }`} />
+                  <span className="font-semibold text-gray-700">{item.name}</span>
+                </div>
+                <div className="text-right">
+                  <div className="font-black text-gray-900">{item.count.toLocaleString('id-ID')}</div>
+                  <div className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Monthly Trend */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Monthly Trend Analysis</h2>
+        <MonthlyTrendChart data={trendData} />
+      </section>
+
+      {/* Split View: Branch & Airline */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Category by Branch</h2>
+          <BranchStackedBar data={branchData} />
+        </section>
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Category by Airline (Top 10)</h2>
+          <AirlineTop10Chart data={airlineData} />
+        </section>
+      </div>
+
+      {/* AI Root Cause Investigation */}
+      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
+            <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
+          </div>
+        </div>
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON_CARGO'} />
+      </section>
+
+      {/* Management Summary */}
+      <ManagementSummary categoryData={categoryData} branchData={branchData} />
+
+      {/* Investigative Table */}
+      <InvestigativeTable
+        data={investigativeData}
+        title="Investigative Table - Case Category Reports"
+        rowsPerPage={5}
+        maxRows={40}
+      />
+
+      {/* Data Table */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
+        </div>
+        <div className="p-6">
+          <DataTableWithPagination data={fullTableData} title="Case Category Breakdown (Main Chart Source)" />
+        </div>
+      </section>
+    </div>
+  );
+}

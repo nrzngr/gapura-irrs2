@@ -8,154 +8,124 @@ module.exports = {
     ],
     theme: {
         extend: {
-            /* Colors mapped to CSS variables */
+            /* PRISM V3 — Perceptual Color Physics */
             colors: {
                 surface: {
+                    0: 'var(--surface-0)',
                     1: 'var(--surface-1)',
                     2: 'var(--surface-2)',
                     3: 'var(--surface-3)',
                     4: 'var(--surface-4)',
+                    glass: 'var(--surface-glass)',
                 },
                 brand: {
+                    emerald: {
+                        50: 'var(--brand-emerald-50)',
+                        100: 'var(--brand-emerald-100)',
+                        400: 'var(--brand-emerald-400)',
+                        500: 'var(--brand-emerald-500)',
+                        600: 'var(--brand-emerald-600)',
+                        700: 'var(--brand-emerald-700)',
+                    },
                     primary: 'var(--brand-primary)',
-                    light: 'var(--brand-primary-light)',
                     accent: 'var(--brand-accent)',
+                },
+                accent: {
+                    cyan: 'var(--accent-cyan)',
+                    amber: 'var(--accent-amber)',
+                    coral: 'var(--accent-coral)',
+                    purple: 'var(--accent-purple)',
                 },
                 text: {
                     primary: 'var(--text-primary)',
                     secondary: 'var(--text-secondary)',
                     muted: 'var(--text-muted)',
-                },
-                border: {
-                    subtle: 'var(--border-subtle)',
-                    medium: 'var(--border-medium)',
-                },
-                status: {
-                    success: 'var(--status-success)',
-                    'success-light': 'var(--status-success-light)',
-                    warning: 'var(--status-warning)',
-                    'warning-light': 'var(--status-warning-light)',
-                    error: 'var(--status-error)',
-                    'error-light': 'var(--status-error-light)',
-                    info: 'var(--status-info)',
-                    'info-light': 'var(--status-info-light)',
+                    'on-brand': 'var(--text-on-brand)',
                 },
             },
 
-            /* Font Families */
+            /* Kinetic Typography */
             fontFamily: {
-                display: ['var(--font-display)', 'system-ui', 'sans-serif'],
-                body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+                display: ['Work Sans', 'system-ui', 'sans-serif'],
+                body: ['Manrope', 'system-ui', 'sans-serif'],
+                mono: ['JetBrains Mono', 'Courier New', 'monospace'],
             },
 
-            /* Fluid Font Sizes */
             fontSize: {
-                'fluid-xs': 'var(--text-xs)',
-                'fluid-sm': 'var(--text-sm)',
-                'fluid-base': 'var(--text-base)',
-                'fluid-lg': 'var(--text-lg)',
-                'fluid-xl': 'var(--text-xl)',
-                'fluid-2xl': 'var(--text-2xl)',
-                'fluid-3xl': 'var(--text-3xl)',
-                'fluid-4xl': 'var(--text-4xl)',
-                'fluid-5xl': 'var(--text-5xl)',
-                'fluid-6xl': 'var(--text-6xl)',
+                'hero': ['var(--text-hero)', { lineHeight: '1', letterSpacing: '-0.05em', fontWeight: '800' }],
+                'prism-4xl': ['var(--text-4xl)', { lineHeight: '1.1', letterSpacing: '-0.03em', fontWeight: '700' }],
+                'prism-xs': 'var(--text-xs)',
+                'prism-sm': 'var(--text-sm)',
+                'prism-base': 'var(--text-base)',
             },
 
-            /* Spacing */
-            spacing: {
-                'space-xs': 'var(--space-xs)',
-                'space-sm': 'var(--space-sm)',
-                'space-md': 'var(--space-md)',
-                'space-lg': 'var(--space-lg)',
-                'space-xl': 'var(--space-xl)',
-                'space-2xl': 'var(--space-2xl)',
-                'space-3xl': 'var(--space-3xl)',
-                'section': 'var(--section-padding)',
-            },
-
-            /* Border Radius */
+            /* Spatial Depth System */
             borderRadius: {
-                'prism-sm': 'var(--radius-sm)',
-                'prism-md': 'var(--radius-md)',
-                'prism-lg': 'var(--radius-lg)',
-                'prism-xl': 'var(--radius-xl)',
-                'prism-2xl': 'var(--radius-2xl)',
-                'prism-3xl': 'var(--radius-3xl)',
+                'prism': 'var(--radius-prism)',
             },
 
-            /* Box Shadows */
             boxShadow: {
-                'brand-sm': 'var(--shadow-brand-sm)',
-                'brand-md': 'var(--shadow-brand-md)',
-                'brand-lg': 'var(--shadow-brand-lg)',
-                'neutral-sm': 'var(--shadow-neutral-sm)',
-                'neutral-md': 'var(--shadow-neutral-md)',
-                'neutral-lg': 'var(--shadow-neutral-lg)',
-                'elevated': 'var(--shadow-elevated)',
+                'spatial-sm': 'var(--shadow-spatial-sm)',
+                'spatial-md': 'var(--shadow-spatial-md)',
+                'spatial-lg': 'var(--shadow-spatial-lg)',
+                'inner-rim': 'var(--inner-rim)',
             },
 
-            /* Transitions with Spring Physics */
+            backgroundImage: {
+                'aurora-mesh': 'radial-gradient(at 0% 0%, var(--brand-aurora-1) 0, transparent 50%), radial-gradient(at 50% 0%, var(--brand-aurora-2) 0, transparent 50%), radial-gradient(at 100% 0%, var(--brand-aurora-3) 0, transparent 50%)',
+            },
+
+            /* Transitions & Physics */
             transitionTimingFunction: {
-                'spring-snappy': 'var(--spring-snappy)',
-                'spring-bouncy': 'var(--spring-bouncy)',
-                'spring-smooth': 'var(--spring-smooth)',
-                'spring-gentle': 'var(--spring-gentle)',
+                'prism-snappy': 'var(--spring-snappy)',
+                'prism-bouncy': 'var(--spring-bouncy)',
             },
 
-            transitionDuration: {
-                'instant': 'var(--duration-instant)',
-                'fast': 'var(--duration-fast)',
-                'normal': 'var(--duration-normal)',
-                'slow': 'var(--duration-slow)',
-                'slower': 'var(--duration-slower)',
-            },
-
-            /* Animation */
             animation: {
-                'spring-in': 'springIn var(--duration-slow) var(--spring-bouncy) forwards',
-                'spring-up': 'springUp var(--duration-slow) var(--spring-snappy) forwards',
-                'fade-in': 'fadeIn var(--duration-normal) var(--spring-smooth) forwards',
-                'scale-in': 'scaleIn var(--duration-normal) var(--spring-snappy) forwards',
-                'fade-in-up': 'fadeInUp var(--duration-slow) var(--spring-smooth) forwards',
-                'sparkle-pulse': 'sparklePulse 2s ease-in-out infinite',
+                'aurora-flow': 'auroraFlow 20s ease infinite alternate',
+                'prism-reveal': 'prismReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                'fade-in-up': 'fadeInUp 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                'shimmer': 'shimmer 1.5s infinite',
+                'emergency-pulse': 'emergencyPulse 2s ease-in-out infinite',
             },
 
             keyframes: {
-                springIn: {
-                    '0%': { opacity: '0', transform: 'scale(0.8)' },
-                    '50%': { transform: 'scale(1.05)' },
-                    '100%': { opacity: '1', transform: 'scale(1)' },
+                auroraFlow: {
+                    '0%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                    '100%': { backgroundPosition: '0% 50%' },
                 },
-                springUp: {
-                    '0%': { opacity: '0', transform: 'translateY(24px)' },
-                    '100%': { opacity: '1', transform: 'translateY(0)' },
-                },
-                fadeIn: {
-                    from: { opacity: '0' },
-                    to: { opacity: '1' },
-                },
-                scaleIn: {
-                    '0%': { opacity: '0', transform: 'scale(0.95)' },
-                    '100%': { opacity: '1', transform: 'scale(1)' },
+                prismReveal: {
+                    '0%': { opacity: '0', transform: 'translateY(20px) scale(0.98)' },
+                    '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
                 },
                 fadeInUp: {
-                    '0%': { opacity: '0', transform: 'translateY(8px)' },
+                    '0%': { opacity: '0', transform: 'translateY(20px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
                 },
-                sparklePulse: {
-                    '0%, 100%': { opacity: '1', transform: 'scale(1)' },
-                    '50%': { opacity: '0.5', transform: 'scale(1.2)' },
+                shimmer: {
+                    '0%': { backgroundPosition: '200% 0' },
+                    '100%': { backgroundPosition: '-200% 0' },
+                },
+                emergencyPulse: {
+                    '0%, 100%': { boxShadow: '0 0 0 0 oklch(0.65 0.18 160 / 0.4)' },
+                    '50%': { boxShadow: '0 0 0 8px oklch(0.65 0.18 160 / 0)' },
                 },
             },
         },
     },
     plugins: [
-        // Container Queries plugin support
         function({ addUtilities }) {
             addUtilities({
-                '.container-query': {
-                    'container-type': 'inline-size',
+                '.glass-morphism': {
+                    'background': 'var(--surface-glass)',
+                    'backdrop-filter': 'blur(24px) saturate(180%)',
+                    '-webkit-backdrop-filter': 'blur(24px) saturate(180%)',
+                    'border': '1px solid oklch(1 0 0 / 0.1)',
+                    'box-shadow': 'var(--shadow-spatial-md)',
+                },
+                '.text-balance': {
+                    'text-wrap': 'balance',
                 },
             });
         },

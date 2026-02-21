@@ -8,23 +8,55 @@
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Authentication](#authentication)
-3. [Rate Limiting](#rate-limiting)
-4. [Endpoints](#endpoints)
-   - [Health Check](#health-check)
-   - [Detailed Health](#detailed-health)
-   - [Analyze Reports](#analyze-reports)
-   - [Predict Single](#predict-single)
-   - [Analyze All Sheets](#analyze-all-sheets)
-   - [Model Info](#model-info)
-   - [Train Models](#train-models)
-   - [Training Status](#training-status)
-   - [Cache Invalidate](#cache-invalidate)
-   - [Cache Status](#cache-status)
-5. [Data Models](#data-models)
-6. [Error Handling](#error-handling)
-7. [Examples](#examples)
+- [Gapura AI API Documentation](#gapura-ai-api-documentation)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Authentication](#authentication)
+  - [Rate Limiting](#rate-limiting)
+  - [Endpoints](#endpoints)
+    - [Health Check](#health-check)
+    - [Detailed Health](#detailed-health)
+    - [Analyze Reports](#analyze-reports)
+    - [Predict Single](#predict-single)
+    - [Analyze All Sheets](#analyze-all-sheets)
+    - [Model Info](#model-info)
+    - [Train Models](#train-models)
+    - [Training Status](#training-status)
+    - [Cache Invalidate](#cache-invalidate)
+    - [Cache Status](#cache-status)
+    - [Root Cause Classification (Batch)](#root-cause-classification-batch)
+    - [Root Cause Training (Async)](#root-cause-training-async)
+    - [Seasonality Summary](#seasonality-summary)
+    - [Branch Analytics Summary](#branch-analytics-summary)
+    - [Category Summarization](#category-summarization)
+    - [Seasonality Forecast](#seasonality-forecast)
+    - [Seasonality Peak Analysis](#seasonality-peak-analysis)
+    - [Branch Specific Metrics](#branch-specific-metrics)
+    - [Branch Performance Ranking](#branch-performance-ranking)
+    - [Risk Assessment Summary](#risk-assessment-summary)
+    - [Risk Assessment (Airlines/Hubs)](#risk-assessment-airlineshubs)
+    - [Calculate Risk Scores](#calculate-risk-scores)
+    - [Subcategory Classification](#subcategory-classification)
+    - [Action Recommendations](#action-recommendations)
+    - [Similarity Search](#similarity-search)
+    - [Forecasting \& Trends](#forecasting--trends)
+    - [Formal Report Generation](#formal-report-generation)
+  - [Data Models](#data-models)
+    - [IrregularityReport](#irregularityreport)
+    - [Severity Levels](#severity-levels)
+    - [Indonesian Keywords Detected](#indonesian-keywords-detected)
+  - [Error Handling](#error-handling)
+    - [Error Response Format](#error-response-format)
+    - [Common Error Codes](#common-error-codes)
+    - [Validation Error Response](#validation-error-response)
+  - [Examples](#examples)
+    - [Python Example](#python-example)
+    - [JavaScript Example](#javascript-example)
+    - [cURL Examples](#curl-examples)
+  - [Changelog](#changelog)
+    - [v1.1.0 (2026-02-21)](#v110-2026-02-21)
+    - [v1.0.0 (2025-02-17)](#v100-2025-02-17)
+  - [Support](#support)
 
 ---
 
@@ -34,9 +66,12 @@ Gapura AI API provides machine learning-powered analysis for irregularity report
 
 - **Regression Analysis**: Predicts resolution time for irregularity reports
 - **NLP Analysis**: Classifies severity, extracts entities, generates summaries
+- **Root Cause Classification**: **(New)** Categorizes incident origins into 8+ operational categories with 89%+ accuracy
 - **Anomaly Detection**: Identifies unusual predictions
 - **SHAP Explainability**: Explains prediction factors
+- **Resilient Caching**: Distributed Redis with automatic In-Memory dictionary fallback
 - **Bilingual Support**: Indonesian and English keywords
+- **High-Performance Inference**: Batched Transformer processing for large datasets
 
 ---
 
@@ -116,16 +151,19 @@ curl http://localhost:8000/health
         }
       }
     },
-    "nlp": {
-      "version": "1.0.0-rule-based",
-      "status": "rule_based"
-    }
-  },
-  "cache": {
-    "status": "healthy",
-    "used_memory": "1.05M",
-    "connected_clients": 2
-  },
+      "nlp": {
+        "version": "4.0.0-synthetic-plus",
+        "status": "active",
+        "architecture": "Multi-Task DistilBERT",
+        "tasks": ["severity", "issue_type", "area", "root_cause"]
+      }
+    },
+    "cache": {
+      "status": "healthy",
+      "mode": "redis" | "in_memory_fallback",
+      "used_memory": "1.05M",
+      "connected_clients": 2
+    },
   "timestamp": "2025-02-17T10:00:00.000000"
 }
 ```
@@ -788,6 +826,286 @@ curl http://localhost:8000/api/ai/cache/status
 
 ---
 
+---
+
+### Root Cause Classification (Batch)
+
+Classify root causes for all records in the database.
+
+**Endpoint:** `POST /api/ai/root-cause/classify-batch`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `bypass_cache` | boolean | false | Skip cache and fetch fresh data |
+
+**Response:**
+```json
+{
+  "status": "success",
+  "records_processed": 1006,
+  "classifications": [...],
+  "total_classified": 895
+}
+```
+
+---
+
+### Root Cause Training (Async)
+
+Trigger training for the Root Cause classifier in the background.
+
+**Endpoint:** `POST /api/ai/root-cause/train`
+
+**Response:**
+```json
+{
+  "status": "training_started",
+  "records_fetched": 1006,
+  "message": "Classification training is now running in the background. The model will be automatically updated once complete."
+}
+```
+
+> [!NOTE]
+> This endpoint is asynchronous. It returns immediately and offloads the training process to a background worker to prevent API timeouts.
+
+---
+
+### Seasonality Summary
+
+Get seasonality patterns and forecast.
+
+**Endpoint:** `GET /api/ai/seasonality/summary`
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `category_type` | string | "landside_airside", "cgo", or null for both |
+
+**Response:**
+```json
+{
+  "total_records": 1006,
+  "overall_peak_month": "December",
+  "seasonal_patterns": {...}
+}
+```
+
+---
+
+### Branch Analytics Summary
+
+Get summary analytics for all branches.
+
+**Endpoint:** `GET /api/ai/branch/summary`
+
+**Response:**
+```json
+{
+  "total_branches": 24,
+  "top_risk_branches": [...],
+  "branch_metrics": {...}
+}
+```
+
+---
+
+### Category Summarization
+
+Get summarized insights for Non-cargo and/or CGO categories.
+
+**Endpoint:** `GET /api/ai/summarize`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `category` | string | "all" | "non_cargo", "cgo", or "all" |
+| `bypass_cache` | boolean | false | Skip cache and fetch fresh data |
+
+**Response:**
+```json
+{
+  "status": "success",
+  "category_type": "all",
+  "summary": {
+    "severity_distribution": {...},
+    "top_categories": [...],
+    "key_insights": [...]
+  },
+  "timestamp": "2026-02-21T10:00:00.000000"
+}
+```
+
+---
+
+---
+
+### Seasonality Forecast
+
+Forecast future issue volumes based on historical seasonal patterns.
+
+**Endpoint:** `GET /api/ai/seasonality/forecast`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `category_type` | string | null | "landside_airside" or "cgo" |
+| `periods` | integer | 4 | Number of periods to forecast |
+| `granularity` | string | "weekly" | "daily", "weekly", or "monthly" |
+
+---
+
+### Seasonality Peak Analysis
+
+Identify peak periods where volume exceeds standard averages.
+
+**Endpoint:** `GET /api/ai/seasonality/peaks`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `category_type` | string | null | "landside_airside" or "cgo" |
+| `threshold` | float | 1.2 | Multiplier above average (e.g., 1.2 = 20% above) |
+
+---
+
+### Branch Specific Metrics
+
+Get detailed metrics for a specific airport branch.
+
+**Endpoint:** `GET /api/ai/branch/{branch_name}`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `branch_name` | string | The name of the branch (e.g., "CGK") |
+
+---
+
+### Branch Performance Ranking
+
+Rank branches based on risk scores or issue volume.
+
+**Endpoint:** `GET /api/ai/branch/ranking`
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sort_by` | string | "risk_score" | "risk_score", "total_issues", or "critical_high_count" |
+| `limit` | integer | 20 | Maximum number of branches to return |
+
+---
+
+### Risk Assessment Summary
+
+Get overall system risk summary.
+
+**Endpoint:** `GET /api/ai/risk/summary`
+
+---
+
+### Risk Assessment (Airlines/Hubs)
+
+Get risk profiles for all airlines, hubs, or specific entities.
+
+**Endpoints:**
+- `GET /api/ai/risk/airlines`
+- `GET /api/ai/risk/hubs`
+- `GET /api/ai/risk/branches`
+- `GET /api/ai/risk/airlines/{airline_name}`
+
+---
+
+### Calculate Risk Scores
+
+Trigger a full recalculation of risk scores across all datasets.
+
+**Endpoint:** `POST /api/ai/risk/calculate`
+
+---
+
+### Subcategory Classification
+
+Deep classification into granular operational subcategories.
+
+**Endpoint:** `POST /api/ai/subcategory`
+
+**Request Body:**
+```json
+{
+  "report": "Text description...",
+  "area": "Apron",
+  "issue_type": "GSE"
+}
+```
+
+---
+
+### Action Recommendations
+
+Get AI-powered mitigation strategies for reported issues.
+
+**Endpoint:** `POST /api/ai/action/recommend`
+
+**Request Body:**
+```json
+{
+  "report": "Incident text...",
+  "issue_type": "Safety",
+  "severity": "High"
+}
+```
+
+---
+
+### Similarity Search
+
+Find historically similar reports to assist in resolution.
+
+**Endpoint:** `POST /api/ai/similar`
+
+**Request Body:**
+```json
+{
+  "text": "Current incident description...",
+  "top_k": 5
+}
+```
+
+---
+
+### Forecasting & Trends
+
+Predict future incident volumes and category-specific trends.
+
+**Endpoints:**
+- `GET /api/ai/forecast/issues`
+- `GET /api/ai/forecast/trends`
+- `GET /api/ai/forecast/seasonal`
+
+---
+
+### Formal Report Generation
+
+Generate a structured, formal incident report for stakeholders.
+
+**Endpoint:** `POST /api/ai/report/generate`
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `row_id` | string | Unique record ID (e.g., "NON CARGO_42") |
+
+---
+
 ## Data Models
 
 ### IrregularityReport
@@ -988,6 +1306,14 @@ curl -X POST http://localhost:8000/api/ai/cache/invalidate
 ---
 
 ## Changelog
+
+### v1.1.0 (2026-02-21)
+- **High-Accuracy NLP**: Upgraded to Multi-Task Transformer (89%+ Root Cause accuracy)
+- **Performance Fixes**: Batched tensor inference and Singleton model loading
+- **Async Training**: Retraining now handles 1000+ records via BackgroundTasks
+- **Seasonality Analytics**: Added peak period identification and forecasting
+- **Branch Risk Profiling**: New heuristics for branch-level risk assessment
+- **Resilience**: In-memory cache fallback for Redis-less environments (HF Spaces)
 
 ### v1.0.0 (2025-02-17)
 - Initial release

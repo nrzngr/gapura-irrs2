@@ -9,107 +9,82 @@
 
 :root {
   /* ========================================
-     1. COLOR SYSTEM — OKLCH (Perceptually Uniform)
+     1. PRISM V3 LIGHT PHYSICS (IVORY & INK)
      ======================================== */
-  
-  /* Surfaces — Cool whites with subtle depth */
-  --surface-1: oklch(0.985 0.003 250);  /* Near white, cool */
-  --surface-2: oklch(0.975 0.005 250);  /* Card background */
-  --surface-3: oklch(0.95 0.008 250);   /* Hover state */
-  --surface-4: oklch(0.92 0.01 250);    /* Active/pressed */
-  
-  /* Brand — Gapura Emerald Green */
-  --brand-primary: oklch(0.55 0.16 160);        /* Emerald */
-  --brand-secondary: oklch(0.48 0.14 160);      /* Deeper emerald */
-  --brand-gradient-start: oklch(0.52 0.15 160);
-  --brand-gradient-end: oklch(0.45 0.13 165);   /* Darker end */
-  
-  /* Accent — Subtle Blue for secondary elements */
-  --accent-primary: oklch(0.55 0.12 250);       /* Blue */
-  --accent-secondary: oklch(0.50 0.10 250);     /* Deeper blue */
-  
-  /* Text — High contrast */
-  --text-primary: oklch(0.15 0.02 250);         /* Near black */
-  --text-secondary: oklch(0.40 0.02 250);       /* Muted */
-  --text-muted: oklch(0.55 0.015 250);          /* Very muted */
-  --text-on-brand: oklch(1.0 0 0);              /* PURE WHITE on brand */
-  
-  /* Semantic Status */
-  --status-success: oklch(0.55 0.14 160);       /* Emerald green */
-  --status-warning: oklch(0.70 0.14 75);        /* Amber */
-  --status-error: oklch(0.55 0.18 25);          /* Red */
-  --status-info: oklch(0.55 0.12 250);          /* Blue */
-  
+
+  /* Elevated surface system - subtle emerald atmosphere */
+  --surface-0: oklch(0.99 0.005 160);    /* Page background */
+  --surface-1: oklch(0.98 0.008 160);    /* Elevation layer 1 */
+  --surface-2: oklch(0.97 0.012 160);    /* Card backgrounds */
+  --surface-3: oklch(0.95 0.015 160);    /* Hover states */
+  --surface-4: oklch(0.92 0.02 160);     /* Active/pressed states */
+  --surface-glass: oklch(1 0 0 / 0.65);  /* High-transparency glass */
+
+  /* Command center emerald - bright, saturated, no dark tones */
+  --brand-emerald-50: oklch(0.95 0.05 165);
+  --brand-emerald-100: oklch(0.90 0.08 163);
+  --brand-emerald-400: oklch(0.70 0.16 160);
+  --brand-emerald-500: oklch(0.65 0.18 160);  /* Primary brand */
+  --brand-emerald-600: oklch(0.58 0.2 162);
+  --brand-emerald-700: oklch(0.55 0.18 164);  /* Medium emerald - not dark */
+
+  --brand-primary: var(--brand-emerald-500);
+  --brand-accent: oklch(0.6 0.14 240);
+
+  /* Aviation-inspired accents */
+  --accent-cyan: oklch(0.7 0.15 200);
+  --accent-amber: oklch(0.75 0.14 75);
+  --accent-coral: oklch(0.65 0.18 25);
+  --accent-purple: oklch(0.62 0.16 280);
+
+  /* Dark text with emerald undertone for readability */
+  --text-primary: oklch(0.25 0.04 160);
+  --text-secondary: oklch(0.45 0.05 160);
+  --text-muted: oklch(0.60 0.03 160);
+  --text-on-brand: oklch(0.98 0.01 160);
+
   /* ========================================
-     2. TYPOGRAPHY — Fluid Scale (clamp)
+     2. SPATIAL DEPTH & KINETIC PHYSICS
      ======================================== */
+
+  --radius-prism: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+
+  /* Multi-layered spatial shadows (Light Mode - Diffuse) */
+  --shadow-spatial-sm: 
+    0 2px 4px oklch(0 0 0 / 0.02),
+    0 4px 8px -2px oklch(0 0 0 / 0.04);
   
-  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
-  
-  /* Fluid Type Scale */
-  --text-xs: clamp(0.625rem, 0.6rem + 0.15vw, 0.75rem);
-  --text-sm: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
-  --text-base: clamp(0.875rem, 0.8rem + 0.3vw, 1rem);
-  --text-lg: clamp(1rem, 0.9rem + 0.4vw, 1.125rem);
-  --text-xl: clamp(1.125rem, 1rem + 0.5vw, 1.25rem);
-  --text-2xl: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
-  --text-3xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
-  --text-4xl: clamp(2rem, 1.5rem + 2vw, 3rem);
-  --text-hero: clamp(2.5rem, 2rem + 3vw, 4.5rem);
-  
+  --shadow-spatial-md: 
+    0 8px 16px -4px oklch(0 0 0 / 0.06),
+    0 20px 40px -8px oklch(0 0 0 / 0.08);
+
+  --shadow-spatial-lg: 
+    0 24px 48px -12px oklch(0 0 0 / 0.1),
+    0 48px 96px -16px oklch(0 0 0 / 0.12);
+
+  /* Inner rim (Light mode "Paper Edge") */
+  --inner-rim: inset 0 0 0 1px oklch(0 0 0 / 0.05);
+
   /* ========================================
-     3. SPACING — Generous Whitespace
+     3. TYPOGRAPHY — Editorial Sharpness
      ======================================== */
-  
-  --space-xs: clamp(0.25rem, 0.2rem + 0.2vw, 0.5rem);
-  --space-sm: clamp(0.5rem, 0.4rem + 0.3vw, 0.75rem);
-  --space-md: clamp(0.75rem, 0.6rem + 0.5vw, 1rem);
-  --space-lg: clamp(1rem, 0.8rem + 0.8vw, 1.5rem);
-  --space-xl: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
-  --space-2xl: clamp(2rem, 1.5rem + 2vw, 3rem);
-  --space-3xl: clamp(3rem, 2rem + 3vw, 5rem);
-  --space-section: clamp(4rem, 3rem + 4vw, 8rem);
-  
+
+  --font-display: "Work Sans", system-ui, sans-serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+
+  --text-hero: clamp(2.5rem, 2rem + 3vw, 4rem);
+  --text-4xl: clamp(1.5rem, 1.25rem + 1.5vw, 2rem);
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+
   /* ========================================
-     4. RADIUS & DEPTH
+     4. ANIMATION — Spring Constants
      ======================================== */
-  
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
-  --radius-2xl: 2rem;
-  --radius-full: 9999px;
-  
-  /* Colored Shadows (never black) */
-  --shadow-sm: 
-    0 1px 2px oklch(0.18 0.02 280 / 0.04),
-    0 2px 4px oklch(0.18 0.02 280 / 0.02);
-  --shadow-md: 
-    0 4px 8px oklch(0.18 0.02 280 / 0.06),
-    0 8px 16px oklch(0.18 0.02 280 / 0.03);
-  --shadow-lg: 
-    0 8px 16px oklch(0.18 0.02 280 / 0.08),
-    0 16px 32px oklch(0.18 0.02 280 / 0.04);
-  --shadow-brand:
-    0 4px 16px oklch(0.52 0.15 160 / 0.30),
-    0 8px 32px oklch(0.52 0.15 160 / 0.18);
-  
-  /* ========================================
-     5. SPRING PHYSICS (CSS Variables for JS)
-     ======================================== */
-  
-  /* Spring: High stiffness (snappy hover) */
-  --spring-snappy: cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Spring: Medium (bouncy) */
-  --spring-bouncy: cubic-bezier(0.68, -0.55, 0.27, 1.55);
-  /* Spring: Smooth (modal) */
-  --spring-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 400ms;
+  --spring-snappy: cubic-bezier(0.76, 0, 0.24, 1);
+  --spring-bouncy: cubic-bezier(0.6, -0.28, 0.735, 0.045);
+  --duration-normal: 450ms;
 }
 
 /* ============================================
@@ -120,52 +95,74 @@
   * {
     box-sizing: border-box;
   }
-  
+
   html {
     font-family: var(--font-body);
-    font-feature-settings: 'ss01' on, 'cv01' on, 'cv03' on;
+    font-feature-settings:
+      "ss01" on,
+      "cv01" on,
+      "cv03" on;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
   }
-  
+
   body {
     background: var(--surface-1);
     color: var(--text-primary);
     font-size: var(--text-base);
     line-height: 1.6;
   }
-  
+
   /* Typography */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
     font-weight: 700;
     letter-spacing: -0.03em;
     line-height: 1.15;
     color: var(--text-primary);
   }
-  
-  h1 { font-size: var(--text-hero); }
-  h2 { font-size: var(--text-4xl); }
-  h3 { font-size: var(--text-3xl); }
-  h4 { font-size: var(--text-2xl); }
-  h5 { font-size: var(--text-xl); }
-  h6 { font-size: var(--text-lg); }
-  
-  p { color: var(--text-secondary); }
-  
+
+  h1 {
+    font-size: var(--text-hero);
+  }
+  h2 {
+    font-size: var(--text-4xl);
+  }
+  h3 {
+    font-size: var(--text-3xl);
+  }
+  h4 {
+    font-size: var(--text-2xl);
+  }
+  h5 {
+    font-size: var(--text-xl);
+  }
+  h6 {
+    font-size: var(--text-lg);
+  }
+
+  p {
+    color: var(--text-secondary);
+  }
+
   /* Custom Focus States */
   :focus-visible {
     outline: 2px solid var(--brand-primary);
     outline-offset: 3px;
     border-radius: var(--radius-sm);
   }
-  
+
   :focus:not(:focus-visible) {
     outline: none;
   }
-  
+
   /* Selection */
   ::selection {
     background: oklch(0.65 0.18 160 / 0.2);
@@ -185,16 +182,16 @@
     background: oklch(0.99 0.005 90 / 0.8);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid oklch(0.90 0.01 90 / 0.6);
+    border: 1px solid oklch(0.9 0.01 90 / 0.6);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md);
     padding: var(--space-xl);
     position: relative;
     overflow: hidden;
   }
-  
+
   .card-glass::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
@@ -202,22 +199,23 @@
     pointer-events: none;
     mix-blend-mode: overlay;
   }
-  
+
   .card-solid {
     background: var(--surface-2);
     border: 1px solid oklch(0.92 0.01 250 / 0.8);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-sm);
     padding: var(--space-xl);
-    transition: box-shadow var(--duration-normal) var(--spring-smooth),
-                transform var(--duration-normal) var(--spring-snappy);
+    transition:
+      box-shadow var(--duration-normal) var(--spring-smooth),
+      transform var(--duration-normal) var(--spring-snappy);
   }
-  
+
   .card-solid:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
   }
-  
+
   /* --------------------------------------
      BUTTONS — Spring Physics + Gradient
      -------------------------------------- */
@@ -227,7 +225,11 @@
     justify-content: center;
     gap: var(--space-sm);
     padding: var(--space-md) var(--space-xl);
-    background: linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end));
+    background: linear-gradient(
+      135deg,
+      var(--brand-gradient-start),
+      var(--brand-gradient-end)
+    );
     color: var(--text-on-brand);
     font-size: var(--text-sm);
     font-weight: 600;
@@ -236,27 +238,28 @@
     border-radius: var(--radius-lg);
     cursor: pointer;
     box-shadow: var(--shadow-brand);
-    transition: transform var(--duration-fast) var(--spring-snappy),
-                box-shadow var(--duration-fast) var(--spring-smooth);
+    transition:
+      transform var(--duration-fast) var(--spring-snappy),
+      box-shadow var(--duration-fast) var(--spring-smooth);
   }
-  
+
   .btn-primary:hover {
     transform: translateY(-2px) scale(1.02);
-    box-shadow: 
-      0 6px 20px oklch(0.52 0.15 160 / 0.40),
+    box-shadow:
+      0 6px 20px oklch(0.52 0.15 160 / 0.4),
       0 12px 40px oklch(0.52 0.15 160 / 0.25);
   }
-  
+
   .btn-primary:active {
     transform: translateY(0) scale(0.98);
   }
-  
+
   .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
   }
-  
+
   .btn-secondary {
     display: inline-flex;
     align-items: center;
@@ -267,19 +270,19 @@
     color: var(--text-primary);
     font-size: var(--text-sm);
     font-weight: 600;
-    border: 1px solid oklch(0.90 0.01 90 / 0.8);
+    border: 1px solid oklch(0.9 0.01 90 / 0.8);
     border-radius: var(--radius-lg);
     cursor: pointer;
     box-shadow: var(--shadow-sm);
     transition: all var(--duration-fast) var(--spring-snappy);
   }
-  
+
   .btn-secondary:hover {
     background: var(--surface-3);
     border-color: oklch(0.85 0.02 90);
     transform: translateY(-1px);
   }
-  
+
   /* --------------------------------------
      INPUTS — Floating Labels + Micro-interactions
      -------------------------------------- */
@@ -294,29 +297,29 @@
     border-radius: var(--radius-lg);
     transition: all var(--duration-fast) var(--spring-snappy);
   }
-  
+
   .input-field::placeholder {
     color: var(--text-muted);
   }
-  
+
   .input-field:hover {
     background: var(--surface-4);
   }
-  
+
   .input-field:focus {
     background: var(--surface-2);
     border-color: var(--brand-primary);
     box-shadow: 0 0 0 4px oklch(0.65 0.18 160 / 0.1);
     outline: none;
   }
-  
+
   /* Hide native select dropdown arrow when using custom icon */
   select.input-field {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
   }
-  
+
   .label {
     display: block;
     font-size: var(--text-xs);
@@ -326,7 +329,7 @@
     letter-spacing: 0.08em;
     margin-bottom: var(--space-sm);
   }
-  
+
   /* --------------------------------------
      STATUS BADGES
      -------------------------------------- */
@@ -339,27 +342,27 @@
     font-weight: 600;
     border-radius: var(--radius-full);
   }
-  
+
   .badge-success {
     background: oklch(0.65 0.18 145 / 0.15);
     color: oklch(0.45 0.15 145);
   }
-  
+
   .badge-warning {
     background: oklch(0.75 0.16 75 / 0.15);
-    color: oklch(0.50 0.16 75);
+    color: oklch(0.5 0.16 75);
   }
-  
+
   .badge-error {
-    background: oklch(0.60 0.22 25 / 0.15);
-    color: oklch(0.45 0.20 25);
+    background: oklch(0.6 0.22 25 / 0.15);
+    color: oklch(0.45 0.2 25);
   }
-  
+
   .badge-info {
-    background: oklch(0.60 0.15 250 / 0.15);
+    background: oklch(0.6 0.15 250 / 0.15);
     color: oklch(0.45 0.15 250);
   }
-  
+
   /* --------------------------------------
      BENTO GRID SYSTEM
      -------------------------------------- */
@@ -367,32 +370,53 @@
     display: grid;
     gap: var(--space-lg);
   }
-  
+
   .bento-auto {
     grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   }
-  
-  .bento-2 { grid-template-columns: repeat(2, 1fr); }
-  .bento-3 { grid-template-columns: repeat(3, 1fr); }
-  .bento-4 { grid-template-columns: repeat(4, 1fr); }
-  
-  .bento-span-2 { grid-column: span 2; }
-  .bento-span-3 { grid-column: span 3; }
-  
+
+  .bento-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .bento-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .bento-span-2 {
+    grid-column: span 2;
+  }
+  .bento-span-3 {
+    grid-column: span 3;
+  }
+
   @media (max-width: 768px) {
-    .bento-2, .bento-3, .bento-4 { grid-template-columns: 1fr; }
-    .bento-span-2, .bento-span-3 { grid-column: span 1; }
+    .bento-2,
+    .bento-3,
+    .bento-4 {
+      grid-template-columns: 1fr;
+    }
+    .bento-span-2,
+    .bento-span-3 {
+      grid-column: span 1;
+    }
   }
 
   /* --------------------------------------
      SIDEBAR — Active State Gradient
      -------------------------------------- */
   .sidebar-active-gradient {
-    background: linear-gradient(135deg, var(--brand-gradient-start), var(--brand-gradient-end)) !important;
+    background: linear-gradient(
+      135deg,
+      var(--brand-gradient-start),
+      var(--brand-gradient-end)
+    ) !important;
     box-shadow: var(--shadow-brand) !important;
     color: var(--text-on-brand) !important;
   }
-  
+
   .sidebar-active-gradient .sidebar-icon-wrap {
     background: rgba(255, 255, 255, 0.2) !important;
   }
@@ -413,9 +437,9 @@
     background: oklch(0.99 0.005 90 / 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid oklch(0.90 0.01 90 / 0.6);
+    border-top: 1px solid oklch(0.9 0.01 90 / 0.6);
   }
-  
+
   .mobile-nav-item {
     display: flex;
     flex-direction: column;
@@ -430,13 +454,13 @@
     border-radius: var(--radius-lg);
     transition: all var(--duration-fast) var(--spring-snappy);
   }
-  
+
   .mobile-nav-item.active {
     color: var(--brand-primary);
   }
-  
+
   .mobile-nav-item.active::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 50%;
@@ -458,12 +482,12 @@
       padding-right: var(--space-lg);
       width: calc(100% + 2 * var(--space-lg));
     }
-    
+
     .mobile-card {
       border-radius: var(--radius-lg);
       padding: var(--space-lg);
     }
-    
+
     .mobile-sticky-header {
       position: sticky;
       top: 0;
@@ -506,8 +530,12 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-fade-in-up {
@@ -519,14 +547,26 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.4) 50%, transparent 75%);
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 @keyframes sparklePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.2); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
 }
 
 .animate-sparkle-pulse {
@@ -534,8 +574,14 @@
 }
 
 @keyframes celebrateDot {
-  0% { opacity: 1; transform: translate(0, 0) scale(1); }
-  100% { opacity: 0; transform: translate(var(--dot-x), var(--dot-y)) scale(0); }
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dot-x), var(--dot-y)) scale(0);
+  }
 }
 
 .animate-celebrate-dot {
@@ -543,11 +589,21 @@
 }
 
 /* Stagger Children */
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 160ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 240ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 320ms;
+}
 
 /* Embed sidebar button hover */
 .embed-sidebar-btn:hover {
@@ -556,7 +612,9 @@
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

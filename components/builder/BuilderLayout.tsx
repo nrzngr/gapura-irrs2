@@ -688,6 +688,7 @@ export function BuilderLayout({ onSaveDashboard, existingFolders = [] }: Builder
           onReset={dash.resetTiles}
           onFilterChange={setGlobalFilters}
           currentFilters={globalFilters}
+          gridCols={12}
         />
       )}
 

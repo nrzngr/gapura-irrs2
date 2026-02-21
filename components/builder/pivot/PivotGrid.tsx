@@ -38,7 +38,7 @@ export function PivotGrid({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-white relative">
+    <div className="flex flex-col flex-1 min-h-0 bg-white relative" style={{ maxHeight: '400px' }}>
         <div className="flex-1 overflow-auto custom-scrollbar">
             <table className="w-full border-separate border-spacing-0 text-xs">
                 {/* HEAD */}
@@ -46,9 +46,9 @@ export function PivotGrid({
                     <tr>
                         {/* Corner */}
                         <th className="px-4 py-3 text-left bg-white border-b border-gray-100/80 shadow-sm sticky left-0 z-40 w-48 min-w-[200px] backdrop-blur-md bg-white/95">
-                             <button 
+                             <button
                                 onClick={() => handleSort('name')}
-                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-emerald-700 transition-colors group"
+                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:text-emerald-700 transition-colors group"
                               >
                                 <span>{rowField}</span>
                                 <ArrowUpDown size={11} className={cn("transition-opacity", sortCol === 'name' ? 'opacity-100 text-emerald-600' : 'opacity-0 group-hover:opacity-50')} />
@@ -59,7 +59,7 @@ export function PivotGrid({
                         {cols.map(c => (
                             <th key={c} className="px-2 py-3 text-center bg-white border-b border-gray-100/80 shadow-sm min-w-[100px] backdrop-blur-md bg-white/95">
                                 <div className="flex flex-col items-center justify-center gap-0.5 group cursor-default">
-                                    <span className="text-[10px] font-bold text-gray-500 group-hover:text-gray-800 transition-colors line-clamp-1" title={c}>
+                                    <span className="text-[10px] font-bold text-gray-700 group-hover:text-gray-900 transition-colors line-clamp-1" title={c}>
                                         {c}
                                     </span>
                                     <span className="text-[9px] text-gray-300 font-medium group-hover:text-emerald-500 transition-colors">
@@ -71,9 +71,9 @@ export function PivotGrid({
 
                         {/* Total Header */}
                          <th className="px-4 py-3 text-right bg-white border-b border-gray-100/80 border-l border-gray-50 shadow-sm sticky right-0 z-40 min-w-[120px] backdrop-blur-md bg-white/95">
-                            <button 
+                            <button
                               onClick={() => handleSort('total')}
-                              className="flex items-center justify-end gap-1 w-full text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-emerald-700 transition-colors group"
+                              className="flex items-center justify-end gap-1 w-full text-[10px] font-bold uppercase tracking-wider text-gray-700 hover:text-emerald-700 transition-colors group"
                             >
                               <span>Total</span>
                               <ArrowUpDown size={11} className={cn("transition-opacity", sortCol === 'total' ? 'opacity-100 text-emerald-600' : 'opacity-0 group-hover:opacity-50')} />

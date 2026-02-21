@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { QueryResult } from '@/types/builder';
 import { motion } from 'framer-motion';
 import { ArrowRight, TrendingUp, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
@@ -31,8 +31,6 @@ export function ExecutivePivotView({
   normalization = 'none',
   isTile = false
 }: ExecutivePivotViewProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
   // Data Processing (Similar to CustomPivotTable but optimized for ranking)
   const processedData = useMemo(() => {
     const columns = result.columns;
@@ -115,13 +113,6 @@ export function ExecutivePivotView({
   const totalCases = grandTotal.toLocaleString('id-ID');
 
   const top5 = rows.slice(0, 5);
-
-  const toggleRow = (row: string) => {
-    const newSet = new Set(expandedRows);
-    if (newSet.has(row)) newSet.delete(row);
-    else newSet.add(row);
-    setExpandedRows(newSet);
-  };
 
   const formatValue = (val: number, total: number) => {
     if (viewMode === 'percentage') return `${((val / total) * 100).toFixed(1)}%`;

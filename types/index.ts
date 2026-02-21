@@ -124,6 +124,7 @@ export interface Report {
     jenis_maskapai?: string;
     reference_number?: string;
     root_caused?: string;
+    root_cause?: string; // Alias for compatibility
     action_taken?: string;
     immediate_action?: string;
     kps_remarks?: string;

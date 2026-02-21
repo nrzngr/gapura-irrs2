@@ -27,6 +27,21 @@ export async function signSession(payload: SessionPayload) {
         .sign(key);
 }
 
+async function queryWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise<null>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Query timeout')), ms);
+    });
+
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } catch {
+        return null;
+    } finally {
+        clearTimeout(timeoutId!);
+    }
+}
+
 export async function verifySession(token: string): Promise<SessionPayload | null> {
     try {
         const { payload } = await jwtVerify(token, key, {
@@ -35,13 +50,14 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
 
         const session = payload as unknown as SessionPayload;
 
-        // Hard Revocation Check: Ensure session isn't killed in DB
         if (session.sid) {
-            const { data } = await supabaseAdmin
+            const queryPromise = supabaseAdmin
                 .from('security_sessions')
                 .select('is_revoked')
                 .eq('session_id', session.sid)
                 .single();
+            
+            const data = await queryWithTimeout(queryPromise, 2000);
             
             if (data?.is_revoked) {
                 console.warn(`[AUTH_UTILS] Session ${session.sid} is REVOKED`);
@@ -49,17 +65,13 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
             }
             if (!data) {
                 console.warn(`[AUTH_UTILS] Session ${session.sid} NOT FOUND in DB`);
-                // Optional: return null or allow if we trust the JWT? 
-                // Let's return null to be safe as per hard revocation rule
-                return null; 
+                return null;
             }
 
-            // Passive Activity Tracking (Throttled update would be better, but we do basic here)
-            // Complexity: Time O(1) in DB | Space O(1)
             supabaseAdmin.from('security_sessions')
                 .update({ last_active: new Date().toISOString() })
                 .eq('session_id', session.sid)
-                .then(); // Non-blocking
+                .then();
         }
 
         return session;

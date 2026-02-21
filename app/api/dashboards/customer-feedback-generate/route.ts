@@ -77,6 +77,24 @@ export async function POST(request: NextRequest) {
     // Generate dashboard definition
     const dashboard = generateCustomerFeedbackDashboard(effectiveDateFrom, effectiveDateTo, { filters: generationOptions });
 
+    // Determine if this is a filtered dashboard (has custom filters)
+    const isFilteredDashboard = !isDefaultRange || !!title;
+    
+    // Build config with filter criteria and hideControls for filtered dashboards
+    const dashboardConfig = {
+      pages: dashboard.pages?.map(p => p.name) || ['Case Category', 'Detail Category', 'Detail Report'],
+      hideControls: isFilteredDashboard, // Hide filter UI for filtered dashboards
+      dateFrom: effectiveDateFrom,
+      dateTo: effectiveDateTo,
+      filters: isFilteredDashboard ? {
+        hubs: filters?.hubs || [],
+        branches: filters?.branches || [],
+        airlines: filters?.airlines || [],
+        categories: filters?.categories || [],
+      } : undefined,
+      sourceDashboardId: isFilteredDashboard ? 'customer-feedback-main' : undefined,
+    };
+
     let slug: string;
     let dashboardId: string;
 
@@ -101,9 +119,7 @@ export async function POST(request: NextRequest) {
                     description: dashboard.description || 'Customer Feedback Analysis Dashboard',
                     folder: folder || null,
                     is_public: true,
-                    config: {
-                        pages: dashboard.pages?.map(p => p.name) || ['Case Category', 'Detail Category', 'Detail Report'],
-                    },
+                    config: dashboardConfig,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', dashboardId);
@@ -133,9 +149,7 @@ export async function POST(request: NextRequest) {
                     folder: folder || null,
                     slug: slug,
                     is_public: true,
-                    config: {
-                        pages: dashboard.pages?.map(p => p.name) || ['Case Category', 'Detail Category', 'Detail Report'],
-                    },
+                    config: dashboardConfig,
                 })
                 .select()
                 .single();
@@ -164,10 +178,7 @@ export async function POST(request: NextRequest) {
                 folder: folder || null,
                 slug: slug,
                 is_public: true,
-                config: {
-                    pages: dashboard.pages?.map(p => p.name) || ['Case Category', 'Detail Category', 'Detail Report'],
-                    hideControls: true,
-                },
+                config: dashboardConfig,
             })
             .select()
             .single();

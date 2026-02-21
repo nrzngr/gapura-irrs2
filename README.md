@@ -178,7 +178,7 @@ gapura-dashboard/
 ## 🚀 Cara Menjalankan
 
 ### Prerequisites
-- Node.js 18+
+- Node.js `>=20.9.0` dan `<25` (disarankan Node.js 22 LTS)
 - NPM atau Yarn
 - Akun Supabase
 
@@ -186,6 +186,7 @@ gapura-dashboard/
 
 ```bash
 # 1. Install dependencies
+nvm use 22
 npm install
 
 # 2. Setup environment variables

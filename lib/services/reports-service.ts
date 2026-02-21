@@ -289,6 +289,7 @@ export class ReportsService {
         const report: any = {};
 
         report.id = `${sheetName}!row_${index + 2}`;
+        report.source_sheet = sheetName;
 
         // Fast mapping using pre-calculated indices
         Object.entries(columnMapping).forEach(([prop, colIdx]) => {
@@ -388,6 +389,15 @@ export class ReportsService {
         if (report.main_category && !report.category) report.category = report.main_category;
         if (report.category && !report.main_category) report.main_category = report.category;
         
+        // FINAL NORMALIZATION for Case Category Dashboards
+        if (report.main_category) {
+          const cat = String(report.main_category).toLowerCase();
+          if (cat.includes('irregular')) report.main_category = 'Irregularity';
+          else if (cat.includes('complain')) report.main_category = 'Complaint';
+          else if (cat.includes('compliment')) report.main_category = 'Compliment';
+          report.category = report.main_category;
+        }
+
         // Map airline fields
         if (report.airline && !report.airlines) report.airlines = report.airline;
         if (report.airlines && !report.airline) report.airline = report.airlines;
@@ -765,6 +775,61 @@ export class ReportsService {
 
     invalidateCache(CACHE_KEY_ALL_REPORTS);
     return true;
+  }
+
+  // New: severity distribution helper for analytics
+  async getSeverityDistribution(filters: {
+    hub?: string;
+    branch?: string;
+    airlines?: string;
+    area?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  } = {}): Promise<{ severity: string; count: number }[]> {
+    const all = await this.getReports();
+    // Apply runtime filtering consistent with existing filter logic
+    const filtered = all.filter(r => {
+      const sheet = (filters as any).source_sheet || r.source_sheet || 'NON CARGO';
+      if (r.source_sheet && r.source_sheet !== sheet) return false;
+      if (filters.hub && filters.hub !== 'all' && (r.hub ?? '') !== filters.hub) return false;
+      if (filters.branch && filters.branch !== 'all' && (r.branch ?? r.stations?.code ?? '') !== filters.branch) return false;
+      if (filters.airlines && filters.airlines !== 'all' && (r.airlines ?? r.airline ?? '') !== filters.airlines) return false;
+      if (filters.area && filters.area !== 'all' && (r.area ?? '') !== filters.area) return false;
+      const fqFrom = filters.dateFrom;
+      const fqTo = filters.dateTo;
+      if (fqFrom || fqTo) {
+        const dt = r.date_of_event ?? r.created_at;
+        if (dt) {
+          const d = new Date(dt as string);
+          if (fqFrom) {
+            const from = new Date(fqFrom);
+            if (d < from) return false;
+          }
+          if (fqTo) {
+            const to = new Date(fqTo);
+            to.setHours(23, 59, 59, 999);
+            if (d > to) return false;
+          }
+        }
+      }
+      return true;
+    });
+
+    const map = new Map<string, number>();
+    filtered.forEach((r) => {
+      const sev = (r.severity || 'low').toString();
+      map.set(sev, (map.get(sev) ?? 0) + 1);
+    });
+
+    const order = ['low', 'medium', 'high', 'urgent'];
+    const result = order
+      .map((s) => ({ severity: s, count: map.get(s) ?? 0 }))
+      .filter((x) => true);
+
+    // Return as array sorted by count desc (non-zero first)
+    return result
+      .sort((a, b) => b.count - a.count)
+      .map(r => ({ severity: r.severity, count: r.count }));
   }
 }
 

@@ -46,7 +46,8 @@ export function DashboardComposer({
   onReset,
   onFilterChange,
   currentFilters,
-}: DashboardComposerProps) {
+  gridCols = 12,
+}: DashboardComposerProps & { gridCols?: number }) {
   const [activePageIdx, setActivePageIdx] = useState(0);
 
   // Determine which tiles to show based on active page
@@ -206,18 +207,19 @@ export function DashboardComposer({
             <div className="px-6 py-5">
               {contentTiles.length > 0 ? (
                 <div
+                  className="grid gap-5"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(12, 1fr)',
+                    gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
                     gridAutoRows: '220px',
-                    gap: 20,
                   }}
                 >
                   {contentTiles.map(tile => (
                     <div
                       key={tile.id}
+                      className="relative group rounded-xl border border-[#e0e0e0] bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden"
                       style={{
-                        gridColumn: `span ${tile.layout.w}`,
+                        gridColumn: `span ${Math.min(tile.layout.w, gridCols)}`,
                         gridRow: `span ${tile.layout.h}`,
                       }}
                     >

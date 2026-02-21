@@ -1,0 +1,720 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Report } from '@/types';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import { Loader2 } from 'lucide-react';
+import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
+import type { QueryResult } from '@/types/builder';
+import { fetchDashboardSummaryAi, fetchRootCauseCategoriesAi, fetchRootCauseStatsAi } from '@/lib/services/gapura-ai';
+
+type CategoryField = 'terminal_area_category' | 'apron_area_category' | 'general_category';
+
+interface FilterParams {
+  hub?: string;
+  branch?: string;
+  airlines?: string;
+  area?: string;
+  sourceSheet?: 'NON CARGO' | 'CGO';
+}
+
+interface AreaSubCategoryDetailProps {
+  filters: FilterParams;
+  categoryField: CategoryField;
+  title: string;
+  subtitle: string;
+}
+
+const INVALID_VALUES = new Set(['', '-', 'nil', 'none', 'unknown', 'n/a', '#n/a', 'null']);
+const CATEGORY_COLORS = ['#2e7d32', '#43a047', '#66bb6a', '#81c784', '#a5d6a7', '#c8e6c9'];
+const CONTEXT_META: Record<
+  CategoryField,
+  {
+    singular: string;
+    plural: string;
+    insightLabel: string;
+    footerLabel: string;
+  }
+> = {
+  terminal_area_category: {
+    singular: 'terminal area category',
+    plural: 'terminal area categories',
+    insightLabel: 'Terminal Insight',
+    footerLabel: 'Total filtered terminal-area records',
+  },
+  apron_area_category: {
+    singular: 'apron area category',
+    plural: 'apron area categories',
+    insightLabel: 'Apron Insight',
+    footerLabel: 'Total filtered apron-area records',
+  },
+  general_category: {
+    singular: 'general category',
+    plural: 'general categories',
+    insightLabel: 'General Insight',
+    footerLabel: 'Total filtered general-category records',
+  },
+};
+
+function cleanLabel(value: unknown): string {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isValidLabel(value: unknown): boolean {
+  const normalized = cleanLabel(value).toLowerCase();
+  return normalized.length > 0 && !INVALID_VALUES.has(normalized);
+}
+
+function monthKey(value: unknown): string {
+  const date = new Date(String(value || ''));
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function displayMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  if (!y || !m) return month;
+  const date = new Date(y, m - 1, 1);
+  return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+}
+
+function normalizeMainCategory(value: unknown): 'Irregularity' | 'Complaint' | 'Compliment' | 'Other' {
+  const normalized = String(value || '').toLowerCase();
+  if (normalized.includes('irregular')) return 'Irregularity';
+  if (normalized.includes('complain')) return 'Complaint';
+  if (normalized.includes('compliment')) return 'Compliment';
+  return 'Other';
+}
+
+function parseEventDate(report: Report): number {
+  const d = new Date(String(report.date_of_event || report.incident_date || report.created_at || ''));
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+function HeatCell({ value, max }: { value: number; max: number }) {
+  const ratio = max > 0 ? value / max : 0;
+  const alpha = value === 0 ? 0.07 : Math.min(0.95, 0.2 + ratio * 0.75);
+  const background = `rgba(67, 160, 71, ${alpha})`;
+  const color = alpha > 0.55 ? '#ffffff' : '#1f2937';
+
+  return (
+    <div
+      className="h-8 rounded-md flex items-center justify-center text-[11px] font-bold"
+      style={{ background, color }}
+      title={`${value}`}
+    >
+      {value || '-'}
+    </div>
+  );
+}
+
+function StatCard({ label, value, tone = 'green' }: { label: string; value: string; tone?: 'green' | 'blue' | 'amber' | 'red' }) {
+  const tones: Record<string, string> = {
+    green: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+    blue: 'text-sky-700 bg-sky-50 border-sky-100',
+    amber: 'text-amber-700 bg-amber-50 border-amber-100',
+    red: 'text-rose-700 bg-rose-50 border-rose-100',
+  };
+
+  return (
+    <div className={`rounded-2xl border p-4 ${tones[tone]}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</p>
+      <p className="text-2xl font-black mt-1">{value}</p>
+    </div>
+  );
+}
+
+function RootCauseChart({ data }: { data: { category: string; count: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} layout="vertical" margin={{ left: 20, right: 20 }}>
+        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+        <XAxis type="number" />
+        <YAxis type="category" dataKey="category" width={100} tick={{ fontSize: 10 }} />
+        <Tooltip />
+        <Bar dataKey="count" fill="#43a047" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export default function AreaSubCategoryDetail({
+  filters,
+  categoryField,
+  title,
+  subtitle,
+}: AreaSubCategoryDetailProps) {
+  const contextMeta = CONTEXT_META[categoryField];
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [focusedCategory, setFocusedCategory] = useState<string>('');
+  const hasAutoSelected = useRef(false);
+  // AI-driven insights (optional)
+  const [aiSummary, setAiSummary] = useState<{ severity_distribution: Record<string, number> } | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [aiSummaryError, setAiSummaryError] = useState<string | null>(null);
+  const [aiRootCategories, setAiRootCategories] = useState<{ name: string; count: number }[]>([]);
+  const [aiRootCategoriesLoading, setAiRootCategoriesLoading] = useState(false);
+  const [aiRootCategoriesError, setAiRootCategoriesError] = useState<string | null>(null);
+  const [rootCauseStatsAi, setRootCauseStatsAi] = useState<{ byCategory: Record<string, { count: number; severity: Record<string, number> }> } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/reports/analytics?refresh=true', { credentials: 'include' });
+        if (!res.ok) throw new Error(`Failed to load (${res.status})`);
+        const data = await res.json();
+        if (active) setReports(Array.isArray(data.reports) ? data.reports : []);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Failed to load data');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // AI-driven insights (optional)
+  useEffect(() => {
+    let mounted = true;
+    const loadAi = async () => {
+      try {
+        setAiSummaryLoading(true);
+        const summary = await fetchDashboardSummaryAi(false);
+        if (mounted) setAiSummary(summary);
+      } catch (e) {
+        if (mounted) setAiSummaryError((e as Error)?.message ?? 'AI summary fetch failed');
+      } finally {
+        if (mounted) setAiSummaryLoading(false);
+      }
+    };
+    const loadRootCategories = async () => {
+      try {
+        setAiRootCategoriesLoading(true);
+        const cats = await fetchRootCauseCategoriesAi();
+        if (mounted) {
+          const arr = Array.isArray(cats) ? cats : [];
+          setAiRootCategories(arr.slice(0, 8));
+        }
+      } catch (e) {
+        if (mounted) setAiRootCategoriesError((e as Error)?.message ?? 'AI root-cause fetch failed');
+      } finally {
+        if (mounted) setAiRootCategoriesLoading(false);
+      }
+    };
+    loadAi();
+    loadRootCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // AI Root Cause Stats (categories, etc.)
+  useEffect(() => {
+    let mounted = true;
+    const loadStats = async () => {
+      try {
+        const stats = await fetchRootCauseStatsAi();
+        if (mounted) setRootCauseStatsAi(stats);
+      } catch {
+        // ignore
+      }
+    };
+    loadStats();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filteredReports = useMemo(() => {
+    return reports.filter((r) => {
+      const sourceSheet = filters.sourceSheet || 'NON CARGO';
+      if (sourceSheet === 'CGO') {
+        if (r.source_sheet !== 'CGO') return false;
+      } else if (r.source_sheet === 'CGO') {
+        return false;
+      }
+
+      if (filters.hub && filters.hub !== 'all' && cleanLabel(r.hub) !== filters.hub) return false;
+      if (filters.branch && filters.branch !== 'all' && cleanLabel(r.branch) !== filters.branch) return false;
+
+      const airline = cleanLabel(r.airlines || r.airline);
+      if (filters.airlines && filters.airlines !== 'all' && airline !== filters.airlines) return false;
+
+      if (filters.area && filters.area !== 'all' && cleanLabel(r.area) !== filters.area) return false;
+
+      return isValidLabel(r[categoryField]);
+    });
+  }, [reports, filters, categoryField]);
+
+  const categoryRanking = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredReports.forEach((r) => {
+      const key = cleanLabel(r[categoryField]);
+      if (!isValidLabel(key)) return;
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    const total = filteredReports.length || 1;
+    return Array.from(map.entries())
+      .map(([category, count]) => ({
+        category,
+        count,
+        share: (count / total) * 100,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredReports, categoryField]);
+
+  const topCategory = categoryRanking[0];
+  const topCategoryShare = topCategory ? topCategory.share : 0;
+
+  useEffect(() => {
+    if (!focusedCategory && categoryRanking.length > 0 && !hasAutoSelected.current) {
+      hasAutoSelected.current = true;
+      setFocusedCategory(categoryRanking[0].category);
+      return;
+    }
+    if (focusedCategory && !categoryRanking.some((c) => c.category === focusedCategory)) {
+      hasAutoSelected.current = false;
+      setFocusedCategory(categoryRanking[0]?.category || '');
+    }
+  }, [categoryRanking, focusedCategory]);
+
+  const topCategories = useMemo(() => categoryRanking.slice(0, 3).map((c) => c.category), [categoryRanking]);
+
+  const monthlyTrend = useMemo(() => {
+    const monthMap = new Map<string, Record<string, number>>();
+    filteredReports.forEach((r) => {
+      const cat = cleanLabel(r[categoryField]);
+      if (!topCategories.includes(cat)) return;
+      const key = monthKey(r.date_of_event || r.incident_date || r.created_at);
+      if (!key) return;
+      if (!monthMap.has(key)) monthMap.set(key, {});
+      const obj = monthMap.get(key)!;
+      obj[cat] = (obj[cat] || 0) + 1;
+    });
+
+    return Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-12)
+      .map(([month, bucket]) => ({
+        month,
+        monthLabel: displayMonth(month),
+        ...topCategories.reduce<Record<string, number>>((acc, c) => {
+          acc[c] = bucket[c] || 0;
+          return acc;
+        }, {}),
+      }));
+  }, [filteredReports, categoryField, topCategories]);
+
+  const branchHeatmap = useMemo(() => {
+    const branchMap = new Map<string, number>();
+    filteredReports.forEach((r) => {
+      const branch = cleanLabel(r.branch || r.reporting_branch || r.station_code);
+      if (!isValidLabel(branch)) return;
+      branchMap.set(branch, (branchMap.get(branch) || 0) + 1);
+    });
+
+    const topBranches = Array.from(branchMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([branch]) => branch);
+
+    const cols = categoryRanking.slice(0, 6).map((c) => c.category);
+    const cells = new Map<string, number>();
+    let max = 0;
+
+    filteredReports.forEach((r) => {
+      const branch = cleanLabel(r.branch || r.reporting_branch || r.station_code);
+      const category = cleanLabel(r[categoryField]);
+      if (!topBranches.includes(branch) || !cols.includes(category)) return;
+      const key = `${branch}::${category}`;
+      const next = (cells.get(key) || 0) + 1;
+      cells.set(key, next);
+      if (next > max) max = next;
+    });
+
+    return { branches: topBranches, categories: cols, cells, max };
+  }, [filteredReports, categoryRanking, categoryField]);
+
+  const airlineContribution = useMemo(() => {
+    const airlineMap = new Map<string, number>();
+    filteredReports.forEach((r) => {
+      const airline = cleanLabel(r.airlines || r.airline);
+      if (!isValidLabel(airline)) return;
+      airlineMap.set(airline, (airlineMap.get(airline) || 0) + 1);
+    });
+
+    const topAirlines = Array.from(airlineMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([airline]) => airline);
+
+    return topAirlines.map((airline) => {
+      const row: Record<string, string | number> = { airline };
+      topCategories.forEach((cat) => {
+        row[cat] = filteredReports.filter((r) => cleanLabel(r[categoryField]) === cat && cleanLabel(r.airlines || r.airline) === airline).length;
+      });
+      row.total = topCategories.reduce((sum, cat) => sum + Number(row[cat] || 0), 0);
+      return row;
+    });
+  }, [filteredReports, topCategories, categoryField]);
+
+  const focusedReports = useMemo(() => {
+    if (!focusedCategory) return filteredReports;
+    return filteredReports.filter((r) => cleanLabel(r[categoryField]) === focusedCategory);
+  }, [filteredReports, focusedCategory, categoryField]);
+
+  const rootCausePareto = useMemo(() => {
+    const map = new Map<string, number>();
+    focusedReports.forEach((r) => {
+      const cause = cleanLabel(r.root_caused);
+      if (!isValidLabel(cause)) return;
+      map.set(cause, (map.get(cause) || 0) + 1);
+    });
+
+    const total = focusedReports.length || 1;
+    let running = 0;
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([cause, count]) => {
+        running += count;
+        return {
+          cause,
+          count,
+          cumulative: (running / total) * 100,
+        };
+      });
+  }, [focusedReports]);
+
+  const severityData = useMemo(() => {
+    const map = new Map<string, number>();
+    focusedReports.forEach((r) => {
+      const key = cleanLabel(r.severity || 'Unknown').toUpperCase();
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [focusedReports]);
+
+  const statusData = useMemo(() => {
+    const map = new Map<string, number>();
+    focusedReports.forEach((r) => {
+      const key = cleanLabel(r.status || 'Unknown');
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [focusedReports]);
+
+  const queryResult = useMemo<QueryResult>(() => {
+    const columns = [
+      'date_of_event',
+      'branch',
+      'airlines',
+      categoryField,
+      'category',
+      'severity',
+      'status',
+      'root_caused',
+      'action_taken',
+    ];
+
+    const rows = [...focusedReports]
+      .sort((a, b) => parseEventDate(b) - parseEventDate(a))
+      .map((r) => ({
+        date_of_event: String(r.date_of_event || r.incident_date || r.created_at || ''),
+        branch: cleanLabel(r.branch || r.reporting_branch || r.station_code),
+        airlines: cleanLabel(r.airlines || r.airline),
+        [categoryField]: cleanLabel(r[categoryField]),
+        category: normalizeMainCategory(
+          r.main_category || r.category || r.irregularity_complain_category,
+        ),
+        severity: cleanLabel(r.severity || ''),
+        status: cleanLabel(r.status || ''),
+        root_caused: cleanLabel(r.root_caused) || '-',
+        action_taken: cleanLabel(r.action_taken) || '-',
+      }));
+
+    return { columns, rows, rowCount: rows.length, executionTimeMs: 0 };
+  }, [focusedReports, categoryField]);
+
+  const irregularityCount = useMemo(
+    () => filteredReports.filter((r) => normalizeMainCategory(r.main_category || r.category || r.irregularity_complain_category) === 'Irregularity').length,
+    [filteredReports]
+  );
+  const complaintCount = useMemo(
+    () => filteredReports.filter((r) => normalizeMainCategory(r.main_category || r.category || r.irregularity_complain_category) === 'Complaint').length,
+    [filteredReports]
+  );
+
+  const aiSeveritySeries = useMemo(() => {
+    const dist = (aiSummary?.severity_distribution) ?? {};
+    if (!dist || typeof dist !== 'object') return [];
+    const total = Object.values(dist).reduce((acc: number, v: any) => acc + (typeof v === 'number' ? v : 0), 0);
+    const items = Object.entries(dist).map(([sev, count]) => ({
+      severity: String(sev).toUpperCase(),
+      count: Number(count) || 0,
+      percentage: total > 0 ? (Number(count) || 0) / total * 100 : 0,
+    }));
+    const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+    items.sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+    return items;
+  }, [aiSummary]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[45vh] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading {title} detail...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-4">{error}</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-black text-gray-900 tracking-tight">{title}</h2>
+        <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+      </div>
+      {aiSummaryLoading && (
+        <div className="text-sm text-gray-600">Loading AI insights...</div>
+      )}
+      {!aiSummaryLoading && aiSummary && (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 mb-2">AI Severity Distribution</h3>
+            <div className="text-sm text-gray-700">
+              {aiSeveritySeries.map((s) => (
+                <span key={s.severity} className="mr-3">
+                  {s.severity}: {s.count.toLocaleString('id-ID')} ({s.percentage.toFixed(1)}%)
+                </span>
+              ))}
+            </div>
+          </div>
+          {aiRootCategories.length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-gray-800 mb-3">AI Root Causes (Top)</h3>
+              <ul className="text-sm text-gray-700 space-y-1">
+                {aiRootCategories.map((item) => (
+                  <li key={item.name}>- {item.name} ({item.count})</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      {aiSummaryError && <div className="text-sm text-red-600">{aiSummaryError}</div>}
+      {aiRootCategoriesError && <div className="text-sm text-red-600">{aiRootCategoriesError}</div>}
+
+      {/* Dedicated AI Root Cause Stats Chart */}
+      {rootCauseStatsAi?.byCategory && (
+        <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-800 mb-3">AI Root Causes (Stats by Category)</h3>
+          {(() => {
+            const data = Object.entries(rootCauseStatsAi.byCategory).map(([cat, detail]: any) => ({
+              category: cat,
+              count: Number(detail?.count) || 0,
+            }));
+            if (!data.length) return null;
+            // Use dedicated RootCauseChart with category naming
+            return (
+              <RootCauseChart data={data.map((d) => ({ category: d.category, count: d.count }))} />
+            );
+          })()}
+        </section>
+      )}
+
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">{contextMeta.insightLabel}</p>
+        <p className="mt-1 text-sm font-semibold text-emerald-900">
+          {topCategory
+            ? `${topCategory.category} leads ${contextMeta.plural} with ${topCategory.count.toLocaleString('id-ID')} reports (${topCategoryShare.toFixed(1)}%).`
+            : `No ${contextMeta.singular} data available for the current filter.`}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Reports" value={filteredReports.length.toLocaleString('id-ID')} tone="green" />
+        <StatCard label="Distinct Branches" value={new Set(filteredReports.map((r) => cleanLabel(r.branch || r.reporting_branch || r.station_code)).filter(isValidLabel)).size.toLocaleString('id-ID')} tone="blue" />
+        <StatCard label="Distinct Airlines" value={new Set(filteredReports.map((r) => cleanLabel(r.airlines || r.airline)).filter(isValidLabel)).size.toLocaleString('id-ID')} tone="amber" />
+        <StatCard
+          label="Irregularity Rate"
+          value={`${filteredReports.length ? ((irregularityCount / filteredReports.length) * 100).toFixed(1) : '0.0'}%`}
+          tone="red"
+        />
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 mb-3">{contextMeta.singular} ranking (Top 10)</h3>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={categoryRanking.slice(0, 10)} layout="vertical" margin={{ top: 8, right: 20, left: 12, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="category" width={180} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#2e7d32" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 mb-3">Monthly trend (Top 3 {contextMeta.plural})</h3>
+        <div className="h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={monthlyTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+              <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              {topCategories.map((cat, idx) => (
+                <Line key={cat} type="monotone" dataKey={cat} stroke={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} strokeWidth={2.3} dot={{ r: 2 }} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 mb-3">Branch x {contextMeta.singular} hotspot</h3>
+        <div className="overflow-auto">
+          <table className="w-full border-separate border-spacing-1">
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-white text-left text-[10px] uppercase tracking-wide text-gray-500 min-w-[140px]">Branch</th>
+                {branchHeatmap.categories.map((cat) => (
+                  <th key={cat} className="text-[10px] font-bold text-gray-500 min-w-[90px] max-w-[140px] whitespace-normal break-words">
+                    {cat}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {branchHeatmap.branches.map((branch) => (
+                <tr key={branch}>
+                  <td className="sticky left-0 bg-white text-[11px] font-semibold text-gray-700">{branch}</td>
+                  {branchHeatmap.categories.map((cat) => {
+                    const value = branchHeatmap.cells.get(`${branch}::${cat}`) || 0;
+                    return (
+                      <td key={cat}>
+                        <HeatCell value={value} max={branchHeatmap.max} />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 mb-3">Airline Contribution (Top 8)</h3>
+        <div className="h-[320px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={airlineContribution} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="airline" width={170} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              {topCategories.map((cat, idx) => (
+                <Bar key={cat} dataKey={cat} stackId="a" fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} radius={idx === topCategories.length - 1 ? [0, 6, 6, 0] : [0, 0, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Focused root cause & risk section removed as per request for Terminal, Apron, and General categories */}
+
+      {/* ── Sub-Category Picker ── */}
+      {categoryRanking.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+            Filter table by {contextMeta.singular}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {/* "All" pill — only shown when there are 2+ categories */}
+            {categoryRanking.length > 1 && (
+              <button
+                type="button"
+                aria-pressed={focusedCategory === ''}
+                onClick={() => setFocusedCategory('')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                  focusedCategory === ''
+                    ? 'bg-[#6b8e3d] text-white border-[#6b8e3d]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                All · {filteredReports.length.toLocaleString('id-ID')}
+              </button>
+            )}
+
+            {/* One pill per sub-category */}
+            {categoryRanking.map(({ category, count }) => (
+              <button
+                key={category}
+                type="button"
+                aria-pressed={focusedCategory === category}
+                onClick={() => setFocusedCategory(category)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                  focusedCategory === category
+                    ? 'bg-[#6b8e3d] text-white border-[#6b8e3d]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                {category} · {count.toLocaleString('id-ID')}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 mb-4">
+          Full Data Table{focusedCategory ? ` — ${focusedCategory}` : ''}
+        </h3>
+        <InvestigativeTable
+          title={focusedCategory || title}
+          data={queryResult}
+          className="shadow-none border-0"
+        />
+      </div>
+
+      <div className="text-[11px] text-gray-400 font-medium">
+        {contextMeta.footerLabel}: {filteredReports.length.toLocaleString('id-ID')} | Complaint: {complaintCount.toLocaleString('id-ID')}
+      </div>
+    </div>
+  );
+}

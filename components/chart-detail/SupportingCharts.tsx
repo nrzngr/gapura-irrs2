@@ -8,7 +8,6 @@ import type { DashboardTile, QueryResult } from '@/types/builder';
 import { ViewMode, Normalization } from './GlobalControlBar';
 
 // Import custom charts
-import { SeverityDistributionChart } from './custom-charts/SeverityDistributionChart';
 import { StatusBreakdownChart } from './custom-charts/StatusBreakdownChart';
 import { SubCategoryDetailChart } from './custom-charts/SubCategoryDetailChart';
 import { TargetDivisionChart } from './custom-charts/TargetDivisionChart';
@@ -24,7 +23,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // Types of custom charts
 export type CustomChartType = 
-  | 'severity_distribution'
   | 'status_breakdown'
   | 'subcategory_detail'
   | 'target_division'
@@ -61,25 +59,6 @@ function safeRender(value: any): React.ReactNode {
 }
 
 // Helper functions to transform QueryResult data for custom charts
-function transformToSeverityData(result: QueryResult) {
-  if (!result?.rows || result.rows.length === 0) {
-    console.warn('SeverityDistributionChart: No data available');
-    return [];
-  }
-  const total = result.rows.reduce((sum, row) => {
-    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
-    return sum + count;
-  }, 0);
-  return result.rows.map(row => {
-    const count = Number(row.jumlah) || Number(row.count) || Number(row.JUMLAH) || Number(row.COUNT) || 0;
-    return {
-      severity: String(row.severity || row.SEVERITY || row.Severity || 'MEDIUM').toUpperCase(),
-      count: count,
-      percentage: total > 0 ? (count / total) * 100 : 0
-    };
-  });
-}
-
 function transformToStatusData(result: QueryResult) {
   if (!result?.rows || result.rows.length === 0) {
     console.warn('StatusBreakdownChart: No data available');
@@ -508,14 +487,6 @@ export function SupportingCharts({ charts, dataMap, loading, source = 'ai', view
             };
 
             switch (chart.customChartType) {
-              case 'severity_distribution':
-                return (
-                  <SeverityDistributionChart
-                    key={idx}
-                    data={transformToSeverityData(result)}
-                    {...customChartProps}
-                  />
-                );
               case 'status_breakdown':
                 return (
                   <StatusBreakdownChart

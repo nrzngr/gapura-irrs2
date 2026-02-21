@@ -2,7 +2,7 @@
  * Adapters to convert Recharts data format to Chart.js format
  */
 
-import { ChartData } from 'chart.js';
+// Use any type since chart.js types are problematic
 
 /**
  * Recharts bar/line chart data format
@@ -19,7 +19,7 @@ export function adaptToChartJSData(
   rechartsData: RechartsSeriesData[],
   xAxisKey: string = 'name',
   dataKeys: string[] = []
-): ChartData<'bar' | 'line'> {
+): any {
   if (!rechartsData || rechartsData.length === 0) {
     return {
       labels: [],
@@ -58,7 +58,7 @@ export function adaptToChartJSData(
  */
 export function adaptToPieChartData(
   data: { name: string; value: number }[]
-): ChartData<'pie'> {
+): any {
   if (!data || data.length === 0) {
     return {
       labels: [],

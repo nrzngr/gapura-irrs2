@@ -793,15 +793,31 @@ export function ChartPreview({ visualization, result, compact = false, tile, das
               dataKey="value"
               nameKey="name"
               labelLine={false}
-              label={showLabels ? (props: any) => {
+              label={(showLabels || isDonut) ? (props: any) => {
                 const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, name } = props;
                 const RADIAN = Math.PI / 180;
                 // Position label outside slightly
-                const radius = outerRadius + 20; 
+                const radius = outerRadius + (isDonut ? 14 : 20); 
                 const x = cx + radius * Math.cos(-midAngle * RADIAN);
                 const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                
-                // Only show if > 3% to avoid clutter
+
+                if (isDonut) {
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill="#374151"
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={compact ? 10 : 11}
+                      fontWeight={700}
+                    >
+                      {Number(value || 0).toLocaleString('id-ID')}
+                    </text>
+                  );
+                }
+
+                // For pie chart labels, keep threshold to avoid clutter.
                 if (percent < 0.03) return null;
 
                 return (

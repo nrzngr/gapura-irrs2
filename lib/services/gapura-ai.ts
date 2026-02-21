@@ -1,0 +1,313 @@
+const GAPURA_AI_BASE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || 'http://localhost:8000';
+
+export interface SeverityDistributionAi {
+  name: string;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export interface SeverityDistributionsAiResponse {
+  area: SeverityDistributionAi[];
+  category: SeverityDistributionAi[];
+  branch: SeverityDistributionAi[];
+  airline: SeverityDistributionAi[];
+}
+
+export interface AirlineRiskDetail {
+  name: string;
+  risk_score: number;
+  risk_level: string;
+  severity_distribution: Record<string, number>;
+  issue_categories: string[];
+}
+
+export interface BranchRiskDetail {
+  name: string;
+  risk_score: number;
+  risk_level: string;
+  severity_distribution: Record<string, number>;
+  issue_categories: string[];
+}
+
+export interface AiRiskSummary {
+  last_updated: string;
+  top_risky_airlines: string[];
+  top_risky_branches: string[];
+  total_airlines: number;
+  total_branches: number;
+  total_hubs: number;
+  airline_risks: Record<string, number>;
+  branch_risks: Record<string, number>;
+  hub_risks: Record<string, number>;
+  airline_details: AirlineRiskDetail[];
+  branch_details: BranchRiskDetail[];
+}
+
+export interface DashboardSummaryAi {
+  severity_distribution: Record<string, number>;
+}
+
+export interface RootCauseCategory {
+  name: string;
+  count: number;
+}
+
+export interface RootCauseStatsAi {
+  total_records: number;
+  classified: number;
+  unknown: number;
+  classification_rate: string;
+  by_category: Record<string, {
+    count: number;
+    percentage: number;
+    top_issue_categories: Record<string, number>;
+    top_areas: Record<string, number>;
+    top_airlines: Record<string, number>;
+    description: string;
+  }>;
+  top_categories: [string, number][];
+}
+
+export interface RootCauseSummary {
+  total_records: number;
+  with_root_cause: number;
+  without_root_cause: number;
+  root_cause_coverage: string;
+  categories_summary: Record<string, number>;
+  top_categories: [string, number][];
+  category_distribution: Record<string, {
+    count: number;
+    percentage: string;
+    severity_multiplier: number;
+    description: string;
+    records: Array<{
+      record_id: string;
+      airline: string;
+      branch: string;
+      report: string;
+      root_cause: string;
+      category: string;
+      confidence: number;
+    }>;
+  }>;
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 30000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+function normalizeSeverity(key: string): string {
+  const k = key.toLowerCase();
+  if (k === 'critical') return 'critical';
+  if (k === 'high') return 'high';
+  if (k === 'medium') return 'medium';
+  if (k === 'low') return 'low';
+  return key;
+}
+
+function calculateTopRisky(
+  items: Record<string, { count: number; severity: Record<string, number> }>,
+  limit = 5
+): string[] {
+  const scored = Object.entries(items).map(([name, data]) => {
+    const score =
+      (data.severity['Critical'] || 0) * 4 +
+      (data.severity['High'] || 0) * 3 +
+      (data.severity['Medium'] || 0) * 2 +
+      (data.severity['Low'] || 0) * 1;
+    return { name, score };
+  });
+  return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.name);
+}
+
+export async function fetchSeverityDistributionsAi(): Promise<SeverityDistributionsAiResponse | null> {
+  try {
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch severity distributions:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+    
+    const severityByArea: Record<string, Record<string, number>> = {};
+    const severityByCategory: Record<string, Record<string, number>> = {};
+    const severityByBranch: Record<string, Record<string, number>> = {};
+    const severityByAirline: Record<string, Record<string, number>> = {};
+
+    for (const record of results) {
+      const classification = record.classification;
+      const severity = classification?.severity || 'Low';
+      const normalizedSeverity = normalizeSeverity(severity);
+
+      const area = record.originalData?.area || record.originalData?.Area || 'Unknown';
+      const category = record.originalData?.issueType || record.originalData?.category || record.originalData?.Irregularity_Complain_Category || 'Unknown';
+      const branch = record.originalData?.branch || record.originalData?.Branch || 'Unknown';
+      const airline = record.originalData?.airline || record.originalData?.Airlines || 'Unknown';
+
+      if (!severityByArea[area]) severityByArea[area] = { critical: 0, high: 0, medium: 0, low: 0 };
+      severityByArea[area][normalizedSeverity] = (severityByArea[area][normalizedSeverity] || 0) + 1;
+
+      if (!severityByCategory[category]) severityByCategory[category] = { critical: 0, high: 0, medium: 0, low: 0 };
+      severityByCategory[category][normalizedSeverity] = (severityByCategory[category][normalizedSeverity] || 0) + 1;
+
+      if (!severityByBranch[branch]) severityByBranch[branch] = { critical: 0, high: 0, medium: 0, low: 0 };
+      severityByBranch[branch][normalizedSeverity] = (severityByBranch[branch][normalizedSeverity] || 0) + 1;
+
+      if (!severityByAirline[airline]) severityByAirline[airline] = { critical: 0, high: 0, medium: 0, low: 0 };
+      severityByAirline[airline][normalizedSeverity] = (severityByAirline[airline][normalizedSeverity] || 0) + 1;
+    }
+
+    const toArray = (obj: Record<string, Record<string, number>>): SeverityDistributionAi[] => {
+      return Object.entries(obj).map(([name, counts]) => ({
+        name,
+        critical: counts.critical || 0,
+        high: counts.high || 0,
+        medium: counts.medium || 0,
+        low: counts.low || 0,
+      }));
+    };
+
+    return {
+      area: toArray(severityByArea),
+      category: toArray(severityByCategory),
+      branch: toArray(severityByBranch),
+      airline: toArray(severityByAirline),
+    };
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching severity distributions:', error);
+    return null;
+  }
+}
+
+export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
+  try {
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/summary`;
+    console.log('[gapura-ai] Fetching risk summary from:', url);
+    const response = await fetchWithTimeout(url, {}, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch risk summary:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return {
+      last_updated: data.last_updated || new Date().toISOString(),
+      top_risky_airlines: data.top_risky_airlines || [],
+      top_risky_branches: data.top_risky_branches || [],
+      total_airlines: data.total_airlines || 0,
+      total_branches: data.total_branches || 0,
+      total_hubs: data.total_hubs || 0,
+      airline_risks: data.airline_risks || { Critical: 0, High: 0, Medium: 0, Low: 0 },
+      branch_risks: data.branch_risks || { Critical: 0, High: 0, Medium: 0, Low: 0 },
+      hub_risks: data.hub_risks || { Critical: 0, High: 0, Medium: 0, Low: 0 },
+      airline_details: data.airline_details || [],
+      branch_details: data.branch_details || [],
+    };
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching risk summary:', error);
+    return null;
+  }
+}
+
+export async function fetchDashboardSummaryAi(bypassCache = false): Promise<DashboardSummaryAi | null> {
+  try {
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000${bypassCache ? '&bypass_cache=true' : ''}`;
+    const response = await fetchWithTimeout(url, {}, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch dashboard summary:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const summary = data.summary || {};
+    const severityDist = summary.severityDistribution || {};
+
+    const normalized: Record<string, number> = {
+      Critical: severityDist['Critical'] || 0,
+      High: severityDist['High'] || 0,
+      Medium: severityDist['Medium'] || 0,
+      Low: severityDist['Low'] || 0,
+    };
+
+    return {
+      severity_distribution: normalized,
+    };
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching dashboard summary:', error);
+    return null;
+  }
+}
+
+export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]> {
+  try {
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch root cause categories:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+
+    const rootCauseCounts: Record<string, number> = {};
+    for (const record of results) {
+      const rootCause = record.originalData?.rootCause || record.originalData?.Root_Caused || record.originalData?.root_caused || 'Unknown';
+      const key = String(rootCause).trim();
+      if (key && key.toLowerCase() !== 'unknown' && key !== '') {
+        rootCauseCounts[key] = (rootCauseCounts[key] || 0) + 1;
+      }
+    }
+
+    return Object.entries(rootCauseCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching root cause categories:', error);
+    return [];
+  }
+}
+
+export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseStatsAi | null> {
+  try {
+    const query = source ? `?source=${encodeURIComponent(source)}` : '';
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/stats${query}`, {}, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch root cause stats:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data as RootCauseStatsAi;
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching root cause stats:', error);
+    return null;
+  }
+}
+
+export async function fetchRootCauseSummaryAi(source?: string): Promise<RootCauseSummary | null> {
+  try {
+    const query = source ? `?source=${encodeURIComponent(source)}` : '';
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/summary${query}`, {}, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch root cause summary:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data as RootCauseSummary;
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching root cause summary:', error);
+    return null;
+  }
+}

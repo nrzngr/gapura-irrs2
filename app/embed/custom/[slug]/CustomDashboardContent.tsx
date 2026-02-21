@@ -4,21 +4,18 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChartPreview } from '@/components/builder/ChartPreview';
-import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
-import { HeatmapChart } from '@/components/charts/HeatmapChart';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, ExternalLink, Menu } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, LayoutGrid, Box, Menu, Calendar } from 'lucide-react';
 import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import { processQuery } from '@/lib/engine/query-processor';
 import { useReportsData } from '@/hooks/use-reports-cache';
-import type { ChartVisualization, QueryResult, QueryDefinition, ChartType } from '@/types/builder';
+import type { QueryResult, QueryDefinition, ChartType, ChartVisualization } from '@/types/builder';
+import { cn } from '@/lib/utils';
+import { CustomerFeedbackView } from '@/components/dashboard/customer-feedback/CustomerFeedbackView';
 
-// ─── Green Branding Palette ─────────────────────────────────────────────────
-const GAPURA_GREEN = '#6b8e3d';
-const GAPURA_BANNER = '#5a7a3a';
+// ─── Branding Palette ───────────────────────────────────────────────────────
 const GREEN_PALETTE = ['#7cb342', '#558b2f', '#aed581', '#33691e', '#9ccc65', '#689f38', '#c5e1a5', '#43a047', '#81c784', '#4caf50'];
 
-// Filter fields that can be interactive
 const FILTER_FIELDS = [
   { key: 'hub', label: 'HUB', table: 'reports', field: 'hub' },
   { key: 'branch', label: 'Branch', table: 'reports', field: 'branch' },
@@ -72,12 +69,9 @@ interface ChartResult {
   queryResult?: QueryResult;
 }
 
-/** Force green palette on any visualization config */
 function greenify(viz: ChartVisualization): ChartVisualization {
   return { ...viz, colors: GREEN_PALETTE };
 }
-
-type ActiveFilters = FilterData;
 
 export function CustomDashboardContent() {
   const params = useParams();
@@ -90,89 +84,45 @@ export function CustomDashboardContent() {
   const [chartsData, setChartsData] = useState<Map<string, ChartResult>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
   const dashboardRef = useRef<Dashboard | null>(null);
 
-  // Date range
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // Multi-page navigation
   const [activePage, setActivePage] = useState(0);
-
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // L1 Cache: Fetch all reports for client-side processing
-  const { reports: allReports, isLoading: reportsLoading } = useReportsData('/api/admin/reports');
-
-  // Interactive filters
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+  const [activeFilters, setActiveFilters] = useState<FilterData>({});
   const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pptx' | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // ─── HANDLERS ─────────────────────────────────────────────────────────────
+  const { reports: allReports } = useReportsData('/api/admin/reports');
 
-  const handleViewDetail = (
-    chartTitle: string, 
-    data: Record<string, unknown>[], 
-    chartType: string, 
-    config?: { xAxis?: string, yAxis?: string[], metric?: string },
-    queryConfig?: QueryDefinition
-  ) => {
-    // Apply current filters to the query config if provided, otherwise use default
-    const fullQuery = queryConfig 
-      ? applyFiltersToQuery(queryConfig)
-      : {
-          source: 'reports',
-          joins: [],
-          dimensions: [], 
-          measures: [],
-          filters: [], 
-          sorts: [],
-          limit: 1000
-        };
+  // ─── Lifecycle: Sync state with URL params ──────────────────────────────────
+  useEffect(() => {
+    const pageIndex = searchParams.get('pageIndex');
+    if (pageIndex !== null) {
+      setActivePage(parseInt(pageIndex, 10) || 0);
+    }
 
-    // Basic tile construction for detail view
-    const detailData = {
-      tile: {
-        id: `chart-${Date.now()}`,
-        visualization: {
-          chartType: chartType,
-          title: chartTitle,
-          // Use provided config or fallback to heuristics
-          xAxis: config?.xAxis || (data[0] ? Object.keys(data[0])[0] : ''), 
-          yAxis: config?.yAxis || (data[0] ? [Object.keys(data[0])[1]] : []),
-          colorField: config?.metric, // Pass the metric as colorField for Heatmap
-          showLegend: true,
-          showLabels: false
-        },
-        query: fullQuery,
-        layout: { x: 0, y: 0, w: 6, h: 3 }
-      },
-      result: {
-        columns: data[0] ? Object.keys(data[0]) : [],
-        rows: data,
-        rowCount: data.length,
-        executionTimeMs: 0
-      },
-      dashboardId: 'custom-dashboard', // Generic ID
-      timestamp: Date.now()
-    };
-    
-    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
-    
-    // Navigate to detail page
-    const params = new URLSearchParams();
-    params.set('dashboardId', 'custom-dashboard');
-    params.set('tileId', detailData.tile.id);
-    
-    router.push(`/dashboard/chart-detail?${params.toString()}`);
-  };
+    const filters: FilterData = {};
+    FILTER_FIELDS.forEach(ff => {
+      const val = searchParams.get(ff.key);
+      if (val) filters[ff.key] = val;
+    });
+    if (Object.keys(filters).length > 0) {
+      setActiveFilters(prev => ({ ...prev, ...filters }));
+    }
 
-  // Filters are now handled by DynamicFilterHeader
+    const from = searchParams.get('dateFrom');
+    const to = searchParams.get('dateTo');
+    if (from) setDateFrom(from);
+    if (to) setDateTo(to);
+  }, [searchParams]);
 
-  // ─── Data fetching ──────────────────────────────────────────────────────────
+  // ─── Lifecycle / Fetching ─────────────────────────────────────────────────
+
   const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch(`/api/dashboards?slug=${slug}&t=${Date.now()}`, {
@@ -183,14 +133,13 @@ export function CustomDashboardContent() {
       setDashboard(data);
       if (data.config?.dateFrom) setDateFrom(data.config.dateFrom);
       if (data.config?.dateTo) setDateTo(data.config.dateTo);
+      setFiltersInitialized(true);
       return data as Dashboard;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
-      return null;
+    } finally {
+      setLoading(false);
     }
   }, [slug]);
 
-  /** Apply active filters to a query config */
   const applyFiltersToQuery = useCallback((queryConfig: QueryDefinition): QueryDefinition => {
     const extraFilters = Object.entries(activeFilters)
       .filter(([, val]) => val && val !== 'all')
@@ -206,8 +155,7 @@ export function CustomDashboardContent() {
       })
       .filter(Boolean);
 
-    // Date filters
-    const dateFilters = [];
+    const dateFilters: any[] = [];
     if (dateFrom) {
       dateFilters.push({
         table: 'reports',
@@ -237,21 +185,24 @@ export function CustomDashboardContent() {
         ...(queryConfig.filters || []),
         ...extraFilters.filter((f): f is NonNullable<typeof f> => f !== null),
         ...dateFilters,
+        // Enforce CGO source for pages 4 (index 3) and 5 (index 4)
+        ...([3, 4].includes(activePage) ? [{
+          table: 'reports',
+          field: 'source_sheet',
+          operator: 'eq' as const,
+          value: 'CGO',
+          conjunction: 'AND' as const,
+        }] : [])
       ],
     };
-  }, [activeFilters, dateFrom, dateTo]);
+  }, [activeFilters, dateFrom, dateTo, activePage]);
 
   const fetchChartData = useCallback(async (charts: ChartData[]): Promise<Map<string, ChartResult>> => {
     const dataMap = new Map<string, ChartResult>();
-
-    // Separate query-based charts from legacy charts
     const queryCharts = charts.filter(c => c.query_config);
     const legacyCharts = charts.filter(c => !c.query_config);
-
-    // Identify which charts can be processed client-side (L1 Cache) vs Server-side
     const serverQueryCharts: typeof queryCharts = [];
 
-    // Process client-side queries if data is available
     if (allReports.length > 0) {
       for (const chart of queryCharts) {
         const query = applyFiltersToQuery(chart.query_config!);
@@ -259,15 +210,10 @@ export function CustomDashboardContent() {
         
         if (source === 'reports') {
           try {
-            // Execute query against cached data
             const result = processQuery(query, allReports);
-            dataMap.set(chart.id, { 
-              type: 'query', 
-              queryResult: result 
-            });
+            dataMap.set(chart.id, { type: 'query', queryResult: result });
           } catch (err) {
-            console.error(`[Dashboard] Client query "${chart.id}" failed:`, err);
-            // Fallback to server if client processing fails
+            console.error(`Client query failed:`, err);
             serverQueryCharts.push(chart);
           }
         } else {
@@ -275,16 +221,9 @@ export function CustomDashboardContent() {
         }
       }
     } else {
-      // If reports not yet loaded, send all to server (or wait? better to fallback to server for first load if urgent)
-      // Actually, if we want to enforce cache usage, we should wait. 
-      // But for better UX, if cache is empty, we might want to fetch from server (which hits L2 cache).
-      // However, to strictly follow "70% reduction", let's prioritize client processing.
-      // If reportsLoading is true, we might just be waiting.
-      // If we push to serverQueryCharts here, we use L2 cache.
       serverQueryCharts.push(...queryCharts);
     }
 
-    // Batch fetch remaining query-based charts in a single request
     const batchPromise = serverQueryCharts.length > 0
       ? (async () => {
           try {
@@ -302,19 +241,13 @@ export function CustomDashboardContent() {
               for (const r of results) {
                 if (!r.error) {
                   dataMap.set(r.id, { type: 'query', queryResult: { columns: r.columns, rows: r.rows, rowCount: r.rowCount, executionTimeMs: 0 } });
-                } else {
-                  console.error(`[Dashboard] Chart query "${r.id}" failed:`, r.error);
                 }
               }
-            } else {
-              const errBody = await res.text();
-              console.error(`[Dashboard] Batch query failed (${res.status}):`, errBody);
             }
-          } catch (err) { console.error('[Dashboard] Batch fetch error:', err); }
+          } catch (err) { console.error('Batch fetch error:', err); }
         })()
       : Promise.resolve();
 
-    // Fetch legacy charts in parallel (these use a different API)
     const legacyPromise = Promise.all(
       legacyCharts.map(async (chart) => {
         try {
@@ -322,10 +255,8 @@ export function CustomDashboardContent() {
           if (res.ok) {
             const data = await res.json();
             dataMap.set(chart.id, { type: 'legacy', stats: data });
-          } else {
-            console.error(`[Dashboard] Legacy chart "${chart.id}" failed (${res.status})`);
           }
-        } catch (err) { console.error('[Dashboard] Legacy fetch error:', err); }
+        } catch (err) { console.error('Legacy fetch error:', err); }
       })
     );
 
@@ -338,11 +269,22 @@ export function CustomDashboardContent() {
     return dataMap;
   }, [range, applyFiltersToQuery, allReports]);
 
-  /** Extract the charts for a specific page index from a dashboard */
-  const getPageCharts = useCallback((dash: Dashboard, pageIdx: number): ChartData[] => {
-    const charts = dash.dashboard_charts;
+  const dashboardChartsRef = useRef(dashboard?.dashboard_charts);
+  useEffect(() => {
+    dashboardChartsRef.current = dashboard?.dashboard_charts;
+  }, [dashboard?.dashboard_charts]);
+
+  const fetchChartDataRef = useRef(fetchChartData);
+  useEffect(() => {
+    fetchChartDataRef.current = fetchChartData;
+  }, [fetchChartData]);
+
+  // ─── Computed: pages & metadata ──────────────────────────────────────────
+  const pages = useMemo(() => {
+    if (!dashboard) return [];
+    const charts = dashboard.dashboard_charts;
     const hasPages = charts.some(c => c.page_name && c.page_name !== 'Ringkasan Umum');
-    const configPages = dash.config?.pages;
+    const configPages = dashboard.config?.pages;
 
     if (hasPages || (configPages && configPages.length > 1)) {
       const pageMap = new Map<string, ChartData[]>();
@@ -353,969 +295,297 @@ export function CustomDashboardContent() {
         if (!pageMap.has(pageName)) pageMap.set(pageName, []);
         pageMap.get(pageName)!.push(chart);
       }
-      const pagesArr = Array.from(pageMap.entries()).filter(([, t]) => t.length > 0);
-      const target = pagesArr[pageIdx];
-      return target ? target[1] : charts;
-    }
-    return charts;
-  }, []);
-
-  // Initial load — only fetch ACTIVE PAGE charts (avoids >30 batch limit)
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const dash = await fetchDashboard();
-      if (dash) {
-        dashboardRef.current = dash;
-      }
-      setLoading(false);
-    };
-    load();
-  }, [slug, fetchDashboard]);
-
-  // Re-fetch data when page changes or filters change — only fetch active page
-  useEffect(() => {
-    if (dashboardRef.current?.dashboard_charts) {
-      const pageCharts = getPageCharts(dashboardRef.current, activePage);
-      fetchChartData(pageCharts);
-    }
-  }, [activePage, activeFilters, dateFrom, dateTo, fetchChartData]);
-
-  // ─── Computed: pages ──────────────────────────────────────────────────────
-  const pages = useMemo(() => {
-    if (!dashboard) return [];
-    const charts = dashboard.dashboard_charts;
-
-    // Check if charts have page_name
-    const hasPages = charts.some(c => c.page_name && c.page_name !== 'Ringkasan Umum');
-    const configPages = dashboard.config?.pages;
-
-    if (hasPages || (configPages && configPages.length > 1)) {
-      // Group by page_name
-      const pageMap = new Map<string, ChartData[]>();
-      const pageOrder = configPages || [];
-
-      // First, init with config page order
-      for (const pn of pageOrder) {
-        pageMap.set(pn, []);
-      }
-
-      for (const chart of charts) {
-        const pageName = chart.page_name || 'Ringkasan Umum';
-        if (!pageMap.has(pageName)) pageMap.set(pageName, []);
-        pageMap.get(pageName)!.push(chart);
-      }
-
-      const result = Array.from(pageMap.entries())
+      return Array.from(pageMap.entries())
         .filter(([, tiles]) => tiles.length > 0)
-        .map(([name, tiles]) => {
-          const sortedTiles = tiles.sort((a, b) => a.position - b.position);
-          
-          // Inject standard KPIs for CGO Detail if missing
-          if (name.toLowerCase().includes('cgo detail') && !sortedTiles.some(t => (t.visualization_config?.chartType === 'kpi' || t.chart_type === 'kpi'))) {
-            const injectedKpis = [
-              { id: 'injected-kpi-total', title: 'Total Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -4, page_name: name, width: '3', data_field: 'customer_feedback' },
-              { id: 'injected-kpi-branch', title: 'Branch', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'branch', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -3, page_name: name, width: '3', data_field: 'customer_feedback' },
-              { id: 'injected-kpi-airline', title: 'Airlines', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'airline', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -2, page_name: name, width: '3', data_field: 'customer_feedback' },
-              { id: 'injected-kpi-compliment', title: 'Compliment Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'main_category', operator: 'eq', value: 'Compliment' }, { table: 'reports', field: 'source_sheet', operator: 'eq', value: 'CGO' }] }, position: -1, page_name: name, width: '3', data_field: 'customer_feedback' },
-            ] as ChartData[];
-            return { name, tiles: [...injectedKpis, ...sortedTiles] };
-          }
-
-          return {
-            name,
-            tiles: sortedTiles,
-          };
-        });
-      return result;
+        .map(([name, tiles]) => ({
+          name,
+          tiles: tiles.sort((a, b) => a.position - b.position),
+        }));
     }
-
-    // Single page fallback
-    return [{
-      name: 'Ringkasan Umum',
-      tiles: [...charts].sort((a, b) => a.position - b.position),
-    }];
+    return [{ name: 'Ringkasan Umum', tiles: [...charts].sort((a, b) => a.position - b.position) }];
   }, [dashboard]);
 
-  // Auto-refresh: pause when tab is hidden, only refresh active page charts, 5min interval
+  const isCustomerFeedbackDashboard = useMemo(() => {
+    return dashboard?.name?.toLowerCase().includes('customer feedback') || slug?.includes('customer-feedback');
+  }, [dashboard?.name, slug]);
+
+  const useCustomerFeedbackOverviewLayout = isCustomerFeedbackDashboard && [0, 1, 2, 3, 4].includes(activePage);
+
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (document.hidden) return;
-      if (!dashboardRef.current?.dashboard_charts) return;
-      const currentPageCharts = pages[activePage]?.tiles || dashboardRef.current.dashboard_charts;
-      await fetchChartData(currentPageCharts);
-    }, 300000);
-    return () => clearInterval(interval);
-  }, [fetchChartData, pages, activePage]);
+    fetchDashboard();
+  }, [fetchDashboard]);
 
-  // ─── Computed stats ─────────────────────────────────────────────────────────
-  const kpiTiles = useMemo(() => {
-    if (pages.length === 0) return [];
-    const currentPage = pages[activePage] || pages[0];
-    
-    // 1. Check for existing KPI tiles in the config
-    const existingKpis = currentPage.tiles.filter(c => (c.visualization_config?.chartType === 'kpi' || c.chart_type === 'kpi'));
-    if (existingKpis.length > 0) return existingKpis;
-
-    // 2. Runtime Injection for CGO Detail (if missing from DB)
-    if (currentPage.name.toLowerCase().includes('cgo detail')) {
-       return [
-         { id: 'injected-kpi-total', title: 'Total Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
-         { id: 'injected-kpi-branch', title: 'Branch', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'branch', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
-         { id: 'injected-kpi-airline', title: 'Airlines', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'airline', function: 'COUNT_DISTINCT', alias: 'total' }], filters: [{ table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
-         { id: 'injected-kpi-compliment', title: 'Compliment Report', chart_type: 'kpi', visualization_config: { chartType: 'kpi' }, query_config: { source: 'reports', measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'total' }], filters: [{ table: 'reports', field: 'main_category', operator: 'eq', value: 'Compliment' }, { table: 'reports', field: 'cgo', operator: 'eq', value: '1' }] } },
-       ] as unknown as ChartData[];
-    }
-
-    return [];
-  }, [pages, activePage]);
-
-  const contentTiles = useMemo(() => {
-    if (pages.length === 0) return [];
-    const currentPage = pages[activePage] || pages[0];
-    return currentPage.tiles.filter(c => (c.visualization_config?.chartType !== 'kpi' && c.chart_type !== 'kpi'));
-  }, [pages, activePage]);
-
-  const totalReport = useMemo(() => {
-    let total = 0;
-    chartsData.forEach((cr) => {
-      if (cr.type === 'query' && cr.queryResult) {
-        (cr.queryResult.rows as Record<string, unknown>[]).forEach(row => {
-          Object.values(row).forEach(v => {
-            if (typeof v === 'number' && Number.isFinite(v) && v > total) {
-              total = v;
-            } else if (typeof v === 'string') {
-              const n = Number(v);
-              if (!isNaN(n) && Number.isFinite(n) && n > total) total = n;
-            }
-          });
-        });
+  useEffect(() => {
+    if (dashboard?.dashboard_charts && filtersInitialized) {
+      const currentPage = pages[activePage];
+      let chartsToFetch = currentPage ? [...currentPage.tiles] : [...dashboard.dashboard_charts];
+      
+      if (isCustomerFeedbackDashboard && [0, 1, 2, 3, 4].includes(activePage)) {
+        // Map KPI sources: Page 1 gets from Page 2, Page 4 gets from Page 5, others check themselves or neighboring detail pages
+        const kpiSourcePageIndex = activePage === 0 ? 1 : 
+                                  activePage === 3 ? 4 : 
+                                  activePage;
+        const kpiSourcePage = pages[kpiSourcePageIndex];
+        if (kpiSourcePage) {
+          const extraKpis = kpiSourcePage.tiles.filter(t => t.visualization_config?.chartType === 'kpi' || t.chart_type === 'kpi');
+          chartsToFetch = [...chartsToFetch, ...extraKpis];
+        }
       }
-      if (cr.type === 'legacy' && cr.stats && cr.stats.totalCount > total) total = cr.stats.totalCount;
-    });
-    return total;
-  }, [chartsData]);
-
-  const formatDateRange = () => {
-    if (dateFrom && dateTo) {
-      const from = new Date(dateFrom);
-      const to = new Date(dateTo);
-      return `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      fetchChartDataRef.current(chartsToFetch);
     }
-    return 'Select date range';
-  };
+  }, [dashboard, activePage, activeFilters, dateFrom, dateTo, filtersInitialized, isCustomerFeedbackDashboard, pages]);
 
-  const activeFilterCount = Object.values(activeFilters).filter(v => v).length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+  const investigativeResult = useMemo(() => {
+    if (!useCustomerFeedbackOverviewLayout || ![1, 4].includes(activePage)) return undefined;
+    if (allReports.length === 0) return { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 };
 
-  // Complexity: Time O(pages * tiles) | Space O(export_payload)
+    const query: QueryDefinition = {
+      source: 'reports',
+      dimensions: [
+        { table: 'reports', field: 'date_of_event', alias: 'Date' },
+        { table: 'reports', field: 'main_category', alias: 'Category' },
+        { table: 'reports', field: 'branch', alias: 'Branch' },
+        { table: 'reports', field: 'airlines', alias: 'Airlines' },
+        { table: 'reports', field: 'flight_number', alias: 'Flight' },
+        { table: 'reports', field: 'report', alias: 'Report' },
+        { table: 'reports', field: 'root_caused', alias: 'Root Caused' },
+        { table: 'reports', field: 'action_taken', alias: 'Action Taken' },
+        { table: 'reports', field: 'preventive_action', alias: 'Preventive Action' },
+        { table: 'reports', field: 'status', alias: 'Status' },
+        { table: 'reports', field: 'evidence_url', alias: 'Evidence Link' }
+      ],
+      measures: [],
+      filters: [],
+      joins: [],
+      sorts: [{ field: 'created_at', direction: 'desc' }],
+      limit: 1000
+    };
+    
+    try {
+      return processQuery(applyFiltersToQuery(query), allReports);
+    } catch (err) {
+      console.error('Investigative query failed:', err);
+      return { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 };
+    }
+  }, [allReports, activePage, useCustomerFeedbackOverviewLayout, applyFiltersToQuery]);
+
+  // ─── Computed tiles ───────────────────────────────────────────────────────
+  const currentPage = pages[activePage] || pages[0];
+  const kpiTiles = useMemo(() => currentPage?.tiles.filter(c => (c.visualization_config?.chartType === 'kpi' || c.chart_type === 'kpi')) || [], [currentPage]);
+  const contentTiles = useMemo(() => currentPage?.tiles.filter(c => (c.visualization_config?.chartType !== 'kpi' && c.chart_type !== 'kpi')) || [], [currentPage]);
+
   const handleExport = useCallback(async (format: 'xlsx' | 'pptx') => {
     if (!dashboard) return;
     setExportingFormat(format);
     setShowExportMenu(false);
     try {
-      // Pre-fetch ALL pages' chart data (unvisited pages may lack data)
       const allCharts = pages.flatMap(p => p.tiles);
       const missingCharts = allCharts.filter(t => !chartsData.has(t.id));
-
-      // Build complete chart data map: current state + newly fetched
       let completeChartsData = chartsData;
       if (missingCharts.length > 0) {
         const freshData = await fetchChartData(missingCharts);
         completeChartsData = new Map(chartsData);
         freshData.forEach((v, k) => completeChartsData.set(k, v));
       }
-
-      const exportPages = pages.map(p => ({
-        name: p.name,
-        tiles: p.tiles.map(t => ({
-          id: t.id,
-          title: t.title,
-          chartType: t.visualization_config?.chartType || t.chart_type || 'bar',
-          yAxis: t.visualization_config?.yAxis,
-        })),
-      }));
       const payload = {
         dashboardName: dashboard.name,
         subtitle: dashboard.description || dashboard.config?.subtitle,
         dashboardId: dashboard.id,
-        baseUrl: typeof window !== 'undefined' ? window.location.origin : '',
-        pages: exportPages,
+        baseUrl: window.location.origin,
+        pages: pages.map(p => ({
+          name: p.name,
+          tiles: p.tiles.map(t => ({ id: t.id, title: t.title, chartType: t.visualization_config?.chartType || t.chart_type || 'bar', yAxis: t.visualization_config?.yAxis })),
+        })),
         chartsData: completeChartsData,
       };
       if (format === 'xlsx') await exportToXlsx(payload);
       else await exportToPptx(payload);
-    } catch (err) {
-      console.error(`[Dashboard] Export ${format} error:`, err);
-      alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setExportingFormat(null);
-    }
+    } catch (err) { console.error('Export error:', err); }
+    finally { setExportingFormat(null); }
   }, [dashboard, pages, chartsData, fetchChartData]);
+
+  const getChartSlug = (chartTitle: string) => {
+    const title = chartTitle.toLowerCase();
+    if (title.includes('report by case category')) return 'report-by-case-category';
+    if (title.includes('branch report')) return 'branch-report';
+    if (title.includes('airlines report') || title.includes('airline report')) return 'airline-report';
+    if (title.includes('monthly report') || title.includes('monthly') || title.includes('bulanan')) return 'monthly-report';
+    if (title.includes('category by area')) return 'category-by-area';
+    if (title.includes('case category by branch')) return 'case-category-by-branch';
+    if (title.includes('case category by airline') || title.includes('case category by airlines')) return 'case-category-by-airline';
+    if (title.includes('case report by area') || title.includes('report by area')) return 'area-report';
+    if (title.includes('terminal area category')) return 'terminal-area-category';
+    if (title.includes('apron area category')) return 'apron-area-category';
+    if (title.includes('general category')) return 'general-category';
+    if (title.includes('hub report')) return 'branch-report';
+    if (title.includes('terminal area by branch')) return 'terminal-area-category';
+    if (title.includes('apron area by branch')) return 'apron-area-category';
+    if (title.includes('general category by branch')) return 'general-category';
+    if (title.includes('terminal area by airline') || title.includes('terminal area by airlines')) return 'terminal-area-category';
+    if (title.includes('apron area by airline') || title.includes('apron area by airlines')) return 'apron-area-category';
+    if (title.includes('general category by airline') || title.includes('general category by airlines')) return 'general-category';
+    return 'pivot-report';
+  };
+
+  const getDetailParams = useCallback(() => {
+    const params = new URLSearchParams();
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      if (val && val !== 'all') params.set(key, val);
+    });
+    
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+    
+    if (activePage > 0) {
+      params.set('pageIndex', activePage.toString());
+    }
+    
+    if ([3, 4].includes(activePage)) {
+      params.set('sourceSheet', 'CGO');
+    }
+
+    params.set('sourcePage', slug);
+    return params;
+  }, [activeFilters, activePage, slug, dateFrom, dateTo]);
+
+  const openCustomerFeedbackDetail = useCallback((chart: ChartData) => {
+    const slug = getChartSlug(chart.title);
+    const params = getDetailParams();
+    const queryString = params.toString();
+    router.push(`/embed/${slug}/detail${queryString ? `?${queryString}` : ''}`);
+  }, [router, getDetailParams]);
+
+  const onCopyLink = useCallback((chart: ChartData) => {
+    const slug = getChartSlug(chart.title);
+    const params = getDetailParams();
+    params.set('viewMode', 'static');
+    const queryString = params.toString();
+    const url = `${window.location.origin}/embed/${slug}/detail?${queryString}`;
+    
+    navigator.clipboard.writeText(url).then(() => {
+      // Small visual feedback with native alert if toast is missing
+      alert('Chart link copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy link:', err);
+    });
+  }, [getDetailParams]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" /></div>;
+  if (error || !dashboard) return <div className="min-h-screen flex items-center justify-center text-red-500">{error || 'Dashboard not found'}</div>;
+
   const hasMultiplePages = pages.length > 1;
 
-  const handleTableViewDetail = useCallback((chart: ChartData, result: QueryResult) => {
-    const displayTitle = chart.title;
-    
-    const baseViz: ChartVisualization = chart.visualization_config || {
-      chartType: (chart.chart_type as ChartType) || 'bar',
-      yAxis: result.columns.slice(1),
-      xAxis: result.columns[0],
-      showLegend: true,
-      showLabels: true,
-    };
-    const viz = greenify(baseViz);
-
-    const detailData = {
-      tile: {
-        id: chart.id,
-        visualization: { ...viz, title: displayTitle },
-        query: chart.query_config || {
-          source: 'reports',
-          joins: [],
-          dimensions: [],
-          measures: [],
-          filters: [],
-          sorts: [],
-          limit: 1000
-        },
-        layout: chart.layout || { x: 0, y: 0, w: 6, h: 3 }
-      },
-      result: result,
-      dashboardId: 'embed-dashboard',
-      timestamp: Date.now()
-    };
-    
-    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
-    
-    const params = new URLSearchParams();
-    params.set('dashboardId', 'embed-dashboard');
-    params.set('tileId', chart.id);
-    
-    router.push(`/dashboard/chart-detail?${params.toString()}`);
-  }, [activePage, pages, router]);
-
-  // ─── Loading / Error ────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        {/* Sidebar skeleton */}
-        <div style={{ width: 240, background: '#fff', borderRight: '1px solid #e0e0e0', padding: 16, flexShrink: 0 }}>
-          <div style={{ width: 80, height: 40, background: '#f0f0f0', borderRadius: 6, marginBottom: 20 }} className="animate-pulse" />
-          {[1,2,3,4].map(i => (
-            <div key={i} style={{ width: '100%', height: 32, background: '#f5f5f5', borderRadius: 6, marginBottom: 6 }} className="animate-pulse" />
-          ))}
-        </div>
-        {/* Main content skeleton */}
-        <div style={{ flex: 1, background: '#f5f5f5' }}>
-          {/* Header skeleton */}
-          <div style={{ background: '#fff', padding: '16px 24px', borderBottom: '1px solid #e0e0e0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-              <div style={{ width: 60, height: 40, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />
-              <div style={{ width: 200, height: 24, background: '#f0f0f0', borderRadius: 6 }} className="animate-pulse" />
-            </div>
-            <div style={{ width: '100%', height: 36, background: '#e8ede4', borderRadius: 4 }} className="animate-pulse" />
-            {/* KPI skeletons */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
-              {[1,2,3,4].map(i => (
-                <div key={i} style={{ textAlign: 'center' }}>
-                  <div style={{ width: 60, height: 12, background: '#f0f0f0', borderRadius: 4, margin: '0 auto 8px' }} className="animate-pulse" />
-                  <div style={{ width: 80, height: 28, background: '#f0f0f0', borderRadius: 4, margin: '0 auto' }} className="animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Chart tile skeletons */}
-          <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="w-32 h-4 bg-gray-100 rounded animate-pulse" />
-                  </div>
-                  <div className="p-4 h-[200px]">
-                    <div className="w-full h-full bg-gray-50 rounded-md animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !dashboard) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center p-6">
-        <AlertCircle size={48} className="text-gray-300 mb-4" />
-        <h3 className="text-lg font-bold text-gray-700">Dashboard tidak ditemukan</h3>
-        <p className="text-xs text-gray-400 mt-1">{slug}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-6 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
-        >
-          Muat Ulang
-        </button>
-      </div>
-    );
-  }
-
-
-
   return (
-    <div className="flex min-h-screen font-sans bg-gray-50 text-gray-900">
-      {/* ── SIDEBAR (only if multi-page) ── */}
-      {/* ── SIDEBAR (Responsive) ── */}
+    <div className="flex min-h-screen bg-surface-0 overflow-hidden selection:bg-brand-primary/10">
       {hasMultiplePages && (
-        <>
-          {/* Mobile Overlay */}
-          <div 
-            className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 md:hidden ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-            onClick={() => setMobileMenuOpen(false)}
-          />
-
-          <div
-            className={`
-              fixed inset-y-0 left-0 z-50 bg-white/95 backdrop-blur-xl border-r border-gray-200/60 flex flex-col
-              transform transition-all duration-300 ease-in-out shadow-xl md:shadow-none
-              md:translate-x-0 md:h-screen md:sticky md:top-0
-              ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-              ${sidebarCollapsed ? 'md:w-[60px]' : 'md:w-64'}
-              w-64
-            `}
-          >
-            {/* Sidebar Header */}
-            <div className={`
-              flex items-center gap-2 border-b border-gray-100
-              ${sidebarCollapsed ? 'p-3 justify-center' : 'p-4'}
-            `}>
-              {(!sidebarCollapsed || mobileMenuOpen) && (
-                <div className="relative h-8 w-8 shrink-0">
-                  <Image src="/logo.png" alt="Gapura" fill style={{ objectFit: 'contain' }} />
-                </div>
-              )}
-              {(!sidebarCollapsed || mobileMenuOpen) && (
-                <span className="font-bold text-gray-800 text-sm tracking-tight whitespace-nowrap overflow-hidden">
-                  Gapura IRRS
-                </span>
-              )}
-              <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="hidden md:flex ml-auto text-gray-400 hover:text-gray-600 p-1"
-              >
-                {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-              </button>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="md:hidden ml-auto text-gray-400 hover:text-gray-600 p-1"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            </div>
-
-            {/* Page Navigation */}
-            <div className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : 'p-3'}`}>
-              {(!sidebarCollapsed || mobileMenuOpen) && (
-                <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Halaman
-                </div>
-              )}
-              <div className="space-y-1">
-                {pages.map((page, idx) => {
-                  const isActive = activePage === idx;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setActivePage(idx);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`
-                        w-full flex items-center gap-3 rounded-xl text-left transition-all duration-300 group relative overflow-hidden
-                        ${sidebarCollapsed ? 'p-2 justify-center' : 'px-3.5 py-3'}
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#6b8e3d] to-[#7cb342] text-white shadow-lg shadow-[#6b8e3d]/25 ring-1 ring-[#6b8e3d]/20' 
-                          : 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900'
-                        }
-                      `}
-                      title={page.name}
-                    >
-                      <span className={`
-                        flex items-center justify-center w-6 h-6 rounded-lg text-[10px] font-bold shrink-0 transition-colors
-                        ${isActive ? 'bg-white/20 text-white backdrop-blur-sm' : 'bg-gray-100 text-gray-400 group-hover:bg-white group-hover:shadow-sm'}
-                      `}>
-                        {idx + 1}
-                      </span>
-                      {(!sidebarCollapsed || mobileMenuOpen) && (
-                        <span className="text-sm font-medium truncate">{page.name}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Active Filters Summary in Sidebar */}
-            {(!sidebarCollapsed || mobileMenuOpen) && activeFilterCount > 0 && (
-              <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
-                  Filter Aktif ({activeFilterCount})
-                </div>
-                <button
-                  onClick={() => { setActiveFilters({}); setDateFrom(''); setDateTo(''); }}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
-                >
-                  <X size={12} /> Reset Filter
-                </button>
-              </div>
-            )}
+        <aside className={cn("fixed inset-y-0 left-0 z-50 glass-morphism border-none flex flex-col transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-spatial-lg h-screen md:top-0", mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0", sidebarCollapsed ? "md:w-[80px]" : "md:w-72", "w-72")}>
+          <div className="p-6 flex items-center justify-between border-b border-gray-100/50">
+            {!sidebarCollapsed && <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-brand-primary/10 flex items-center justify-center"><Box className="w-4 h-4 text-brand-primary" /></div><span className="text-sm font-black text-gray-800 tracking-tight uppercase">Dashboard</span></div>}
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 rounded-xl text-gray-400 hover:text-brand-primary hover:bg-brand-primary/5 transition-all"><LayoutGrid size={18} /></button>
           </div>
-        </>
+          <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
+            {pages.map((p, i) => (
+              <button key={i} onClick={() => { setActivePage(i); setMobileMenuOpen(false); }} className={cn("w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-500 group relative", activePage === i ? "bg-brand-primary text-white shadow-spatial-sm" : "text-gray-500 hover:bg-brand-primary/5 hover:text-brand-primary")}>
+                <div className={cn("w-1.5 h-1.5 rounded-full transition-all duration-500", activePage === i ? "bg-white scale-100" : "bg-brand-primary scale-0 group-hover:scale-100")} />
+                {!sidebarCollapsed && <span className="text-[13px] font-bold tracking-wide whitespace-nowrap overflow-hidden">{p.name}</span>}
+              </button>
+            ))}
+          </nav>
+        </aside>
       )}
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 min-w-0 bg-gray-50 flex flex-col overflow-x-hidden">
-        {/* ── HEADER ── */}
-        <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-40 shadow-sm md:shadow-none supports-[backdrop-filter]:bg-white/60">
-          <div className="px-4 py-4 md:px-6">
-            {/* Logo + Title + Date */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                {/* Mobile Toggle */}
-                {hasMultiplePages && (
-                  <button 
-                    onClick={() => setMobileMenuOpen(true)}
-                    className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Menu size={24} />
-                  </button>
-                )}
-                
-                {!hasMultiplePages && (
-                  <div className="relative h-12 w-12 shrink-0">
-                    <Image src="/logo.png" alt="Gapura Airport Services" fill style={{ objectFit: 'contain' }} />
-                  </div>
-                )}
-                
-                <div className="min-w-0">
-                  <h1 className="text-lg md:text-2xl font-bold text-gray-800 leading-tight break-words">
-                    {(() => {
-                      const pName = pages[activePage]?.name || '';
-                      const cfFrom = dateFrom || dashboard?.config?.dateFrom;
-                      const cfTo = dateTo || dashboard?.config?.dateTo;
-                      let yr = '';
-                      if (cfFrom && cfTo) {
-                        const fy = new Date(cfFrom).getFullYear();
-                        const ty = new Date(cfTo).getFullYear();
-                        if (!isNaN(fy) && !isNaN(ty)) {
-                          yr = fy === ty ? `${fy}` : `${fy} - ${ty}`;
-                        }
-                      }
-                      
-                      const yearSuffix = yr ? ` ${yr}` : '';
-                      
-                      // Priority 1: Dashboard name from DB
-                      if (dashboard?.name && !dashboard.name.toLowerCase().includes('untitled')) {
-                        // If yr is already in the name, don't append it again
-                        if (yr && dashboard.name.includes(yr)) return <span className="tracking-tight">{dashboard.name}</span>;
-                        return <span className="tracking-tight">{dashboard.name}{yearSuffix}</span>;
-                      }
-
-                      // Priority 2: Page name context
-                      if (pName.toLowerCase().includes('cgo')) return `CGO Cargo Customer Feedback${yearSuffix}`;
-                      
-                      // Fallback: Template name
-                      return `Landside & Airside Customer Feedback${yearSuffix}`;
-                    })()}
-                  </h1>
-                  {hasMultiplePages && pages[activePage] && (
-                    <span className="text-sm text-gray-500 font-medium block mt-1 break-words">{pages[activePage].name}</span>
-                  )}
-                </div>
+      <main className={cn("flex-1 min-w-0 bg-surface-0 flex flex-col overflow-x-hidden relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]", hasMultiplePages ? (sidebarCollapsed ? "md:ml-[80px]" : "md:ml-72") : "")}>
+        <header className="glass-morphism border-none sticky top-0 z-40 w-full !p-0 shadow-spatial-md rounded-none">
+          <div className="px-8 py-3.5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-brand-primary/10 rounded-2xl shadow-inner"><Image src="/logo.png" alt="Logo" width={32} height={32} unoptimized style={{ height: 32, objectFit: 'contain' }} /></div>
+                <div className="flex flex-col"><h1 className="text-2xl font-black text-gray-800 tracking-tight uppercase leading-none mb-1">{dashboard.name}</h1><p className="text-[11px] font-bold text-gray-400 tracking-[0.2em] uppercase opacity-80">{dashboard.description || dashboard.config?.subtitle || 'Executive Intelligence Portal'}</p></div>
               </div>
-              
-              <div className="flex items-center gap-2 self-end md:self-auto">
-                {/* Export dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowExportMenu(!showExportMenu)}
-                    disabled={exportingFormat !== null}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-all shadow-sm active:scale-95"
-                  >
-                    {exportingFormat ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                    <span className="hidden sm:inline">{exportingFormat ? 'Exporting...' : 'Export'}</span>
-                    <ChevronDownIcon size={14} className="text-gray-400" />
-                  </button>
-                  {showExportMenu && (
-                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl z-[100] min-w-[220px] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                      <button 
-                        onClick={() => handleExport('xlsx')} 
-                        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-green-50 text-gray-700 transition-colors border-b border-gray-50"
-                      >
-                        <FileSpreadsheet size={16} className="text-green-600" />
-                        <span className="text-sm font-medium">Export ke Excel (.xlsx)</span>
-                      </button>
-                      <button 
-                        onClick={() => handleExport('pptx')} 
-                        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-orange-50 text-gray-700 transition-colors"
-                      >
-                        <Presentation size={16} className="text-orange-600" />
-                        <span className="text-sm font-medium">Export ke PowerPoint (.pptx)</span>
-                      </button>
+              <div className="flex items-center gap-2.5">
+                <div className="relative group">
+                  <button onClick={() => setShowDatePicker(!showDatePicker)} className="flex items-center gap-3 bg-white border border-gray-100 px-5 py-2.5 rounded-2xl text-[13px] font-bold text-gray-600 hover:border-brand-primary/30 hover:shadow-spatial-sm transition-all shadow-sm"><Calendar size={16} className="text-brand-primary" />{dateFrom && dateTo ? `${new Date(dateFrom).toLocaleDateString()} - ${new Date(dateTo).toLocaleDateString()}` : 'Select Period'}<ChevronDownIcon size={14} className="text-gray-300" /></button>
+                  {showDatePicker && (
+                    <div className="absolute right-0 mt-3 p-6 bg-white rounded-3xl shadow-spatial-xl border border-gray-100 z-50 min-w-[320px] animate-prism-reveal">
+                      <div className="grid gap-5">
+                        <div className="grid gap-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Start Date</label><input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" /></div>
+                        <div className="grid gap-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">End Date</label><input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" /></div>
+                        <div className="flex gap-2 pt-2"><button onClick={() => setShowDatePicker(false)} className="flex-1 py-3 bg-brand-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-brand-primary/90 transition-all shadow-spatial-sm">Apply Analysis</button><button onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }} className="px-4 py-3 bg-gray-100 text-gray-500 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button></div>
+                      </div>
                     </div>
                   )}
                 </div>
-                
-                {/* Date range */}
-                {!dashboard.config?.hideControls && (
-                  <div className="relative">
-                    <button 
-                      onClick={() => setShowDatePicker(!showDatePicker)} 
-                      className="flex items-center gap-2 px-3 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium hover:bg-[#5a7a3a] transition-all shadow-sm active:scale-95 border border-transparent"
-                    >
-                      <span className="truncate max-w-[120px] sm:max-w-xs">{formatDateRange()}</span>
-                      <ChevronDownIcon size={14} className="text-white/80" />
-                    </button>
-                    {showDatePicker && (
-                      <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-4 shadow-2xl z-[100] min-w-[280px] flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">From</label>
-                          <input 
-                            type="date" 
-                            value={dateFrom} 
-                            onChange={e => setDateFrom(e.target.value)} 
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">To</label>
-                          <input 
-                            type="date" 
-                            value={dateTo} 
-                            onChange={e => setDateTo(e.target.value)} 
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
-                          />
-                        </div>
-                        <button 
-                          onClick={() => setShowDatePicker(false)} 
-                          className="mt-1 w-full py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-bold hover:bg-[#5a7a3a] transition-colors"
-                        >
-                          Apply Filters
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="relative">
+                  <button onClick={() => setShowExportMenu(!showExportMenu)} disabled={exportingFormat !== null} className="flex items-center gap-2.5 bg-brand-primary text-white px-6 py-2.5 rounded-2xl text-[13px] font-black tracking-widest uppercase hover:bg-brand-primary/90 shadow-spatial-sm disabled:opacity-50 transition-all">{exportingFormat ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}<span className="hidden sm:inline">Dispatch</span></button>
+                  {showExportMenu && (
+                    <div className="absolute right-0 mt-3 p-2 bg-white rounded-2xl shadow-spatial-xl border border-gray-100 z-50 min-w-[200px] animate-prism-reveal">
+                      <button onClick={() => handleExport('xlsx')} className="w-full flex items-center gap-3 px-4 py-3 text-left text-[12px] font-bold text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"><FileSpreadsheet size={16} /> Excel Spreadsheet</button>
+                      <button onClick={() => handleExport('pptx')} className="w-full flex items-center gap-3 px-4 py-3 text-left text-[12px] font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-600 rounded-xl transition-all"><Presentation size={16} /> Presentation Deck</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            {!dashboard.config?.hideControls && <div className="mt-8 border-t border-gray-100/50 pt-5"><DynamicFilterHeader onFilterChange={setActiveFilters} initialFilters={activeFilters} variant="default" /></div>}
+          </div>
+        </header>
 
-            {/* Banner with Interactive Filters */}
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl p-4 md:p-5 flex flex-col gap-4 shadow-sm border border-gray-200/60 relative z-10">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                  Analytic Filters
-                </span>
-                 {(dateFrom || dateTo) && (
-                    <button
-                      onClick={() => { setDateFrom(''); setDateTo(''); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-600 text-[11px] font-bold uppercase tracking-wide border border-red-100 hover:bg-red-100 transition-all active:scale-95 self-start md:self-auto"
-                    >
-                      <X size={12} /> Clear Date
-                    </button>
-                  )}
-              </div>
-              
-              {!dashboard.config?.hideControls && (
-                <div className="w-full relative z-50">
-                  <DynamicFilterHeader 
-                    onFilterChange={setActiveFilters}
-                    initialFilters={activeFilters}
-                    variant="default"
-                  />
+        <section className="px-8 pb-24 space-y-8">
+          {useCustomerFeedbackOverviewLayout ? (
+            <div className="mt-8">
+              <CustomerFeedbackView 
+                chartsData={chartsData} 
+                tiles={currentPage?.tiles || []} 
+                extraKpis={pages[activePage === 0 ? 1 : activePage === 3 ? 4 : activePage]?.tiles.filter(t => t.visualization_config?.chartType === 'kpi' || t.chart_type === 'kpi') || []} 
+                onViewDetail={openCustomerFeedbackDetail}
+                onCopyLink={onCopyLink}
+                forcePivot={activePage === 2}
+                investigativeResult={investigativeResult}
+              />
+            </div>
+          ) : (
+            <div className="mt-8">
+              {kpiTiles.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
+                  {kpiTiles.map(tile => {
+                    const cr = chartsData.get(tile.id);
+                    const value = cr?.type === 'query' && cr.queryResult?.rows[0] ? Number(Object.values(cr.queryResult.rows[0])[0]) || 0 : 0;
+                    return (
+                      <div key={tile.id} onClick={() => openCustomerFeedbackDetail(tile)} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md hover:-translate-y-1 active:scale-[0.98] cursor-pointer group">
+                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 opacity-70 group-hover:opacity-100 transition-opacity">{tile.title}</span>
+                        <span className="text-3xl font-black text-gray-800 tabular-nums tracking-tighter">{value.toLocaleString('id-ID')}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </div>
-
-            {/* KPI Stats Row */}
-            {kpiTiles.length > 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mt-6 relative z-0">
-                {kpiTiles.slice(0, 5).map(tile => {
-                  const cr = chartsData.get(tile.id);
-                  let value: string | number = '-';
-                  if (cr?.type === 'query' && cr.queryResult) {
-                    const row = cr.queryResult.rows[0] as Record<string, unknown> | undefined;
-                    if (row) {
-                      const yKey = tile.visualization_config?.yAxis?.[0] || cr.queryResult.columns[cr.queryResult.columns.length - 1];
-                      value = Number(row[yKey]) || 0;
-                    }
-                  }
-                  return (
-                    <div 
-                      key={tile.id} 
-                      onClick={() => {
-                        if (cr?.type === 'query' && cr.queryResult) {
-                          handleViewDetail(
-                            tile.title,
-                            cr.queryResult.rows as Record<string, unknown>[],
-                            'kpi',
-                            { yAxis: tile.visualization_config?.yAxis },
-                            tile.query_config
-                          );
-                        }
-                      }}
-                      className="relative bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden flex flex-col items-center justify-center text-center min-h-[100px] sm:min-h-[120px] w-full"
-                    >
-                      <div className="absolute top-0 left-0 w-1 h-full bg-[#6b8e3d] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <div className="flex flex-col gap-1 items-center relative z-10 w-full min-w-0">
-                        <div className="text-[8px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full truncate px-1">{tile.title}</div>
-                        <div className="text-xl sm:text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full truncate px-1">
-                          {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {kpiTiles.length === 0 && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-6 relative z-0">
-                {[
-                  { label: 'Total Report', value: totalReport > 0 ? totalReport : '-' },
-                  { label: 'Halamans', value: pages.length },
-                  { label: 'Total Chart', value: dashboard.dashboard_charts.length },
-                  { label: 'Filter Aktif', value: activeFilterCount || '-' }
-                ].map((stat, i) => (
-                  <div key={i} className="relative bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1 items-center justify-center text-center group overflow-hidden w-full min-h-[100px] sm:min-h-[120px]">
-                     <div className="absolute top-0 left-0 w-1 h-full bg-[#6b8e3d] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                     <div className="text-[8px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-full truncate px-1">{stat.label}</div>
-                     <div className="text-xl sm:text-3xl font-extrabold text-gray-800 tracking-tight mt-1 group-hover:text-[#6b8e3d] transition-colors text-center w-full truncate px-1">
-                        {typeof stat.value === 'number' ? stat.value.toLocaleString('id-ID') : stat.value}
-                     </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {contentTiles.map(chart => (
+                  <div key={chart.id} className={chart.width === '3' ? 'md:col-span-1' : chart.width === '6' ? 'md:col-span-2' : chart.width === '12' ? 'md:col-span-4' : 'md:col-span-1'}>
+                    <ChartPreview 
+                      visualization={greenify(chart.visualization_config || { 
+                        chartType: (chart.chart_type as ChartType) || 'bar', 
+                        xAxis: chartsData.get(chart.id)?.queryResult?.columns[0],
+                        yAxis: chartsData.get(chart.id)?.queryResult?.columns.slice(1) || [],
+                        showLegend: true 
+                      })} 
+                      result={chartsData.get(chart.id)?.queryResult || { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 }}
+                      tile={chart as any}
+                    />
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── CONTENT: Chart + Detail Table Groups ── */}
-        <div className="p-4 md:p-6 pb-24">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-min">
-            {contentTiles.map(chart => {
-              const cr = chartsData.get(chart.id);
-              if (!cr) return null;
-              const layout = chart.layout || { w: 6, h: 2 };
-              const isTableType = chart.visualization_config?.chartType === 'table';
-              
-              // Map legacy 12-col grid width to Tailwind classes
-              // Calculate colSpan based on width (w: 12 is full width, usually 12 cols)
-              const colSpan = chart.layout?.w || 6;
-              const isCompact = colSpan < 6;
-              
-              let mdColSpan = 'md:col-span-6';
-              if (colSpan >= 11) mdColSpan = 'md:col-span-12';
-              else if (colSpan >= 7.5) mdColSpan = 'md:col-span-8';
-              else if (colSpan >= 5.5) mdColSpan = 'md:col-span-6';
-              else if (colSpan >= 3.5) mdColSpan = 'md:col-span-4';
-              else if (colSpan >= 2.68) mdColSpan = 'md:col-span-3';
-              else if (colSpan >= 2) mdColSpan = 'md:col-span-2';
-
-              return (
-                <div key={chart.id} className={`${mdColSpan} col-span-12 flex flex-col`}>
-                  {/* HEATMAP (specific handling) */}
-                  {cr.type === 'query' && cr.queryResult && chart.visualization_config?.chartType === 'heatmap' ? (
-                    <HeatmapChart
-                      title={chart.title}
-                      data={cr.queryResult.rows}
-                      xAxis={chart.visualization_config.xAxis || 'category'}
-                      yAxis={chart.visualization_config.yAxis?.length === 1 ? chart.visualization_config.yAxis[0] : (chart.visualization_config.yAxis || ['branch'])}
-                      metric={chart.visualization_config.colorField || (Array.isArray(chart.visualization_config.yAxis) && chart.visualization_config.yAxis[0]) || 'Jumlah'}
-                      showTitle={true}
-                      onViewDetail={() => handleViewDetail(chart.title, cr.queryResult ? cr.queryResult.rows : [], 'heatmap', {
-                        xAxis: chart.visualization_config?.xAxis,
-                        yAxis: chart.visualization_config?.yAxis,
-                        metric: chart.visualization_config?.colorField || (Array.isArray(chart.visualization_config?.yAxis) && chart.visualization_config?.yAxis[0]) || 'Jumlah'
-                      }, chart.query_config)}
-                    />
-                  ) : !isTableType && cr.type === 'query' && cr.queryResult ? (
-                    <ChartCard 
-                      chart={chart} 
-                      result={cr.queryResult} 
-                      isCGODetail={pages[activePage]?.name.toLowerCase().includes('cgo detail')}
-                    />
-                  ) : cr.type === 'legacy' && cr.stats ? (
-                    <LegacyCard chart={chart} stats={cr.stats} />
-                  ) : null}
-
-                  {/* DETAIL TABLE (only for table type charts) */}
-                  {isTableType && cr.type === 'query' && cr.queryResult && cr.queryResult.rows.length > 0 && (
-                     <div className="h-[600px] mb-8">
-                      <InvestigativeTable 
-                        title={chart.title} 
-                        data={cr.queryResult} 
-                        className="h-full shadow-lg border-indigo-100"
-                        onViewDetail={() => handleTableViewDetail(chart, cr.queryResult!)}
-                      />
-                    </div>
-                  )}
-                  {cr.type === 'legacy' && cr.stats && cr.stats.distribution.length > 0 && (
-                    <LegacyDetailTable title={chart.title} stats={cr.stats} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── PAGE NAVIGATION (bottom) ── */}
-        {hasMultiplePages && (
-          <div className="px-6 pb-4 flex items-center justify-center gap-2">
-            <button
-              onClick={() => setActivePage(p => Math.max(0, p - 1))}
-              disabled={activePage === 0}
-              className={`
-                flex items-center gap-1 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 text-xs font-semibold
-                hover:bg-gray-50 active:scale-95 transition-all
-                ${activePage === 0 ? 'opacity-40 cursor-not-allowed' : 'shadow-sm'}
-              `}
-            >
-              <ChevronLeft size={16} /> Sebelumnya
-            </button>
-            <span className="text-xs text-gray-400 px-3 font-medium">
-              Halaman {activePage + 1} / {pages.length}
-            </span>
-            <button
-              onClick={() => setActivePage(p => Math.min(pages.length - 1, p + 1))}
-              disabled={activePage >= pages.length - 1}
-              className={`
-                flex items-center gap-1 px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 text-xs font-semibold
-                hover:bg-gray-50 active:scale-95 transition-all
-                ${activePage >= pages.length - 1 ? 'opacity-40 cursor-not-allowed' : 'shadow-sm'}
-              `}
-            >
-              Selanjutnya <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* ── FOOTER ── */}
-        <div className="sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-gray-200 px-6 py-3 flex flex-wrap items-center justify-between gap-4 text-xs shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Gapura" width={20} height={20} style={{ height: 20, objectFit: 'contain', opacity: 0.6 }} />
-            <span className="text-gray-500 font-semibold tracking-wide">Gapura IRRS</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-gray-400">
-              <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)] animate-pulse" />
-              Live Data
-            </span>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-400">&copy; {new Date().getFullYear()} PT Gapura Angkasa</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Click outside to close dropdowns */}
-      {showExportMenu && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => { setShowExportMenu(false); }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ─── CHART CARD ─────────────────────────────────────────────────────────────
-
-function ChartCard({ chart, result, isCGODetail, compact }: { chart: ChartData; result: QueryResult; isCGODetail?: boolean, compact?: boolean }) {
-  const router = useRouter();
-  const baseViz: ChartVisualization = chart.visualization_config || {
-    chartType: (chart.chart_type as ChartType) || 'bar',
-    yAxis: result.columns.slice(1),
-    xAxis: result.columns[0],
-    showLegend: true,
-    showLabels: true,
-  };
-  const viz = greenify(baseViz);
-  const isTable = viz.chartType === 'table';
-  const displayTitle = chart.title;
-
-  if (isTable) return null;
-
-  const handleViewDetail = () => {
-    // Store data in sessionStorage for the detail page
-    const detailData = {
-      tile: {
-        id: chart.id,
-        visualization: { ...viz, title: displayTitle },
-        query: chart.query_config || {
-          source: 'reports',
-          joins: [],
-          dimensions: [],
-          measures: [],
-          filters: [],
-          sorts: [],
-          limit: 1000
-        },
-        layout: chart.layout || { x: 0, y: 0, w: 6, h: 3 }
-      },
-      result: result,
-      dashboardId: 'embed-dashboard',
-      timestamp: Date.now()
-    };
-    
-    sessionStorage.setItem('chartDetailData', JSON.stringify(detailData));
-    
-    // Navigate to detail page
-    const params = new URLSearchParams();
-    params.set('dashboardId', 'embed-dashboard');
-    params.set('tileId', chart.id);
-    
-    router.push(`/dashboard/chart-detail?${params.toString()}`);
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden h-full">
-      <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100/50">
-        <h3 className="text-sm font-bold text-gray-800 m-0">{displayTitle}</h3>
-        <button
-          onClick={handleViewDetail}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-[#6b8e3d] hover:bg-[#5a7a3a] rounded transition-colors shadow-sm active:scale-95"
-          title="Lihat Detail"
-        >
-          <ExternalLink size={12} />
-          <span>Detail</span>
-        </button>
-      </div>
-      <div className="p-4 flex-1 min-h-0 flex flex-col overflow-hidden bg-white/50 relative">
-        <div className={`w-full overflow-y-auto custom-scrollbar ${compact ? 'h-[280px]' : 'h-[400px]'}`}>
-          <ChartPreview visualization={viz} result={result} isThumbnail={true} compact={compact} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Render evidence URL — handles postgres array format {url1,url2} and plain URLs */
-function renderEvidenceCell(val: unknown): React.ReactNode {
-  if (val === null || val === undefined) return '-';
-  const str = String(val);
-  // Parse postgres text array format: {url1,url2}
-  let urls: string[] = [];
-  if (str.startsWith('{') && str.endsWith('}')) {
-    urls = str.slice(1, -1).split(',').map(u => u.trim()).filter(u => u.startsWith('http'));
-  } else if (str.startsWith('http')) {
-    urls = [str];
-  }
-  if (urls.length === 0) return str || '-';
-  return (
-    <span className="flex flex-col gap-1">
-      {urls.map((url, i) => (
-        <a 
-          key={i} 
-          href={url} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="text-blue-600 hover:text-blue-800 underline text-[11px] transition-colors"
-        >
-          Evidence {urls.length > 1 ? i + 1 : ''}
-        </a>
-      ))}
-    </span>
-  );
-}
-
-// ─── LEGACY CHART CARD ──────────────────────────────────────────────────────
-
-function LegacyCard({ chart, stats }: { chart: ChartData; stats: ChartResult['stats'] & {} }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden h-full">
-      <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100">
-        <h3 className="text-sm font-bold text-gray-800 m-0">{chart.title}</h3>
-        <span className="text-[11px] text-gray-400 font-medium">{stats.totalCount} total</span>
-      </div>
-      <div className="p-4 pb-5">
-        <div className="flex flex-col gap-2">
-          {stats.distribution.slice(0, 10).map((item, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 w-5 text-right shrink-0 font-medium">{idx + 1}.</span>
-              <span className="text-xs text-gray-700 flex-1 truncate">{item.name}</span>
-              <span className="text-xs font-bold text-gray-800 shrink-0">{item.count}</span>
-              <div className="w-20 h-3.5 bg-gray-100 rounded overflow-hidden shrink-0 relative">
-                <div 
-                  className="h-full bg-[#6b8e3d] rounded transition-all duration-500 ease-out" 
-                  style={{ width: `${item.percentage}%` }} 
-                />
-              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          )}
+        </section>
+
+        <footer className="mt-auto bg-white border-t border-gray-100 px-8 py-6 flex flex-wrap items-center justify-between gap-4 text-[11px] font-bold tracking-widest uppercase">
+          <div className="flex items-center gap-3"><Image src="/logo.png" alt="Gapura" width={24} height={24} unoptimized style={{ height: 24, objectFit: 'contain', opacity: 0.5 }} /><span className="text-gray-400">Integrated Intelligence</span></div>
+          <div className="flex items-center gap-6"><span className="flex items-center gap-2 text-gray-400"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />Live Telemetry</span><span className="text-gray-300">|</span><span className="text-gray-400">© {new Date().getFullYear()} PT Gapura Angkasa</span></div>
+        </footer>
+      </main>
+
+      <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden fixed bottom-6 right-6 z-50 w-14 h-14 bg-brand-primary text-white rounded-full shadow-spatial-xl flex items-center justify-center active:scale-90 transition-all"><Menu size={24} /></button>
     </div>
   );
-}
-
-
-
-// ─── LEGACY DETAIL TABLE ────────────────────────────────────────────────────
-
-function LegacyDetailTable({ title, stats }: { title: string; stats: NonNullable<ChartResult['stats']> }) {
-  return (
-    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden shadow-sm">
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b8e3d]">Detail: {title}</span>
-        <span className="text-[11px] text-gray-400 font-medium">{stats.totalCount} total</span>
-      </div>
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full border-collapse text-xs sm:text-[13px]">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap w-12 sticky left-0 z-10">#</th>
-              <th className="px-3 py-2 text-left font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap">Nama</th>
-              <th className="px-3 py-2 text-center font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap">Jumlah</th>
-              <th className="px-3 py-2 text-center font-bold bg-[#5a7a3a] text-white text-[11px] whitespace-nowrap">Persentase</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.distribution.map((item, idx) => (
-              <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="px-3 py-2 text-gray-400 text-[11px] whitespace-nowrap sticky left-0 bg-inherit">{idx + 1}.</td>
-                <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{item.name}</td>
-                <td className="px-3 py-2 text-center font-semibold text-gray-800 text-xs whitespace-nowrap">{item.count.toLocaleString('id-ID')}</td>
-                <td className="px-3 py-2 text-center text-gray-500 text-xs whitespace-nowrap">{item.percentage}%</td>
-              </tr>
-            ))}
-            <tr className="border-t-2 border-[#6b8e3d] bg-[#f0f7e8]">
-              <td className="px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap sticky left-0 bg-[#f0f7e8]">∑</td>
-              <td className="px-3 py-2 font-bold text-[#6b8e3d] whitespace-nowrap">Grand Total</td>
-              <td className="px-3 py-2 text-center font-bold text-[#6b8e3d] whitespace-nowrap">{stats.totalCount.toLocaleString('id-ID')}</td>
-              <td className="px-3 py-2 text-center font-bold text-[#6b8e3d] whitespace-nowrap">100%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ─── HELPERS ────────────────────────────────────────────────────────────────
-
-function formatColumnLabel(col: string): string {
-  return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
-
-function formatCellValue(val: unknown): string {
-  if (val === null || val === undefined) return '-';
-  if (typeof val === 'number') {
-    if (Number.isInteger(val)) return val.toLocaleString('id-ID');
-    return val.toLocaleString('id-ID', { maximumFractionDigits: 2 });
-  }
-  if (typeof val === 'boolean') return val ? 'Ya' : 'Tidak';
-  const str = String(val);
-  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) return new Date(str).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return new Date(str + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  if (str.length > 60) return str.substring(0, 57) + '...';
-  return str;
 }

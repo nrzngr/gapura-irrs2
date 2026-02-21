@@ -42,7 +42,8 @@ const getDateKey = (dateStr: string, granularity?: string) => {
     if (isNaN(d.getTime())) return dateStr;
     
     if (granularity === 'month') {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // 2025-01
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${d.getFullYear()} ${months[d.getMonth()]}`;
     }
     if (granularity === 'year') return d.getFullYear().toString();
     if (granularity === 'day') return d.toISOString().slice(0, 10);

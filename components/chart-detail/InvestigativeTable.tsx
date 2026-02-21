@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, Fragment, useEffect } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -28,6 +28,8 @@ interface InvestigativeTableProps {
   title: string;
   className?: string;
   onViewDetail?: () => void;
+  rowsPerPage?: number;
+  maxRows?: number;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -73,18 +75,19 @@ const parseEvidenceLinks = (val: any): string[] => {
     .filter(s => s.startsWith('http') || s.includes('www.'));
 };
 
-export function InvestigativeTable({ data, title, className = '', onViewDetail }: InvestigativeTableProps) {
-  const [isClient, setIsClient] = useState(false);
+export function InvestigativeTable({
+  data,
+  title,
+  className = '',
+  onViewDetail,
+  rowsPerPage = 10,
+  maxRows = 50,
+}: InvestigativeTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
-
-
-  // Hydration sync
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // ─── 1. COLUMN DEFINITION ───────────────────────────────────────────────────
   const allColumns = data.columns;
@@ -116,13 +119,48 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
       const lower = c.toLowerCase();
       // We want root cause and action taken in primary columns if they exist as separate columns in the source
       // but we filter out purely metadata/id/count
-      return !['id', 'count', 'description', 'detail', 'full_report', 'url'].includes(lower);
+      return !['id', 'count', 'description', 'detail', 'full_report', 'url', 'jumlah', 'total'].includes(lower) && !lower.includes('count');
     });
   }, [allColumns]);
 
+  const prioritizedRows = useMemo(() => {
+    const rows = data.rows as Record<string, unknown>[];
+    if (rows.length === 0) return rows;
+
+    const isNonEmpty = (value: unknown) => {
+      const text = String(value ?? '').trim();
+      return text.length > 0 && text !== '-';
+    };
+
+    const prioritized = rows.filter((row) => {
+      const categoryValue = categoryCol ? String(row[categoryCol] ?? '').toLowerCase() : '';
+      const isCriticalCategory = categoryValue.includes('irregularity') || categoryValue.includes('irreg') || categoryValue.includes('complaint');
+      const hasInvestigativeContext = [rootCauseCol, actionTakenCol, evidenceCol]
+        .filter((col): col is string => Boolean(col))
+        .some((col) => isNonEmpty(row[col]));
+
+      return isCriticalCategory || hasInvestigativeContext;
+    });
+
+    const candidateRows = prioritized.length > 0 ? prioritized : rows;
+    const sortedRows = [...candidateRows];
+
+    if (dateCol) {
+      sortedRows.sort((a, b) => {
+        const dateA = new Date(String(a[dateCol] ?? '')).getTime();
+        const dateB = new Date(String(b[dateCol] ?? '')).getTime();
+        const safeA = Number.isNaN(dateA) ? 0 : dateA;
+        const safeB = Number.isNaN(dateB) ? 0 : dateB;
+        return safeB - safeA;
+      });
+    }
+
+    return sortedRows.slice(0, maxRows);
+  }, [data.rows, categoryCol, reportCol, rootCauseCol, actionTakenCol, evidenceCol, dateCol, maxRows]);
+
   // ─── 2. DATA PROCESSING ─────────────────────────────────────────────────────
   const filteredData = useMemo(() => {
-    let rows = data.rows as Record<string, any>[];
+    let rows = prioritizedRows as Record<string, any>[];
     
     // Search
     if (searchTerm) {
@@ -148,7 +186,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
     }
 
     return rows;
-  }, [data.rows, allColumns, searchTerm, sortCol, sortDir]);
+  }, [prioritizedRows, allColumns, searchTerm, sortCol, sortDir]);
 
   // Statistics for Summary Strip
   const stats = useMemo(() => {
@@ -168,6 +206,13 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
     return { total, complaints, irregularities, compliments };
   }, [filteredData, categoryCol, allColumns]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedData = useMemo(() => {
+    const start = (safeCurrentPage - 1) * rowsPerPage;
+    return filteredData.slice(start, start + rowsPerPage);
+  }, [filteredData, safeCurrentPage, rowsPerPage]);
+  const tableViewportHeight = Math.min(560, Math.max(260, rowsPerPage * 56 + 72));
 
 
   // ─── HANDLERS ───────────────────────────────────────────────────────────────
@@ -178,6 +223,8 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
       setSortCol(col);
       setSortDir('asc');
     }
+    setCurrentPage(1);
+    setExpandedRowId(null);
   };
 
   const toggleRow = (idx: number) => {
@@ -234,7 +281,11 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                 type="text"
                 placeholder="Search..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                  setExpandedRowId(null);
+                }}
                 className="pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full sm:w-48 lg:w-64 transition-all"
               />
             </div>
@@ -264,12 +315,14 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
       </div>
 
       {/* ─── 2. TABLE BODY ────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
+      <div
+        className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative"
+        style={{ maxHeight: `${tableViewportHeight}px` }}
+      >
         <table className="w-full border-collapse table-auto min-w-full">
           <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm shadow-sm">
             <tr>
               <th className="px-3 py-3 text-left w-10 shrink-0" />
-              <th className="px-2 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider w-10 text-center shrink-0">#</th>
               {categoryCol && (
                 <th onClick={() => handleSort(categoryCol)} className="px-3 py-3 text-left text-[11px] font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors group select-none min-w-[120px] max-w-[160px] break-words">
                   <div className="flex items-center gap-1 whitespace-normal">{categoryCol} {sortCol === categoryCol && (sortDir === 'asc' ? '▲' : '▼')}</div>
@@ -307,29 +360,27 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                  </td>
                </tr>
             ) : (
-              filteredData.map((row, idx) => {
-                const isExpanded = expandedRowId === idx;
+              paginatedData.map((row, idx) => {
+                const absoluteIdx = (safeCurrentPage - 1) * rowsPerPage + idx;
+                const isExpanded = expandedRowId === absoluteIdx;
                 const badges = categoryCol ? getCategoryBadgeStyle(String(row[categoryCol])) : 'bg-gray-100 text-gray-600';
                 const Icon = categoryCol ? getCategoryIcon(String(row[categoryCol])) : <FileText size={12} />;
 
                 return (
-                  <Fragment key={idx}>
+                  <Fragment key={absoluteIdx}>
                     <tr 
-                      key={idx} 
-                      onClick={() => toggleRow(idx)}
+                      key={absoluteIdx} 
+                      onClick={() => toggleRow(absoluteIdx)}
                       className={`
                         group transition-all duration-200 cursor-pointer
                         ${isExpanded ? 'bg-indigo-50/30' : 'hover:bg-gray-50'}
                       `}
                     >
-                      {/* Toggle & Number */}
+                      {/* Toggle */}
                       <td className="px-3 py-3 text-center align-top w-10 shrink-0">
                         <button className={`p-1 rounded-full transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'text-gray-300 group-hover:text-gray-500'}`}>
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </button>
-                      </td>
-                      <td className="px-2 py-3 text-center text-xs font-mono text-gray-400 group-hover:text-gray-600 align-top w-10 shrink-0">
-                        {idx + 1}
                       </td>
 
                       {/* Category Badge */}
@@ -406,7 +457,7 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
                     {/* ─── EXPANDED DRAWER ─────────────────────────────────── */}
                     <AnimatePresence>
                       {isExpanded && (
-                        <tr key={`${idx}-expanded`}>
+                        <tr key={`${absoluteIdx}-expanded`}>
                           <td colSpan={100} className="p-0 border-0">
                             <motion.div
                               initial={{ height: 0, opacity: 0 }}
@@ -518,11 +569,47 @@ export function InvestigativeTable({ data, title, className = '', onViewDetail }
         </table>
       </div>
 
-       {/* ─── 3. FOOTER (PAGINATION) ────────────────────────────────────────── */}
-       {/* Use simple scroll for now, or add pagination controls if needed later. 
-           For "Investigative" tables, infinite scroll or "Load More" is often better, 
-           but here we stick to the scrollable container. 
-       */}
+      {/* ─── 3. FOOTER (PAGINATION) ────────────────────────────────────────── */}
+      <div className="px-3 sm:px-6 py-3 border-t border-gray-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="text-xs text-gray-500">
+          {filteredData.length > 0
+            ? `Showing ${(safeCurrentPage - 1) * rowsPerPage + 1}-${Math.min(safeCurrentPage * rowsPerPage, filteredData.length)} of ${filteredData.length} investigative rows (source: ${data.rowCount})`
+            : 'No rows to display'}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(1)}
+            disabled={safeCurrentPage === 1}
+            className="px-2 py-1 text-xs border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            First
+          </button>
+          <button
+            onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+            disabled={safeCurrentPage === 1}
+            className="px-2 py-1 text-xs border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Prev
+          </button>
+          <span className="text-xs font-medium text-gray-600 min-w-[72px] text-center">
+            Page {safeCurrentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+            disabled={safeCurrentPage === totalPages}
+            className="px-2 py-1 text-xs border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Next
+          </button>
+          <button
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={safeCurrentPage === totalPages}
+            className="px-2 py-1 text-xs border border-gray-200 rounded disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Last
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

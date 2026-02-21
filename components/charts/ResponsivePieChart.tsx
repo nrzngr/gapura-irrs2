@@ -7,6 +7,8 @@ import { useViewport } from '@/hooks/useViewport';
 import { adaptToPieChartData } from '@/lib/utils/chartAdapters';
 import { defaultMobileChartOptions, chartColors } from './chartConfig';
 import { cn } from '@/lib/utils';
+const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
+const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
 
 interface ResponsivePieChartProps {
   data: { name: string; value: number }[];
@@ -33,11 +35,30 @@ export function ResponsivePieChart({
 }: ResponsivePieChartProps) {
   const { isMobile, isTablet } = useViewport();
   const useMobileCharts = isMobile || isTablet;
+  const displayData = useMemo(() => {
+    if (!donut) return data;
+    return [...data].sort((a, b) => b.value - a.value);
+  }, [data, donut]);
 
   // Prepare Chart.js data
   const chartJSData = useMemo(() => {
-    return adaptToPieChartData(data);
-  }, [data]);
+    const base = adaptToPieChartData(displayData);
+    if (!donut || !base.datasets?.[0]) return base;
+    const rankedColors = displayData.map((_, index) => {
+      if (index < FIXED_DONUT_RANK_COLORS.length) return FIXED_DONUT_RANK_COLORS[index];
+      return DONUT_FALLBACK_COLORS[(index - FIXED_DONUT_RANK_COLORS.length) % DONUT_FALLBACK_COLORS.length];
+    });
+    return {
+      ...base,
+      datasets: [
+        {
+          ...base.datasets[0],
+          backgroundColor: rankedColors,
+          borderColor: rankedColors,
+        },
+      ],
+    };
+  }, [displayData, donut]);
 
   // Chart.js options
   const chartJSOptions = useMemo(() => {
@@ -79,17 +100,42 @@ export function ResponsivePieChart({
       <RechartsContainer width="100%" height="100%">
         <PieChart>
           <RechartsPie
-            data={data}
+            data={displayData}
             cx="50%"
             cy="50%"
             innerRadius={donut ? customInnerRadius || 60 : 0}
             outerRadius={80}
             paddingAngle={2}
             dataKey="value"
+            labelLine={false}
+            label={donut ? ({ cx, cy, midAngle, outerRadius, value }: any) => {
+              const RADIAN = Math.PI / 180;
+              const radius = Number(outerRadius || 0) + 12;
+              const x = Number(cx || 0) + radius * Math.cos(-Number(midAngle || 0) * RADIAN);
+              const y = Number(cy || 0) + radius * Math.sin(-Number(midAngle || 0) * RADIAN);
+              return (
+                <text
+                  x={x}
+                  y={y}
+                  fill="#374151"
+                  textAnchor={x > Number(cx || 0) ? 'start' : 'end'}
+                  dominantBaseline="central"
+                  fontSize={11}
+                  fontWeight={700}
+                >
+                  {Number(value || 0).toLocaleString('id-ID')}
+                </text>
+              );
+            } : false}
           >
-            {data.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={chartColors.primary[index % chartColors.primary.length]} />
-            ))}
+            {displayData.map((_, index) => {
+              const fill = donut
+                ? (index < FIXED_DONUT_RANK_COLORS.length
+                  ? FIXED_DONUT_RANK_COLORS[index]
+                  : DONUT_FALLBACK_COLORS[(index - FIXED_DONUT_RANK_COLORS.length) % DONUT_FALLBACK_COLORS.length])
+                : chartColors.primary[index % chartColors.primary.length];
+              return <Cell key={`cell-${index}`} fill={fill} />;
+            })}
           </RechartsPie>
           {showLegend && <Legend />}
           <Tooltip />

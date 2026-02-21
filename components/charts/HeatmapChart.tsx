@@ -101,19 +101,9 @@ export function HeatmapChart({
 
 
 
-    // --- PAGINATION LOGIC ---
-    const [currentPage, setCurrentPage] = useState(1);
-    const PAGE_SIZE = 9;
-    const totalPages = Math.ceil(rowKeys.length / PAGE_SIZE);
-    
-    // Ensure current page is valid if data changes
-    if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages);
-
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    const currentRowKeys = rowKeys.slice(startIndex, startIndex + PAGE_SIZE);
-
-    const nextPage = () => setCurrentPage(p => Math.min(totalPages, p + 1));
-    const prevPage = () => setCurrentPage(p => Math.max(1, p - 1));
+    // --- SCROLLING LOGIC (Replacing Pagination) ---
+    // We display all rows but within a scrollable container
+    const currentRowKeys = rowKeys;
 
     return (
         <div style={{
@@ -137,9 +127,9 @@ export function HeatmapChart({
                     flexShrink: 0,
                     borderBottom: '1px solid #f0f0f0'
                 }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#2c3e50' }}>{title}</h3>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Work Sans, system-ui, sans-serif' }}>{title}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                         <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>Report Category / Record Count</span>
+                         <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500, fontFamily: 'Manrope, system-ui, sans-serif' }}>Report Category / Record Count</span>
                         {onViewDetail && (
                             <button
                                 onClick={onViewDetail}
@@ -179,7 +169,8 @@ export function HeatmapChart({
                 </div>
             )}
             
-            <div style={{ flex: 1, overflow: 'auto' }}>
+            {/* Scrollable container strictly limited to 5-6 rows (approx 320px) */}
+            <div style={{ flex: 1, overflow: 'auto', maxHeight: '320px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                         <tr>
@@ -295,54 +286,7 @@ export function HeatmapChart({
                 </table>
             </div>
 
-             {/* Pagination Controls */}
-             {totalPages > 1 && (
-                <div style={{
-                    padding: '10px 16px',
-                    borderTop: '1px solid #eee',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 10,
-                    background: '#fff'
-                }}>
-                    <span style={{ fontSize: 12, color: '#64748b' }}>
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <button 
-                        onClick={prevPage} 
-                        disabled={currentPage === 1}
-                        style={{
-                            padding: '6px 10px',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '6px',
-                            background: currentPage === 1 ? '#f8fafc' : '#fff',
-                            color: currentPage === 1 ? '#cbd5e1' : '#334155',
-                            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                            fontSize: 12,
-                            fontWeight: 500
-                        }}
-                    >
-                        Prev
-                    </button>
-                    <button 
-                        onClick={nextPage} 
-                        disabled={currentPage === totalPages}
-                        style={{
-                            padding: '6px 10px',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '6px',
-                            background: currentPage === totalPages ? '#f8fafc' : '#fff',
-                            color: currentPage === totalPages ? '#cbd5e1' : '#334155',
-                            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                            fontSize: 12,
-                            fontWeight: 500
-                        }}
-                    >
-                        Next
-                    </button>
-                </div>
-            )}
+             {/* Pagination removed in favor of scrolling */}
         </div>
     );
 }

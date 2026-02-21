@@ -28,6 +28,8 @@ const SEVERITY_CONFIG: Record<string, { label: string; color: string }> = {
   'medium': { label: 'Medium', color: '#fbbf24' },
   'high': { label: 'High', color: '#ef4444' }
 };
+const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
+const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   'MENUNGGU_FEEDBACK': { label: 'Menunggu', class: 'pending' },
@@ -66,11 +68,13 @@ export function SeverityDetailContent() {
     return <div className="embed-loading"><div className="embed-spinner" /></div>;
   }
   
-  const severityPieData = Object.entries(data?.summary.bySeverity || {}).map(([name, value]) => ({
-    name: SEVERITY_CONFIG[name]?.label || name,
-    value,
-    color: SEVERITY_CONFIG[name]?.color || '#64748b'
-  }));
+  const severityPieData = Object.entries(data?.summary.bySeverity || {})
+    .map(([name, value]) => ({
+      name: SEVERITY_CONFIG[name]?.label || name,
+      value,
+      color: SEVERITY_CONFIG[name]?.color || '#64748b'
+    }))
+    .sort((a, b) => b.value - a.value);
   
   // Aggregate by category for this severity level
   const catMap = new Map<string, number>();
@@ -134,7 +138,12 @@ export function SeverityDetailContent() {
                   dataKey="value"
                   label={({ name, value }) => `${name}: ${value}`}
                 >
-                  {severityPieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  {severityPieData.map((_, index) => {
+                    const fill = index < FIXED_DONUT_RANK_COLORS.length
+                      ? FIXED_DONUT_RANK_COLORS[index]
+                      : DONUT_FALLBACK_COLORS[(index - FIXED_DONUT_RANK_COLORS.length) % DONUT_FALLBACK_COLORS.length];
+                    return <Cell key={index} fill={fill} />;
+                  })}
                 </Pie>
                 <Tooltip />
               </PieChart>

@@ -23,8 +23,8 @@ export default async function MainDashboardLayout({
     return (
         <div className="flex min-h-screen">
              <Sidebar role={session.role as 'admin' | 'user'} />
-            <main className="flex-1 md:ml-72 min-h-screen">
-                <div className="pt-16 px-4 pb-6 md:pt-8 md:px-8 md:pb-8">
+            <main className="flex-1 md:pl-[260px] min-h-screen overflow-x-hidden">
+                <div className="">
                     {children}
                 </div>
             </main>

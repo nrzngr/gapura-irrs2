@@ -28,6 +28,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; class: strin
   'SUDAH_DIVERIFIKASI': { label: 'Sudah Diverifikasi', color: '#60a5fa', class: 'verified' },
   'SELESAI': { label: 'Selesai', color: '#22c55e', class: 'completed' }
 };
+const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
+const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
 
 export function StatusDetailContent() {
   const searchParams = useSearchParams();
@@ -60,11 +62,13 @@ export function StatusDetailContent() {
     return <div className="embed-loading"><div className="embed-spinner" /></div>;
   }
   
-  const statusPieData = Object.entries(data?.summary.byStatus || {}).map(([name, value]) => ({
-    name: STATUS_CONFIG[name]?.label || name,
-    value,
-    color: STATUS_CONFIG[name]?.color || '#64748b'
-  }));
+  const statusPieData = Object.entries(data?.summary.byStatus || {})
+    .map(([name, value]) => ({
+      name: STATUS_CONFIG[name]?.label || name,
+      value,
+      color: STATUS_CONFIG[name]?.color || '#64748b'
+    }))
+    .sort((a, b) => b.value - a.value);
   
   // SLA Analysis - count overdue reports
   const now = new Date();
@@ -127,7 +131,12 @@ export function StatusDetailContent() {
                   dataKey="value"
                   label={({ name, value }) => `${name}: ${value}`}
                 >
-                  {statusPieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  {statusPieData.map((_, index) => {
+                    const fill = index < FIXED_DONUT_RANK_COLORS.length
+                      ? FIXED_DONUT_RANK_COLORS[index]
+                      : DONUT_FALLBACK_COLORS[(index - FIXED_DONUT_RANK_COLORS.length) % DONUT_FALLBACK_COLORS.length];
+                    return <Cell key={index} fill={fill} />;
+                  })}
                 </Pie>
                 <Tooltip />
               </PieChart>

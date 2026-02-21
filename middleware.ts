@@ -141,6 +141,5 @@ export const config = {
         '/auth/:path*',
         '/embed/:path*',
         '/api/:path*',
-        '/',
     ],
 };

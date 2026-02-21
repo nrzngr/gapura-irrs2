@@ -6,6 +6,7 @@ import {
   Clock,
   CheckCircle2,
   FileText,
+  FileSpreadsheet,
   RefreshCw,
   Loader2,
   Plus,
@@ -33,6 +34,9 @@ interface ResponsiveHeaderProps {
   onCustomerFeedback: () => void;
   cfLoading: boolean;
   onFilterClick: () => void;
+  onExportExcel: () => void;
+  onExportPDF: () => void;
+  exporting: 'excel' | 'pdf' | null;
 }
 
 /**
@@ -47,6 +51,9 @@ export function ResponsiveHeader({
   onCustomerFeedback,
   cfLoading,
   onFilterClick,
+  onExportExcel,
+  onExportPDF,
+  exporting,
 }: ResponsiveHeaderProps) {
   const router = useRouter();
   const [isDateOpen, setIsDateOpen] = useState(false);
@@ -71,16 +78,26 @@ export function ResponsiveHeader({
       icon: <Shield className="w-4 h-4" />,
       onClick: onFilterClick,
     },
+    {
+      label: 'Download Excel',
+      icon: <FileSpreadsheet className="w-4 h-4" />,
+      onClick: onExportExcel,
+    },
+    {
+      label: 'Download PDF',
+      icon: <FileText className="w-4 h-4" />,
+      onClick: onExportPDF,
+    },
   ];
 
   return (
     <div className="space-y-4 animate-fade-in-up">
       {/* Title Section */}
       <div className="space-y-1">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-extrabold tracking-tight text-text-primary">
           Pusat Komando & Analytics
         </h1>
-        <p className="text-sm sm:text-base text-[var(--text-secondary)] font-medium">
+        <p className="text-sm sm:text-base font-body font-medium text-brand-emerald-700">
           Divisi Operational Services Center
         </p>
       </div>
@@ -90,16 +107,16 @@ export function ResponsiveHeader({
         {/* Date Range Selector */}
         <div className="flex items-center gap-2">
           {/* Desktop: Segmented Control */}
-          <div className="hidden sm:flex bg-[var(--surface-2)] rounded-xl p-1 border border-[var(--surface-4)]">
+          <div className="hidden sm:flex p-1.5 rounded-2xl bg-[oklch(0.97_0.012_160_/_0.6)] backdrop-blur-xl border border-[oklch(0.65_0.18_160_/_0.15)] shadow-[inset_0_1px_2px_oklch(0.45_0.06_160_/_0.06)]">
             {dateRangeOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => onDateRangeChange(option.value)}
                 className={cn(
-                  'px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap min-h-[44px]',
+                  'px-5 py-2.5 text-[11px] font-display font-black uppercase tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap min-h-[40px]',
                   dateRange === option.value
-                    ? 'bg-[var(--brand-primary)] text-white shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    ? 'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)] shadow-lg shadow-emerald-500/20'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-[oklch(0.95_0.015_160_/_0.5)]'
                 )}
               >
                 {option.label}
@@ -150,9 +167,10 @@ export function ResponsiveHeader({
             onClick={onCustomerFeedback}
             disabled={cfLoading}
             className={cn(
-              'hidden xl:inline-flex items-center gap-2 min-h-[44px]',
-              'bg-gradient-to-r from-emerald-600 to-green-500 text-white',
-              'hover:shadow-lg hover:shadow-emerald-500/25',
+              'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-6',
+              'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)]',
+              'rounded-2xl border-0 shadow-lg shadow-emerald-500/20 transition-all duration-300',
+              'hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 font-display font-bold',
               cfLoading && 'opacity-70 cursor-not-allowed'
             )}
           >
@@ -161,16 +179,58 @@ export function ResponsiveHeader({
             ) : (
               <LayoutDashboard size={16} />
             )}
-            <span className="hidden 2xl:inline">Feedback</span>
+            <span className="hidden 2xl:inline tracking-tight">Feedback</span>
           </Button>
 
           <Button
             onClick={onFilterClick}
-            variant="outline"
-            className="hidden xl:inline-flex items-center gap-2 min-h-[44px]"
+            variant="ghost"
+            className={cn(
+              'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-5',
+              'bg-[oklch(1_0_0_/_0.3)] backdrop-blur-xl border border-[oklch(1_0_0_/_0.1)] text-[var(--text-primary)] transition-all duration-300',
+              'rounded-2xl hover:bg-[oklch(1_0_0_/_0.5)] hover:-translate-y-0.5 active:scale-95'
+            )}
           >
-            <Shield size={16} />
-            <span className="hidden 2xl:inline">Filter</span>
+            <Shield size={16} className="text-emerald-600" />
+            <span className="hidden 2xl:inline font-bold tracking-tight">Filter</span>
+          </Button>
+
+          <Button
+            onClick={onExportExcel}
+            disabled={exporting !== null}
+            variant="ghost"
+            className={cn(
+              'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-5',
+              'bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-bold',
+              'rounded-2xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95',
+              exporting === 'excel' && 'opacity-50'
+            )}
+          >
+            {exporting === 'excel' ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FileSpreadsheet size={16} />
+            )}
+            <span className="hidden 2xl:inline">Excel</span>
+          </Button>
+
+          <Button
+            onClick={onExportPDF}
+            disabled={exporting !== null}
+            variant="ghost"
+            className={cn(
+              'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-5',
+              'bg-red-500/5 hover:bg-red-500/10 text-red-600 border border-red-500/20 font-bold',
+              'rounded-2xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95',
+              exporting === 'pdf' && 'opacity-50'
+            )}
+          >
+            {exporting === 'pdf' ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <FileText size={16} />
+            )}
+            <span className="hidden 2xl:inline">PDF</span>
           </Button>
 
           {/* Mobile: Action menu for hidden buttons */}
@@ -185,7 +245,11 @@ export function ResponsiveHeader({
           {/* Create Report Button */}
           <Button
             onClick={() => router.push('/dashboard/employee/new')}
-            className="min-h-[44px] bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"
+            className={cn(
+              'min-h-[48px] px-6 rounded-2xl font-display font-bold tracking-tight transition-all duration-300',
+              'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)]',
+              'hover:shadow-xl hover:-translate-y-0.5 active:scale-95'
+            )}
           >
             <Plus size={18} className="sm:mr-2" />
             <span className="hidden sm:inline">Laporan</span>

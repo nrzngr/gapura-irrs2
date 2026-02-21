@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
-import type { ChartData } from 'chart.js';
 import { BarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer as RechartsContainer } from 'recharts';
 import { useViewport } from '@/hooks/useViewport';
 import { adaptToChartJSData } from '@/lib/utils/chartAdapters';
@@ -80,7 +79,7 @@ export function ResponsiveBarChart({
   if (useMobileCharts) {
     return (
       <div className={cn('w-full', height, className)}>
-        <Bar data={chartJSData as ChartData<'bar'>} options={chartJSOptions} />
+        <Bar data={chartJSData as any} options={chartJSOptions} />
       </div>
     );
   }

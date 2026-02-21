@@ -10,7 +10,6 @@ import {
   Tooltip,
   Legend,
   Filler,
-  ChartOptions,
 } from 'chart.js';
 
 // Register Chart.js components
@@ -30,7 +29,7 @@ ChartJS.register(
 /**
  * Default Chart.js options optimized for mobile
  */
-export const defaultMobileChartOptions: ChartOptions<'bar' | 'line' | 'pie'> = {
+export const defaultMobileChartOptions: any = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -96,7 +95,7 @@ export const defaultMobileChartOptions: ChartOptions<'bar' | 'line' | 'pie'> = {
 /**
  * Chart.js options for desktop (more detailed)
  */
-export const defaultDesktopChartOptions: ChartOptions<'bar' | 'line' | 'pie'> = {
+export const defaultDesktopChartOptions: any = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -197,3 +196,59 @@ export function generateChartColors(count: number, alpha: number = 1): string[] 
   
   return colors;
 }
+
+/**
+ * Custom Chart.js plugin to draw data labels on bars
+ */
+export const barLabelsPlugin = {
+  id: 'barLabels',
+  afterDatasetsDraw(chart: any) {
+    const { ctx, chartArea: { top, bottom, left, right } } = chart;
+    const isHorizontal = chart.config.options.indexAxis === 'y';
+
+    ctx.save();
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.textBaseline = 'middle';
+
+    chart.data.datasets.forEach((dataset: any, i: number) => {
+      const meta = chart.getDatasetMeta(i);
+      if (meta.hidden) return;
+
+      meta.data.forEach((bar: any, index: number) => {
+        const value = dataset.data[index];
+        if (value === 0 || value === null || value === undefined) return;
+
+        // Use custom color if provided, else fallback to dataset border or default
+        ctx.fillStyle = dataset.borderColor?.[index] || dataset.borderColor || '#1f2937';
+        
+        let labelX, labelY;
+        if (isHorizontal) {
+          labelX = bar.x + 15;
+          labelY = bar.y;
+          ctx.textAlign = 'left';
+        } else {
+          labelX = bar.x;
+          labelY = bar.y - 12;
+          ctx.textAlign = 'center';
+        }
+
+        // Clip prevention & Visibility logic
+        if (isHorizontal) {
+          if (labelX > right - 30) {
+            labelX = bar.x - 5;
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#fff'; // White on dark bars
+          }
+        } else {
+          if (labelY < top + 20) {
+            labelY = bar.y + 15;
+            ctx.fillStyle = '#fff';
+          }
+        }
+
+        ctx.fillText(value.toLocaleString('id-ID'), labelX, labelY);
+      });
+    });
+    ctx.restore();
+  },
+};

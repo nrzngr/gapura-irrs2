@@ -1,8 +1,24 @@
-// ISO datetime pattern: 2026-01-23T00:00:00+00:00 or 2026-01-23T00:00:00.000Z
-// Also matches 2026-01-23 00:00:00+00
-// AND 2026-01-23 (YYYY-MM-DD)
-// AND 2026-01 (YYYY-MM)
-export const ISO_DATETIME_RE = /^(\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2})?|\d{4}-\d{2}|\d{4})$/;
+// ISO datetime pattern:
+// - 2026-01-23T00:00:00+00:00
+// - 2026-01-23T00:00:00.000Z
+// - 2026-01-23 00:00:00+00
+// - 2026-01-23 (YYYY-MM-DD)
+// - 2026-01 (YYYY-MM)
+// - 2026 (YYYY)
+export const ISO_DATETIME_RE = /^\d{4}(?:-\d{2}(?:-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
+
+const DATE_HINT_TOKENS = new Set(['date', 'datetime', 'timestamp', 'created', 'updated', 'time']);
+
+function isDateLikeColumnName(colName: string): boolean {
+  const tokens = colName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  return tokens.some(token => DATE_HINT_TOKENS.has(token));
+}
 
 export function formatDateValue(val: unknown): string {
   if (typeof val !== 'string' || !ISO_DATETIME_RE.test(val)) return String(val ?? '');
@@ -45,8 +61,7 @@ export function formatDisplayValue(val: unknown, colName?: string): string {
 
   // Column name hints for dates (fallback)
   if (colName) {
-    const lowerCol = colName.toLowerCase();
-    if (lowerCol.includes('date') || lowerCol.includes('time') || lowerCol.includes('created')) {
+    if (isDateLikeColumnName(colName)) {
       const d = new Date(String(val));
       if (!isNaN(d.getTime())) return formatDateValue(d.toISOString());
     }

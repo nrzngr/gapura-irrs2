@@ -21,7 +21,7 @@ export async function GET() {
         }
 
         // Fetch reports from Google Sheets
-        let reports = [];
+        let reports: any[] = [];
         try {
             reports = await reportsService.getReports();
             console.log(`[REPORTS_API] Fetched ${reports?.length} raw reports`);

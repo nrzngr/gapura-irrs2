@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { FileText, FileSpreadsheet, RefreshCw, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { RefreshCw, Loader2 } from 'lucide-react';
 
 // Components
 import { ResponsiveHeader } from '@/components/dashboard/analyst/ResponsiveHeader';
@@ -664,135 +663,116 @@ export default function AnalystDashboard() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-24 px-3 sm:px-4 lg:px-6">
-      {/* Header Section */}
-      <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
-        <ResponsiveHeader
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          onRefresh={() => fetchData(true)}
-          refreshing={refreshing}
-          onCustomerFeedback={handleCustomerFeedbackShortcut}
-          cfLoading={cfLoading}
-          onFilterClick={() => setShowFilterModal(true)}
-        />
-      </PresentationSlide>
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundImage: `
+          linear-gradient(oklch(0.65 0.18 160 / 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, oklch(0.65 0.18 160 / 0.03) 1px, transparent 1px),
+          radial-gradient(circle at 0% 0%, oklch(0.65 0.18 160 / 0.08) 0%, transparent 40%),
+          radial-gradient(circle at 100% 100%, oklch(0.58 0.2 162 / 0.06) 0%, transparent 40%)
+        `,
+        backgroundSize: '24px 24px, 24px 24px, 100% 100%, 100% 100%',
+        backgroundPosition: '0 0, 0 0, 0 0, 0 0',
+        backgroundColor: 'var(--surface-0)',
+      }}
+    >
+      {/* Full-bleed analyst dashboard container */}
+      <div className="space-y-8 pb-24 pt-0 px-4 md:px-6 w-full max-w-none">
+        {/* Header Section */}
+        <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
+          <ResponsiveHeader
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            onRefresh={() => fetchData(true)}
+            refreshing={refreshing}
+            onCustomerFeedback={handleCustomerFeedbackShortcut}
+            cfLoading={cfLoading}
+            onFilterClick={() => setShowFilterModal(true)}
+            onExportExcel={exportToExcel}
+            onExportPDF={exportToPDF}
+            exporting={exporting}
+          />
+        </PresentationSlide>
 
-      {/* Stats Grid */}
-      <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
-        <ResponsiveStatsGrid
-          stats={filteredStats}
-          onStatClick={handleStatClick}
-        />
-      </PresentationSlide>
-
-      {/* Export Actions */}
-      <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
-        <div
-          className="flex flex-wrap gap-2 sm:gap-3 animate-fade-in-up"
-          style={{ animationDelay: '150ms' }}
-        >
-          <button
-            onClick={exportToExcel}
-            disabled={exporting !== null}
-            className={cn(
-              'inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all',
-              'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100',
-              'min-h-[44px]',
-              exporting === 'excel' && 'opacity-50'
-            )}
-          >
-            {exporting === 'excel' ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <FileSpreadsheet size={16} />
-            )}
-            Download Excel
-          </button>
-          <button
-            onClick={exportToPDF}
-            disabled={exporting !== null}
-            className={cn(
-              'inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all',
-              'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100',
-              'min-h-[44px]',
-              exporting === 'pdf' && 'opacity-50'
-            )}
-          >
-            {exporting === 'pdf' ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <FileText size={16} />
-            )}
-            Download PDF
-          </button>
+        {/* Body: Stats (left) + Table (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+          <div className="lg:col-span-2">
+            <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
+              <ResponsiveStatsGrid
+                stats={filteredStats}
+                onStatClick={handleStatClick}
+                compact
+              />
+            </PresentationSlide>
+          </div>
+          <div className="lg:col-span-3">
+            <ReportsTableSection
+              reports={filteredReports}
+              dateRange={dateRange}
+              onViewReport={setSelectedReport}
+              onTriageReport={(report) => {
+                setTriageReport(report);
+                setIsTriageOpen(true);
+              }}
+              drilldownUrl={drilldownUrl}
+            />
+          </div>
         </div>
-      </PresentationSlide>
 
-      {/* Reports Table */}
-      <ReportsTableSection
-        reports={filteredReports}
-        dateRange={dateRange}
-        onViewReport={setSelectedReport}
-        onTriageReport={(report) => {
-          setTriageReport(report);
-          setIsTriageOpen(true);
-        }}
-        drilldownUrl={drilldownUrl}
-      />
+        {/* Charts */}
+        <AnalystCharts
+          analytics={analytics}
+          caseCategoryData={caseCategoryData}
+          branchReportData={branchReportData}
+          monthlyReportData={monthlyReportData}
+          categoryByAreaData={categoryByAreaData}
+          categoryByBranchData={categoryByBranchData}
+          areaSubCategoryData={areaSubCategoryData}
+          categoryByAirlinesData={categoryByAirlinesData}
+          topReportersData={topReportersData}
+          monthlyComparisonData={monthlyComparisonData}
+          hubDistributionData={hubDistributionData}
+          resolutionByBranchData={resolutionByBranchData}
+          filteredReports={filteredReports}
+          caseReportByAreaData={caseReportByAreaData}
+          terminalAreaCategoryData={terminalAreaCategoryData}
+          apronAreaCategoryData={apronAreaCategoryData}
+          generalCategoryData={generalCategoryData}
+          onDrilldown={(url) => router.push(url)}
+          drilldownUrl={drilldownUrl}
+        />
 
-      {/* Charts */}
-      <AnalystCharts
-        analytics={analytics}
-        caseCategoryData={caseCategoryData}
-        branchReportData={branchReportData}
-        monthlyReportData={monthlyReportData}
-        categoryByAreaData={categoryByAreaData}
-        categoryByBranchData={categoryByBranchData}
-        areaSubCategoryData={areaSubCategoryData}
-        categoryByAirlinesData={categoryByAirlinesData}
-        topReportersData={topReportersData}
-        monthlyComparisonData={monthlyComparisonData}
-        hubDistributionData={hubDistributionData}
-        resolutionByBranchData={resolutionByBranchData}
-        filteredReports={filteredReports}
-        caseReportByAreaData={caseReportByAreaData}
-        terminalAreaCategoryData={terminalAreaCategoryData}
-        apronAreaCategoryData={apronAreaCategoryData}
-        generalCategoryData={generalCategoryData}
-        onDrilldown={(url) => router.push(url)}
-        drilldownUrl={drilldownUrl}
-      />
+        {/* Modals */}
+        <ReportDetailModal
+          isOpen={!!selectedReport}
+          onClose={() => setSelectedReport(null)}
+          report={selectedReport}
+          userRole="ANALYST"
+        />
 
-      {/* Modals */}
-      <ReportDetailModal
-        isOpen={!!selectedReport}
-        onClose={() => setSelectedReport(null)}
-        report={selectedReport}
-        userRole="ANALYST"
-      />
+        <CustomerFeedbackFilterModal
+          isOpen={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          onApply={handleApplyFilter}
+          loading={filterLoading}
+          availableHubs={availableOptions.hubs}
+          availableBranches={availableOptions.branches}
+          availableAirlines={availableOptions.airlines}
+          availableCategories={availableOptions.categories}
+          existingFolders={existingFolders}
+        />
 
-      <CustomerFeedbackFilterModal
-        isOpen={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        onApply={handleApplyFilter}
-        loading={filterLoading}
-        availableHubs={availableOptions.hubs}
-        availableBranches={availableOptions.branches}
-        availableAirlines={availableOptions.airlines}
-        availableCategories={availableOptions.categories}
-        existingFolders={existingFolders}
-      />
-
-      <TriageModal
-        isOpen={isTriageOpen}
-        onClose={() => {
-          setIsTriageOpen(false);
-          setTriageReport(null);
-        }}
-        report={triageReport}
-        onSubmit={handleTriageSubmit}
-      />
+        <TriageModal
+          isOpen={isTriageOpen}
+          onClose={() => {
+            setIsTriageOpen(false);
+            setTriageReport(null);
+          }}
+          report={triageReport}
+          onSubmit={handleTriageSubmit}
+        />
+      </div>
     </div>
   );
 }
