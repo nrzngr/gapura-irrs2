@@ -1016,7 +1016,7 @@ export default function AnalystCharts({
                             className={cn(
                                 'px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-500 whitespace-nowrap relative flex items-center gap-2',
                                 activeTab === tab
-                                    ? 'text-white'
+                                    ? 'text-black'
                                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[oklch(1_0_0_/_0.1)]'
                             )}
                         >

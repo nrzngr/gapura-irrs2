@@ -545,7 +545,7 @@ export default function AnalystDashboard() {
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in-up">
                         <div className="flex-1 space-y-1">
                             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-                                Pusat Komando & Analytics
+                                Pusat Analytics
                             </h1>
                             <p className="text-[var(--text-secondary)] font-medium">
                                 Divisi Operational Services Center

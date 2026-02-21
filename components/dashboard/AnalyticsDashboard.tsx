@@ -377,7 +377,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         <h1 className="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white mb-2 leading-tight break-words">
                             Dashboard {division.name}
                         </h1>
-                        <p className="text-white/80 text-xs sm:text-sm">Pusat Komando & Analytics Operational Services</p>
+                        <p className="text-white/80 text-xs sm:text-sm">Pusat Analytics Operational Services</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">

@@ -95,7 +95,7 @@ export function ResponsiveHeader({
       {/* Title Section */}
       <div className="space-y-1">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-extrabold tracking-tight text-text-primary">
-          Pusat Komando & Analytics
+          Pusat Analytics
         </h1>
         <p className="text-sm sm:text-base font-body font-medium text-brand-emerald-700">
           Divisi Operational Services Center
