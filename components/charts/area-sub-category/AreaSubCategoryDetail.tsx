@@ -236,7 +236,14 @@ export default function AreaSubCategoryDetail({
     const loadStats = async () => {
       try {
         const stats = await fetchRootCauseStatsAi();
-        if (mounted) setRootCauseStatsAi(stats);
+        if (mounted && stats) {
+          const transformed = {
+            byCategory: Object.fromEntries(
+              Object.entries(stats.by_category || {}).map(([key, val]) => [key, { count: val.count, severity: {} }])
+            )
+          };
+          setRootCauseStatsAi(transformed);
+        }
       } catch {
         // ignore
       }
