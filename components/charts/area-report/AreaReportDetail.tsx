@@ -80,9 +80,11 @@ interface KPICardProps {
   subtitle?: string;
   trend?: number;
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
+  // Optional short explanation for readers (aimed at non-technical audiences)
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -100,6 +102,11 @@ function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps
         <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
           {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
           <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+        </div>
+      )}
+      {explanation && (
+        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
+          {explanation}
         </div>
       )}
     </div>
@@ -244,7 +251,7 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
 
 function CategoryStackedBar({ data }: { data: AreaCategoryData[] }) {
   const chartData = {
-    labels: data.slice(0, 10).map(d => d.area),
+    labels: data.slice(0, 10).map(d => d.area.split(' ')),
     datasets: [
       { label: 'Irregularity', data: data.slice(0, 10).map(d => d.Irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
       { label: 'Complaint', data: data.slice(0, 10).map(d => d.Complaint), backgroundColor: '#f97316', borderRadius: 4 },
@@ -255,52 +262,19 @@ function CategoryStackedBar({ data }: { data: AreaCategoryData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
-      x: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { stacked: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
   return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
-function RootCauseChart({ data }: { data: RootCauseByAreaData[] }) {
-  const categoryColors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-    Other: '#6b7280',
-  };
-
-  const chartData = {
-    labels: data.slice(0, 12).map(d => d.rootCause),
-    datasets: [
-      {
-        label: 'Count',
-        data: data.slice(0, 12).map(d => d.count),
-        backgroundColor: data.slice(0, 12).map(d => categoryColors[d.category] || '#6b7280'),
-        borderRadius: 4,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-    },
-  };
-
-  return <div className="h-[280px]"><Bar data={chartData} options={options} /></div>;
-}
 
 function BranchBreakdownChart({ data }: { data: BranchByAreaData[] }) {
   const topBranches = Array.from(
@@ -314,7 +288,7 @@ function BranchBreakdownChart({ data }: { data: BranchByAreaData[] }) {
     .slice(0, 10);
 
   const chartData = {
-    labels: topBranches.map(([branch]) => branch),
+    labels: topBranches.map(([branch]) => branch.split(' ')),
     datasets: [
       {
         label: 'Reports',
@@ -328,15 +302,15 @@ function BranchBreakdownChart({ data }: { data: BranchByAreaData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[250px]"><Bar data={chartData} options={options} /></div>;
+  return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
 function AirlineBreakdownChart({ data }: { data: AirlineByAreaData[] }) {
@@ -351,7 +325,7 @@ function AirlineBreakdownChart({ data }: { data: AirlineByAreaData[] }) {
     .slice(0, 10);
 
   const chartData = {
-    labels: topAirlines.map(([airline]) => airline),
+    labels: topAirlines.map(([airline]) => airline.split(' ')),
     datasets: [
       {
         label: 'Reports',
@@ -367,7 +341,7 @@ function AirlineBreakdownChart({ data }: { data: AirlineByAreaData[] }) {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
       y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
@@ -913,22 +887,30 @@ export default function AreaReportDetail({ filters = {} }: { filters?: FilterPar
 
       {/* KPI Cards (General Mode or Focused Subset) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard title={isFocused ? "Focused Volume" : "Total Reports"} value={totalReports.toLocaleString('id-ID')} color="blue" />
+        <KPICard
+          title={isFocused ? "Focused Volume" : "Total Reports"}
+          value={totalReports.toLocaleString('id-ID')}
+          color="blue"
+          explanation="Total laporan area yang dianalisis dalam chart ini."
+        />
         <KPICard
           title={isFocused ? "Area Risk Index" : "Overall Irreg. Rate"}
           value={isFocused ? (cellIntel?.riskScore.toFixed(0) || '0') : `${overallIrregRate.toFixed(1)}%`}
           color={isFocused ? (cellIntel?.riskLevel?.toUpperCase() === 'CRITICAL' || cellIntel?.riskLevel?.toUpperCase() === 'HIGH' ? 'red' : 'blue') : (overallIrregRate >= 5 ? 'red' : 'green')}
+          explanation={isFocused ? 'Nilai risiko area pada fokus ini (skor 0-100).' : 'Rasio laporan irregularitas terhadap total laporan.'}
         />
         <KPICard
           title="Net Sentiment"
           value={`${overallNetSentiment >= 0 ? '+' : ''}${overallNetSentiment.toFixed(1)}%`}
           color={overallNetSentiment > 0 ? 'green' : 'red'}
+          explanation="Selisih antara jumlah ulasan positif (compliment) dan negatif (complaint) secara keseluruhan."
         />
         <KPICard
           title={isFocused ? "Area Rank" : "Top Area"}
           value={isFocused ? `#${cellIntel?.rank || '?'}` : topArea}
           subtitle={!isFocused && areaData.length > 0 ? `${areaData[0].total} reports` : undefined}
           color="orange"
+          explanation={isFocused ? 'Rank area saat ini berdasarkan ukuran risiko/kontribusi.' : 'Area dengan kontribusi laporan tertinggi.'}
         />
       </div>
 
@@ -1031,7 +1013,7 @@ export default function AreaReportDetail({ filters = {} }: { filters?: FilterPar
               <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
             </div>
           </div>
-          <AiRootCauseInvestigation source={filters.sourceSheet || "NON_CARGO"} />
+          <AiRootCauseInvestigation source={filters.sourceSheet || "NON CARGO"} />
         </section>
       )}
 

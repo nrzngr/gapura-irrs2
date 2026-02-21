@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import MonthlyReportDetail from '@/components/charts/monthly-report/MonthlyReportDetail';
+import DetailFilterHeader from '@/components/chart-detail/DetailFilterHeader';
 
 interface FilterState {
   hub: string;
@@ -20,13 +21,6 @@ export default function MonthlyReportPage() {
   const sourceSheet = searchParams.get('sourceSheet') === 'CGO' ? 'CGO' : 'NON CARGO';
   const sourcePage = searchParams.get('sourcePage') || 'customer-feedback-main';
   
-  const getBackUrl = () => {
-    if (sourcePage && sourcePage !== 'main') {
-      return `/embed/custom/${sourcePage.toLowerCase().replace(/\s+/g, '-')}`;
-    }
-    return '/embed/custom/customer-feedback-main';
-  };
-  
   const [filters, setFilters] = useState<FilterState>({
     hub: searchParams.get('hub') || 'all',
     branch: searchParams.get('branch') || 'all',
@@ -38,80 +32,32 @@ export default function MonthlyReportPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="h-16 px-4 sm:px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => router.push(getBackUrl())}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-[#6b8e3d]"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">Monthly Report</h1>
-              <p className="text-xs text-gray-500">Detailed monthly analysis with trend & anomaly detection</p>
-              <p className="text-[10px] font-semibold text-emerald-600 mt-1">Source: {filters.sourceSheet}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="px-4 sm:px-6 pb-4 border-b border-gray-100">
-          <div className="flex flex-wrap gap-3">
-            <select
-              value={filters.hub}
-              onChange={(e) => setFilters(f => ({ ...f, hub: e.target.value }))}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-            >
-              <option value="all">All Hubs</option>
-              <option value="CGK">CGK</option>
-              <option value="SUB">SUB</option>
-            </select>
-            
-            <select
-              value={filters.branch}
-              onChange={(e) => setFilters(f => ({ ...f, branch: e.target.value }))}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-            >
-              <option value="all">All Branches</option>
-              <option value="Terminal 1">Terminal 1</option>
-              <option value="Terminal 2">Terminal 2</option>
-              <option value="Terminal 3">Terminal 3</option>
-            </select>
-            
-            <select
-              value={filters.airlines}
-              onChange={(e) => setFilters(f => ({ ...f, airlines: e.target.value }))}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-            >
-              <option value="all">All Airlines</option>
-              <option value="Garuda">Garuda</option>
-              <option value="Citilink">Citilink</option>
-              <option value="Batik Air">Batik Air</option>
-            </select>
-            
-            <select
-              value={filters.area}
-              onChange={(e) => setFilters(f => ({ ...f, area: e.target.value }))}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-            >
-              <option value="all">All Areas</option>
-              <option value="Landside">Landside</option>
-              <option value="Airside">Airside</option>
-            </select>
-
+      <DetailFilterHeader 
+        title="Monthly Report"
+        subtitle="Detailed monthly analysis with trend & anomaly detection"
+        filters={filters}
+        setFilters={setFilters}
+        sourcePage={sourcePage}
+        extraFilters={
+          <div className="relative group">
             <select
               value={filters.month}
               onChange={(e) => setFilters(f => ({ ...f, month: e.target.value }))}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
+              className="appearance-none pl-3 pr-8 py-2 bg-white hover:bg-gray-50 border border-[var(--surface-4)] rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--brand-emerald-500)] focus:border-transparent min-w-[140px] shadow-sm cursor-pointer"
             >
               <option value="all">All Months</option>
               <option value="2026-02">February 2026</option>
               <option value="2026-01">January 2026</option>
               <option value="2025-12">December 2025</option>
             </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-colors">
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="w-full px-4 sm:px-6 py-6">
         <div className="max-w-[1800px] mx-auto">

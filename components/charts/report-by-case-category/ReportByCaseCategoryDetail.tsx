@@ -68,9 +68,10 @@ interface KPICardProps {
   subtitle?: string;
   trend?: number;
   color?: 'green' | 'red' | 'yellow' | 'blue';
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -87,6 +88,11 @@ function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps
         <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
           {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
           <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+        </div>
+      )}
+      {explanation && (
+        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
+          {explanation}
         </div>
       )}
     </div>
@@ -156,7 +162,7 @@ function CategoryBarChart({ data }: { data: CategoryData[] }) {
   };
 
   const options = {
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -172,19 +178,19 @@ function CategoryBarChart({ data }: { data: CategoryData[] }) {
     },
     scales: {
       x: {
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { size: 11 } },
-        suggestedMax: data.length > 0 ? Math.max(...data.map(d => d.count)) * 1.15 : undefined,
+        grid: { display: false },
+        ticks: { font: { size: 11 }, maxRotation: 0, minRotation: 0, padding: 12 },
       },
       y: {
-        grid: { display: false },
+        grid: { color: 'rgba(0,0,0,0.05)' },
         ticks: { font: { size: 12 } },
+        suggestedMax: data.length > 0 ? Math.max(...data.map(d => d.count)) * 1.15 : undefined,
       },
     },
   };
 
   return (
-    <div className="h-[200px]">
+    <div className="h-[300px]">
       <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
     </div>
   );
@@ -262,7 +268,7 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
 
 function BranchStackedBar({ data }: { data: BranchCategoryData[] }) {
   const chartData = {
-    labels: data.slice(0, 8).map(d => d.branch),
+    labels: data.slice(0, 8).map(d => d.branch.split(' ')),
     datasets: [
       {
         label: 'Irregularity',
@@ -298,7 +304,7 @@ function BranchStackedBar({ data }: { data: BranchCategoryData[] }) {
       x: {
         stacked: false,
         grid: { display: false },
-        ticks: { font: { size: 10 } },
+        ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 },
       },
       y: {
         stacked: false,
@@ -310,7 +316,7 @@ function BranchStackedBar({ data }: { data: BranchCategoryData[] }) {
   };
 
   return (
-    <div className="h-[220px]">
+    <div className="h-[300px]">
       <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
     </div>
   );
@@ -318,7 +324,7 @@ function BranchStackedBar({ data }: { data: BranchCategoryData[] }) {
 
 function AirlineTop10Chart({ data }: { data: AirlineCategoryData[] }) {
   const chartData = {
-    labels: data.map(d => d.airline),
+    labels: data.map(d => d.airline.split(' ')),
     datasets: [
       {
         label: 'Irregularity',
@@ -354,12 +360,12 @@ function AirlineTop10Chart({ data }: { data: AirlineCategoryData[] }) {
     scales: {
       x: {
         stacked: false,
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { size: 10 } },
+        grid: { display: false },
+        ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 },
       },
       y: {
         stacked: false,
-        grid: { display: false },
+        grid: { color: 'rgba(0,0,0,0.05)' },
         ticks: { font: { size: 10 } },
         suggestedMax: data.length > 0 ? Math.max(...data.map(d => Math.max(d.Irregularity, d.Complaint, d.Compliment))) * 1.15 : undefined,
       },
@@ -367,58 +373,12 @@ function AirlineTop10Chart({ data }: { data: AirlineCategoryData[] }) {
   };
 
   return (
-    <div className="h-[280px]">
+    <div className="h-[350px]">
       <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
     </div>
   );
 }
 
-function RootCauseChart({ data }: { data: RootCauseData[] }) {
-  const categories = ['Irregularity', 'Complaint', 'Compliment'];
-  const colors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-  };
-
-  const chartData = {
-    labels: data.slice(0, 10).map(d => d.cause),
-    datasets: [
-      {
-        label: 'Count',
-        data: data.slice(0, 10).map(d => d.count),
-        backgroundColor: data.slice(0, 10).map(d => colors[d.category] || '#6b7280'),
-        borderRadius: 4,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: {
-      legend: { display: false },
-    },
-    scales: {
-      x: {
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { size: 10 } },
-        suggestedMax: data.length > 0 ? Math.max(...data.slice(0, 10).map(d => d.count)) * 1.15 : undefined,
-      },
-      y: {
-        grid: { display: false },
-        ticks: { font: { size: 10 } },
-      },
-    },
-  };
-
-  return (
-    <div className="h-[250px]">
-      <Bar data={chartData} options={options} plugins={[barLabelsPlugin]} />
-    </div>
-  );
-}
 
 function DataTable({ data }: { data: ReportRecord[] }) {
   const [search, setSearch] = useState('');
@@ -722,23 +682,27 @@ export default function ReportByCaseCategoryDetail({
             title="Total Reports"
             value={kpis.totalReports.toLocaleString('id-ID')}
             color="blue"
+            explanation="Total laporan untuk kategori ini pada periode ini."
           />
           <KPICard
             title="Most Affected Branch"
             value={kpis.mostAffectedBranch.name}
             subtitle={`${kpis.mostAffectedBranch.count} reports`}
             color="red"
+            explanation="Cabang dengan jumlah laporan terbanyak pada periode ini."
           />
           <KPICard
             title="Top Airline"
             value={kpis.topAirline.name}
             subtitle={`${kpis.topAirline.count} reports`}
             color="yellow"
+            explanation="Maskapai dengan volume laporan tertinggi pada periode ini."
           />
           <KPICard
             title="Avg Resolution Time"
             value={kpis.avgResolutionTime > 0 ? `${kpis.avgResolutionTime}h` : 'N/A'}
             color="green"
+            explanation="Rata-rata waktu penyelesaian resolusi untuk kasus-kasus yang dianalisis."
           />
         </div>
       )}
@@ -796,7 +760,7 @@ export default function ReportByCaseCategoryDetail({
             <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
           </div>
         </div>
-        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON_CARGO'} />
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
       </section>
 
       {/* Management Summary */}

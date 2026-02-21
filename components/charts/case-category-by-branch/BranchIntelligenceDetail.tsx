@@ -30,10 +30,12 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
+import { barLabelsPlugin } from '../chartConfig';
 import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
+import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import type { QueryResult } from '@/types/builder';
 
 ChartJS.register(
@@ -202,43 +204,38 @@ function BranchRankTable({ data }: { data: BranchOverview[] }) {
   );
 }
 
-// ─── 3. Category Composition Stacked Bar ───
+// ─── 3. Category Composition Vertical Grouped Bar ───
 function CategoryCompositionChart({ data }: { data: CategoryCompositionData[] }) {
   const topData = data.slice(0, 15);
 
-  const labels = topData.map(d => d.branch);
-  const irregData = topData.map(d => d.irregularityPct);
-  const complaintData = topData.map(d => d.complaintPct);
-  const complimentData = topData.map(d => 100 - d.irregularityPct - d.complaintPct);
+  const labels = topData.map(d => d.branch.split(' '));
+  const irregData = topData.map(d => d.Irregularity);
+  const complaintData = topData.map(d => d.Complaint);
+  const complimentData = topData.map(d => d.Compliment);
 
   const chartData = {
     labels,
     datasets: [
-      { label: 'Irregularity %', data: irregData.map(v => parseFloat(v.toFixed(1))), backgroundColor: '#ef4444', borderRadius: 4 },
-      { label: 'Complaint %', data: complaintData.map(v => parseFloat(v.toFixed(1))), backgroundColor: '#f97316', borderRadius: 4 },
-      { label: 'Compliment %', data: complimentData.map(v => parseFloat(v.toFixed(1))), backgroundColor: '#22c55e', borderRadius: 4 },
+      { label: 'Irregularity', data: irregData, backgroundColor: '#ef4444', borderRadius: 4 },
+      { label: 'Complaint', data: complaintData, backgroundColor: '#f97316', borderRadius: 4 },
+      { label: 'Compliment', data: complimentData, backgroundColor: '#22c55e', borderRadius: 4 },
     ],
   };
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => `${ctx.dataset.label}: ${ctx.raw}%`,
-        },
-      },
     },
     scales: {
-      x: { stacked: true, max: 100, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 }, callback: (v: number | string) => `${v}%` } },
-      y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { stacked: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[380px]"><Bar data={chartData} options={options as any} /></div>;
+  return <div className="h-[400px]"><Bar data={chartData} options={options as any} plugins={[barLabelsPlugin]} /></div>;
 }
 
 // ─── 4. Monthly Trend Chart ───
@@ -291,7 +288,7 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
   return <div className="h-[250px]"><Line data={chartData} options={options} /></div>;
 }
 
-// ─── 5. Area Breakdown Stacked Bar ───
+// ─── 5. Area Breakdown Vertical Grouped Bar ───
 function AreaBreakdownChart({ data }: { data: AreaBreakdownData[] }) {
   // Group by branch, stack by area
   const branchMap = new Map<string, Map<string, number>>();
@@ -312,41 +309,34 @@ function AreaBreakdownChart({ data }: { data: AreaBreakdownData[] }) {
     label: area,
     data: branches.map(branch => {
       const areaMap = branchMap.get(branch)!;
-      const branchTotal = Array.from(areaMap.values()).reduce((s, v) => s + v, 0);
-      const count = areaMap.get(area) || 0;
-      return branchTotal > 0 ? parseFloat(((count / branchTotal) * 100).toFixed(1)) : 0;
+      return areaMap.get(area) || 0;
     }),
     backgroundColor: areaColors[idx % areaColors.length],
     borderRadius: 4,
   }));
 
-  const chartData = { labels: branches, datasets };
+  const chartData = { labels: branches.map(b => b.split(' ')), datasets };
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => `${ctx.dataset.label}: ${ctx.raw}%`,
-        },
-      },
     },
     scales: {
-      x: { stacked: true, max: 100, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 }, callback: (v: number | string) => `${v}%` } },
-      y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { stacked: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[300px]"><Bar data={chartData} options={options as any} /></div>;
+  return <div className="h-[400px]"><Bar data={chartData} options={options as any} plugins={[barLabelsPlugin]} /></div>;
 }
 
-// ─── 6. Airline Contribution Chart ───
+// ─── 6. Airline Contribution Vertical Bar ───
 function AirlineContributionChart({ data }: { data: AirlineContributionData[] }) {
   const chartData = {
-    labels: data.map(d => d.airline),
+    labels: data.map(d => d.airline.split(' ')),
     datasets: [{
       label: 'Reports',
       data: data.map(d => d.count),
@@ -358,49 +348,17 @@ function AirlineContributionChart({ data }: { data: AirlineContributionData[] })
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
   return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
-// ─── 7. Root Cause Distribution Chart ───
-function RootCauseChart({ data }: { data: RootCauseData[] }) {
-  const categoryColors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-    Other: '#6b7280',
-  };
-
-  const chartData = {
-    labels: data.map(d => d.rootCause),
-    datasets: [{
-      label: 'Count',
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => categoryColors[d.category] || '#6b7280'),
-      borderRadius: 4,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-    },
-  };
-
-  return <div className="h-[350px]"><Bar data={chartData} options={options} /></div>;
-}
 
 
 // ─── 9. Management Summary ───
@@ -751,7 +709,7 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Category Composition</h2>
-          <p className="text-xs text-gray-500 mb-4">Stacked Irregularity / Complaint / Compliment % per branch</p>
+          <p className="text-xs text-gray-500 mb-4">Irregularity / Complaint / Compliment per branch</p>
           <CategoryCompositionChart data={categoryData} />
         </section>
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -764,7 +722,7 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Area Breakdown (Branch x Area)</h2>
-          <p className="text-xs text-gray-500 mb-4">Stacked % reveals where inside the branch the problem lies</p>
+          <p className="text-xs text-gray-500 mb-4">Volume breakdown reveals where inside the branch the problem lies</p>
           <AreaBreakdownChart data={areaData} />
         </section>
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -774,11 +732,15 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
         </section>
       </div>
 
-      {/* 7. Root Cause Distribution */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-1">Root Cause Distribution (Branch)</h2>
-        <p className="text-xs text-gray-500 mb-4">Top root causes with category coloring (Red = Irregularity, Orange = Complaint, Green = Compliment)</p>
-        <RootCauseChart data={rootCauseData} />
+      {/* 7. AI Root Cause Investigation */}
+      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
+            <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
+          </div>
+        </div>
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
       </section>
 
 

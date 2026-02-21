@@ -45,6 +45,53 @@ export interface AiRiskSummary {
   branch_details: BranchRiskDetail[];
 }
 
+export interface BranchCategorySummary {
+  category_type: string;
+  total_branches: number;
+  total_issues: number;
+  avg_risk_score: number;
+  risk_level_distribution: Record<string, number>;
+  trend_distribution: Record<string, number>;
+  last_updated: string;
+}
+
+export interface AiBranchSummaryResponse {
+  landside_airside: BranchCategorySummary;
+  cgo: BranchCategorySummary;
+  comparison: {
+    ls_total_issues: number;
+    cgo_total_issues: number;
+    ls_avg_risk: number;
+    cgo_avg_risk: number;
+  };
+  last_updated: string;
+}
+
+export interface AiReportSummaryResponse {
+  status: string;
+  category_type: string;
+  summary: {
+    sheet_name: string;
+    total_records: number;
+    severity_distribution: Record<string, number>;
+    critical_high_percentage: number;
+    open_issues_percentage: number;
+    top_categories: Record<string, number>;
+    top_airlines: Record<string, number>;
+    top_hubs: Record<string, number>;
+    top_branches: Record<string, number>;
+    area_distribution: Record<string, number>;
+    status_distribution: Record<string, number>;
+    root_cause_categories: Record<string, number>;
+    monthly_trend: Record<string, number>;
+    key_insights: string[];
+    common_issues: Array<{ issue: string; count: number }>;
+    recommendations: string[];
+    last_updated: string;
+  };
+  timestamp: string;
+}
+
 export interface DashboardSummaryAi {
   severity_distribution: Record<string, number>;
 }
@@ -197,7 +244,7 @@ export async function fetchSeverityDistributionsAi(): Promise<SeverityDistributi
 
 export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
   try {
-    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/categories`;
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/summary?max_rows_per_sheet=10000`;
     console.log('[gapura-ai] Fetching risk summary from:', url);
     const response = await fetchWithTimeout(url, {}, 120000);
     if (!response.ok) {
@@ -256,7 +303,7 @@ export async function fetchDashboardSummaryAi(bypassCache = false): Promise<Dash
 
 export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/categories`, {}, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause categories:', response.status);
       return [];
@@ -317,6 +364,39 @@ export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseS
     return data as RootCauseStatsAi;
   } catch (error) {
     console.error('[gapura-ai] Error fetching root cause stats:', error);
+    return null;
+  }
+}
+
+export async function fetchBranchSummaryAi(): Promise<AiBranchSummaryResponse | null> {
+  try {
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/branch/summary`, {}, 120000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch branch summary:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data as AiBranchSummaryResponse;
+  } catch (error) {
+    console.error('[gapura-ai] Error fetching branch summary:', error);
+    return null;
+  }
+}
+
+export async function fetchReportSummaryAi(source: 'NON CARGO' | 'CGO'): Promise<AiReportSummaryResponse | null> {
+  try {
+    const slug = source === 'CGO' ? 'cargo' : 'non-cargo';
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/summarize/${slug}`, {}, 120000);
+    if (!response.ok) {
+      console.error(`[gapura-ai] Failed to fetch report summary for ${source}:`, response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data as AiReportSummaryResponse;
+  } catch (error) {
+    console.error(`[gapura-ai] Error fetching report summary for ${source}:`, error);
     return null;
   }
 }

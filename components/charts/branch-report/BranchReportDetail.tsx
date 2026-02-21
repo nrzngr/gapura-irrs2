@@ -56,7 +56,7 @@ import { DataTableWithPagination } from '@/components/chart-detail/DataTableWith
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import { BranchAIVisualization } from '@/components/chart-detail/ai/BranchAIVisualization';
 import type { QueryResult } from '@/types/builder';
-import { BarChart as RechartsBarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer } from 'recharts';
+import { BarChart as RechartsBarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, LabelList } from 'recharts';
 
 ChartJS.register(
   CategoryScale,
@@ -84,9 +84,10 @@ interface KPICardProps {
   subtitle?: string;
   trend?: number;
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -104,6 +105,11 @@ function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps
         <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
           {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
           <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+        </div>
+      )}
+      {explanation && (
+        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
+          {explanation}
         </div>
       )}
     </div>
@@ -252,7 +258,7 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
 
 function CategoryStackedBar({ data }: { data: BranchCategoryData[] }) {
   const chartData = {
-    labels: data.slice(0, 10).map(d => d.branch),
+    labels: data.slice(0, 10).map(d => d.branch.split(' ')),
     datasets: [
       { label: 'Irregularity', data: data.slice(0, 10).map(d => d.Irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
       { label: 'Complaint', data: data.slice(0, 10).map(d => d.Complaint), backgroundColor: '#f97316', borderRadius: 4 },
@@ -268,7 +274,7 @@ function CategoryStackedBar({ data }: { data: BranchCategoryData[] }) {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
-      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
       y: { 
         stacked: false, 
         grid: { color: 'rgba(0,0,0,0.05)' }, 
@@ -281,40 +287,6 @@ function CategoryStackedBar({ data }: { data: BranchCategoryData[] }) {
   return <div className="h-[300px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
 }
 
-function RootCauseChart({ data }: { data: RootCauseByBranchData[] }) {
-  const categoryColors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-    Other: '#6b7280',
-  };
-
-  const chartData = {
-    labels: data.slice(0, 12).map(d => d.rootCause),
-    datasets: [
-      {
-        label: 'Count',
-        data: data.slice(0, 12).map(d => d.count),
-        backgroundColor: data.slice(0, 12).map(d => categoryColors[d.category] || '#6b7280'),
-        borderRadius: 4,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } },
-           suggestedMax: data.length > 0 ? Math.max(...data.slice(0, 12).map(d => d.count)) * 1.15 : undefined },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-    },
-  };
-
-  return <div className="h-[280px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
-}
 
 function AirlineBreakdownChart({ data }: { data: AirlineByBranchData[] }) {
   const topAirlines = Array.from(
@@ -328,7 +300,7 @@ function AirlineBreakdownChart({ data }: { data: AirlineByBranchData[] }) {
     .slice(0, 10);
 
   const chartData = {
-    labels: topAirlines.map(([airline]) => airline),
+    labels: topAirlines.map(([airline]) => airline.split(' ')),
     datasets: [
       {
         label: 'Reports',
@@ -342,16 +314,16 @@ function AirlineBreakdownChart({ data }: { data: AirlineByBranchData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } },
            suggestedMax: topAirlines.length > 0 ? Math.max(...topAirlines.map(d => d[1])) * 1.15 : undefined },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[250px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
+  return <div className="h-[300px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
 }
 
 function AreaBreakdownChart({ data }: { data: AreaByBranchData[] }) {
@@ -364,7 +336,7 @@ function AreaBreakdownChart({ data }: { data: AreaByBranchData[] }) {
   ).sort((a, b) => b[1] - a[1]);
 
   const chartData = {
-    labels: areaTotals.map(([area]) => area),
+    labels: areaTotals.map(([area]) => area.split(' ')),
     datasets: [
       {
         label: 'Reports',
@@ -376,16 +348,15 @@ function AreaBreakdownChart({ data }: { data: AreaByBranchData[] }) {
   };
 
   const options = {
-    responsive: true,
-    maintainAspectRatio: false,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[250px]"><Bar data={chartData} options={options} /></div>;
+  return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
 function DataTable({ data }: { data: BranchReportRecord[] }) {
@@ -711,29 +682,33 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       {/* Enhanced KPI Cards - 5 custom KPIs */}
       {kpis && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <KPICard title="Total Branches" value={kpis.totalBranches} color="blue" />
+          <KPICard title="Total Branches" value={kpis.totalBranches} color="blue" explanation="Jumlah cabang yang dipantau dalam laporan ini." />
           <KPICard
             title="Top Performer"
             value={kpis.topPerformer.name}
             subtitle={`${kpis.topPerformer.count} reports`}
             color="green"
+            explanation="Cabang dengan jumlah laporan tertinggi pada periode ini." 
           />
           <KPICard
             title="Worst Performer"
             value={kpis.worstPerformer.name}
             subtitle={`${kpis.worstPerformer.count} reports`}
             color="red"
+            explanation="Cabang dengan performa terendah dalam periode ini." 
           />
           <KPICard
             title="Avg Reports/Branch"
             value={kpis.avgReportsPerBranch}
             color="yellow"
+            explanation="Rata-rata laporan per cabang pada periode ini." 
           />
           <KPICard
             title="MoM Change"
             value={kpis.momChange > 0 ? `+${kpis.momChange}%` : `${kpis.momChange}%`}
             trend={kpis.momChange}
             color="blue"
+            explanation="Perubahan bulan-ke-bulan pada jumlah laporan cabang." 
           />
         </div>
       )}
@@ -755,9 +730,15 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
               <YAxis dataKey="branch" type="category" width={100} />
               <RechartsTooltip />
               <RechartsLegend />
-              <RechartsBar dataKey="irregularity" stackId="a" fill="#ef4444" name="Irregularity" />
-              <RechartsBar dataKey="complaint" stackId="a" fill="#f97316" name="Complaint" />
-              <RechartsBar dataKey="compliment" stackId="a" fill="#22c55e" name="Compliment" />
+              <RechartsBar dataKey="irregularity" fill="#ef4444" name="Irregularity">
+                <LabelList dataKey="irregularity" position="right" style={{ fill: '#ef4444', fontSize: '10px', fontWeight: 'bold' }} />
+              </RechartsBar>
+              <RechartsBar dataKey="complaint" fill="#f97316" name="Complaint">
+                <LabelList dataKey="complaint" position="right" style={{ fill: '#f97316', fontSize: '10px', fontWeight: 'bold' }} />
+              </RechartsBar>
+              <RechartsBar dataKey="compliment" fill="#22c55e" name="Compliment">
+                <LabelList dataKey="compliment" position="right" style={{ fill: '#22c55e', fontSize: '10px', fontWeight: 'bold' }} />
+              </RechartsBar>
             </RechartsBarChart>
           </ResponsiveContainer>
         </section>
@@ -803,7 +784,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
             <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
           </div>
         </div>
-        <AiRootCauseInvestigation source={filters.sourceSheet || "NON_CARGO"} />
+        <AiRootCauseInvestigation source={filters.sourceSheet || "NON CARGO"} />
       </section>
 
       {/* AI Branch Risk Visualization */}

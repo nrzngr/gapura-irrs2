@@ -66,48 +66,6 @@ import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigat
 import { AirlineAIVisualization } from '@/components/chart-detail/ai/AirlineAIVisualization';
 import type { QueryResult } from '@/types/builder';
 
-function HeatmapChartRisk() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchRiskData() {
-      try {
-        const res = await fetchRiskSummaryAi();
-        if (res && res.airline_details) {
-          const heatmapData = res.airline_details.flatMap((a: any) => 
-            Object.entries(a.severity_distribution).map(([sev, count]) => ({
-              airline: a.name,
-              severity: sev,
-              count: count
-            }))
-          );
-          setData(heatmapData);
-        }
-      } catch (e) {
-        console.error('Failed to fetch risk data:', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchRiskData();
-  }, []);
-
-  if (loading) return <div className="h-[400px] bg-gray-50 animate-pulse rounded-lg"></div>;
-  if (data.length === 0) return null;
-
-  return (
-    <div className="h-[400px]">
-      <HeatmapChart 
-        data={data}
-        xAxis="severity"
-        yAxis="airline"
-        metric="count"
-        showTitle={false}
-      />
-    </div>
-  );
-}
 
 ChartJS.register(
   CategoryScale,
@@ -135,9 +93,10 @@ interface KPICardProps {
   subtitle?: string;
   trend?: number;
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -155,6 +114,11 @@ function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps
         <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
           {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
           <span>{Math.abs(trend).toFixed(1)}% vs Avg</span>
+        </div>
+      )}
+      {explanation && (
+        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
+          {explanation}
         </div>
       )}
     </div>
@@ -309,7 +273,7 @@ function BranchDistributionChart({ data }: { data: BranchByAirlineData[] }) {
   ).sort((a, b) => b[1] - a[1]).slice(0, 12);
 
   const chartData = {
-    labels: topBranches.map(([branch]) => branch),
+    labels: topBranches.map(([branch]) => branch.split(' ')),
     datasets: [{
       label: 'Reports',
       data: topBranches.map(([, count]) => count),
@@ -321,12 +285,15 @@ function BranchDistributionChart({ data }: { data: BranchByAirlineData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } },
-           suggestedMax: topBranches.length > 0 ? Math.max(...topBranches.map(d => d[1])) * 1.15 : undefined },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { 
+        grid: { color: 'rgba(0,0,0,0.05)' }, 
+        ticks: { font: { size: 10 } },
+        suggestedMax: topBranches.length > 0 ? Math.max(...topBranches.map(d => d[1])) * 1.15 : undefined 
+      },
     },
   };
 
@@ -336,7 +303,7 @@ function BranchDistributionChart({ data }: { data: BranchByAirlineData[] }) {
 // ─── Category Stacked Bar: Irregularity/Complaint/Compliment per Airline ───
 function CategoryStackedBar({ data }: { data: AirlineCategoryData[] }) {
   const chartData = {
-    labels: data.slice(0, 10).map(d => d.airline),
+    labels: data.slice(0, 10).map(d => d.airline.split(' ')),
     datasets: [
       { label: 'Irregularity', data: data.slice(0, 10).map(d => d.Irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
       { label: 'Complaint', data: data.slice(0, 10).map(d => d.Complaint), backgroundColor: '#f97316', borderRadius: 4 },
@@ -352,7 +319,7 @@ function CategoryStackedBar({ data }: { data: AirlineCategoryData[] }) {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
-      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
       y: {
         stacked: false,
         grid: { color: 'rgba(0,0,0,0.05)' },
@@ -365,33 +332,33 @@ function CategoryStackedBar({ data }: { data: AirlineCategoryData[] }) {
   return <div className="h-[300px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
 }
 
-// ─── New Top 10 Airlines Category Breakdown (Task 3 - Stacked Bar) ───
+// ─── Top 10 Airlines Category Breakdown (Vertical Grouped Bar) ───
 function Top10AirlinesCategoryChart({ data }: { data: AirlineCategoryBreakdown[] }) {
   const chartData = {
-    labels: data.map(d => d.airline),
+    labels: data.map(d => d.airline.split(' ')),
     datasets: [
-      { label: 'Irregularity', data: data.map(d => d.irregularity), backgroundColor: '#ef4444', stack: 'stack1' },
-      { label: 'Complaint', data: data.map(d => d.complaint), backgroundColor: '#f97316', stack: 'stack1' },
-      { label: 'Compliment', data: data.map(d => d.compliment), backgroundColor: '#22c55e', stack: 'stack1' },
+      { label: 'Irregularity', data: data.map(d => d.irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
+      { label: 'Complaint', data: data.map(d => d.complaint), backgroundColor: '#f97316', borderRadius: 4 },
+      { label: 'Compliment', data: data.map(d => d.compliment), backgroundColor: '#22c55e', borderRadius: 4 },
     ],
   };
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
       x: {
-        stacked: true,
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { size: 10 } }
+        stacked: false,
+        grid: { display: false },
+        ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 }
       },
       y: {
-        stacked: true,
-        grid: { display: false },
+        stacked: false,
+        grid: { color: 'rgba(0,0,0,0.05)' },
         ticks: { font: { size: 10 } }
       },
     },
@@ -400,51 +367,12 @@ function Top10AirlinesCategoryChart({ data }: { data: AirlineCategoryBreakdown[]
   return <div className="h-[400px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
 }
 
-// ─── Pareto Root Cause: bar counts + cumulative line ───
-function ParetoRootCauseChart({ data }: { data: RootCauseParetoData[] }) {
-  const categoryColors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-    Other: '#6b7280',
-  };
-
-  const chartData = {
-    labels: data.map(d => d.rootCause),
-    datasets: [
-      {
-        label: 'Count',
-        data: data.map(d => d.count),
-        backgroundColor: data.map(d => categoryColors[d.category] || '#6b7280'),
-        borderRadius: 4,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: {
-      legend: { display: false },
-    },
-    scales: {
-      x: {
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { size: 10 } },
-        suggestedMax: data.length > 0 ? Math.max(...data.map(d => d.count)) * 1.15 : undefined,
-      },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-    },
-  };
-
-  return <div className="h-[350px]"><Bar data={chartData as any} options={options as any} plugins={[barLabelsPlugin]} /></div>;
-}
+// ─── Pareto Root Cause: vertical bar counts ───
 
 // ─── Area Breakdown Chart ───
 function AreaBreakdownChart({ data }: { data: AreaByAirlineData[] }) {
   const chartData = {
-    labels: data.map(d => d.area),
+    labels: data.map(d => d.area.split(' ')),
     datasets: [{
       label: 'Reports',
       data: data.map(d => d.count),
@@ -458,7 +386,7 @@ function AreaBreakdownChart({ data }: { data: AreaByAirlineData[] }) {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
       y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } },
            suggestedMax: data.length > 0 ? Math.max(...data.map(d => d.count)) * 1.15 : undefined },
     },
@@ -787,23 +715,25 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
       <AutoInsight data={airlineData} />
 
       {/* Task 3: New Custom KPIs */}
-      {kpis && kpis.totalAirlines > 0 && (
+        {kpis && kpis.totalAirlines > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <KPICard title="Total Airlines" value={kpis.totalAirlines} color="blue" />
+          <KPICard title="Total Airlines" value={kpis.totalAirlines} color="blue" explanation="Total maskapai yang terdaftar dalam dataset ini." />
           <KPICard
             title="Top Airline"
             value={kpis.topAirline.name}
             subtitle={`${kpis.topAirline.count} reports`}
             color="red"
+            explanation="Maskapai dengan jumlah laporan tertinggi pada periode ini." 
           />
           <KPICard
             title="Best Performer"
             value={kpis.bestPerformer.name}
             subtitle={`${kpis.bestPerformer.count} reports`}
             color="green"
+            explanation="Performa terbaik berdasarkan jumlah laporan terbanyak." 
           />
-          <KPICard title="Avg Reports/Airline" value={kpis.avgReportsPerAirline} color="yellow" />
-          <KPICard title="Compliment Ratio" value={`${kpis.complimentRatio}%`} color="green" />
+          <KPICard title="Avg Reports/Airline" value={kpis.avgReportsPerAirline} color="yellow" explanation="Rata-rata laporan per maskapai dalam dataset." />
+          <KPICard title="Compliment Ratio" value={`${kpis.complimentRatio}%`} color="green" explanation="Proporsi ulasan positif terhadap total ulasan." />
         </div>
       )}
 
@@ -869,7 +799,7 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
             <Brain className="w-5 h-5 text-emerald-600" />
             <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
           </div>
-          <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across airlines (AI Service Data)</p>
+          <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across airlines</p>
           <div className="h-[400px]">
             <HeatmapChart 
               data={aiRiskHeatmap}
@@ -881,18 +811,6 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
           </div>
         </section>
       )}
-
-      {/* AI Risk Heatmap */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center gap-2 mb-1">
-          <Brain className="w-5 h-5 text-emerald-600" />
-          <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
-        </div>
-        <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across airlines</p>
-        <Suspense fallback={<div className="h-[400px] bg-gray-50 animate-pulse rounded-lg"></div>}>
-          <HeatmapChartRisk />
-        </Suspense>
-      </section>
 
       {/* AI Root Cause Investigation - Full Width */}
       <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#6b8e3d]"></div></div>}>

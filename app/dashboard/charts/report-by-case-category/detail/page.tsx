@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 import ReportByCaseCategoryDetail from '@/components/charts/report-by-case-category/ReportByCaseCategoryDetail';
+import DetailFilterHeader from '@/components/chart-detail/DetailFilterHeader';
 
 interface FilterState {
   hub: string;
@@ -19,21 +19,10 @@ export default function ReportByCaseCategoryPage() {
   const sourceSheet = searchParams.get('sourceSheet') === 'CGO' ? 'CGO' : 'NON CARGO';
   const sourcePage = searchParams.get('sourcePage') || searchParams.get('originSlug') || 'customer-feedback-main';
   
-  const getBackUrl = () => {
-    if (sourcePage && sourcePage !== 'main') {
-      return `/embed/custom/${sourcePage.toLowerCase().replace(/\s+/g, '-')}`;
-    }
-    return '/embed/custom/customer-feedback-main';
-  };
-  
   // Check if filters should be hidden (from filtered dashboard)
   const hideFilters = searchParams.get('hideFilters') === 'true';
-  const filterCriteriaParam = searchParams.get('filterCriteria');
   const dateFromParam = searchParams.get('dateFrom');
   const dateToParam = searchParams.get('dateTo');
-  
-  // Parse filter criteria if available
-  const filterCriteria = filterCriteriaParam ? JSON.parse(filterCriteriaParam) : null;
   
   const [filters, setFilters] = useState<FilterState>({
     hub: searchParams.get('hub') || 'all',
@@ -43,90 +32,27 @@ export default function ReportByCaseCategoryPage() {
     sourceSheet,
   });
 
-  // Also read URL params for date range if available (for detail pages that use them)
-  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
+  const dateRange = {
     from: dateFromParam || '',
     to: dateToParam || '',
-  });
+  };
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="h-16 px-4 sm:px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => router.push(getBackUrl())}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-[#6b8e3d]"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">
-                Report by Case Category
-              </h1>
-              <p className="text-xs text-gray-500">Detailed analysis by category (Irregularity, Complaint, Compliment)</p>
-              <p className="text-[10px] font-semibold text-emerald-600 mt-1">Source: {filters.sourceSheet}</p>
-              {hideFilters && (
-                <p className="text-[10px] font-semibold text-amber-600 mt-1">
-                  Filtered View {dateRange.from && dateRange.to ? `(${dateRange.from} - ${dateRange.to})` : ''}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* Filter Bar - Hidden for filtered dashboards */}
-        {!hideFilters && (
-          <div className="px-4 sm:px-6 pb-4 border-b border-gray-100">
-            <div className="flex flex-wrap gap-3">
-              <select
-                value={filters.hub}
-                onChange={(e) => setFilters(f => ({ ...f, hub: e.target.value }))}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-              >
-                <option value="all">All Hubs</option>
-                <option value="CGK">CGK</option>
-                <option value="SUB">SUB</option>
-              </select>
-              
-              <select
-                value={filters.branch}
-                onChange={(e) => setFilters(f => ({ ...f, branch: e.target.value }))}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-              >
-                <option value="all">All Branches</option>
-                <option value="Terminal 1">Terminal 1</option>
-                <option value="Terminal 2">Terminal 2</option>
-                <option value="Terminal 3">Terminal 3</option>
-              </select>
-              
-              <select
-                value={filters.airlines}
-                onChange={(e) => setFilters(f => ({ ...f, airlines: e.target.value }))}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-              >
-                <option value="all">All Airlines</option>
-                <option value="Garuda">Garuda</option>
-                <option value="Citilink">Citilink</option>
-                <option value="Batik Air">Batik Air</option>
-              </select>
-              
-              <select
-                value={filters.area}
-                onChange={(e) => setFilters(f => ({ ...f, area: e.target.value }))}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-              >
-                <option value="all">All Areas</option>
-                <option value="Landside">Landside</option>
-                <option value="Airside">Airside</option>
-              </select>
-            </div>
-          </div>
+      <DetailFilterHeader 
+        title="Report by Case Category"
+        subtitle="Detailed analysis by category (Irregularity, Complaint, Compliment)"
+        filters={filters}
+        setFilters={setFilters}
+        sourcePage={sourcePage}
+        hideFilters={hideFilters}
+        extraHeaderInfo={hideFilters && (
+          <p className="text-[10px] font-semibold text-amber-600 mt-1">
+            Filtered View {dateRange.from && dateRange.to ? `(${dateRange.from} - ${dateRange.to})` : ''}
+          </p>
         )}
-      </header>
+      />
 
-      {/* Main Content */}
       <main className="w-full px-4 sm:px-6 py-6">
         <div className="max-w-[1800px] mx-auto">
           <ReportByCaseCategoryDetail filters={filters} dateRange={hideFilters ? dateRange : undefined} />

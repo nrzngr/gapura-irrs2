@@ -44,6 +44,8 @@ import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
+import { AiBranchSummary } from '@/components/ai/AiBranchSummary';
+import { AiReportSummary } from '@/components/ai/AiReportSummary';
 import type { QueryResult } from '@/types/builder';
 
 ChartJS.register(
@@ -317,7 +319,7 @@ function TopBranchesChart({ data }: { data: BranchByMonthData[] }) {
   ).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   const chartData = {
-    labels: topBranches.map(([branch]) => branch),
+    labels: topBranches.map(([branch]) => branch.split(' ')),
     datasets: [{
       label: 'Reports',
       data: topBranches.map(([, count]) => count),
@@ -329,11 +331,15 @@ function TopBranchesChart({ data }: { data: BranchByMonthData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } }, suggestedMax: topBranches.length > 0 ? Math.max(...topBranches.map(d => d[1])) * 1.15 : undefined },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { 
+        grid: { color: 'rgba(0,0,0,0.05)' }, 
+        ticks: { font: { size: 10 } }, 
+        suggestedMax: topBranches.length > 0 ? Math.max(...topBranches.map(d => d[1])) * 1.15 : undefined 
+      },
     },
   };
 
@@ -350,7 +356,7 @@ function TopAirlinesChart({ data }: { data: AirlineByMonthData[] }) {
   ).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   const chartData = {
-    labels: topAirlines.map(([airline]) => airline),
+    labels: topAirlines.map(([airline]) => airline.split(' ')),
     datasets: [{
       label: 'Reports',
       data: topAirlines.map(([, count]) => count),
@@ -362,11 +368,15 @@ function TopAirlinesChart({ data }: { data: AirlineByMonthData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } }, suggestedMax: topAirlines.length > 0 ? Math.max(...topAirlines.map(d => d[1])) * 1.15 : undefined },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { 
+        grid: { color: 'rgba(0,0,0,0.05)' }, 
+        ticks: { font: { size: 10 } }, 
+        suggestedMax: topAirlines.length > 0 ? Math.max(...topAirlines.map(d => d[1])) * 1.15 : undefined 
+      },
     },
   };
 
@@ -677,6 +687,10 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
 
   return (
     <div className="space-y-8">
+      {/* AI Intelligence Layer */}
+      <AiReportSummary source={filters.sourceSheet as any} />
+      <AiBranchSummary source={filters.sourceSheet as any} />
+
       {/* Auto-Insight Block */}
       <AutoInsight
         monthly={monthlyData}
@@ -847,7 +861,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
             <p className="text-slate-500 text-sm font-medium">Neural investigation into operational friction points.</p>
           </div>
         </div>
-        <AiRootCauseInvestigation source={filters.sourceSheet || "CGO"} />
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
       </section>
 
       {/* Attribution: Top Branches & Airlines */}

@@ -852,7 +852,38 @@ Classify root causes for all records in the database.
 
 ---
 
-### Root Cause Training (Async)
+### Root Cause Categories
+
+Get all available root cause categories with their descriptions and severity multipliers.
+
+**Endpoint:** `GET /api/ai/root-cause/categories`
+
+**Request:**
+```bash
+curl http://localhost:8000/api/ai/root-cause/categories
+```
+
+**Response:**
+```json
+{
+  "Equipment Failure": {
+    "name": "Equipment Failure",
+    "description": "Issues caused by equipment malfunction or failure",
+    "keyword_count": 28,
+    "severity_multiplier": 1.3
+  },
+  "Staff Competency": {
+    "name": "Staff Competency",
+    "description": "Issues caused by staff knowledge or skill gaps",
+    "keyword_count": 26,
+    "severity_multiplier": 1.2
+  }
+}
+```
+
+---
+
+### Root Cause Stats
 
 Trigger training for the Root Cause classifier in the background.
 
@@ -1008,6 +1039,43 @@ Rank branches based on risk scores or issue volume.
 Get overall system risk summary.
 
 **Endpoint:** `GET /api/ai/risk/summary`
+
+---
+
+### Risk Categories
+
+Get detailed risk categories with severity distributions for airlines, branches, areas, and categories.
+
+**Endpoint:** `GET /api/ai/risk/categories`
+
+**Request:**
+```bash
+curl http://localhost:8000/api/ai/risk/categories
+```
+
+**Response:**
+```json
+{
+  "airline_details": [
+    {
+      "name": "Garuda Indonesia",
+      "risk_score": 45.2,
+      "risk_level": "High",
+      "severity_distribution": {
+        "Critical": 12,
+        "High": 28,
+        "Medium": 45,
+        "Low": 67
+      },
+      "issue_categories": ["GSE", "Pax Handling", "Baggage Handling"]
+    }
+  ],
+  "branch_details": [...],
+  "area_details": [...],
+  "category_details": [...],
+  "last_updated": "2026-02-21T10:00:00.000000"
+}
+```
 
 ---
 

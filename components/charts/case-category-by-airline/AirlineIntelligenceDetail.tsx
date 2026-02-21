@@ -34,6 +34,7 @@ import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
+import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import type { QueryResult } from '@/types/builder';
 
 ChartJS.register(
@@ -62,9 +63,10 @@ interface KPICardProps {
   subtitle?: string;
   trend?: number;
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -137,10 +139,10 @@ function AutoInsight({ data }: {
   );
 }
 
-// ─── Category Composition: Stacked horizontal bar ───
+// ─── Category Composition: Vertical grouped bar ───
 function CategoryCompositionChart({ data }: { data: CategoryCompositionData[] }) {
   const chartData = {
-    labels: data.slice(0, 10).map(d => d.airline),
+    labels: data.slice(0, 10).map(d => d.airline.split(' ')),
     datasets: [
       { label: 'Irregularity', data: data.slice(0, 10).map(d => d.Irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
       { label: 'Complaint', data: data.slice(0, 10).map(d => d.Complaint), backgroundColor: '#f97316', borderRadius: 4 },
@@ -151,20 +153,20 @@ function CategoryCompositionChart({ data }: { data: CategoryCompositionData[] })
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
-      x: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { stacked: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
+  return <div className="h-[400px]"><Bar data={chartData} options={options} /></div>;
 }
 
-// ─── Branch Distribution: Horizontal bar ───
+// ─── Branch Distribution: Vertical bar ───
 function BranchDistributionChart({ data }: { data: BranchDistributionData[] }) {
   const branchTotals = Array.from(
     data.reduce((acc, curr) => {
@@ -175,7 +177,7 @@ function BranchDistributionChart({ data }: { data: BranchDistributionData[] }) {
   ).sort((a, b) => b[1] - a[1]).slice(0, 12);
 
   const chartData = {
-    labels: branchTotals.map(([branch]) => branch),
+    labels: branchTotals.map(([branch]) => branch.split(' ')),
     datasets: [{
       label: 'Reports',
       data: branchTotals.map(([, count]) => count),
@@ -187,18 +189,18 @@ function BranchDistributionChart({ data }: { data: BranchDistributionData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
   return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
-// ─── Area Breakdown: Stacked vertical bar ───
+// ─── Area Breakdown: Vertical grouped bar ───
 function AreaBreakdownChart({ data }: { data: AreaBreakdownData[] }) {
   // Group by airline, stack by area
   const airlineSet = new Set<string>();
@@ -221,7 +223,7 @@ function AreaBreakdownChart({ data }: { data: AreaBreakdownData[] }) {
   });
 
   const chartData = {
-    labels: airlines,
+    labels: airlines.map(a => a.split(' ')),
     datasets: areas.map(area => ({
       label: area,
       data: airlines.map(airline => dataMap.get(airline)?.get(area) || 0),
@@ -237,8 +239,8 @@ function AreaBreakdownChart({ data }: { data: AreaBreakdownData[] }) {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
-      x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
-      y: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { stacked: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
@@ -295,38 +297,6 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
   return <div className="h-[250px]"><Line data={chartData} options={options} /></div>;
 }
 
-// ─── Root Cause Distribution: Horizontal bar with category colors ───
-function RootCauseChart({ data }: { data: RootCauseData[] }) {
-  const categoryColors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-    Other: '#6b7280',
-  };
-
-  const chartData = {
-    labels: data.map(d => d.rootCause),
-    datasets: [{
-      label: 'Count',
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => categoryColors[d.category] || '#6b7280'),
-      borderRadius: 4,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-    },
-  };
-
-  return <div className="h-[350px]"><Bar data={chartData} options={options} /></div>;
-}
 
 
 // ─── Airline Ranking Table ───
@@ -687,24 +657,28 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
           value={totalReports.toLocaleString('id-ID')}
           subtitle={`Across ${airlineData.length} airlines`}
           color="blue"
+          explanation="Total laporan untuk maskapai dalam dataset ini."
         />
         <KPICard
           title="% System Contribution"
           value={topAirline ? `${topAirline.contribution.toFixed(1)}%` : '-'}
           subtitle={topAirline ? `Top: ${topAirline.airline}` : '-'}
           color="blue"
+          explanation="Kontribusi sistem berdasarkan airline teratas di periode ini."
         />
         <KPICard
           title="Rank #1"
           value={topAirline?.airline || '-'}
           subtitle={topAirline ? `${topAirline.total} reports` : '-'}
           color="yellow"
+          explanation="Maskapai dengan jumlah laporan tertinggi pada periode ini."
         />
         <KPICard
           title="Dominant Category"
           value={topAirline?.dominantCategory || '-'}
           subtitle={topAirline ? `For ${topAirline.airline}` : '-'}
           color={topAirline?.dominantCategory === 'Irregularity' ? 'red' : topAirline?.dominantCategory === 'Complaint' ? 'orange' : 'green'}
+          explanation="Kategori temuan utama pada maskapai ini." 
         />
       </div>
 
@@ -714,23 +688,27 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
           title="Overall Irreg. %"
           value={`${overallIrregRate.toFixed(1)}%`}
           color="red"
+          explanation="Persentase irregularitas terhadap total laporan untuk semua maskapai."
         />
         <KPICard
           title="Overall Complaint %"
           value={`${overallComplaintRate.toFixed(1)}%`}
           color="orange"
+          explanation="Persentase keluhan terhadap total laporan secara keseluruhan."
         />
         <KPICard
           title="Overall Net Sentiment"
           value={`${overallNetSentiment >= 0 ? '+' : ''}${overallNetSentiment.toFixed(1)}%`}
           subtitle="(Compliment - Complaint)"
           color={overallNetSentiment > 0 ? 'green' : 'red'}
+          explanation="Nilai gabungan sentimen positif vs negatif secara keseluruhan."
         />
         <KPICard
           title="Avg Risk Score"
           value={avgRiskIndex.toFixed(1)}
           subtitle="(Irreg x 2) + Complaint"
           color={avgRiskIndex >= 50 ? 'red' : avgRiskIndex >= 20 ? 'orange' : 'green'}
+          explanation="Indeks risiko rata-rata gabungan berdasarkan faktor ketidaknormalan dan keluhan."
         />
       </div>
 
@@ -768,11 +746,15 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
         <MonthlyTrendChart data={trendData} />
       </section>
 
-      {/* 7. Root Cause Distribution */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-1">Root Cause Distribution</h2>
-        <p className="text-xs text-gray-500 mb-4">Top root causes per airline with category colors (red = Irregularity, orange = Complaint, green = Compliment)</p>
-        <RootCauseChart data={rootCauseData} />
+      {/* 7. AI Root Cause Investigation */}
+      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
+            <p className="text-slate-500 text-sm font-medium">Neural investigation into airline-specific operational friction.</p>
+          </div>
+        </div>
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
       </section>
 
       {/* 9. Management Summary */}

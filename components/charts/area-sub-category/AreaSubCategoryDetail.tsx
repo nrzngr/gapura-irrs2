@@ -17,7 +17,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import type { QueryResult } from '@/types/builder';
-import { fetchDashboardSummaryAi, fetchRootCauseCategoriesAi, fetchRootCauseStatsAi } from '@/lib/services/gapura-ai';
+import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 
 type CategoryField = 'terminal_area_category' | 'apron_area_category' | 'general_category';
 
@@ -138,19 +138,6 @@ function StatCard({ label, value, tone = 'green' }: { label: string; value: stri
   );
 }
 
-function RootCauseChart({ data }: { data: { category: string; count: number }[] }) {
-  return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} layout="vertical" margin={{ left: 20, right: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-        <XAxis type="number" />
-        <YAxis type="category" dataKey="category" width={100} tick={{ fontSize: 10 }} />
-        <Tooltip />
-        <Bar dataKey="count" fill="#43a047" radius={[0, 4, 4, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
 
 export default function AreaSubCategoryDetail({
   filters,
@@ -164,95 +151,6 @@ export default function AreaSubCategoryDetail({
   const [error, setError] = useState<string | null>(null);
   const [focusedCategory, setFocusedCategory] = useState<string>('');
   const hasAutoSelected = useRef(false);
-  // AI-driven insights (optional)
-  const [aiSummary, setAiSummary] = useState<{ severity_distribution: Record<string, number> } | null>(null);
-  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
-  const [aiSummaryError, setAiSummaryError] = useState<string | null>(null);
-  const [aiRootCategories, setAiRootCategories] = useState<{ name: string; count: number }[]>([]);
-  const [aiRootCategoriesLoading, setAiRootCategoriesLoading] = useState(false);
-  const [aiRootCategoriesError, setAiRootCategoriesError] = useState<string | null>(null);
-  const [rootCauseStatsAi, setRootCauseStatsAi] = useState<{ byCategory: Record<string, { count: number; severity: Record<string, number> }> } | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch('/api/reports/analytics?refresh=true', { credentials: 'include' });
-        if (!res.ok) throw new Error(`Failed to load (${res.status})`);
-        const data = await res.json();
-        if (active) setReports(Array.isArray(data.reports) ? data.reports : []);
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'Failed to load data');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // AI-driven insights (optional)
-  useEffect(() => {
-    let mounted = true;
-    const loadAi = async () => {
-      try {
-        setAiSummaryLoading(true);
-        const summary = await fetchDashboardSummaryAi(false);
-        if (mounted) setAiSummary(summary);
-      } catch (e) {
-        if (mounted) setAiSummaryError((e as Error)?.message ?? 'AI summary fetch failed');
-      } finally {
-        if (mounted) setAiSummaryLoading(false);
-      }
-    };
-    const loadRootCategories = async () => {
-      try {
-        setAiRootCategoriesLoading(true);
-        const cats = await fetchRootCauseCategoriesAi();
-        if (mounted) {
-          const arr = Array.isArray(cats) ? cats : [];
-          setAiRootCategories(arr.slice(0, 8));
-        }
-      } catch (e) {
-        if (mounted) setAiRootCategoriesError((e as Error)?.message ?? 'AI root-cause fetch failed');
-      } finally {
-        if (mounted) setAiRootCategoriesLoading(false);
-      }
-    };
-    loadAi();
-    loadRootCategories();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // AI Root Cause Stats (categories, etc.)
-  useEffect(() => {
-    let mounted = true;
-    const loadStats = async () => {
-      try {
-        const stats = await fetchRootCauseStatsAi();
-        if (mounted && stats) {
-          const transformed = {
-            byCategory: Object.fromEntries(
-              Object.entries(stats.by_category || {}).map(([key, val]) => [key, { count: val.count, severity: {} }])
-            )
-          };
-          setRootCauseStatsAi(transformed);
-        }
-      } catch {
-        // ignore
-      }
-    };
-    loadStats();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
@@ -476,19 +374,6 @@ export default function AreaSubCategoryDetail({
     [filteredReports]
   );
 
-  const aiSeveritySeries = useMemo(() => {
-    const dist = (aiSummary?.severity_distribution) ?? {};
-    if (!dist || typeof dist !== 'object') return [];
-    const total = Object.values(dist).reduce((acc: number, v: any) => acc + (typeof v === 'number' ? v : 0), 0);
-    const items = Object.entries(dist).map(([sev, count]) => ({
-      severity: String(sev).toUpperCase(),
-      count: Number(count) || 0,
-      percentage: total > 0 ? (Number(count) || 0) / total * 100 : 0,
-    }));
-    const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-    items.sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
-    return items;
-  }, [aiSummary]);
 
   if (loading) {
     return (
@@ -511,53 +396,16 @@ export default function AreaSubCategoryDetail({
         <h2 className="text-xl font-black text-gray-900 tracking-tight">{title}</h2>
         <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
       </div>
-      {aiSummaryLoading && (
-        <div className="text-sm text-gray-600">Loading AI insights...</div>
-      )}
-      {!aiSummaryLoading && aiSummary && (
-        <div className="space-y-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-800 mb-2">AI Severity Distribution</h3>
-            <div className="text-sm text-gray-700">
-              {aiSeveritySeries.map((s) => (
-                <span key={s.severity} className="mr-3">
-                  {s.severity}: {s.count.toLocaleString('id-ID')} ({s.percentage.toFixed(1)}%)
-                </span>
-              ))}
-            </div>
+      {/* AI Root Cause Investigation */}
+      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
+            <p className="text-slate-500 text-sm font-medium">Neural investigation into {contextMeta.singular} operational friction.</p>
           </div>
-          {aiRootCategories.length > 0 && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-800 mb-3">AI Root Causes (Top)</h3>
-              <ul className="text-sm text-gray-700 space-y-1">
-                {aiRootCategories.map((item) => (
-                  <li key={item.name}>- {item.name} ({item.count})</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
-      )}
-      {aiSummaryError && <div className="text-sm text-red-600">{aiSummaryError}</div>}
-      {aiRootCategoriesError && <div className="text-sm text-red-600">{aiRootCategoriesError}</div>}
-
-      {/* Dedicated AI Root Cause Stats Chart */}
-      {rootCauseStatsAi?.byCategory && (
-        <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800 mb-3">AI Root Causes (Stats by Category)</h3>
-          {(() => {
-            const data = Object.entries(rootCauseStatsAi.byCategory).map(([cat, detail]: any) => ({
-              category: cat,
-              count: Number(detail?.count) || 0,
-            }));
-            if (!data.length) return null;
-            // Use dedicated RootCauseChart with category naming
-            return (
-              <RootCauseChart data={data.map((d) => ({ category: d.category, count: d.count }))} />
-            );
-          })()}
-        </section>
-      )}
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
+      </section>
 
       <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">{contextMeta.insightLabel}</p>

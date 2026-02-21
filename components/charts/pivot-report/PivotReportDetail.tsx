@@ -58,9 +58,10 @@ interface KPICardProps {
   value: string | number;
   subtitle?: string;
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -74,6 +75,11 @@ function KPICard({ title, value, subtitle, color = 'blue' }: KPICardProps) {
       <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
       <div className="text-2xl font-black tracking-tight">{value}</div>
       {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
+      {explanation && (
+        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
+          {explanation}
+        </div>
+      )}
     </div>
   );
 }
@@ -523,21 +529,24 @@ export default function PivotReportDetail({ filters = {}, pivotTitle = '' }: { f
     <div className="space-y-8">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard title="Total Reports" value={matrix.grandTotal.toLocaleString('id-ID')} color="blue" />
+        <KPICard title="Total Reports" value={matrix.grandTotal.toLocaleString('id-ID')} color="blue" explanation="Total jumlah laporan dalam pivot matrix ini." />
         <KPICard
           title={`Unique ${rowLabel}s`}
           value={matrix.rows.length}
           color="green"
+          explanation="Jumlah baris unik pada pivot matrix (biasanya jumlah kategori baris)." 
         />
         <KPICard
           title={`Unique ${colLabel}s`}
           value={matrix.cols.length}
           color="orange"
+          explanation="Jumlah kolom unik pada pivot matrix (biasanya jumlah kategori kolom)." 
         />
         <KPICard
           title="Peak Cell Value"
           value={peakValue}
           color="yellow"
+          explanation="Nilai sel dengan nilai tertinggi pada pivot matrix ini." 
         />
       </div>
 

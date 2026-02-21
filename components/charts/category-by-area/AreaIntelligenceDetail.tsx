@@ -36,6 +36,7 @@ import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
+import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import type { QueryResult } from '@/types/builder';
 
 ChartJS.register(
@@ -64,9 +65,10 @@ interface KPICardProps {
   subtitle?: string;
   trend?: number;
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
+  explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
     green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     red: 'bg-red-50 border-red-200 text-red-700',
@@ -84,6 +86,11 @@ function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps
         <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
           {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
           <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+        </div>
+      )}
+      {explanation && (
+        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
+          {explanation}
         </div>
       )}
     </div>
@@ -142,10 +149,10 @@ function AutoInsight({ data }: { data: AreaSummary[] }) {
   );
 }
 
-// ─── Category Stacked Horizontal Bar ───
+// ─── Category Grouped Vertical Bar ───
 function CategoryBreakdownChart({ data }: { data: AreaCategoryBreakdown[] }) {
   const chartData = {
-    labels: data.slice(0, 12).map(d => d.area),
+    labels: data.slice(0, 12).map(d => d.area.split(' ')),
     datasets: [
       { label: 'Irregularity', data: data.slice(0, 12).map(d => d.Irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
       { label: 'Complaint', data: data.slice(0, 12).map(d => d.Complaint), backgroundColor: '#f97316', borderRadius: 4 },
@@ -156,23 +163,23 @@ function CategoryBreakdownChart({ data }: { data: AreaCategoryBreakdown[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: {
       legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
     },
     scales: {
-      x: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { stacked: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
-  return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
+  return <div className="h-[400px]"><Bar data={chartData} options={options} /></div>;
 }
 
-// ─── Branch Distribution Horizontal Bar ───
+// ─── Branch Distribution Vertical Bar ───
 function BranchDistributionChart({ data }: { data: BranchWithinAreaData[] }) {
   const chartData = {
-    labels: data.slice(0, 12).map(d => d.branch),
+    labels: data.slice(0, 12).map(d => d.branch.split(' ')),
     datasets: [{
       label: 'Reports',
       data: data.slice(0, 12).map(d => d.count),
@@ -184,21 +191,21 @@ function BranchDistributionChart({ data }: { data: BranchWithinAreaData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
   return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
-// ─── Airline Distribution Horizontal Bar ───
+// ─── Airline Distribution Vertical Bar ───
 function AirlineDistributionChart({ data }: { data: AirlineWithinAreaData[] }) {
   const chartData = {
-    labels: data.slice(0, 12).map(d => d.airline),
+    labels: data.slice(0, 12).map(d => d.airline.split(' ')),
     datasets: [{
       label: 'Reports',
       data: data.slice(0, 12).map(d => d.count),
@@ -210,11 +217,11 @@ function AirlineDistributionChart({ data }: { data: AirlineWithinAreaData[] }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'y' as const,
+    indexAxis: 'x' as const,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, padding: 12 } },
+      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
     },
   };
 
@@ -271,67 +278,6 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
   return <div className="h-[250px]"><Line data={chartData} options={options} /></div>;
 }
 
-// ─── Pareto Root Cause: bar counts + cumulative line ───
-function ParetoRootCauseChart({ data }: { data: RootCauseParetoData[] }) {
-  const categoryColors: Record<string, string> = {
-    Irregularity: '#ef4444',
-    Complaint: '#f97316',
-    Compliment: '#22c55e',
-    Other: '#6b7280',
-  };
-
-  const chartData = {
-    labels: data.map(d => d.rootCause),
-    datasets: [
-      {
-        type: 'bar' as const,
-        label: 'Count',
-        data: data.map(d => d.count),
-        backgroundColor: data.map(d => categoryColors[d.category] || '#6b7280'),
-        borderRadius: 4,
-        yAxisID: 'y',
-      },
-      {
-        type: 'line' as const,
-        label: 'Cumulative %',
-        data: data.map(d => d.cumPercent),
-        borderColor: '#6366f1',
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        pointRadius: 3,
-        pointBackgroundColor: '#6366f1',
-        yAxisID: 'y1',
-        tension: 0.3,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: {
-      legend: { position: 'bottom' as const, labels: { usePointStyle: true, padding: 15, font: { size: 10 } } },
-    },
-    scales: {
-      x: {
-        position: 'bottom' as const,
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { size: 10 } },
-      },
-      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-      y1: {
-        position: 'right' as const,
-        min: 0,
-        max: 100,
-        grid: { display: false },
-        ticks: { font: { size: 10 }, callback: (v: number | string) => `${v}%` },
-      },
-    },
-  };
-
-  return <div className="h-[350px]"><Bar data={chartData as any} options={options as any} /></div>;
-}
 
 // ─── Heatmap: Branch x Category ───
 function HeatmapTable({ matrix }: { matrix: HeatmapMatrix }) {
@@ -699,24 +645,28 @@ export default function AreaIntelligenceDetail({ filters = {} }: { filters?: Fil
           value={totalReports.toLocaleString('id-ID')}
           subtitle={`Across ${areaData.length} areas`}
           color="blue"
+          explanation="Total laporan untuk wilayah ini pada dataset ini."
         />
         <KPICard
           title="% of System"
           value={topArea ? `${topArea.percentOfSystem.toFixed(1)}%` : '-'}
           subtitle={topArea ? `Top: ${topArea.area}` : ''}
           color="blue"
+          explanation="Persentase sistem yang termasuk dalam analisis untuk area ini."
         />
         <KPICard
           title="Rank"
           value={topArea ? `#${topArea.rank}` : '-'}
           subtitle={topArea ? topArea.area : ''}
           color="yellow"
+          explanation="Urutan peringkat berdasarkan skor area pada dataset ini."
         />
         <KPICard
           title="Overall Irreg. %"
           value={`${overallIrregRate.toFixed(1)}%`}
           subtitle="Weighted total"
           color={overallIrregRate > 50 ? 'red' : 'orange'}
+          explanation="Persentase ketidaknormalan secara keseluruhan untuk area-area ini."
         />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -725,18 +675,21 @@ export default function AreaIntelligenceDetail({ filters = {} }: { filters?: Fil
           value={`${overallComplaintRate.toFixed(1)}%`}
           subtitle="Weighted total"
           color="orange"
+          explanation="Persentase keluhan terhadap total laporan secara keseluruhan."
         />
         <KPICard
           title="Overall Compliment %"
           value={`${overallComplimentRate.toFixed(1)}%`}
           subtitle="Weighted total"
           color="green"
+          explanation="Persentase compliment terhadap total laporan secara keseluruhan."
         />
         <KPICard
           title="Overall Net Sentiment"
           value={`${overallNetSentiment >= 0 ? '+' : ''}${overallNetSentiment.toFixed(1)}%`}
           subtitle="Weighted total"
           color={overallNetSentiment > 0 ? 'green' : 'red'}
+          explanation="Nilai gabungan sentimen positif vs negatif untuk seluruh data area ini."
         />
         <KPICard
           title="Risk Score Index"
@@ -744,6 +697,7 @@ export default function AreaIntelligenceDetail({ filters = {} }: { filters?: Fil
           subtitle="Avg (Irreg*2 + Complaint)"
           trend={topArea?.momGrowth}
           color={avgRiskIndex >= 50 ? 'red' : avgRiskIndex >= 20 ? 'orange' : 'green'}
+          explanation="Indeks risiko rata-rata gabungan berdasarkan faktor ketidaknormalan dan keluhan."
         />
       </div>
 
@@ -775,11 +729,15 @@ export default function AreaIntelligenceDetail({ filters = {} }: { filters?: Fil
         <MonthlyTrendChart data={trendData} />
       </section>
 
-      {/* 7. Root Cause Pareto */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-1">Root Cause Pareto Analysis</h2>
-        <p className="text-xs text-gray-500 mb-4">Top issues ranked by frequency with cumulative percentage</p>
-        <ParetoRootCauseChart data={paretoData} />
+      {/* 7. AI Root Cause Investigation */}
+      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
+            <p className="text-slate-500 text-sm font-medium">Neural investigation into area-specific operational friction.</p>
+          </div>
+        </div>
+        <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
       </section>
 
       {/* 8. Heatmap: Branch x Category */}
