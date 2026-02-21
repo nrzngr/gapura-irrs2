@@ -6,8 +6,27 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const refresh = searchParams.get('refresh') === 'true';
     
-    // Fetch all reports from Google Sheets
-    const reports = await reportsService.getReports({ refresh });
+    // Parse filters from query string
+    const filters = {
+      dateFrom: searchParams.get('dateFrom') || undefined,
+      dateTo: searchParams.get('dateTo') || undefined,
+      hub: searchParams.get('hub') || undefined,
+      branch: searchParams.get('branch') || undefined,
+      area: searchParams.get('area') || undefined,
+      airlines: searchParams.get('airlines') || undefined,
+      sourceSheet: searchParams.get('sourceSheet') || undefined,
+    };
+
+    // Parse fields if provided (expects comma-separated string)
+    const fieldsParam = searchParams.get('fields');
+    const fields = fieldsParam ? fieldsParam.split(',') : undefined;
+    
+    // Fetch reports with server-side optimization
+    const reports = await reportsService.getReports({ 
+      refresh, 
+      filters,
+      fields 
+    });
     
     // Return with caching headers
     return NextResponse.json({

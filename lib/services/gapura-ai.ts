@@ -141,19 +141,38 @@ export interface RootCauseSummary {
   }>;
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 120000): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 60000): Promise<Response> {
+  const { signal, ...otherOptions } = options;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
+  
+  const onAbort = () => {
+    clearTimeout(id);
+    controller.abort();
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      onAbort();
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+  }
+
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, { ...otherOptions, signal: controller.signal });
     return response;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      if (signal?.aborted) throw error;
       throw new Error('Request timeout - AI service took too long to respond');
     }
     throw error;
   } finally {
     clearTimeout(id);
+    if (signal) {
+      signal.removeEventListener('abort', onAbort);
+    }
   }
 }
 
@@ -181,9 +200,9 @@ function calculateTopRisky(
   return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.name);
 }
 
-export async function fetchSeverityDistributionsAi(): Promise<SeverityDistributionsAiResponse | null> {
+export async function fetchSeverityDistributionsAi(signal?: AbortSignal): Promise<SeverityDistributionsAiResponse | null> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000`, {}, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/reports/severity-distribution`, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch severity distributions:', response.status);
       return null;
@@ -237,16 +256,17 @@ export async function fetchSeverityDistributionsAi(): Promise<SeverityDistributi
       airline: toArray(severityByAirline),
     };
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
     console.error('[gapura-ai] Error fetching severity distributions:', error);
     return null;
   }
 }
 
-export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
+export async function fetchRiskSummaryAi(signal?: AbortSignal): Promise<AiRiskSummary | null> {
   try {
-    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/summary?max_rows_per_sheet=10000`;
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/reports/risk-summary`;
     console.log('[gapura-ai] Fetching risk summary from:', url);
-    const response = await fetchWithTimeout(url, {}, 120000);
+    const response = await fetchWithTimeout(url, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch risk summary:', response.status);
       return null;
@@ -267,15 +287,16 @@ export async function fetchRiskSummaryAi(): Promise<AiRiskSummary | null> {
       branch_details: data.branch_details || [],
     };
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
     console.error('[gapura-ai] Error fetching risk summary:', error);
     return null;
   }
 }
 
-export async function fetchDashboardSummaryAi(bypassCache = false): Promise<DashboardSummaryAi | null> {
+export async function fetchDashboardSummaryAi(bypassCache = false, signal?: AbortSignal): Promise<DashboardSummaryAi | null> {
   try {
-    const url = `${GAPURA_AI_BASE_URL}/api/ai/analyze-all?max_rows_per_sheet=10000${bypassCache ? '&bypass_cache=true' : ''}`;
-    const response = await fetchWithTimeout(url, {}, 120000);
+    const url = bypassCache ? `${GAPURA_AI_BASE_URL}/api/ai/dashboard/summary?bypass_cache=true` : `${GAPURA_AI_BASE_URL}/api/ai/dashboard/summary`;
+    const response = await fetchWithTimeout(url, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch dashboard summary:', response.status);
       return null;
@@ -296,14 +317,15 @@ export async function fetchDashboardSummaryAi(bypassCache = false): Promise<Dash
       severity_distribution: normalized,
     };
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
     console.error('[gapura-ai] Error fetching dashboard summary:', error);
     return null;
   }
 }
 
-export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]> {
+export async function fetchRootCauseCategoriesAi(signal?: AbortSignal): Promise<RootCauseCategory[]> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/categories`, {}, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/categories`, { signal }, 60000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause categories:', response.status);
       return [];
@@ -325,19 +347,20 @@ export async function fetchRootCauseCategoriesAi(): Promise<RootCauseCategory[]>
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return [];
     console.error('[gapura-ai] Error fetching root cause categories:', error);
     return [];
   }
 }
 
-export async function fetchRootCauseCategories(): Promise<Record<string, {
+export async function fetchRootCauseCategories(signal?: AbortSignal): Promise<Record<string, {
   name: string;
   description: string;
   keyword_count: number;
   severity_multiplier: number;
 }> | null> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/categories`, {}, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/categories`, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause categories:', response.status);
       return null;
@@ -346,15 +369,16 @@ export async function fetchRootCauseCategories(): Promise<Record<string, {
     const data = await response.json();
     return data;
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
     console.error('[gapura-ai] Error fetching root cause categories:', error);
     return null;
   }
 }
 
-export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseStatsAi | null> {
+export async function fetchRootCauseStatsAi(source?: string, signal?: AbortSignal): Promise<RootCauseStatsAi | null> {
   try {
     const query = source ? `?source=${encodeURIComponent(source)}` : '';
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/stats${query}`, {}, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/root-cause/stats${query}`, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch root cause stats:', response.status);
       return null;
@@ -363,14 +387,15 @@ export async function fetchRootCauseStatsAi(source?: string): Promise<RootCauseS
     const data = await response.json();
     return data as RootCauseStatsAi;
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
     console.error('[gapura-ai] Error fetching root cause stats:', error);
     return null;
   }
 }
 
-export async function fetchBranchSummaryAi(): Promise<AiBranchSummaryResponse | null> {
+export async function fetchBranchSummaryAi(signal?: AbortSignal): Promise<AiBranchSummaryResponse | null> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/branch/summary`, {}, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/branch/summary`, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch branch summary:', response.status);
       return null;
@@ -379,6 +404,7 @@ export async function fetchBranchSummaryAi(): Promise<AiBranchSummaryResponse | 
     const data = await response.json();
     return data as AiBranchSummaryResponse;
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
     console.error('[gapura-ai] Error fetching branch summary:', error);
     return null;
   }

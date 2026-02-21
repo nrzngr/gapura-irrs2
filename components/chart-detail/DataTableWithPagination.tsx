@@ -8,9 +8,10 @@ import { formatDisplayValue } from '@/lib/chart-utils';
 interface DataTableWithPaginationProps {
   data: QueryResult;
   title: string;
+  isLoading?: boolean;
 }
 
-export function DataTableWithPagination({ data, title }: DataTableWithPaginationProps) {
+export function DataTableWithPagination({ data, title, isLoading }: DataTableWithPaginationProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -173,7 +174,16 @@ export function DataTableWithPagination({ data, title }: DataTableWithPagination
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {paginatedRows.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={uniqueColumns.length + 1} className="px-6 py-20 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-gray-500 font-medium">Aggregating report data...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : paginatedRows.length === 0 ? (
               <tr>
                 <td colSpan={uniqueColumns.length + 1} className="px-6 py-8 text-center text-gray-400 text-xs italic">
                   No data found

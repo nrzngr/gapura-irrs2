@@ -12,6 +12,8 @@ interface FilterState {
   airlines: string;
   area: string;
   sourceSheet: 'NON CARGO' | 'CGO';
+  dateFrom: string;
+  dateTo: string;
 }
 
 function EmbedReportByCaseCategoryContent() {
@@ -40,12 +42,9 @@ function EmbedReportByCaseCategoryContent() {
     branch: searchParams.get('branch') || 'all',
     airlines: searchParams.get('airlines') || 'all',
     area: searchParams.get('area') || 'all',
+    dateFrom: dateFromParam || '',
+    dateTo: dateToParam || '',
     sourceSheet,
-  });
-
-  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
-    from: dateFromParam || '',
-    to: dateToParam || '',
   });
 
   return (
@@ -66,7 +65,7 @@ function EmbedReportByCaseCategoryContent() {
 
                 {hideFilters && !isStatic && (
                   <p className="text-[10px] font-semibold text-amber-600 mt-1">
-                    Filtered View {dateRange.from && dateRange.to ? `(${dateRange.from} - ${dateRange.to})` : ''}
+                    Filtered View {filters.dateFrom && filters.dateTo ? `(${filters.dateFrom} - ${filters.dateTo})` : ''}
                   </p>
                 )}
               </div>
@@ -79,7 +78,7 @@ function EmbedReportByCaseCategoryContent() {
 
       <main className={cn("w-full px-4 sm:px-6 py-6", isStatic && "p-0")}>
         <div className={cn("max-w-[1800px] mx-auto", isStatic && "max-w-none")}>
-          <ReportByCaseCategoryDetail filters={filters} dateRange={hideFilters ? dateRange : undefined} />
+          <ReportByCaseCategoryDetail filters={filters} dateRange={hideFilters ? { from: filters.dateFrom, to: filters.dateTo } : undefined} />
         </div>
       </main>
     </div>

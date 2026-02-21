@@ -11,8 +11,8 @@ import {
   fetchPeakDay,
   fetchDominantBranch,
   fetchDominantAirline,
-  fetchMonthlyKPIs,
   fetchMonthlyTrendByCategory,
+  fetchAggregatedMonthlyReport,
   MonthlySummary,
   DailyDataPoint,
   BranchByMonthData,
@@ -39,13 +39,15 @@ import {
   Filler,
 } from 'chart.js';
 import { BarChart, Bar as RechartsBar, LineChart, Line as RechartsLine, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer } from 'recharts';
-import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap, Brain } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import { AiBranchSummary } from '@/components/ai/AiBranchSummary';
 import { AiReportSummary } from '@/components/ai/AiReportSummary';
+import { fetchRiskSummaryAi, AiRiskSummary } from '@/lib/services/gapura-ai';
+import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import type { QueryResult } from '@/types/builder';
 
 ChartJS.register(
@@ -67,6 +69,8 @@ interface FilterParams {
   area?: string;
   month?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface KPICardProps {
@@ -580,6 +584,8 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
   const [dominantAirline, setDominantAirline] = useState<DominantInfo>({ name: '-', count: 0, percent: 0 });
   const [kpis, setKpis] = useState<MonthlyKPIs | null>(null);
   const [trendData, setTrendData] = useState<MonthlyTrendData[]>([]);
+  const [aiRiskSummary, setAiRiskSummary] = useState<AiRiskSummary | null>(null);
+  const [aiRiskHeatmap, setAiRiskHeatmap] = useState<any[]>([]);
   const investigativeData: QueryResult = useMemo(() => {
     const rows = tableData as unknown as Record<string, unknown>[];
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -603,47 +609,90 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
     };
   }, [monthlyData]);
 
+  const [tableLoading, setTableLoading] = useState(false);
+
   useEffect(() => {
-    async function loadData() {
+    const controller = new AbortController();
+
+    async function loadAggregatedData() {
       setLoading(true);
       setError(null);
 
       try {
-        const [monthly, daily, branch, airline, table, rolling, peak, domBranch, domAirline, kpiData, trend] = await Promise.all([
-          fetchMonthlySummary(filters),
-          fetchDailyTrend(filters),
-          fetchBranchByMonth(filters),
-          fetchAirlineByMonth(filters),
-          fetchAllMonthlyReports(filters),
-          fetchRollingAverage(filters),
-          fetchPeakDay(filters),
-          fetchDominantBranch(filters),
-          fetchDominantAirline(filters),
-          fetchMonthlyKPIs(filters),
-          fetchMonthlyTrendByCategory(filters),
-        ]);
+        const aggregated = await fetchAggregatedMonthlyReport(filters, controller.signal);
 
-        setMonthlyData(monthly);
-        setDailyData(daily);
-        setBranchData(branch);
-        setAirlineData(airline);
-        setTableData(table);
-        setRollingData(rolling);
-        setPeakDay(peak);
-        setDominantBranch(domBranch);
-        setDominantAirline(domAirline);
-        setKpis(kpiData);
-        setTrendData(trend);
+        if (aggregated && aggregated.summary) {
+          setMonthlyData(aggregated.summary);
+          setDailyData(aggregated.dailyData || []);
+          setRollingData(aggregated.rollingData || []);
+          setPeakDay(aggregated.peakDay || { date: '-', count: 0, dayOfWeek: '-' });
+          setDominantBranch(aggregated.dominantBranch || { name: '-', count: 0, percent: 0 });
+          setDominantAirline(aggregated.dominantAirline || { name: '-', count: 0, percent: 0 });
+          setKpis(aggregated.kpis);
+          setTrendData((aggregated.trend || []) as any);
+        } else {
+          throw new Error('Invalid aggregated monthly data');
+        }
+
+        // Load AI data separately to prevent blocking
+        fetchRiskSummaryAi(controller.signal).then(riskSummaryRes => {
+          const riskSummaryResult = riskSummaryRes as AiRiskSummary | null;
+          if (riskSummaryResult) {
+            setAiRiskSummary(riskSummaryResult);
+            if (riskSummaryResult.branch_details) {
+              const heatmapData = riskSummaryResult.branch_details.flatMap(b => 
+                Object.entries(b.severity_distribution).map(([sev, count]) => ({
+                  branch: b.name,
+                  severity: sev,
+                  count: count
+                }))
+              );
+              setAiRiskHeatmap(heatmapData);
+            }
+          }
+        }).catch(err => {
+          if (err.name === 'AbortError') return;
+          console.warn('AI Risk Summary failed to load:', err);
+        });
       } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('Failed to load data. Please try again.');
+        if ((err as any).name === 'AbortError') return;
+        console.error('Failed to load aggregated monthly data:', err);
+        setError('Failed to load primary dashboard data.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
-    loadData();
-  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.month]);
+    loadAggregatedData();
+
+    return () => {
+      controller.abort();
+    };
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo]);
+
+  useEffect(() => {
+    async function loadDeferredData() {
+      setTableLoading(true);
+      try {
+        const [branch, airline, table] = await Promise.all([
+          fetchBranchByMonth(filters),
+          fetchAirlineByMonth(filters),
+          fetchAllMonthlyReports(filters),
+        ]);
+        setBranchData(branch);
+        setAirlineData(airline);
+        setTableData(table);
+      } catch (err) {
+        console.error('Failed to load deferred monthly data:', err);
+      } finally {
+        setTableLoading(false);
+      }
+    }
+
+    loadDeferredData();
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.month, filters.dateFrom, filters.dateTo]);
 
   if (loading) {
     return (
@@ -690,6 +739,26 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       {/* AI Intelligence Layer */}
       <AiReportSummary source={filters.sourceSheet as any} />
       <AiBranchSummary source={filters.sourceSheet as any} />
+
+      {/* AI Risk Heatmap */}
+      {aiRiskHeatmap.length > 0 && (
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Brain className="w-5 h-5 text-emerald-600" />
+            <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across branches (AI Service Data)</p>
+          <div className="h-[400px]">
+            <HeatmapChart 
+              data={aiRiskHeatmap}
+              xAxis="severity"
+              yAxis="branch"
+              metric="count"
+              showTitle={false}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Auto-Insight Block */}
       <AutoInsight

@@ -11,6 +11,7 @@ import {
   fetchAllBranchReports,
   fetchBranchKPIs,
   fetchBranchCategoryDistribution,
+  fetchAggregatedBranchReport,
   BranchSummary,
   TrendDataPoint,
   BranchCategoryData,
@@ -76,6 +77,8 @@ interface FilterParams {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface KPICardProps {
@@ -543,6 +546,7 @@ function ManagementSummary({ data }: { data: BranchSummary[] }) {
 
 export default function BranchReportDetail({ filters = {} }: { filters?: FilterParams }) {
   const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branchData, setBranchData] = useState<BranchSummary[]>([]);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
@@ -555,6 +559,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
   const [categoryDistribution, setCategoryDistribution] = useState<BranchCategoryDistribution[]>([]);
   const [aiRiskSummary, setAiRiskSummary] = useState<AiRiskSummary | null>(null);
   const [aiRiskHeatmap, setAiRiskHeatmap] = useState<any[]>([]);
+
   const investigativeData: QueryResult = useMemo(() => {
     const rows = tableData as unknown as Record<string, unknown>[];
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -566,6 +571,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       executionTimeMs: 0,
     };
   }, [tableData]);
+
   const fullTableData: QueryResult = useMemo(() => {
     const rows = branchData.map(item => ({ ...item })) as unknown as Record<string, unknown>[];
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -578,70 +584,93 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
     };
   }, [branchData]);
 
+  // Deferred loading for heavy data
   useEffect(() => {
-    async function loadData() {
+    const controller = new AbortController();
+
+    async function loadInitialData() {
       setLoading(true);
       setError(null);
-
       try {
+        const aggregated = await fetchAggregatedBranchReport(filters);
+        if (aggregated && aggregated.branchData) {
+          setBranchData(aggregated.branchData);
+          setTrendData(aggregated.trendData || []);
+          setCategoryData((aggregated.branchData || []).map(b => ({
+            branch: b.branch,
+            Irregularity: b.irregularity,
+            Complaint: b.complaint,
+            Compliment: b.compliment
+          })));
+          setKpis(aggregated.kpis);
+          setCategoryDistribution(aggregated.categoryDistribution || []);
+        } else {
+          throw new Error('Invalid aggregated data received');
+        }
+      } catch (err) {
+        if ((err as any).name === 'AbortError') return;
+        console.error('Failed to load initial branch data:', err);
+        setError('Failed to load initial dashboard data.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    async function loadDeferredData() {
+      setTableLoading(true);
+      try {
+        // Parallel fetch of non-critical data
         const [
-          branch, 
-          trend, 
-          category, 
           rootCause, 
           airline, 
           area, 
           table, 
-          kpiData, 
-          catDist, 
           riskSummaryRes
         ] = await Promise.all([
-          fetchBranchSummary(filters),
-          fetchMonthlyTrendByBranch(filters),
-          fetchCategoryByBranch(filters),
           fetchRootCauseByBranch(filters),
           fetchAirlineByBranch(filters),
           fetchAreaByBranch(filters),
           fetchAllBranchReports(filters),
-          fetchBranchKPIs(filters),
-          fetchBranchCategoryDistribution(filters),
-          fetchRiskSummaryAi(),
+          fetchRiskSummaryAi(controller.signal).catch(() => null), // Resilient AI fetch
         ]);
  
-        setBranchData(branch);
-        setTrendData(trend);
-        setCategoryData(category);
         setRootCauseData(rootCause);
         setAirlineData(airline);
         setAreaData(area);
         setTableData(table);
-        setKpis(kpiData as BranchKPIs);
-        setCategoryDistribution(catDist as BranchCategoryDistribution[]);
         
-        const riskSummaryResult = riskSummaryRes as AiRiskSummary | null;
-        if (riskSummaryResult) {
-          setAiRiskSummary(riskSummaryResult);
-          if (riskSummaryResult.branch_details) {
-            const heatmapData = riskSummaryResult.branch_details.flatMap(b => 
+        if (riskSummaryRes) {
+          setAiRiskSummary(riskSummaryRes);
+          if (riskSummaryRes.branch_details) {
+            const heatmapData = riskSummaryRes.branch_details.flatMap(b => 
               Object.entries(b.severity_distribution).map(([sev, count]) => ({
                 branch: b.name,
                 severity: sev,
-                count: count
+                count: count as number
               }))
             );
             setAiRiskHeatmap(heatmapData);
           }
         }
       } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('Failed to load data. Please try again.');
+        if ((err as any).name === 'AbortError') return;
+        console.warn('Deferred data failed to load:', err);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setTableLoading(false);
+        }
       }
     }
 
-    loadData();
-  }, [filters.hub, filters.branch, filters.airlines, filters.area]);
+    loadInitialData();
+    loadDeferredData();
+
+    return () => {
+      controller.abort();
+    };
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo, filters.sourceSheet]);
 
   if (loading) {
     return (
@@ -792,6 +821,18 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
         <BranchAIVisualization filters={filters.branch ? [{ field: 'branch', value: filters.branch }] : []} />
       </section>
 
+      {/* Reports Detail Table */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-800">Branch Intelligence Reports</h2>
+        </div>
+        <DataTableWithPagination 
+          data={investigativeData} 
+          isLoading={tableLoading}
+          title="Branch Intelligence Reports"
+        />
+      </section>
+
       {/* Split View: Airline & Area */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -813,17 +854,8 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
         title="Investigative Table - Branch Reports"
         rowsPerPage={5}
         maxRows={40}
+        isLoading={tableLoading}
       />
-
-      {/* Data Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
-        </div>
-        <div className="p-6">
-          <DataTableWithPagination data={fullTableData} title="Branch Performance (Main Chart Source)" />
-        </div>
-      </section>
     </div>
   );
 }

@@ -12,6 +12,9 @@ interface FilterState {
   airlines: string;
   area: string;
   sourceSheet: 'NON CARGO' | 'CGO';
+  dateFrom?: string;
+  dateTo?: string;
+  pageIndex?: number;
 }
 
 function EmbedAreaReportContent() {
@@ -35,6 +38,9 @@ function EmbedAreaReportContent() {
     airlines: searchParams.get('airlines') || 'all',
     area: searchParams.get('area') || 'all',
     sourceSheet,
+    dateFrom: searchParams.get('dateFrom') || undefined,
+    dateTo: searchParams.get('dateTo') || undefined,
+    pageIndex: searchParams.get('pageIndex') ? parseInt(searchParams.get('pageIndex')!) : undefined,
   });
 
   return (

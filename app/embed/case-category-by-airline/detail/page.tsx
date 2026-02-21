@@ -12,6 +12,8 @@ interface FilterState {
   airlines: string;
   area: string;
   sourceSheet: 'NON CARGO' | 'CGO';
+  dateFrom: string;
+  dateTo: string;
 }
 
 function EmbedCaseCategoryByAirlineContent() {
@@ -34,6 +36,8 @@ function EmbedCaseCategoryByAirlineContent() {
     branch: searchParams.get('branch') || 'all',
     airlines: searchParams.get('airlines') || 'all',
     area: searchParams.get('area') || 'all',
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || '',
     sourceSheet,
   });
 

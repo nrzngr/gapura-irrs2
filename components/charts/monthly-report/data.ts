@@ -87,11 +87,21 @@ interface BaseFilters {
   area?: string;
   month?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-let reportsCache: Report[] | null = null;
-let lastFetchTime = 0;
+let reportsCache: Record<string, { data: Report[], ts: number }> = {};
+let inflightRequests: Record<string, Promise<Report[]>> = {};
 const CACHE_DURATION = 1000 * 60 * 5;
+
+const CORE_FIELDS = [
+  'id', 'date_of_event', 'created_at', 'hub', 'branch', 'reporting_branch', 'station_code',
+  'area', 'terminal_area_category', 'apron_area_category', 'general_category',
+  'airlines', 'airline', 'main_category', 'category', 'irregularity_complain_category',
+  'root_caused', 'action_taken', 'evidence_url', 'evidence_urls', 'source_sheet',
+  'remarks_gapura_kps'
+];
 
 export interface SeverityDistribution {
   name: string;
@@ -140,35 +150,63 @@ function getDateKey(dateStr: string | undefined): string {
   }
 }
 
-async function fetchReportsFromSheets(): Promise<Report[]> {
-  const now = Date.now();
+export interface AggregatedMonthlyData {
+  summary: MonthlySummary[];
+  trend: MonthlySummary[];
+  kpis: MonthlyKPIs;
+  rollingData: RollingAveragePoint[];
+  dailyData: DailyDataPoint[];
+  peakDay: PeakDayInfo;
+  dominantBranch: DominantInfo;
+  dominantAirline: DominantInfo;
+}
+
+async function fetchReportsFromSheets(filters: BaseFilters = {}): Promise<Report[]> {
+  const query = new URLSearchParams();
+  if (filters.dateFrom) query.append('dateFrom', filters.dateFrom);
+  if (filters.dateTo) query.append('dateTo', filters.dateTo);
+  if (filters.hub && filters.hub !== 'all') query.append('hub', filters.hub);
+  if (filters.branch && filters.branch !== 'all') query.append('branch', filters.branch);
+  if (filters.area && filters.area !== 'all') query.append('area', filters.area);
+  if (filters.airlines && filters.airlines !== 'all') query.append('airlines', filters.airlines);
+  if (filters.sourceSheet) query.append('sourceSheet', filters.sourceSheet);
   
-  if (reportsCache && (now - lastFetchTime) < CACHE_DURATION) {
-    return reportsCache as Report[];
+  query.append('fields', CORE_FIELDS.join(','));
+
+  const response = await fetch(`/api/reports/analytics?${query.toString()}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch reports: ' + response.status);
   }
 
-  try {
-    const response = await fetch('/api/reports/analytics', {
-      credentials: 'include',
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch reports: ' + response.status);
-    }
-    
-    const data = await response.json();
-    const reports = data.reports; // Changed this line
-    if (!reports) { // Added this block
-      reportsCache = [];
-      return [];
-    }
-    reportsCache = reports || [];
-    lastFetchTime = now;
-    return reportsCache || [];
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    return reportsCache || [];
+  const data = await response.json();
+  return data.reports || [];
+}
+
+export async function fetchAggregatedMonthlyReport(filters: BaseFilters, signal?: AbortSignal): Promise<AggregatedMonthlyData> {
+  const params = new URLSearchParams();
+  params.append('view', 'monthly');
+  if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+  if (filters.dateTo) params.append('dateTo', filters.dateTo);
+  if (filters.hub && filters.hub !== 'all') params.append('hub', filters.hub);
+  if (filters.branch && filters.branch !== 'all') params.append('branch', filters.branch);
+  if (filters.area && filters.area !== 'all') params.append('area', filters.area);
+  if (filters.airlines && filters.airlines !== 'all') params.append('airlines', filters.airlines);
+  if (filters.sourceSheet) params.append('sourceSheet', filters.sourceSheet);
+
+  const response = await fetch(`/api/reports/analytics/aggregated?${params.toString()}`, {
+    credentials: 'include',
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch aggregated monthly data');
   }
+
+  const { data } = await response.json();
+  return data;
 }
 
 function filterReports(reports: Report[], filters: BaseFilters): Report[] {
@@ -190,7 +228,7 @@ function filterReports(reports: Report[], filters: BaseFilters): Report[] {
 }
 
 export async function fetchMonthlySummary(filters: BaseFilters = {}): Promise<MonthlySummary[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   // Filter other criteria but NOT month yet to allow context for MoM/YoY
   const monthFilter = filters.month;
   const filtered = filterReports(reports, { ...filters, month: undefined });
@@ -275,7 +313,7 @@ export async function fetchMonthlySummary(filters: BaseFilters = {}): Promise<Mo
 }
 
 export async function fetchDailyTrend(filters: BaseFilters = {}): Promise<DailyDataPoint[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const dateMap = new Map<string, { total: number; Irregularity: number; Complaint: number }>();
@@ -303,7 +341,7 @@ export async function fetchDailyTrend(filters: BaseFilters = {}): Promise<DailyD
 }
 
 export async function fetchBranchByMonth(filters: BaseFilters = {}): Promise<BranchByMonthData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, { branch: string; month: string; count: number }>();
@@ -328,7 +366,7 @@ export async function fetchBranchByMonth(filters: BaseFilters = {}): Promise<Bra
 }
 
 export async function fetchAirlineByMonth(filters: BaseFilters = {}): Promise<AirlineByMonthData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, { airline: string; month: string; count: number }>();
@@ -353,7 +391,7 @@ export async function fetchAirlineByMonth(filters: BaseFilters = {}): Promise<Ai
 }
 
 export async function fetchRollingAverage(filters: BaseFilters = {}): Promise<RollingAveragePoint[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, { ...filters, month: undefined });
 
   const monthMap = new Map<string, number>();
@@ -382,7 +420,7 @@ export async function fetchRollingAverage(filters: BaseFilters = {}): Promise<Ro
 }
 
 export async function fetchPeakDay(filters: BaseFilters = {}): Promise<PeakDayInfo> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const dayMap = new Map<string, number>();
@@ -408,7 +446,7 @@ export async function fetchPeakDay(filters: BaseFilters = {}): Promise<PeakDayIn
 }
 
 export async function fetchDominantBranch(filters: BaseFilters = {}): Promise<DominantInfo> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, number>();
@@ -428,7 +466,7 @@ export async function fetchDominantBranch(filters: BaseFilters = {}): Promise<Do
 }
 
 export async function fetchDominantAirline(filters: BaseFilters = {}): Promise<DominantInfo> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, number>();
@@ -448,7 +486,7 @@ export async function fetchDominantAirline(filters: BaseFilters = {}): Promise<D
 }
 
 export async function fetchAllMonthlyReports(filters: BaseFilters = {}): Promise<MonthlyReportRecord[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   return filtered.map(report => {
@@ -483,7 +521,7 @@ export async function fetchAllMonthlyReports(filters: BaseFilters = {}): Promise
 }
 
 export async function fetchMonthlyKPIs(filters: BaseFilters = {}): Promise<MonthlyKPIs> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   // Group by month
@@ -519,7 +557,7 @@ export async function fetchMonthlyKPIs(filters: BaseFilters = {}): Promise<Month
 }
 
 export async function fetchMonthlyTrendByCategory(filters: BaseFilters = {}): Promise<MonthlyTrendData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const monthMap = new Map<string, { total: number; irregularity: number; complaint: number; compliment: number }>();

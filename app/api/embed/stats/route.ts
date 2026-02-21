@@ -83,15 +83,29 @@ export async function GET(request: NextRequest) {
     const rangeDays = range === '30d' ? 30 : 7;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - rangeDays);
-    
-    // Fetch from Google Sheets (cached)
-    const allReports = await reportsService.getReports();
-    
-    // Filter by date
-    const filteredReports = allReports.filter(r => new Date(r.created_at) >= startDate);
 
+    const fieldMap: Record<string, keyof ReportRow> = {
+      airline: 'airline',
+      category: 'main_category',
+      status: 'status',
+      severity: 'severity',
+      area: 'area',
+      division: 'target_division',
+      station: 'station_code'
+    };
+    
+    const field = fieldMap[type] || 'airline';
+
+    // Fetch from Google Sheets with server-side optimization
+    const reports = await reportsService.getReports({
+      filters: {
+        dateFrom: startDate.toISOString()
+      },
+      fields: ['id', 'created_at', 'incident_date', 'date_of_event', 'airline', 'airlines', 'main_category', 'general_category', 'status', 'severity', 'area', 'priority', 'target_division', 'station_code', 'branch']
+    });
+    
     // Map to ReportRow structure
-    const typedReports: ReportRow[] = filteredReports.map(r => ({
+    const typedReports: ReportRow[] = reports.map(r => ({
         id: r.id,
         airline: r.airline || r.airlines || null,
         main_category: r.main_category || r.general_category || null,
@@ -104,18 +118,6 @@ export async function GET(request: NextRequest) {
         incident_date: r.incident_date || r.date_of_event || null,
         created_at: r.created_at
     }));
-    
-    const fieldMap: Record<string, keyof ReportRow> = {
-      airline: 'airline',
-      category: 'main_category',
-      status: 'status',
-      severity: 'severity',
-      area: 'area',
-      division: 'target_division',
-      station: 'station_code'
-    };
-    
-    const field = fieldMap[type] || 'airline';
     
     const response: StatsResponse = {
       type,

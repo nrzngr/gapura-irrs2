@@ -51,6 +51,8 @@ interface FilterParams {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface KPICardProps {
@@ -465,7 +467,7 @@ export default function PivotReportDetail({ filters = {}, pivotTitle = '' }: { f
     }
 
     loadData();
-  }, [filters.hub, filters.branch, filters.airlines, filters.area]);
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo]);
 
   const matrix = useMemo(() => buildPivotMatrix(reports, rowField, colField), [reports, rowField, colField]);
   const rowBreakdown = useMemo(() => fetchDimensionBreakdown(reports, rowField), [reports, rowField]);

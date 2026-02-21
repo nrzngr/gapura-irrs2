@@ -30,6 +30,7 @@ interface InvestigativeTableProps {
   onViewDetail?: () => void;
   rowsPerPage?: number;
   maxRows?: number;
+  isLoading?: boolean;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -82,6 +83,7 @@ export function InvestigativeTable({
   onViewDetail,
   rowsPerPage = 10,
   maxRows = 50,
+  isLoading = false,
 }: InvestigativeTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortCol, setSortCol] = useState<string | null>(null);
@@ -353,12 +355,22 @@ export function InvestigativeTable({
           </thead>
           
           <tbody className="divide-y divide-gray-50 bg-white">
-            {filteredData.length === 0 ? (
-               <tr>
-                 <td colSpan={100} className="px-6 py-12 text-center text-gray-400 text-sm italic">
-                   No data found matching your search.
-                 </td>
-               </tr>
+            {isLoading ? (
+              <tr>
+                <td colSpan={100} className="px-6 py-20 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-gray-500 font-bold tracking-tight">Investigating report details...</span>
+                    <p className="text-[10px] text-gray-400">Loading investigative data across branches</p>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredData.length === 0 ? (
+              <tr>
+                <td colSpan={100} className="px-6 py-12 text-center text-gray-400 text-sm italic">
+                  No data found matching your search.
+                </td>
+              </tr>
             ) : (
               paginatedData.map((row, idx) => {
                 const absoluteIdx = (safeCurrentPage - 1) * rowsPerPage + idx;

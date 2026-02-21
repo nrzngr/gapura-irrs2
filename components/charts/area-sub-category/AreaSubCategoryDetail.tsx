@@ -28,6 +28,8 @@ interface FilterParams {
   airlines?: string;
   area?: string;
   sourceSheet?: 'NON CARGO' | 'CGO';
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface AreaSubCategoryDetailProps {
@@ -160,8 +162,27 @@ export default function AreaSubCategoryDetail({
 
   useEffect(() => {
     const fetchReports = async () => {
+      setLoading(true);
       try {
-        const response = await fetch('/api/reports/analytics');
+        const query = new URLSearchParams();
+        if (filters.dateFrom) query.append('dateFrom', filters.dateFrom);
+        if (filters.dateTo) query.append('dateTo', filters.dateTo);
+        if (filters.hub && filters.hub !== 'all') query.append('hub', filters.hub);
+        if (filters.branch && filters.branch !== 'all') query.append('branch', filters.branch);
+        if (filters.area && filters.area !== 'all') query.append('area', filters.area);
+        if (filters.airlines && filters.airlines !== 'all') query.append('airlines', filters.airlines);
+        if (filters.sourceSheet) query.append('sourceSheet', filters.sourceSheet);
+        
+        // Field projection to minimize payload
+        const fields = [
+          'id', 'date_of_event', 'incident_date', 'created_at', 'hub', 'branch', 
+          'reporting_branch', 'station_code', 'airlines', 'airline', 'area',
+          categoryField, 'main_category', 'category', 'irregularity_complain_category',
+          'severity', 'status', 'root_caused', 'action_taken', 'source_sheet'
+        ];
+        query.append('fields', fields.join(','));
+
+        const response = await fetch(`/api/reports/analytics?${query.toString()}`);
         if (!response.ok) throw new Error('Failed to fetch reports');
         const data = await response.json();
         setReports(data.reports || []);
@@ -172,7 +193,7 @@ export default function AreaSubCategoryDetail({
       }
     };
     fetchReports();
-  }, []);
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.sourceSheet, filters.dateFrom, filters.dateTo, categoryField]);
 
   useEffect(() => {
     if (!reports.length) {
@@ -180,18 +201,21 @@ export default function AreaSubCategoryDetail({
       return;
     }
 
+    const controller = new AbortController();
+
     const fetchData = async () => {
       try {
-        // Set timeout for AI call (48 seconds as specified)
+        setAiLoading(true);
+        setAiStatus('loading');
+
+        // Set timeout for UI status only (the fetch has its own 60s/120s timeout)
         aiTimeoutRef.current = setTimeout(() => {
-          setAiError('AI service is taking longer than expected. Please try again later.');
           setAiStatus('timeout');
-          setAiLoading(false);
         }, 48000);
 
         const [statsData, categoriesData] = await Promise.all([
-          fetchRootCauseStatsAi(filters.sourceSheet),
-          fetchRootCauseCategories()
+          fetchRootCauseStatsAi(filters.sourceSheet, controller.signal),
+          fetchRootCauseCategories(controller.signal)
         ]);
 
         if (aiTimeoutRef.current) {
@@ -202,6 +226,8 @@ export default function AreaSubCategoryDetail({
         setAiData({ stats: statsData, categories: categoriesData });
         setAiStatus('success');
       } catch (err: any) {
+        if (err.name === 'AbortError') return;
+
         if (aiTimeoutRef.current) {
           clearTimeout(aiTimeoutRef.current);
           aiTimeoutRef.current = null;
@@ -211,11 +237,20 @@ export default function AreaSubCategoryDetail({
         setAiError(err.message || 'Failed to load AI intelligence data');
         setAiStatus('error');
       } finally {
-        setAiLoading(false);
+        if (!controller.signal.aborted) {
+          setAiLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    return () => {
+      controller.abort();
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+      }
+    };
   }, [reports, filters.sourceSheet]);
 
   const handleRetryAi = () => {

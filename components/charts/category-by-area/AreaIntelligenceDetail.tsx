@@ -57,6 +57,8 @@ interface FilterParams {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface KPICardProps {
@@ -595,7 +597,7 @@ export default function AreaIntelligenceDetail({ filters = {} }: { filters?: Fil
     }
 
     loadData();
-  }, [filters.hub, filters.branch, filters.airlines, filters.area]);
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo]);
 
   if (loading) {
     return (

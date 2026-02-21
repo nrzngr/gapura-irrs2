@@ -65,11 +65,21 @@ interface BaseFilters {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-let reportsCache: Report[] | null = null;
-let lastFetchTime = 0;
+let reportsCache: Record<string, { data: Report[], ts: number }> = {};
+let inflightRequests: Record<string, Promise<Report[]>> = {};
 const CACHE_DURATION = 1000 * 60 * 5;
+
+const CORE_FIELDS = [
+  'id', 'date_of_event', 'created_at', 'hub', 'branch', 'reporting_branch', 'station_code',
+  'area', 'terminal_area_category', 'apron_area_category', 'general_category',
+  'airlines', 'airline', 'main_category', 'category', 'irregularity_complain_category',
+  'root_caused', 'root_cause', 'action_taken', 'evidence_url', 'evidence_urls', 'source_sheet',
+  'station_id'
+];
 
 const INVALID_VALUES = ['#n/a', 'unknown', 'nil', '-', '', 'null', 'none', 'na', 'n/a', 'tidak ada', 'belum diketahui'];
 const INVALID_BRANCH_VALUES = ['unknown', 'nil', '-', '', 'null', 'none', 'na', 'n/a', '#n/a'];
@@ -106,30 +116,54 @@ function getMonthKey(dateStr: string | undefined): string {
   }
 }
 
-async function fetchReportsFromSheets(): Promise<Report[]> {
+async function fetchReportsFromSheets(filters: BaseFilters = {}): Promise<Report[]> {
+  const query = new URLSearchParams();
+  if (filters.dateFrom) query.append('dateFrom', filters.dateFrom);
+  if (filters.dateTo) query.append('dateTo', filters.dateTo);
+  if (filters.hub && filters.hub !== 'all') query.append('hub', filters.hub);
+  if (filters.branch && filters.branch !== 'all') query.append('branch', filters.branch);
+  if (filters.area && filters.area !== 'all') query.append('area', filters.area);
+  if (filters.airlines && filters.airlines !== 'all') query.append('airlines', filters.airlines);
+  if (filters.sourceSheet) query.append('sourceSheet', filters.sourceSheet);
+  
+  // Minimize payload size
+  query.append('fields', CORE_FIELDS.join(','));
+
+  const cacheKey = query.toString() || 'default';
   const now = Date.now();
 
-  if (reportsCache && (now - lastFetchTime) < CACHE_DURATION) {
-    return reportsCache as Report[];
+  const cached = reportsCache[cacheKey];
+  if (cached && (now - cached.ts) < CACHE_DURATION) {
+    return cached.data;
   }
 
-  try {
-    const response = await fetch('/api/reports/analytics', {
-      credentials: 'include',
-    });
+  if (inflightRequests[cacheKey]) {
+    return inflightRequests[cacheKey];
+  }
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch reports: ' + response.status);
+  inflightRequests[cacheKey] = (async () => {
+    try {
+      const response = await fetch(`/api/reports/analytics?${query.toString()}`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports: ' + response.status);
+      }
+
+      const data = await response.json();
+      const reports = data.reports || [];
+      reportsCache[cacheKey] = { data: reports, ts: now };
+      return reports;
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      return [];
+    } finally {
+      delete inflightRequests[cacheKey];
     }
+  })();
 
-    const data = await response.json();
-    reportsCache = data.reports || [];
-    lastFetchTime = now;
-    return reportsCache as Report[];
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    return reportsCache || [];
-  }
+  return inflightRequests[cacheKey];
 }
 
 function filterReports(reports: Report[], filters: BaseFilters): Report[] {
@@ -177,7 +211,7 @@ function computeMoMGrowth(reports: Report[], branch: string): number {
 
 // ─── 1. Branch Overview ───
 export async function fetchBranchOverview(filters: BaseFilters = {}): Promise<BranchOverview[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const branchMap = new Map<string, {
@@ -245,7 +279,7 @@ export async function fetchBranchOverview(filters: BaseFilters = {}): Promise<Br
 
 // ─── 3. Category Composition by Branch (stacked %) ───
 export async function fetchCategoryCompositionByBranch(filters: BaseFilters = {}): Promise<CategoryCompositionData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const branchMap = new Map<string, { Irregularity: number; Complaint: number; Compliment: number }>();
@@ -282,7 +316,7 @@ export async function fetchCategoryCompositionByBranch(filters: BaseFilters = {}
 
 // ─── 4. Monthly Trend by Branch ───
 export async function fetchMonthlyTrendByBranch(filters: BaseFilters = {}): Promise<TrendDataPoint[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const monthMap = new Map<string, { total: number; Irregularity: number; Complaint: number; Compliment: number }>();
@@ -312,7 +346,7 @@ export async function fetchMonthlyTrendByBranch(filters: BaseFilters = {}): Prom
 
 // ─── 5. Area Breakdown by Branch ───
 export async function fetchAreaBreakdownByBranch(filters: BaseFilters = {}): Promise<AreaBreakdownData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, { area: string; branch: string; count: number }>();
@@ -338,7 +372,7 @@ export async function fetchAreaBreakdownByBranch(filters: BaseFilters = {}): Pro
 
 // ─── 6. Airline Contribution inside Branch ───
 export async function fetchAirlineContributionByBranch(filters: BaseFilters = {}): Promise<AirlineContributionData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, number>();
@@ -358,7 +392,7 @@ export async function fetchAirlineContributionByBranch(filters: BaseFilters = {}
 
 // ─── 7. Root Cause by Branch ───
 export async function fetchRootCauseByBranch(filters: BaseFilters = {}): Promise<RootCauseData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const causeMap = new Map<string, { count: number; category: string }>();
@@ -384,7 +418,7 @@ export async function fetchRootCauseByBranch(filters: BaseFilters = {}): Promise
 
 // ─── 9. Full Data Table Records ───
 export async function fetchAllBranchIntelReports(filters: BaseFilters = {}): Promise<BranchIntelRecord[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   return filtered.map(report => {

@@ -66,11 +66,21 @@ interface BaseFilters {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-let reportsCache: Report[] | null = null;
-let lastFetchTime = 0;
+let reportsCache: Record<string, { data: Report[], ts: number }> = {};
+let inflightRequests: Record<string, Promise<Report[]>> = {};
 const CACHE_DURATION = 1000 * 60 * 5;
+
+const CORE_FIELDS = [
+  'id', 'date_of_event', 'created_at', 'hub', 'branch', 'reporting_branch', 'station_code',
+  'area', 'terminal_area_category', 'apron_area_category', 'general_category',
+  'airlines', 'airline', 'main_category', 'category', 'irregularity_complain_category',
+  'root_caused', 'action_taken', 'evidence_url', 'evidence_urls', 'source_sheet',
+  'station_id'
+];
 
 export interface SeverityDistribution {
   name: string;
@@ -114,30 +124,60 @@ function getMonthKey(dateStr: string | undefined): string {
   }
 }
 
-async function fetchReportsFromSheets(): Promise<Report[]> {
-  const now = Date.now();
+export interface AggregatedAirlineData {
+  airlineData: AirlineSummary[];
+  trendData: TrendDataPoint[];
+  categoryBreakdown: AirlineCategoryBreakdown[];
+  categoryData: AirlineCategoryData[];
+  kpis: AirlineKPIs;
+}
 
-  if (reportsCache && (now - lastFetchTime) < CACHE_DURATION) {
-    return reportsCache as Report[];
+async function fetchReportsFromSheets(filters: BaseFilters = {}): Promise<Report[]> {
+  const query = new URLSearchParams();
+  if (filters.dateFrom) query.append('dateFrom', filters.dateFrom);
+  if (filters.dateTo) query.append('dateTo', filters.dateTo);
+  if (filters.hub && filters.hub !== 'all') query.append('hub', filters.hub);
+  if (filters.branch && filters.branch !== 'all') query.append('branch', filters.branch);
+  if (filters.area && filters.area !== 'all') query.append('area', filters.area);
+  if (filters.airlines && filters.airlines !== 'all') query.append('airlines', filters.airlines);
+  if (filters.sourceSheet) query.append('sourceSheet', filters.sourceSheet);
+  
+  query.append('fields', CORE_FIELDS.join(','));
+
+  const response = await fetch(`/api/reports/analytics?${query.toString()}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch reports: ' + response.status);
   }
 
-  try {
-    const response = await fetch('/api/reports/analytics', {
-      credentials: 'include',
-    });
+  const data = await response.json();
+  return data.reports || [];
+}
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch reports: ' + response.status);
-    }
+export async function fetchAggregatedAirlineReport(filters: BaseFilters, signal?: AbortSignal): Promise<AggregatedAirlineData> {
+  const params = new URLSearchParams();
+  params.append('view', 'airline-report');
+  if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+  if (filters.dateTo) params.append('dateTo', filters.dateTo);
+  if (filters.hub && filters.hub !== 'all') params.append('hub', filters.hub);
+  if (filters.branch && filters.branch !== 'all') params.append('branch', filters.branch);
+  if (filters.area && filters.area !== 'all') params.append('area', filters.area);
+  if (filters.airlines && filters.airlines !== 'all') params.append('airlines', filters.airlines);
+  if (filters.sourceSheet) params.append('sourceSheet', filters.sourceSheet);
 
-    const data = await response.json();
-    reportsCache = data.reports || [];
-    lastFetchTime = now;
-    return reportsCache as Report[];
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    return reportsCache || [];
+  const response = await fetch(`/api/reports/analytics/aggregated?${params.toString()}`, {
+    credentials: 'include',
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch aggregated airline data');
   }
+
+  const { data } = await response.json();
+  return data;
 }
 
 function filterReports(reports: Report[], filters: BaseFilters): Report[] {
@@ -155,7 +195,7 @@ function filterReports(reports: Report[], filters: BaseFilters): Report[] {
 }
 
 export async function fetchAirlineSummary(filters: BaseFilters = {}): Promise<AirlineSummary[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const airlineMap = new Map<string, {
@@ -205,7 +245,7 @@ export async function fetchAirlineSummary(filters: BaseFilters = {}): Promise<Ai
 }
 
 export async function fetchMonthlyTrendByAirline(filters: BaseFilters = {}): Promise<TrendDataPoint[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const monthMap = new Map<string, { total: number; Irregularity: number; Complaint: number; Compliment: number }>();
@@ -234,7 +274,7 @@ export async function fetchMonthlyTrendByAirline(filters: BaseFilters = {}): Pro
 }
 
 export async function fetchBranchByAirline(filters: BaseFilters = {}): Promise<BranchByAirlineData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, { branch: string; airline: string; count: number }>();
@@ -259,7 +299,7 @@ export async function fetchBranchByAirline(filters: BaseFilters = {}): Promise<B
 }
 
 export async function fetchRootCauseByAirline(filters: BaseFilters = {}): Promise<RootCauseByAirlineData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, { rootCause: string; airline: string; count: number; category: string }>();
@@ -288,7 +328,7 @@ export async function fetchRootCauseByAirline(filters: BaseFilters = {}): Promis
 
 
 export async function fetchCategoryByAirline(filters: BaseFilters = {}): Promise<AirlineCategoryData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, { Irregularity: number; Complaint: number; Compliment: number }>();
@@ -315,7 +355,7 @@ export async function fetchCategoryByAirline(filters: BaseFilters = {}): Promise
 }
 
 export async function fetchAreaByAirline(filters: BaseFilters = {}): Promise<AreaByAirlineData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const map = new Map<string, number>();
@@ -332,7 +372,7 @@ export async function fetchAreaByAirline(filters: BaseFilters = {}): Promise<Are
 }
 
 export async function fetchRootCausePareto(filters: BaseFilters = {}): Promise<RootCauseParetoData[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const causeMap = new Map<string, { count: number; category: string }>();
@@ -365,7 +405,7 @@ export async function fetchRootCausePareto(filters: BaseFilters = {}): Promise<R
 }
 
 export async function fetchAllAirlineReports(filters: BaseFilters = {}): Promise<AirlineReportRecord[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   return filtered.map(report => {
@@ -407,7 +447,7 @@ export interface AirlineKPIs {
 }
 
 export async function fetchAirlineKPIs(filters: BaseFilters = {}): Promise<AirlineKPIs> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const airlineCounts = new Map<string, { total: number; compliments: number }>();
@@ -465,7 +505,7 @@ export interface AirlineCategoryBreakdown {
 }
 
 export async function fetchAirlineCategoryBreakdown(filters: BaseFilters = {}): Promise<AirlineCategoryBreakdown[]> {
-  const reports = await fetchReportsFromSheets();
+  const reports = await fetchReportsFromSheets(filters);
   const filtered = filterReports(reports, filters);
 
   const airlineMap = new Map<string, { irregularity: number; complaint: number; compliment: number }>();

@@ -239,9 +239,28 @@ export class ReportsService {
     return entry ? entry.ts : Date.now();
   }
 
-  async getReports(options?: { refresh?: boolean }): Promise<Report[]> {
-    if (!options?.refresh) {
-      const cached = getCache<Report[]>(CACHE_KEY_ALL_REPORTS, CACHE_TTL);
+  async getReports(options?: { 
+    refresh?: boolean; 
+    filters?: {
+      dateFrom?: string;
+      dateTo?: string;
+      hub?: string;
+      branch?: string;
+      area?: string;
+      airlines?: string;
+      sourceSheet?: string;
+    },
+    fields?: string[];
+  }): Promise<Report[]> {
+    const { refresh, filters, fields } = options || {};
+    
+    // Create a cache key that includes filters and fields
+    const filterKey = filters ? JSON.stringify(filters) : 'none';
+    const fieldsKey = fields ? fields.sort().join(',') : 'all';
+    const cacheKey = `${CACHE_KEY_ALL_REPORTS}:${filterKey}:${fieldsKey}`;
+
+    if (!refresh) {
+      const cached = getCache<Report[]>(cacheKey, CACHE_TTL);
       if (cached) return cached;
     }
 
@@ -440,7 +459,62 @@ export class ReportsService {
         }
 
         report.source_sheet = sheetName;
-        allReports.push(report as Report);
+
+        // --- Server-side Filtering ---
+        if (filters) {
+          // Date filtering
+          if (filters.dateFrom || filters.dateTo) {
+            const reportDate = parseDate(report.date_of_event || report.created_at);
+            if (!reportDate) continue;
+            
+            if (filters.dateFrom) {
+              const fromDate = new Date(filters.dateFrom);
+              if (reportDate < fromDate) continue;
+            }
+            
+            if (filters.dateTo) {
+              const toDate = new Date(filters.dateTo);
+              toDate.setHours(23, 59, 59, 999);
+              if (reportDate > toDate) continue;
+            }
+          }
+
+          // Hub filtering
+          if (filters.hub && filters.hub !== 'all' && (report.hub !== filters.hub)) continue;
+
+          // Branch filtering
+          if (filters.branch && filters.branch !== 'all') {
+            const reportBranch = report.branch || report.reporting_branch || report.station_code;
+            if (reportBranch !== filters.branch) continue;
+          }
+
+          // Area filtering
+          if (filters.area && filters.area !== 'all') {
+            const reportArea = report.area || report.terminal_area_category || report.apron_area_category || report.general_category || '';
+            if (reportArea !== filters.area) continue;
+          }
+
+          // Airlines filtering
+          if (filters.airlines && filters.airlines !== 'all' && report.airlines !== filters.airlines) continue;
+          
+          // Source Sheet filtering
+          if (filters.sourceSheet && report.source_sheet !== filters.sourceSheet) continue;
+        }
+
+        let finalReport = report as Report;
+
+        // --- Field Projection ---
+        if (fields && fields.length > 0) {
+          const projected: any = {};
+          fields.forEach(f => {
+            if (report[f] !== undefined) projected[f] = report[f];
+          });
+          // Always include ID for stability
+          projected.id = report.id;
+          finalReport = projected as Report;
+        }
+
+        allReports.push(finalReport);
       }
     }
 
@@ -450,7 +524,7 @@ export class ReportsService {
       return dateB - dateA;
     });
 
-    setCache(CACHE_KEY_ALL_REPORTS, allReports);
+    setCache(cacheKey, allReports);
     return allReports;
   }
 

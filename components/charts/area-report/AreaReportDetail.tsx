@@ -11,6 +11,7 @@ import {
   fetchAllAreaReports,
   fetchCellIntelligence,
   fetchBranchAreaPareto,
+  fetchAggregatedAreaReport, // Add this
   AreaSummary,
   TrendDataPoint,
   AreaCategoryData,
@@ -72,6 +73,9 @@ interface FilterParams {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  pageIndex?: number;
 }
 
 interface KPICardProps {
@@ -617,110 +621,108 @@ export default function AreaReportDetail({ filters = {} }: { filters?: FilterPar
     };
   }, [areaData]);
 
+  const [tableLoading, setTableLoading] = useState(false);
+
   useEffect(() => {
-    async function loadData() {
-      console.time('AreaReportDetail: loadData parallel fetches');
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    async function loadAggregatedData() {
       setLoading(true);
       setError(null);
 
-      const activeFilters: Record<string, string | undefined> = { 
+      const activeFilters: any = { 
         ...filters, 
-        branch: focusedBranch || filters.branch,
-        area: (focusedArea === 'all' || !focusedArea) ? undefined : focusedArea
+        branch: focusedBranch || (filters as any).branch,
+        area: (focusedArea === 'all' || !focusedArea) ? undefined : focusedArea,
       };
 
       try {
-        // Similar configuration to BranchReportDetail: run fetches in parallel but guard each to avoid
-        // a single failure blocking all data. This helps prevent infinite loading when one endpoint fails.
-        const safeFetch = <T,>(fn: Promise<T>) => fn.catch((err) => {
-          console.error('Safe fetch failed:', err);
-          return null as unknown as T;
+        const aggregated = await fetchAggregatedAreaReport(activeFilters as any, signal);
+        
+        if (aggregated && aggregated.areaData) {
+          setAreaData(aggregated.areaData);
+          setTrendData(aggregated.trendData || []);
+          setCategoryData(aggregated.categoryData || []);
+        } else {
+          throw new Error('Invalid aggregated area data');
+        }
+
+        // Load AI data separately
+        fetchSeverityDistributionsAi(signal).then(aiSeverity => {
+          if (aiSeverity) {
+            if (aiSeverity.area) setAiSeverityArea(aiSeverity.area.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low })) as SeverityDistribution[]);
+            if (aiSeverity.category) setAiSeverityCategory(aiSeverity.category.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low })) as SeverityDistribution[]);
+            if (aiSeverity.branch) setAiSeverityBranch(aiSeverity.branch.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low })) as SeverityDistribution[]);
+            if (aiSeverity.airline) setAiSeverityAirline(aiSeverity.airline.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low })) as SeverityDistribution[]);
+          }
+        }).catch(err => {
+          if (err.name === 'AbortError') return;
+          console.warn('AI Severity failed:', err);
         });
 
-        const areaPromise = safeFetch(fetchAreaSummary(activeFilters as any));
-        const trendPromise = safeFetch(fetchMonthlyTrendByArea(activeFilters as any));
-        const categoryPromise = safeFetch(fetchCategoryByArea(activeFilters as any));
-        const rootCausePromise = safeFetch(fetchRootCauseByArea(activeFilters as any));
-        const branchPromise = safeFetch(fetchBranchByArea(activeFilters as any));
-        const airlinePromise = safeFetch(fetchAirlineByArea(activeFilters as any));
-        const tablePromise = safeFetch(fetchAllAreaReports(activeFilters as any));
-        const intelPromise = isFocused ? safeFetch(fetchCellIntelligence(focusedBranch!, focusedArea!, activeFilters as any)) : Promise.resolve(null);
-        const paretoPromise = isFocused ? safeFetch(fetchBranchAreaPareto(activeFilters as any)) : Promise.resolve([]);
+        fetchRiskSummaryAi(signal).then(res => {
+          if (res) setRiskSummary(res);
+        }).catch(err => {
+          if (err.name === 'AbortError') return;
+          console.warn('AI Risk failed:', err);
+        });
+        
+        if (isFocused) {
+          fetchCellIntelligence(focusedBranch!, focusedArea!, activeFilters as any, signal).then(setCellIntel);
+          fetchBranchAreaPareto(activeFilters as any, signal).then(setParetoData);
+        }
+      } catch (err) {
+        if ((err as any).name === 'AbortError') return;
+        console.error('Failed to load aggregated area data:', err);
+        setError('Failed to load primary chart data.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
 
-        const [area, trend, category, rootCause, branch, airline, table, intel, pareto] = await Promise.all([
-          areaPromise,
-          trendPromise,
-          categoryPromise,
-          rootCausePromise,
-          branchPromise,
-          airlinePromise,
-          tablePromise,
-          intelPromise,
-          paretoPromise,
+    loadAggregatedData();
+
+    return () => {
+      controller.abort();
+    };
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo, focusedBranch, focusedArea, isFocused]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    async function loadDeferredData() {
+      setTableLoading(true);
+      const activeFilters: any = { 
+        ...filters, 
+        branch: focusedBranch || (filters as any).branch,
+        area: (focusedArea === 'all' || !focusedArea) ? undefined : focusedArea,
+      };
+
+      try {
+        const [rootCause, branch, airline, table] = await Promise.all([
+          fetchRootCauseByArea(activeFilters as any),
+          fetchBranchByArea(activeFilters as any),
+          fetchAirlineByArea(activeFilters as any),
+          fetchAllAreaReports(activeFilters as any),
         ]);
-        console.timeEnd('AreaReportDetail: loadData parallel fetches');
-
-        setAreaData(area);
-        setTrendData(trend);
-        setCategoryData(category);
         setRootCauseData(rootCause);
         setBranchData(branch);
         setAirlineData(airline);
         setTableData(table);
-        setCellIntel(intel);
-        setParetoData(pareto);
-        // AI severity distributions
-        try {
-          const ai = await fetchSeverityDistributionsAi();
-          if (ai) {
-            if (ai.area) {
-              const arr = ai.area.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low }));
-              setAiSeverityArea(arr as SeverityDistribution[]);
-            }
-            if (ai.category) {
-              const arr = ai.category.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low }));
-              setAiSeverityCategory(arr as SeverityDistribution[]);
-            }
-            if (ai.branch) {
-              const arr = ai.branch.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low }));
-              setAiSeverityBranch(arr as SeverityDistribution[]);
-            }
-            if (ai.airline) {
-              const arr = ai.airline.map((r: any) => ({ name: r.name, critical: r.critical, high: r.high, medium: r.medium, low: r.low }));
-              setAiSeverityAirline(arr as SeverityDistribution[]);
-            }
-          }
-        } catch {
-          // ignore AI fetch errors here; data panels will be empty if unavailable
-        }
       } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('Failed to load data. Please try again.');
+        console.error('Failed to load deferred area data:', err);
       } finally {
-        setLoading(false);
+        setTableLoading(false);
       }
     }
 
-    loadData();
-  }, [filters.hub, filters.branch, filters.airlines, filters.area, focusedBranch, focusedArea]);
+    loadDeferredData();
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo, focusedBranch, focusedArea]);
 
-  // AI Risk Summary integration
-  useEffect(() => {
-    let mounted = true;
-    const loadRiskSummary = async () => {
-      try {
-        setRiskSummaryLoading(true);
-        const data = await fetchRiskSummaryAi();
-        if (mounted) setRiskSummary(data);
-      } catch (err) {
-        if (mounted) setRiskSummaryError((err as Error).message ?? 'AI risk summary fetch failed');
-      } finally {
-        if (mounted) setRiskSummaryLoading(false);
-      }
-    };
-    loadRiskSummary();
-    return () => { mounted = false; };
-  }, []);
 
   // AI Root Cause Summary logic removed - handled by AiRootCauseInvestigation component
 

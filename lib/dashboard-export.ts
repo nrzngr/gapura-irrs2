@@ -31,9 +31,11 @@ interface TileData {
 interface ExportPayload {
   dashboardName: string;
   subtitle?: string;
-  // New fields for hyperlinks
   dashboardId?: string;
   baseUrl?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sourcePage?: string;
   pages: PageData[];
   chartsData: Map<string, { queryResult?: QueryResult; stats?: { distribution: { name: string; count: number; percentage: number }[]; totalCount: number } }>;
 }
@@ -54,6 +56,34 @@ interface DashboardInsights {
 // ─── column label formatter ────────────────────────────────────────────────
 function formatCol(col: string): string {
   return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getChartSlug(chartTitle: string): string {
+  const title = chartTitle.toLowerCase();
+  if (title.includes('report by case category')) return 'report-by-case-category';
+  if (title.includes('branch report') || title.includes('hub report')) return 'branch-report';
+  if (title.includes('airlines report') || title.includes('airline report')) return 'airline-report';
+  if (title.includes('monthly report') || title.includes('bulanan')) return 'monthly-report';
+  if (title.includes('category by area')) return 'category-by-area';
+  if (title.includes('case category by branch')) return 'case-category-by-branch';
+  if (title.includes('case category by airline')) return 'case-category-by-airline';
+  if (title.includes('case report by area') || title.includes('report by area')) return 'area-report';
+  if (title.includes('terminal area category') || title.includes('terminal area by')) return 'terminal-area-category';
+  if (title.includes('apron area category') || title.includes('apron area by')) return 'apron-area-category';
+  if (title.includes('general category') || title.includes('general area')) return 'general-category';
+  return 'pivot-report';
+}
+
+function buildDetailUrl(payload: ExportPayload, tile: TileData): string {
+  if (!payload.baseUrl) return '';
+  const slug = getChartSlug(tile.title);
+  const params = new URLSearchParams();
+  if (payload.dateFrom) params.set('dateFrom', payload.dateFrom);
+  if (payload.dateTo) params.set('dateTo', payload.dateTo);
+  if (payload.sourcePage) params.set('sourcePage', payload.sourcePage);
+  params.set('viewMode', 'static');
+  const queryString = params.toString();
+  return `${payload.baseUrl}/embed/${slug}/detail${queryString ? `?${queryString}` : ''}`;
 }
 
 // ─── XLSX EXPORT ───────────────────────────────────────────────────────────
@@ -279,16 +309,22 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
     slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 0.85, fill: { color: SLIDE.GREEN } });
     slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0.85, w: '100%', h: 0.05, fill: { color: SLIDE.ACCENT_GREEN } });
 
-    // Title (full width, no separate GAPURA watermark to avoid overlap)
+    // Logo placeholder (small green rectangle as brand mark)
+    slide.addShape(pptx.ShapeType.rect, { x: 0.25, y: 0.2, w: 0.25, h: 0.45, fill: { color: SLIDE.GREEN }, rectRadius: 0.05 });
+    slide.addShape(pptx.ShapeType.rect, { x: 0.55, y: 0.28, w: 0.08, h: 0.28, fill: { color: WHITE, transparency: 30 }, rectRadius: 0.02 });
+
+    // Title 
     slide.addText(title, { 
-      x: 0.5, y: 0.15, w: '90%', h: 0.55, 
+      x: 0.75, y: 0.15, w: '85%', h: 0.55, 
       fontSize: 20, fontFace: SLIDE.FONT, color: WHITE, bold: true 
     });
 
-    // Footer
+    // Footer with enhanced branding
     slide.addShape(pptx.ShapeType.rect, { x: 0, y: SLIDE.FOOTER_Y, w: '100%', h: 0.35, fill: { color: 'F5F5F5' } });
-    slide.addText(`Gapura Indonesia  |  ${dateStr}`, { x: 0.4, y: SLIDE.FOOTER_Y, w: '60%', h: 0.35, fontSize: 8, fontFace: SLIDE.FONT, color: '888888' });
-    slide.addText(String(slideNum), { x: 12.5, y: SLIDE.FOOTER_Y, w: 0.5, h: 0.35, fontSize: 8, fontFace: SLIDE.FONT, color: '888888', align: 'right' });
+    // Brand accent line
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: SLIDE.FOOTER_Y, w: 0.08, h: 0.35, fill: { color: SLIDE.GREEN } });
+    slide.addText(`PT Gapura Angkasa  |  ${dateStr}`, { x: 0.4, y: SLIDE.FOOTER_Y, w: '60%', h: 0.35, fontSize: 8, fontFace: SLIDE.FONT, color: '666666' });
+    slide.addText(`Halaman ${slideNum}`, { x: 12.0, y: SLIDE.FOOTER_Y, w: 1.0, h: 0.35, fontSize: 8, fontFace: SLIDE.FONT, color: '999999', align: 'right' });
   }
 
   // ─── Mini insight callout ──────────────────────────────────────────────
@@ -360,7 +396,7 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
 
   // ─── Compact data table ────────────────────────────────────────────────
   // Complexity: Time O(rows * cols) | Space O(rows * cols)
-  function addCompactTable(slide: PptxSlide, cols: string[], rows: Record<string, unknown>[], x: number, y: number, w: number, maxRows: number): number {
+  function addCompactTable(slide: PptxSlide, cols: string[], rows: Record<string, unknown>[], x: number, y: number, w: number, maxRows: number, linkUrl?: string): number {
     const display = rows.slice(0, maxRows);
     const colW = cols.map(() => w / cols.length);
 
@@ -388,7 +424,8 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
             align: (isNum ? 'right' : 'left') as 'right' | 'left', // Numbers right aligned
             border: [null, null, { pt: 0.5, color: 'E0E0E0' }, null] as any,
             // Add slight padding
-            margin: 0.05
+            margin: 0.05,
+            hyperlink: linkUrl ? { url: linkUrl } : undefined,
           },
         };
       })
@@ -413,36 +450,53 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
   // ═══════════════════════════════════════════════════════════════════════
   const titleSlide = pptx.addSlide();
   slideNum++;
-  // Gradient-like background using shapes
-  titleSlide.background = { color: 'F0F4E8' }; 
+  // Enhanced gradient-like background
+  titleSlide.background = { color: 'F5F9F0' };
   
-  // Big Green Banner
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '40%', h: '100%', fill: { color: SLIDE.GREEN } });
+  // Decorative geometric shapes for modern look
+  titleSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '35%', h: '100%', fill: { color: SLIDE.GREEN } });
+  titleSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.15, h: '100%', fill: { color: SLIDE.DARK_GREEN } });
   
+  // Decorative circles for modern feel
+  titleSlide.addShape(pptx.ShapeType.ellipse, { x: 9.5, y: 5.2, w: 2.8, h: 2.8, fill: { color: 'D4E8C0', transparency: 60 } });
+  titleSlide.addShape(pptx.ShapeType.ellipse, { x: 10.5, y: 6.2, w: 1.8, h: 1.8, fill: { color: 'E8F0D8', transparency: 40 } });
+
   // Accent Line
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 4, y: 0, w: 0.1, h: '100%', fill: { color: SLIDE.ACCENT_GREEN } });
+  titleSlide.addShape(pptx.ShapeType.rect, { x: 3.5, y: 0, w: 0.08, h: '100%', fill: { color: SLIDE.ACCENT_GREEN } });
 
   // Title Content
   titleSlide.addText(payload.dashboardName.toUpperCase(), {
-    x: 0.5, y: 2.5, w: 5, h: 1.5,
+    x: 0.5, y: 2.3, w: 5, h: 1.5,
     fontSize: 44, fontFace: 'Arial Black', color: WHITE, bold: true, charSpacing: 1, valign: 'top'
   });
   
+  // Decorative underline
+  titleSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.9, w: 3.5, h: 0.04, fill: { color: 'D4E8C0' } });
+  
   titleSlide.addText(payload.subtitle || 'Executive Dashboard Export', {
-    x: 0.5, y: 4.2, w: 5, h: 0.5, fontSize: 16, fontFace: SLIDE.FONT, color: 'D4E8C0', italic: true,
+    x: 0.5, y: 4.1, w: 5, h: 0.5, fontSize: 16, fontFace: SLIDE.FONT, color: 'D4E8C0', italic: true,
   });
 
-  // Right Side Info
-  titleSlide.addText(`PT Gapura Angkasa`, {
-    x: 5, y: 0.5, w: 6, h: 0.5, fontSize: 14, fontFace: SLIDE.FONT, color: SLIDE.GREEN, bold: true,
+  // Right Side Info with branding
+  titleSlide.addText(`PT GAPURA ANGKASA`, {
+    x: 5, y: 0.4, w: 6, h: 0.5, fontSize: 12, fontFace: SLIDE.FONT, color: SLIDE.GREEN, bold: true, charSpacing: 1,
   });
   
+  // Separator line
+  titleSlide.addShape(pptx.ShapeType.rect, { x: 5, y: 0.95, w: 2, h: 0.02, fill: { color: SLIDE.GREEN } });
+  
   titleSlide.addText(dateStr, {
-    x: 5, y: 1.0, w: 6, h: 0.4, fontSize: 12, fontFace: SLIDE.FONT, color: '666666',
+    x: 5, y: 1.1, w: 6, h: 0.4, fontSize: 11, fontFace: SLIDE.FONT, color: '666666',
   });
 
-  titleSlide.addText('CONFIDENTIAL REPORT', {
-    x: 5, y: 6.5, w: 6, h: 0.3, fontSize: 9, fontFace: SLIDE.FONT, color: 'AAAAAA', charSpacing: 2,
+  // Page indicator
+  titleSlide.addText('EXPORTED PRESENTATION', {
+    x: 5, y: 1.6, w: 6, h: 0.3, fontSize: 9, fontFace: SLIDE.FONT, color: '999999', charSpacing: 1,
+  });
+
+  // Bottom branding
+  titleSlide.addText('CONFIDENTIAL', {
+    x: 5, y: 6.5, w: 6, h: 0.3, fontSize: 8, fontFace: SLIDE.FONT, color: 'DDDDDD', charSpacing: 2,
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -515,9 +569,7 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
           // Use tile title as label (more descriptive than column alias)
           const label = tw.tile.title;
           
-          const linkUrl = (payload.baseUrl && payload.dashboardId) 
-              ? `${payload.baseUrl}/dashboard/chart-detail?dashboardId=${payload.dashboardId}&tileId=${tw.tile.id}` 
-              : undefined;
+          const linkUrl = buildDetailUrl(payload, tw.tile);
 
           overviewSlide.addShape(pptx.ShapeType.roundRect, {
             x, y: startY, w: cardW, h: cardH,
@@ -532,9 +584,15 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
             hyperlink: linkUrl ? { url: linkUrl } : undefined
           });
           
+          // Visual indicator bar
+          overviewSlide.addShape(pptx.ShapeType.rect, { 
+            x: x + cardW/2 - 0.5, y: startY + 1.1, w: 1.0, h: 0.03, 
+            fill: { color: SLIDE.GREEN } 
+          });
+          
           overviewSlide.addText(formatCol(label).toUpperCase(), {
-            x, y: startY + 1.2, w: cardW, h: 0.4,
-            fontSize: 9, fontFace: SLIDE.FONT, color: '777777', align: 'center', valign: 'top',
+            x, y: startY + 1.25, w: cardW, h: 0.35,
+            fontSize: 8, fontFace: SLIDE.FONT, color: '777777', align: 'center', valign: 'top',
           });
         });
       }
@@ -597,40 +655,116 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
         const xBase = isSingle ? 0.4 : (pi === 0 ? 0.4 : 0.4 + panelW + panelGap);
 
         // Link generation
-        const linkUrl = (payload.baseUrl && payload.dashboardId) 
-            ? `${payload.baseUrl}/dashboard/chart-detail?dashboardId=${payload.dashboardId}&tileId=${tw.tile.id}` 
-            : undefined;
+        const linkUrl = buildDetailUrl(payload, tw.tile);
 
         // Panel header with shadows and link
         addPanelHeader(dashSlide, tw.tile.title, xBase, contentY, panelW, linkUrl);
 
         let yEnd = contentY + 0.5;
 
-        // Render data
-        if (tw.cr.queryResult && tw.cr.queryResult.rows.length > 0) {
+        // Render chart for stats (distribution data) - show chart instead of table
+        if (tw.cr.stats && tw.cr.stats.distribution.length > 0) {
+          const chartData = tw.cr.stats.distribution.slice(0, 8).map(d => ({ name: d.name, count: d.count }));
+          const chartH = 2.2;
+          const chartY = yEnd;
+          
+          // Add chart title
+          dashSlide.addText('Distribusi Data', {
+            x: xBase, y: chartY - 0.2, w: panelW, h: 0.2,
+            fontSize: 9, fontFace: SLIDE.FONT, color: '666666', italic: true
+          });
+          
+          // Render bar chart
+          try {
+            const labels = chartData.map(d => d.name.length > 12 ? d.name.substring(0, 12) + '...' : d.name);
+            const values = chartData.map(d => d.count);
+            
+            // Format: [{ name, labels, values }]
+            const chartSeries = [{ name: 'Jumlah', labels, values }];
+            
+            dashSlide.addChart(pptx.ChartType.bar, chartSeries as any, {
+              x: xBase, y: chartY, w: panelW, h: chartH,
+              barDir: 'col',
+              barGrouping: 'clustered',
+              showValue: true,
+              legendPos: 'b',
+              legendFontSize: 8,
+              catAxisLabelColor: '333333',
+              catAxisLabelFontSize: 8,
+            } as any);
+            
+            yEnd = chartY + chartH + 0.15;
+          } catch (e) {
+            console.error('Chart render failed:', e);
+          }
+           
+          // Skip table for stats data - just show chart
+        } else if (tw.cr.queryResult && tw.cr.queryResult.rows.length > 0) {
           const rawCols = tw.cr.queryResult.columns;
           const rows = tw.cr.queryResult.rows as Record<string, unknown>[];
-          // Deduplicate columns (same alias appearing multiple times)
-          const seen = new Set<string>();
-          const displayCols = rawCols.filter(c => {
-            if (seen.has(c)) return false;
-            seen.add(c);
-            return true;
-          }).slice(0, isSingle ? 8 : 4);
-          yEnd = addCompactTable(dashSlide, displayCols, rows, xBase, yEnd, panelW, maxTableRows);
-        } else if (tw.cr.stats) {
-          const distRows = tw.cr.stats.distribution.map(item => ({
-            nama: item.name,
-            jumlah: item.count,
-            persen: `${item.percentage}%`,
-          }));
-          yEnd = addCompactTable(
-            dashSlide,
-            ['nama', 'jumlah', 'persen'],
-            distRows as unknown as Record<string, unknown>[],
-            xBase, yEnd, panelW, maxTableRows,
-          );
-        } else {
+          
+          // Try to extract chart data from queryResult if there's a label column and value columns
+          const labelCol = rawCols[0];
+          const numericCols = rawCols.filter(c => {
+            const val = rows[0]?.[c];
+            return typeof val === 'number' || (!isNaN(Number(val)) && val !== null);
+          });
+          
+          // If we have at least one numeric column, try to render a chart
+          if (labelCol && numericCols.length > 0 && rows.length <= 10) {
+            const valueCol = numericCols[0];
+            const labels = rows.map(r => String(r[labelCol] || 'N/A').substring(0, 15));
+            const values = rows.map(r => Number(r[valueCol]) || 0);
+            
+            const chartH = 2.2;
+            const chartY = yEnd;
+            
+            dashSlide.addText('Data Visualization', {
+              x: xBase, y: chartY - 0.2, w: panelW, h: 0.2,
+              fontSize: 9, fontFace: SLIDE.FONT, color: '666666', italic: true
+            });
+            
+            try {
+              dashSlide.addChart(pptx.ChartType.bar, [
+                { name: formatCol(valueCol), labels, values }
+              ], {
+                x: xBase, y: chartY, w: panelW, h: chartH,
+                barDir: 'col',
+                barGrouping: 'clustered',
+                showValue: true,
+                legendPos: 'b',
+                legendFontSize: 8,
+                catAxisLabelColor: '333333',
+                catAxisLabelFontSize: 8,
+              });
+              yEnd = chartY + chartH + 0.15;
+            } catch (e) {
+              console.error('Chart render failed for queryResult:', e);
+            }
+          }
+          
+          // Also show the table below the chart
+          if (yEnd === contentY + 0.5) {
+            // No chart was rendered, show table only
+            const seen = new Set<string>();
+            const displayCols = rawCols.filter(c => {
+              if (seen.has(c)) return false;
+              seen.add(c);
+              return true;
+            }).slice(0, isSingle ? 8 : 4);
+            yEnd = addCompactTable(dashSlide, displayCols, rows, xBase, yEnd, panelW, maxTableRows, linkUrl);
+          } else {
+            // Chart was rendered, show smaller table below
+            const seen = new Set<string>();
+            const displayCols = rawCols.filter(c => {
+              if (seen.has(c)) return false;
+              seen.add(c);
+              return true;
+            }).slice(0, isSingle ? 6 : 3);
+            const tableMaxRows = isSingle ? 6 : 4;
+            yEnd = addCompactTable(dashSlide, displayCols, rows, xBase, yEnd, panelW, tableMaxRows, linkUrl);
+          }
+        } else if (!tw.cr.queryResult || tw.cr.queryResult.rows.length === 0) {
              dashSlide.addText('No Data Available', { x: xBase, y: yEnd, w: panelW, h: 0.5, align: 'center', color: '999999', italic: true });
         }
 
@@ -659,28 +793,33 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
     const recSlide = pptx.addSlide();
     addSlideChrome(recSlide, 'Rekomendasi & Langkah Selanjutnya');
 
+    // Header accent
+    recSlide.addShape(pptx.ShapeType.rect, { x: 0.4, y: 1.0, w: 0.06, h: 5.5, fill: { color: SLIDE.LIGHT_GREEN } });
+
     insights.recommendations.forEach((rec, i) => {
-      const yPos = 0.85 + i * 0.75;
-      recSlide.addShape(pptx.ShapeType.rect, {
-        x: 0.5, y: yPos + 0.05, w: 0.22, h: 0.22,
-        fill: { color: SLIDE.GREEN }, rectRadius: 0.04,
+      const yPos = 0.9 + i * 0.75;
+      // Numbered circle
+      recSlide.addShape(pptx.ShapeType.ellipse, {
+        x: 0.55, y: yPos + 0.05, w: 0.25, h: 0.25,
+        fill: { color: SLIDE.GREEN },
       });
-      recSlide.addText('→', {
-        x: 0.5, y: yPos + 0.05, w: 0.22, h: 0.22,
-        fontSize: 10, fontFace: SLIDE.FONT, color: WHITE, align: 'center', valign: 'middle',
+      recSlide.addText(String(i + 1), {
+        x: 0.55, y: yPos + 0.05, w: 0.25, h: 0.25,
+        fontSize: 10, fontFace: SLIDE.FONT, color: WHITE, align: 'center', valign: 'middle', bold: true,
       });
       recSlide.addText(rec, {
-        x: 0.85, y: yPos, w: 11.8, h: 0.32,
+        x: 0.95, y: yPos, w: 11.5, h: 0.35,
         fontSize: 11, fontFace: SLIDE.FONT, color: '333333', valign: 'middle',
       });
     });
 
     if (insights.closingStatement) {
       const closingY = 0.85 + insights.recommendations.length * 0.75 + 0.4;
-      recSlide.addShape(pptx.ShapeType.rect, {
-        x: 0.4, y: closingY, w: 12.5, h: 0.55,
-        fill: { color: SLIDE.LIGHT_GREEN }, rectRadius: 0.04,
+      recSlide.addShape(pptx.ShapeType.roundRect, {
+        x: 0.4, y: closingY, w: 12.5, h: 0.6,
+        fill: { color: SLIDE.LIGHT_GREEN }, rectRadius: 0.08,
       });
+      recSlide.addShape(pptx.ShapeType.rect, { x: 0.4, y: closingY, w: 0.08, h: 0.6, fill: { color: SLIDE.GREEN } });
       recSlide.addText(insights.closingStatement, {
         x: 0.55, y: closingY + 0.03, w: 12.2, h: 0.5,
         fontSize: 9, fontFace: SLIDE.FONT, color: SLIDE.DARK_GREEN, italic: true, valign: 'middle',
@@ -694,14 +833,36 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
   const endSlide = pptx.addSlide();
   slideNum++;
   endSlide.background = { color: SLIDE.GREEN };
-  endSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.1, h: '100%', fill: { color: SLIDE.DARK_GREEN } });
+  
+  // Left dark accent
+  endSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.15, h: '100%', fill: { color: SLIDE.DARK_GREEN } });
+  
+  // Decorative elements
+  endSlide.addShape(pptx.ShapeType.ellipse, { x: 8, y: 1, w: 4, h: 4, fill: { color: 'D4E8C0', transparency: 70 } });
+  endSlide.addShape(pptx.ShapeType.ellipse, { x: 10, y: 5, w: 3, h: 3, fill: { color: 'E8F0D8', transparency: 50 } });
+  
+  // Thank you text
   endSlide.addText('TERIMA KASIH', {
-    x: 0.9, y: 2.5, w: '80%', h: 0.9,
-    fontSize: 38, fontFace: SLIDE.FONT, color: WHITE, bold: true, charSpacing: 5,
+    x: 0.9, y: 2.3, w: '80%', h: 1.0,
+    fontSize: 42, fontFace: SLIDE.FONT, color: WHITE, bold: true, charSpacing: 6,
   });
-  endSlide.addShape(pptx.ShapeType.rect, { x: 0.9, y: 3.55, w: 3, h: 0.025, fill: { color: 'D4E8C0' } });
-  endSlide.addText(`PT Gapura Angkasa  |  ${dateStr}`, {
-    x: 0.9, y: 3.8, w: '80%', h: 0.35, fontSize: 11, fontFace: SLIDE.FONT, color: 'A8C67F',
+  
+  // Decorative underline
+  endSlide.addShape(pptx.ShapeType.rect, { x: 0.9, y: 3.5, w: 3.5, h: 0.03, fill: { color: 'D4E8C0' } });
+  
+  // Company info
+  endSlide.addText('PT GAPURA ANGKASA', {
+    x: 0.9, y: 3.7, w: '80%', h: 0.4, fontSize: 14, fontFace: SLIDE.FONT, color: 'C0D8A0', bold: true, charSpacing: 2,
+  });
+  
+  endSlide.addText(dateStr, {
+    x: 0.9, y: 4.15, w: '80%', h: 0.35, fontSize: 11, fontFace: SLIDE.FONT, color: 'A8C67F',
+  });
+  
+  // Footer branding
+  endSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 6.8, w: '100%', h: 0.8, fill: { color: SLIDE.DARK_GREEN, transparency: 30 } });
+  endSlide.addText('Laporan ini digenerate secara otomatis oleh Gapura Analytics', {
+    x: 0.5, y: 6.95, w: '90%', h: 0.5, fontSize: 9, fontFace: SLIDE.FONT, color: 'D4E8C0', align: 'center',
   });
 
   const outBuf = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;

@@ -9,6 +9,7 @@ import {
   fetchRootCauses,
   fetchAllReports,
   fetchCategoryKPIs,
+  fetchAggregatedCaseCategory,
   CategoryData,
   TrendDataPoint,
   BranchCategoryData,
@@ -33,11 +34,13 @@ import {
   Filler,
 } from 'chart.js';
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, Bar as RechartsBar } from 'recharts';
-import { ArrowUp, ArrowDown, Minus, Download, FileText, Filter, X, Zap } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Download, FileText, Filter, X, Zap, Brain } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
+import { fetchRiskSummaryAi, AiRiskSummary, fetchSeverityDistributionsAi } from '@/lib/services/gapura-ai';
+import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import type { QueryResult } from '@/types/builder';
 
 ChartJS.register(
@@ -567,6 +570,8 @@ export default function ReportByCaseCategoryDetail({
   const [rootCauseData, setRootCauseData] = useState<RootCauseData[]>([]);
   const [tableData, setTableData] = useState<ReportRecord[]>([]);
   const [kpis, setKpis] = useState<CategoryKPIs | null>(null);
+  const [aiRiskSummary, setAiRiskSummary] = useState<AiRiskSummary | null>(null);
+  const [aiRiskHeatmap, setAiRiskHeatmap] = useState<any[]>([]);
   const investigativeData: QueryResult = useMemo(() => {
     const rows = tableData as unknown as Record<string, unknown>[];
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -590,46 +595,61 @@ export default function ReportByCaseCategoryDetail({
     };
   }, [categoryData]);
 
+  const [tableLoading, setTableLoading] = useState(false);
+
   useEffect(() => {
-    async function loadData() {
+    async function loadAggregatedData() {
       setLoading(true);
       setError(null);
 
       try {
-        const [
-          category,
-          trend,
-          branch,
-          airline,
-          rootCause,
-          table,
-          kpiData,
-        ] = await Promise.all([
-          fetchCategoryBreakdown(effectiveFilters),
-          fetchMonthlyTrend(effectiveFilters),
-          fetchCategoryByBranch(effectiveFilters),
-          fetchCategoryByAirline(effectiveFilters),
-          fetchRootCauses(effectiveFilters),
-          fetchAllReports(effectiveFilters),
-          fetchCategoryKPIs(effectiveFilters),
-        ]);
+        const aggregated = await fetchAggregatedCaseCategory(effectiveFilters);
 
-        setCategoryData(category);
-        setTrendData(trend);
-        setBranchData(branch);
-        setAirlineData(airline);
-        setRootCauseData(rootCause);
-        setTableData(table);
-        setKpis(kpiData);
+        setCategoryData(aggregated.categoryData);
+        setTrendData(aggregated.trendData);
+        setBranchData(aggregated.branchData);
+        setAirlineData(aggregated.airlineData);
+        setKpis(aggregated.kpis);
+        
+        // Load AI data separately to prevent blocking the main charts if it fails/times out
+        fetchSeverityDistributionsAi().then(aiSeverityRes => {
+          if (aiSeverityRes && aiSeverityRes.category) {
+            const heatmapData = aiSeverityRes.category.flatMap(c => [
+              { category: c.name, severity: 'Critical', count: c.critical },
+              { category: c.name, severity: 'High', count: c.high },
+              { category: c.name, severity: 'Medium', count: c.medium },
+              { category: c.name, severity: 'Low', count: c.low },
+            ]);
+            setAiRiskHeatmap(heatmapData);
+          }
+        }).catch(err => {
+          console.warn('AI Risk Heatmap failed to load (timeout or error):', err);
+        });
       } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('Failed to load data. Please try again.');
+        console.error('Failed to load aggregated data:', err);
+        setError('Failed to load primary chart data.');
       } finally {
         setLoading(false);
       }
     }
 
-    loadData();
+    loadAggregatedData();
+  }, [effectiveFilters]);
+
+  useEffect(() => {
+    async function loadTableData() {
+      setTableLoading(true);
+      try {
+        const table = await fetchAllReports(effectiveFilters);
+        setTableData(table);
+      } catch (err) {
+        console.error('Failed to load table data:', err);
+      } finally {
+        setTableLoading(false);
+      }
+    }
+
+    loadTableData();
   }, [effectiveFilters]);
 
   if (loading) {
@@ -762,6 +782,26 @@ export default function ReportByCaseCategoryDetail({
         </div>
         <AiRootCauseInvestigation source={filters.sourceSheet === 'CGO' ? 'CGO' : 'NON CARGO'} />
       </section>
+
+      {/* AI Risk Heatmap */}
+      {aiRiskHeatmap.length > 0 && (
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Brain className="w-5 h-5 text-emerald-600" />
+            <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across categories (AI Service Data)</p>
+          <div className="h-[400px]">
+            <HeatmapChart 
+              data={aiRiskHeatmap}
+              xAxis="severity"
+              yAxis="category"
+              metric="count"
+              showTitle={false}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Management Summary */}
       <ManagementSummary categoryData={categoryData} branchData={branchData} />

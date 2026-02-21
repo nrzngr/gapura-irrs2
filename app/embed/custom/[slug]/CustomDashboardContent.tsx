@@ -392,6 +392,9 @@ export function CustomDashboardContent() {
         subtitle: dashboard.description || dashboard.config?.subtitle,
         dashboardId: dashboard.id,
         baseUrl: window.location.origin,
+        dateFrom: dateFrom || '1900-01-01',
+        dateTo: dateTo || '2099-12-31',
+        sourcePage: slug,
         pages: pages.map(p => ({
           name: p.name,
           tiles: p.tiles.map(t => ({ id: t.id, title: t.title, chartType: t.visualization_config?.chartType || t.chart_type || 'bar', yAxis: t.visualization_config?.yAxis })),
@@ -402,7 +405,7 @@ export function CustomDashboardContent() {
       else await exportToPptx(payload);
     } catch (err) { console.error('Export error:', err); }
     finally { setExportingFormat(null); }
-  }, [dashboard, pages, chartsData, fetchChartData]);
+  }, [dashboard, pages, chartsData, fetchChartData, dateFrom, dateTo, slug]);
 
   const getChartSlug = (chartTitle: string) => {
     const title = chartTitle.toLowerCase();

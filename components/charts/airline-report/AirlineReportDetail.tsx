@@ -12,6 +12,7 @@ import {
   fetchRootCausePareto,
   fetchAirlineKPIs,
   fetchAirlineCategoryBreakdown,
+  fetchAggregatedAirlineReport,
   AirlineSummary,
   TrendDataPoint,
   BranchByAirlineData,
@@ -85,6 +86,8 @@ interface FilterParams {
   airlines?: string;
   area?: string;
   sourceSheet?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface KPICardProps {
@@ -587,7 +590,9 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
   const [paretoData, setParetoData] = useState<RootCauseParetoData[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<AirlineCategoryBreakdown[]>([]);
   const [kpis, setKpis] = useState<AirlineKPIs | null>(null);
+  const [aiRiskSummary, setAiRiskSummary] = useState<AiRiskSummary | null>(null);
   const [aiRiskHeatmap, setAiRiskHeatmap] = useState<any[]>([]);
+  const [tableLoading, setTableLoading] = useState(false);
   const investigativeData: QueryResult = useMemo(() => {
     const rows = tableData as unknown as Record<string, unknown>[];
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -612,71 +617,89 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
   }, [airlineData]);
 
   useEffect(() => {
-    async function loadData() {
+    const controller = new AbortController();
+
+    async function loadAggregatedData() {
       setLoading(true);
       setError(null);
 
       try {
-        const results = await Promise.all([
-          fetchAirlineSummary(filters),
-          fetchMonthlyTrendByAirline(filters),
-          fetchBranchByAirline(filters),
-          fetchRootCauseByAirline(filters),
-          fetchAllAirlineReports(filters),
-          fetchCategoryByAirline(filters),
-          fetchAreaByAirline(filters),
-          fetchRootCausePareto(filters),
-          fetchAirlineKPIs(filters),
-          fetchAirlineCategoryBreakdown(filters),
-          fetchRiskSummaryAi(),
-        ]);
- 
-        const [
-          airline, 
-          trend, 
-          branch, 
-          rootCause, 
-          table, 
-          category, 
-          area, 
-          pareto, 
-          kpiData, 
-          catBreakdownRes, 
-          riskSummaryRes
-        ] = results;
-
-        setAirlineData(airline as AirlineSummary[]);
-        setTrendData(trend as TrendDataPoint[]);
-        setBranchData(branch as BranchByAirlineData[]);
-        setRootCauseData(rootCause as RootCauseByAirlineData[]);
-        setTableData(table as AirlineReportRecord[]);
-        setCategoryData(category as AirlineCategoryData[]);
-        setAreaData(area as AreaByAirlineData[]);
-        setParetoData(pareto as RootCauseParetoData[]);
-        setKpis(kpiData as AirlineKPIs);
-        setCategoryBreakdown(catBreakdownRes as AirlineCategoryBreakdown[]);
-
-        const riskSummaryResult = riskSummaryRes as AiRiskSummary | null;
-        if (riskSummaryResult && riskSummaryResult.airline_details) {
-          const heatmapData = riskSummaryResult.airline_details.flatMap(a => 
-            Object.entries(a.severity_distribution).map(([sev, count]) => ({
-              airline: a.name,
-              severity: sev,
-              count: count
-            }))
-          );
-          setAiRiskHeatmap(heatmapData);
+        const aggregated = await fetchAggregatedAirlineReport(filters as any);
+        
+        if (aggregated && aggregated.airlineData) {
+          setAirlineData(aggregated.airlineData);
+          setTrendData(aggregated.trendData || []);
+          setCategoryBreakdown(aggregated.categoryBreakdown || []);
+          setCategoryData(aggregated.categoryData || []);
+          setKpis(aggregated.kpis);
+        } else {
+          throw new Error('Invalid aggregated airline data');
         }
+
+        // Load AI data separately
+        fetchRiskSummaryAi(controller.signal).then(riskSummaryRes => {
+          const riskSummaryResult = riskSummaryRes as AiRiskSummary | null;
+          if (riskSummaryResult) {
+            setAiRiskSummary(riskSummaryResult);
+            if (riskSummaryResult.airline_details) {
+              const heatmapData = riskSummaryResult.airline_details.flatMap(a => 
+                Object.entries(a.severity_distribution).map(([sev, count]) => ({
+                  airline: a.name,
+                  severity: sev,
+                  count: count
+                }))
+              );
+              setAiRiskHeatmap(heatmapData);
+            }
+          }
+        }).catch(err => {
+          if (err.name === 'AbortError') return;
+          console.warn('AI Risk failed:', err);
+        });
+
       } catch (err) {
-        console.error('Failed to load data:', err);
-        setError('Failed to load data. Please try again.');
+        if ((err as any).name === 'AbortError') return;
+        console.error('Failed to load aggregated airline data:', err);
+        setError('Failed to load primary chart data.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
-    loadData();
-  }, [filters.hub, filters.branch, filters.airlines, filters.area]);
+    loadAggregatedData();
+
+    return () => {
+      controller.abort();
+    };
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo]);
+
+  useEffect(() => {
+    async function loadDeferredData() {
+      setTableLoading(true);
+      try {
+        const [branch, rootCause, table, area, pareto] = await Promise.all([
+          fetchBranchByAirline(filters as any),
+          fetchRootCauseByAirline(filters as any),
+          fetchAllAirlineReports(filters as any),
+          fetchAreaByAirline(filters as any),
+          fetchRootCausePareto(filters as any),
+        ]);
+        setBranchData(branch);
+        setRootCauseData(rootCause);
+        setTableData(table);
+        setAreaData(area);
+        setParetoData(pareto);
+      } catch (err) {
+        console.error('Failed to load deferred airline data:', err);
+      } finally {
+        setTableLoading(false);
+      }
+    }
+
+    loadDeferredData();
+  }, [filters.hub, filters.branch, filters.airlines, filters.area, filters.dateFrom, filters.dateTo]);
 
   if (loading) {
     return (
@@ -715,25 +738,25 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
       <AutoInsight data={airlineData} />
 
       {/* Task 3: New Custom KPIs */}
-        {kpis && kpis.totalAirlines > 0 && (
+      {kpis && kpis.totalAirlines > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <KPICard title="Total Airlines" value={kpis.totalAirlines} color="blue" explanation="Total maskapai yang terdaftar dalam dataset ini." />
           <KPICard
             title="Top Airline"
-            value={kpis.topAirline.name}
-            subtitle={`${kpis.topAirline.count} reports`}
+            value={kpis.topAirline?.name || '-'}
+            subtitle={`${kpis.topAirline?.count || 0} reports`}
             color="red"
             explanation="Maskapai dengan jumlah laporan tertinggi pada periode ini." 
           />
           <KPICard
             title="Best Performer"
-            value={kpis.bestPerformer.name}
-            subtitle={`${kpis.bestPerformer.count} reports`}
+            value={kpis.bestPerformer?.name || '-'}
+            subtitle={`${kpis.bestPerformer?.count || 0} reports`}
             color="green"
             explanation="Performa terbaik berdasarkan jumlah laporan terbanyak." 
           />
-          <KPICard title="Avg Reports/Airline" value={kpis.avgReportsPerAirline} color="yellow" explanation="Rata-rata laporan per maskapai dalam dataset." />
-          <KPICard title="Compliment Ratio" value={`${kpis.complimentRatio}%`} color="green" explanation="Proporsi ulasan positif terhadap total ulasan." />
+          <KPICard title="Avg Reports/Airline" value={kpis.avgReportsPerAirline || 0} color="yellow" explanation="Rata-rata laporan per maskapai dalam dataset." />
+          <KPICard title="Compliment Ratio" value={`${kpis.complimentRatio || 0}%`} color="green" explanation="Proporsi ulasan positif terhadap total ulasan." />
         </div>
       )}
 
