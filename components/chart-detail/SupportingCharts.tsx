@@ -32,7 +32,8 @@ export type CustomChartType =
   | 'monthly_trend'
   | 'category_distribution'
   | 'category_branch'
-  | 'area_breakdown';
+  | 'area_breakdown'
+  | 'severity_distribution';
 
 interface SupportingChart {
   visualization: DashboardTile['visualization'];
