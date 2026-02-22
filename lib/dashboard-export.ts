@@ -703,14 +703,14 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
           const chartY = yEnd;
           
           // Add chart title
-          dashSlide.addText('Distribusi Data', {
+          dashSlide.addText('Data Visualization', {
             x: xBase, y: chartY - 0.2, w: panelW, h: 0.2,
-            fontSize: 9, fontFace: SLIDE.FONT, color: '666666', italic: true
+            fontSize: 9, fontFace: SLIDE.FONT, color: '888888', italic: true
           });
           
           // Render bar chart
           try {
-            const labels = chartData.map(d => d.name.length > 12 ? d.name.substring(0, 12) + '...' : d.name);
+            const labels = chartData.map(d => d.name.length > 20 ? d.name.substring(0, 20) + '...' : d.name);
             const values = chartData.map(d => d.count);
             
             // Format: [{ name, labels, values }]
@@ -720,11 +720,31 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
               x: xBase, y: chartY, w: panelW, h: chartH,
               barDir: 'col',
               barGrouping: 'clustered',
+              
+              // Aesthetics
+              chartColors: [SLIDE.GREEN, SLIDE.ACCENT_GREEN, '3498db', 'e67e22'],
+              chartColorsOpacity: 100,
+              
+              // Data Labels - clean and legible
               showValue: true,
-              legendPos: 'b',
-              legendFontSize: 8,
-              catAxisLabelColor: '333333',
-              catAxisLabelFontSize: 8,
+              dataLabelColor: '444444',
+              dataLabelFontFace: 'Segoe UI',
+              dataLabelFontSize: 9,
+              dataLabelPosition: 'outEnd',
+              
+              // Axes - Minimalist
+              valAxisHidden: true,      // Hide Y axis numbers (redundant with labels)
+              valAxisLineShow: false,   // Hide Y axis line
+              valGridLine: 'none',      // No gridlines for cleaner look
+              
+              catAxisLineShow: true,
+              catAxisLineColor: 'CCCCCC',
+              catAxisLabelColor: '666666',
+              catAxisLabelFontFace: 'Segoe UI',
+              catAxisLabelFontSize: 9,
+              
+              showLegend: false,
+              barGapWidthPct: 35,       // Thicker bars
             } as any);
             
             yEnd = chartY + chartH + 0.15;
@@ -737,17 +757,20 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
           const rawCols = tw.cr.queryResult.columns;
           const rows = tw.cr.queryResult.rows as Record<string, unknown>[];
           
-          // Try to extract chart data from queryResult if there's a label column and value columns
-          const labelCol = rawCols[0];
+          // Identify numeric columns
           const numericCols = rawCols.filter(c => {
-            const val = rows[0]?.[c];
-            return typeof val === 'number' || (!isNaN(Number(val)) && val !== null);
+             const val = rows[0]?.[c];
+             return typeof val === 'number' || (!isNaN(Number(val)) && val !== null && val !== '' && String(val).trim() !== '');
           });
+
+          // Identify label column: prefer first non-numeric column
+          let labelCol = rawCols.find(c => !numericCols.includes(c));
+          if (!labelCol) labelCol = rawCols[0]; // Fallback
           
           // If we have at least one numeric column, try to render a chart
           if (labelCol && numericCols.length > 0 && rows.length <= 10) {
             const valueCol = numericCols[0];
-            const labels = rows.map(r => String(r[labelCol] || 'N/A').substring(0, 15));
+            const labels = rows.map(r => String(r[labelCol!] || 'N/A').substring(0, 20));
             const values = rows.map(r => Number(r[valueCol]) || 0);
             
             const chartH = 2.2;
@@ -755,7 +778,7 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
             
             dashSlide.addText('Data Visualization', {
               x: xBase, y: chartY - 0.2, w: panelW, h: 0.2,
-              fontSize: 9, fontFace: SLIDE.FONT, color: '666666', italic: true
+              fontSize: 9, fontFace: SLIDE.FONT, color: '888888', italic: true
             });
             
             try {
@@ -765,12 +788,32 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
                 x: xBase, y: chartY, w: panelW, h: chartH,
                 barDir: 'col',
                 barGrouping: 'clustered',
+                
+                // Aesthetics
+                chartColors: [SLIDE.GREEN, SLIDE.ACCENT_GREEN, '3498db', 'e67e22'],
+                chartColorsOpacity: 100,
+                
+                // Data Labels - clean and legible
                 showValue: true,
-                legendPos: 'b',
-                legendFontSize: 8,
-                catAxisLabelColor: '333333',
-                catAxisLabelFontSize: 8,
-              });
+                dataLabelColor: '444444',
+                dataLabelFontFace: 'Segoe UI',
+                dataLabelFontSize: 9,
+                dataLabelPosition: 'outEnd',
+                
+                // Axes - Minimalist
+                valAxisHidden: true,      // Hide Y axis numbers (redundant with labels)
+                valAxisLineShow: false,   // Hide Y axis line
+                valGridLine: 'none',      // No gridlines for cleaner look
+                
+                catAxisLineShow: true,
+                catAxisLineColor: 'CCCCCC',
+                catAxisLabelColor: '666666',
+                catAxisLabelFontFace: 'Segoe UI',
+                catAxisLabelFontSize: 9,
+                
+                showLegend: false,
+                barGapWidthPct: 35,       // Thicker bars
+              } as any);
               yEnd = chartY + chartH + 0.15;
             } catch (e) {
               console.error('Chart render failed for queryResult:', e);
