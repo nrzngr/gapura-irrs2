@@ -595,7 +595,11 @@ export default function PivotReportDetail({ filters = {}, pivotTitle = '' }: { f
           <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
         </div>
         <div className="p-6">
-          <DataTableWithPagination data={fullTableData} title={pivotTitle || `${colLabel} by ${rowLabel}`} />
+          <DataTableWithPagination 
+          data={fullTableData} 
+          title={pivotTitle || `${colLabel} by ${rowLabel}`}
+          rowsPerPage={3}
+        />
         </div>
       </section>
     </div>

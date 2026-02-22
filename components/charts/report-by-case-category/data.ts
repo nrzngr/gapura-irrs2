@@ -405,8 +405,15 @@ export async function fetchAllReports(filters: BaseFilters = {}): Promise<Report
       if (!dateVal) return '-';
       const d = new Date(dateVal);
       if (isNaN(d.getTime())) return '-';
+      
+      const day = String(d.getDate()).padStart(2, '0');
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${d.getFullYear()} ${months[d.getMonth()]}`;
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      const hour = String(d.getHours()).padStart(2, '0');
+      const minute = String(d.getMinutes()).padStart(2, '0');
+      
+      return `${day} ${month} ${year} ${hour}:${minute}`;
     })(),
     Category: report.main_category || report.category || report.irregularity_complain_category || '-',
     Branch: report.branch || report.reporting_branch || report.station_id || '-',
@@ -414,6 +421,7 @@ export async function fetchAllReports(filters: BaseFilters = {}): Promise<Report
     Area: report.area || '-',
     'Root Cause': report.root_caused || '-',
     'Action Taken': report.action_taken || '-',
+    Evidence: report.evidence_url || report.evidence_urls || '-',
   }));
 }
 

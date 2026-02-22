@@ -26,6 +26,7 @@ import { fetchRiskSummaryAi, AiRiskSummary, fetchBranchRiskAnalysisAi, BranchRis
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import { barLabelsPlugin } from '../chartConfig';
 import { Bar, Line } from 'react-chartjs-2';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -91,34 +92,64 @@ interface KPICardProps {
   explanation?: string;
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
-  const colorClasses = {
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    yellow: 'bg-amber-50 border-amber-200 text-amber-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
+const KPICard = motion.create(({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) => {
+  const colorSchemes = {
+    green: 'from-emerald-500/10 to-emerald-500/5 text-emerald-700 border-emerald-500/20',
+    red: 'from-red-500/10 to-red-500/5 text-red-700 border-red-500/20',
+    yellow: 'from-amber-500/10 to-amber-500/5 text-amber-700 border-amber-500/20',
+    blue: 'from-blue-500/10 to-blue-500/5 text-blue-700 border-blue-500/20',
+    orange: 'from-orange-500/10 to-orange-500/5 text-orange-700 border-orange-500/20',
   };
 
   return (
-    <div className={`p-4 rounded-xl border ${colorClasses[color]} transition-all hover:shadow-md`}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
-      <div className="text-2xl font-black tracking-tight">{value}</div>
-      {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
-      {trend !== undefined && (
-        <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-          {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
-          <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className={`relative overflow-hidden p-6 rounded-[2rem] border backdrop-blur-md bg-gradient-to-br ${colorSchemes[color]} shadow-spatial-sm group`}
+    >
+      <div className="relative z-10">
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+            {title}
+          </span>
+          {trend !== undefined && (
+            <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${
+              trend > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'
+            }`}>
+              {trend > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
+              {Math.abs(trend).toFixed(1)}%
+            </div>
+          )}
         </div>
-      )}
-      {explanation && (
-        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
-          {explanation}
+        
+        <div className="text-3xl font-black tracking-tighter mb-1 font-display">
+          {value}
         </div>
-      )}
-    </div>
+        
+        {subtitle && (
+          <div className="text-xs font-bold opacity-50 tracking-tight">
+            {subtitle}
+          </div>
+        )}
+        
+        {explanation && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            whileHover={{ height: 'auto', opacity: 1 }}
+            className="overflow-hidden mt-4 pt-4 border-t border-current/10 text-[10px] leading-relaxed font-medium opacity-70"
+          >
+            {explanation}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Decorative Aurora Gradient Spot */}
+      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-current opacity-[0.03] blur-3xl rounded-full" />
+    </motion.div>
   );
-}
+});
 
 function AutoInsight({ data }: { data: BranchSummary[] }) {
   if (data.length === 0) return null;
@@ -129,33 +160,64 @@ function AutoInsight({ data }: { data: BranchSummary[] }) {
   const totalIrreg = data.reduce((s, b) => s + b.irregularity, 0);
   const overallIrregRate = totalReports > 0 ? (totalIrreg / totalReports) * 100 : 0;
 
-  const insightParts: string[] = [];
-  if (highRiskBranches.length > 0) {
-    insightParts.push(`${highRiskBranches.length} branch${highRiskBranches.length > 1 ? 'es' : ''} flagged as high risk (${highRiskBranches.slice(0, 3).map(b => b.branch).join(', ')}${highRiskBranches.length > 3 ? '...' : ''})`);
-  }
-  insightParts.push(`${topBranch.branch} leads with ${topBranch.total} reports (${topBranch.contribution.toFixed(1)}% share)`);
-  insightParts.push(`Overall irregularity rate is ${overallIrregRate.toFixed(1)}% across ${data.length} branches`);
-
   const mainInsight = highRiskBranches.length > 0
     ? `Action required: ${highRiskBranches.length} branches identified with high operational risk.`
     : `Operational stability: All branches currently below high-risk thresholds.`;
 
   return (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 mb-8">
-      <div className="flex items-center gap-2 mb-3">
-        <Zap size={18} className="text-amber-600" />
-        <h3 className="font-bold text-gray-800">Auto-Insight</h3>
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="relative overflow-hidden p-8 rounded-[2.5rem] bg-[var(--surface-0)] border border-[var(--surface-4)] shadow-spatial-md group"
+    >
+      {/* Aurora Background Effect */}
+      <div className="absolute inset-0 opacity-40">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[80%] bg-[var(--aurora-1)] blur-[100px] animate-pulse rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[50%] h-[70%] bg-[var(--aurora-2)] blur-[120px] rounded-full" />
       </div>
-      <p className="text-sm font-semibold text-gray-800 mb-2">{mainInsight}</p>
-      <ul className="space-y-1.5">
-        {insightParts.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-amber-500 mt-0.5">•</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+
+      <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start md:items-center">
+        <div className="p-4 bg-[var(--surface-glass)] rounded-3xl border border-[var(--glass-rim)] backdrop-blur-xl shadow-inner">
+          <Zap size={32} className="text-[var(--brand-emerald-500)]" />
+        </div>
+        
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-emerald-600)]">AI Intelligence Hub</span>
+            <div className="h-px flex-1 bg-[var(--surface-4)]" />
+          </div>
+          
+          <h3 className="text-xl font-black tracking-tight text-[var(--text-primary)] mb-3">
+            {mainInsight}
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Leaderboard</span>
+              <span className="text-sm font-bold text-[var(--text-secondary)]">
+                {topBranch.branch} ({topBranch.contribution.toFixed(1)}% share)
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Avg Irregularity</span>
+              <span className="text-sm font-bold text-[var(--text-secondary)]">
+                {overallIrregRate.toFixed(1)}% cross-branch
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Critical Alert</span>
+              <span className="text-sm font-bold text-[var(--text-secondary)]">
+                {highRiskBranches.length} high-risk flags
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <button className="px-6 py-3 bg-[var(--brand-primary)] text-[var(--text-on-brand)] rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-[var(--brand-primary)]/20">
+          Analyze Risk
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
@@ -848,6 +910,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
           data={investigativeData} 
           isLoading={tableLoading}
           title="Branch Intelligence Reports"
+          rowsPerPage={3}
         />
       </section>
 

@@ -881,7 +881,11 @@ export default function AirlineReportDetail({ filters = {} }: { filters?: Filter
           <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
         </div>
         <div className="p-6">
-          <DataTableWithPagination data={fullTableData} title="Airline Performance (Main Chart Source)" />
+          <DataTableWithPagination 
+          data={fullTableData} 
+          title="Airline Performance (Main Chart Source)"
+          rowsPerPage={3}
+        />
         </div>
       </section>
     </div>

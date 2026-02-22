@@ -1055,7 +1055,11 @@ export default function AreaReportDetail({ filters = {} }: { filters?: FilterPar
           <h2 className="text-lg font-bold text-gray-800">{isFocused ? "Cell Records" : "Full Data Table"}</h2>
         </div>
         <div className="p-6">
-          <DataTableWithPagination data={fullTableData} title={isFocused ? `Source Data: ${focusedBranch}::${focusedArea}` : "Area Performance (Main Chart Source)"} />
+          <DataTableWithPagination 
+            data={fullTableData} 
+            title={isFocused ? `Source Data: ${focusedBranch}::${focusedArea}` : "Area Performance (Main Chart Source)"}
+            rowsPerPage={3}
+          />
         </div>
       </section>
     </div>

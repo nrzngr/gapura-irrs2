@@ -20,6 +20,11 @@
   --surface-4: oklch(0.92 0.02 160);     /* Active/pressed states */
   --surface-glass: oklch(1 0 0 / 0.65);  /* High-transparency glass */
 
+  /* Aurora Mesh Gradient Tokens */
+  --aurora-1: oklch(0.95 0.05 165);
+  --aurora-2: oklch(0.92 0.08 240);
+  --aurora-3: oklch(0.90 0.10 280);
+
   /* Command center emerald - bright, saturated, no dark tones */
   --brand-emerald-50: oklch(0.95 0.05 165);
   --brand-emerald-100: oklch(0.90 0.08 163);
@@ -30,6 +35,9 @@
 
   --brand-primary: var(--brand-emerald-500);
   --brand-accent: oklch(0.6 0.14 240);
+  
+  --brand-gradient-start: oklch(0.65 0.18 160);
+  --brand-gradient-end: oklch(0.55 0.15 170);
 
   /* Aviation-inspired accents */
   --accent-cyan: oklch(0.7 0.15 200);
@@ -38,18 +46,25 @@
   --accent-purple: oklch(0.62 0.16 280);
 
   /* Dark text with emerald undertone for readability */
-  --text-primary: oklch(0.25 0.04 160);
-  --text-secondary: oklch(0.45 0.05 160);
-  --text-muted: oklch(0.60 0.03 160);
-  --text-on-brand: oklch(0.98 0.01 160);
+  --text-primary: oklch(0.20 0.03 160);
+  --text-secondary: oklch(0.40 0.04 160);
+  --text-muted: oklch(0.55 0.02 160);
+  --text-on-brand: oklch(0.99 0.005 160);
 
   /* ========================================
      2. SPATIAL DEPTH & KINETIC PHYSICS
      ======================================== */
 
   --radius-prism: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
 
   /* Multi-layered spatial shadows (Light Mode - Diffuse) */
+  --shadow-sm: 0 2px 4px oklch(0 0 0 / 0.04);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
+  --shadow-lg: 0 12px 24px oklch(0 0 0 / 0.12);
+  
   --shadow-spatial-sm: 
     0 2px 4px oklch(0 0 0 / 0.02),
     0 4px 8px -2px oklch(0 0 0 / 0.04);
@@ -64,27 +79,31 @@
 
   /* Inner rim (Light mode "Paper Edge") */
   --inner-rim: inset 0 0 0 1px oklch(0 0 0 / 0.05);
+  --glass-rim: inset 0 0 0 1px oklch(1 0 0 / 0.1);
 
   /* ========================================
      3. TYPOGRAPHY — Editorial Sharpness
      ======================================== */
 
-  --font-display: "Work Sans", system-ui, sans-serif;
-  --font-body: "Manrope", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Courier New", monospace;
+  --font-display: "Outfit", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
-  --text-hero: clamp(2.5rem, 2rem + 3vw, 4rem);
-  --text-4xl: clamp(1.5rem, 1.25rem + 1.5vw, 2rem);
-  --text-xs: 0.6875rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.9375rem;
+  --text-hero: clamp(3rem, 2.5rem + 5vw, 5rem);
+  --text-4xl: clamp(1.75rem, 1.5rem + 2vw, 2.5rem);
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
 
   /* ========================================
      4. ANIMATION — Spring Constants
      ======================================== */
-  --spring-snappy: cubic-bezier(0.76, 0, 0.24, 1);
-  --spring-bouncy: cubic-bezier(0.6, -0.28, 0.735, 0.045);
-  --duration-normal: 450ms;
+  --spring-snappy: cubic-bezier(0.19, 1, 0.22, 1);
+  --spring-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --spring-bouncy: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+  --duration-slow: 700ms;
 }
 
 /* ============================================

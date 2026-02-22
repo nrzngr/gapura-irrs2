@@ -46,6 +46,8 @@ import { DataTableWithPagination } from '@/components/chart-detail/DataTableWith
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import { AiBranchSummary } from '@/components/ai/AiBranchSummary';
 import { AiReportSummary } from '@/components/ai/AiReportSummary';
+import { AiSeasonalForecast } from '@/components/ai/AiSeasonalForecast';
+import { AiSeasonalityForecast } from '@/components/ai/AiSeasonalityForecast';
 import { fetchRiskSummaryAi, AiRiskSummary } from '@/lib/services/gapura-ai';
 import { HeatmapChart } from '@/components/charts/HeatmapChart';
 import type { QueryResult } from '@/types/builder';
@@ -739,6 +741,8 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       {/* AI Intelligence Layer */}
       <AiReportSummary source={filters.sourceSheet as any} />
       <AiBranchSummary source={filters.sourceSheet as any} />
+      <AiSeasonalForecast />
+      <AiSeasonalityForecast />
 
       {/* AI Risk Heatmap */}
       {aiRiskHeatmap.length > 0 && (
@@ -984,7 +988,11 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
           </div>
         </div>
         <div className="p-6">
-          <DataTableWithPagination data={fullTableData} title="Monthly Trend Source Data" />
+          <DataTableWithPagination 
+          data={fullTableData} 
+          title="Monthly Trend Source Data"
+          rowsPerPage={3}
+        />
         </div>
       </section>
     </div>

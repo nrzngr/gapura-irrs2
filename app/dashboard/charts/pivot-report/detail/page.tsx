@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
 import PivotReportDetail from '@/components/charts/pivot-report/PivotReportDetail';
 import DetailFilterHeader from '@/components/chart-detail/DetailFilterHeader';
 
@@ -29,20 +30,31 @@ function PivotReportContent() {
   });
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
+    <div className="min-h-screen bg-[var(--surface-0)] overflow-x-hidden relative">
+      {/* Background Atmosphere */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--aurora-1)] blur-[120px] opacity-30 animate-pulse" />
+        <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] bg-[var(--aurora-2)] blur-[100px] opacity-20" />
+      </div>
+
       <DetailFilterHeader 
         title={pivotTitle}
-        subtitle="Detailed pivot/heatmap analysis with cross-tabulation"
+        subtitle="Matrix Cross-Tabulation & Heatmap Analysis"
         filters={filters}
         setFilters={setFilters}
         sourcePage={sourcePage}
       />
 
-      <main className="w-full px-4 sm:px-6 py-6">
-        <div className="max-w-[1800px] mx-auto">
+      <motion.main 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.8, ease: [0.19, 1, 0.22, 1] }}
+        className="relative z-10 w-full px-6 py-32"
+      >
+        <div className="max-w-[1600px] mx-auto space-y-12">
           <PivotReportDetail filters={filters} pivotTitle={pivotTitle} />
         </div>
-      </main>
+      </motion.main>
     </div>
   );
 }
@@ -50,8 +62,11 @@ function PivotReportContent() {
 export default function PivotReportPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--brand-primary)]"></div>
+      <div className="min-h-screen bg-[var(--surface-0)] flex items-center justify-center">
+        <div className="relative">
+          <div className="absolute inset-0 bg-[var(--brand-primary)]/20 blur-2xl rounded-full animate-pulse" />
+          <div className="relative animate-spin rounded-full h-12 w-12 border-t-2 border-r-2 border-[var(--brand-primary)]"></div>
+        </div>
       </div>
     }>
       <PivotReportContent />

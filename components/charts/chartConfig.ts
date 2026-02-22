@@ -159,18 +159,27 @@ export const defaultDesktopChartOptions: any = {
 };
 
 /**
- * Color palette for charts
+ * Color palette for charts - Prism V3 oklch-inspired
  */
 export const chartColors = {
-  primary: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'],
+  primary: [
+    '#059669', // Emerald 600
+    '#0284c7', // Sky 600
+    '#d97706', // Amber 600
+    '#e11d48', // Rose 600
+    '#7c3aed', // Violet 600
+    '#db2777', // Pink 600
+    '#0d9488', // Teal 600
+    '#ea580c', // Orange 600
+  ],
   surface: {
-    grid: 'rgba(0, 0, 0, 0.05)',
-    tooltip: 'rgba(0, 0, 0, 0.8)',
+    grid: 'rgba(0, 0, 0, 0.04)',
+    tooltip: 'rgba(15, 23, 42, 0.9)',
   },
   text: {
-    primary: '#1f2937',
-    secondary: '#6b7280',
-    muted: '#9ca3af',
+    primary: 'var(--surface-900)',
+    secondary: 'var(--surface-600)',
+    muted: 'var(--surface-400)',
   },
 };
 

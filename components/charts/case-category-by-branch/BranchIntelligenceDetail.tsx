@@ -17,6 +17,22 @@ import {
   RootCauseData,
   BranchIntelRecord,
 } from './data';
+import { 
+  ArrowUp, 
+  ArrowDown, 
+  Minus, 
+  Zap, 
+  Filter, 
+  Download, 
+  ChevronLeft, 
+  ChevronRight, 
+  LayoutList,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  Maximize2
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Bar, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -31,7 +47,6 @@ import {
   Filler,
 } from 'chart.js';
 import { barLabelsPlugin } from '../chartConfig';
-import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
@@ -68,27 +83,48 @@ interface KPICardProps {
   color?: 'green' | 'red' | 'yellow' | 'blue' | 'orange';
 }
 
-function KPICard({ title, value, subtitle, trend, color = 'blue' }: KPICardProps) {
-  const colorClasses = {
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    yellow: 'bg-amber-50 border-amber-200 text-amber-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
-  };
-
+function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps & { explanation?: string }) {
   return (
-    <div className={`p-4 rounded-xl border ${colorClasses[color]} transition-all hover:shadow-md`}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
-      <div className="text-2xl font-black tracking-tight">{value}</div>
-      {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
-      {trend !== undefined && (
-        <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-          {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
-          <span>{Math.abs(trend).toFixed(1)}% vs Avg</span>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className="p-6 rounded-2xl bg-[var(--surface-glass)] backdrop-blur-md border border-[var(--surface-border)] shadow-xl relative overflow-hidden group/kpi"
+    >
+      {/* Glow highlight */}
+      <div 
+        className="absolute -top-12 -right-12 w-24 h-24 blur-3xl opacity-20 group-hover/total:opacity-40 transition-opacity" 
+        style={{ backgroundColor: `var(--brand-${color}-500)` }} 
+      />
+      
+      <div className="relative z-10">
+        <div className="text-[10px] font-black text-[var(--surface-400)] uppercase tracking-[0.2em] mb-3">
+          {title}
         </div>
-      )}
-    </div>
+        <div className="text-3xl font-black text-[var(--surface-900)] tracking-tighter mb-1">
+          {value}
+        </div>
+        {subtitle && (
+          <div className="text-[10px] font-bold text-[var(--surface-500)] uppercase tracking-wide">
+            {subtitle}
+          </div>
+        )}
+        
+        {trend !== undefined && (
+          <div className={`flex items-center gap-1.5 text-[10px] font-black mt-4 px-2 py-1 rounded-full w-fit ${trend > 0 ? 'bg-emerald-500/10 text-emerald-600' : trend < 0 ? 'bg-red-500/10 text-red-600' : 'bg-gray-500/10 text-gray-500'}`}>
+            {trend > 0 ? <ArrowUp size={10} /> : trend < 0 ? <ArrowDown size={10} /> : <Minus size={10} />}
+            <span>{Math.abs(trend).toFixed(1)}% RANGE_AVG</span>
+          </div>
+        )}
+        
+        {explanation && (
+          <div className="mt-4 p-3 bg-[var(--surface-50)]/50 rounded-xl border border-[var(--surface-border)] text-[10px] font-medium text-[var(--surface-600)] leading-relaxed">
+            {explanation}
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -123,86 +159,143 @@ function AutoInsight({ data }: {
   const mainInsight = `Operational risk analysis across ${data.length} branches. ${topBranch.branch} currently shows the highest risk index.`;
 
   return (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <Zap size={18} className="text-amber-600" />
-        <h3 className="font-bold text-gray-800">Auto-Insight</h3>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)] p-8 shadow-xl relative overflow-hidden group/insight"
+    >
+       {/* Aurora Mesh Gradient Backdrop */}
+       <div className="absolute inset-0 z-0 opacity-10 pointer-events-none overflow-hidden">
+        <div className="absolute -top-[50%] -left-[20%] w-[100%] h-[100%] bg-[var(--brand-primary)] blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute -bottom-[50%] -right-[20%] w-[100%] h-[100%] bg-emerald-500 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
-      <p className="text-sm font-semibold text-gray-800 mb-2">{mainInsight}</p>
-      <ul className="space-y-1.5">
-        {insightParts.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-amber-500 mt-0.5">&bull;</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+
+      <div className="relative z-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-[var(--brand-primary)]/10 flex items-center justify-center text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 shadow-lg shadow-[var(--brand-primary)]/10">
+            <Zap size={20} fill="currentColor" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-[var(--surface-900)] tracking-tight uppercase">Strategic Auto-Insight</h3>
+            <p className="text-[10px] font-bold text-[var(--surface-500)] uppercase tracking-widest">Neural Operational Intelligence</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <p className="text-lg font-black text-[var(--surface-900)] leading-tight tracking-tight max-w-2xl bg-gradient-to-br from-[var(--surface-900)] to-[var(--surface-600)] bg-clip-text text-transparent">
+            {mainInsight}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-[var(--surface-border)] pt-6">
+            {insightParts.map((insight, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + idx * 0.1 }}
+                className="flex items-start gap-3 p-4 rounded-xl bg-[var(--surface-50)]/50 border border-[var(--surface-border)] shadow-sm"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] mt-1.5 shrink-0 shadow-[0_0_8px_var(--brand-primary)]" />
+                <span className="text-xs font-bold text-[var(--surface-700)] leading-relaxed">
+                  {insight}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
 // ─── 2. Branch Ranking Table ───
 function BranchRankTable({ data }: { data: BranchOverview[] }) {
   const getRiskLevel = (riskIndex: number) => {
-    if (riskIndex >= 50) return { label: 'High', color: 'bg-red-500' };
-    if (riskIndex >= 20) return { label: 'Medium', color: 'bg-orange-500' };
-    return { label: 'Low', color: 'bg-green-500' };
+    if (riskIndex >= 50) return { label: 'CRITICAL', color: 'bg-red-500', shadow: 'shadow-red-500/40 text-red-500' };
+    if (riskIndex >= 20) return { label: 'ELEVATED', color: 'bg-orange-500', shadow: 'shadow-orange-500/40 text-orange-500' };
+    return { label: 'STABLE', color: 'bg-emerald-500', shadow: 'shadow-emerald-500/40 text-emerald-500' };
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-3 py-2 text-left font-semibold text-gray-600">Rank</th>
-            <th className="px-3 py-2 text-left font-semibold text-gray-600">Branch</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">Total</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">Irreg.</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">Complaint</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">Compliment</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">Irreg. Rate</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">Net Sentiment</th>
-            <th className="px-3 py-2 text-left font-semibold text-gray-600">Dominant</th>
-            <th className="px-3 py-2 text-right font-semibold text-gray-600">MoM</th>
-            <th className="px-3 py-2 text-center font-semibold text-gray-600">Risk</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.slice(0, 15).map((branch) => {
-            const risk = getRiskLevel(branch.riskIndex);
-            return (
-              <tr key={branch.branch} className="border-t border-gray-100 hover:bg-gray-50">
-                <td className="px-3 py-2 font-bold text-gray-700">#{branch.rank}</td>
-                <td className="px-3 py-2 font-semibold text-gray-900">{branch.branch}</td>
-                <td className="px-3 py-2 text-right font-medium">{branch.total.toLocaleString('id-ID')}</td>
-                <td className="px-3 py-2 text-right text-red-600">{branch.irregularity}</td>
-                <td className="px-3 py-2 text-right text-orange-600">{branch.complaint}</td>
-                <td className="px-3 py-2 text-right text-green-600">{branch.compliment}</td>
-                <td className="px-3 py-2 text-right">{branch.irregularityRate.toFixed(1)}%</td>
-                <td className="px-3 py-2 text-right">{branch.netSentiment > 0 ? '+' : ''}{branch.netSentiment.toFixed(1)}%</td>
-                <td className="px-3 py-2 text-left">
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    branch.dominantCategory === 'Irregularity' ? 'bg-red-100 text-red-700' :
-                    branch.dominantCategory === 'Complaint' ? 'bg-orange-100 text-orange-700' :
-                    'bg-green-100 text-green-700'
-                  }`}>
-                    {branch.dominantCategory}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <span className={branch.momGrowth > 0 ? 'text-red-600' : branch.momGrowth < 0 ? 'text-green-600' : 'text-gray-500'}>
-                    {branch.momGrowth > 0 ? '+' : ''}{branch.momGrowth.toFixed(1)}%
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-center">
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${risk.color}`}>{risk.label}</span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)] shadow-xl overflow-hidden group/rank"
+    >
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-sm border-separate border-spacing-0">
+          <thead>
+            <tr className="bg-[var(--surface-0)]/50">
+              <th className="px-4 py-4 text-left text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)]">Rank</th>
+              <th className="px-4 py-4 text-left text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)]">Branch</th>
+              <th className="px-4 py-4 text-right text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)]">Volume</th>
+              <th className="px-4 py-4 text-center text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)]">Performance</th>
+              <th className="px-4 py-4 text-right text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)]">Sentiment</th>
+              <th className="px-4 py-4 text-center text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)]">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--surface-100)]">
+            <AnimatePresence mode="popLayout">
+              {data.slice(0, 15).map((branch, idx) => {
+                const risk = getRiskLevel(branch.riskIndex);
+                return (
+                  <motion.tr 
+                    key={branch.branch}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="hover:bg-[var(--brand-primary)]/[0.02] transition-colors group/row"
+                  >
+                    <td className="px-4 py-4">
+                      <span className="text-[10px] font-black text-[var(--surface-400)]">#{branch.rank}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-[var(--surface-900)] tracking-tight">{branch.branch}</span>
+                        <span className="text-[9px] font-bold text-[var(--surface-500)] uppercase">PRIMARY SECTOR</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs font-black text-[var(--surface-900)]">{branch.total.toLocaleString('id-ID')}</span>
+                        <span className="text-[9px] font-bold text-red-500">+{branch.momGrowth.toFixed(1)}% MoM</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between text-[9px] font-black">
+                          <span className="text-[var(--surface-400)]">IRREG. RATE</span>
+                          <span className={branch.irregularityRate > 5 ? 'text-red-500' : 'text-emerald-500'}>{branch.irregularityRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-[var(--surface-100)] rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, branch.irregularityRate * 10)}%` }}
+                            className={`h-full rounded-full ${branch.irregularityRate > 5 ? 'bg-red-500' : 'bg-emerald-500'}`}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                       <span className={`text-[11px] font-black ${branch.netSentiment >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                         {branch.netSentiment >= 0 ? '+' : ''}{branch.netSentiment.toFixed(1)}%
+                       </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-center">
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest shadow-lg ${risk.shadow} border border-current bg-white/50 backdrop-blur-sm`}>
+                          {risk.label}
+                        </span>
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+    </motion.div>
   );
 }
 
@@ -380,19 +473,36 @@ function ManagementSummary({ data }: { data: BranchOverview[] }) {
   ];
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-        Management Summary
-      </h3>
-      <ul className="space-y-2">
-        {insights.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-[#6b8e3d] mt-0.5">&bull;</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)] p-8 shadow-xl relative overflow-hidden group/summary"
+    >
+      <div className="relative z-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-[var(--brand-primary)]/10 flex items-center justify-center text-[var(--brand-primary)] border border-[var(--brand-primary)]/20 shadow-lg shadow-[var(--brand-primary)]/10">
+            <LayoutList size={20} />
+          </div>
+          <h3 className="text-sm font-black text-[var(--surface-900)] tracking-tight uppercase">Executive Brief</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {insights.map((insight, idx) => (
+            <motion.div 
+              key={idx}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 * idx }}
+              className="p-4 rounded-xl bg-[var(--surface-50)]/50 border border-[var(--surface-border)] hover:bg-[var(--surface-0)] transition-colors"
+            >
+              <p className="text-xs font-bold text-[var(--surface-700)] leading-relaxed">
+                {insight}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -406,7 +516,11 @@ function DataTable({ data }: { data: BranchIntelRecord[] }) {
   const itemsPerPage = 50;
 
   if (!data || data.length === 0) {
-    return <div className="p-8 text-center text-gray-500">No data available</div>;
+    return (
+      <div className="p-12 text-center bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)]">
+        <h3 className="text-sm font-black text-[var(--surface-400)] uppercase tracking-widest">No Intelligence Vectors Found</h3>
+      </div>
+    );
   }
 
   const columns = Object.keys(data[0]);
@@ -454,92 +568,113 @@ function DataTable({ data }: { data: BranchIntelRecord[] }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6b8e3d]"
-          />
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center flex-1">
+          <div className="relative flex-1 max-w-md group/search">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--surface-400)] group-focus-within/search:text-[var(--brand-primary)]" size={16} />
+            <input
+              type="text"
+              placeholder="Filter intelligence..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-[var(--surface-50)]/50 border border-[var(--surface-border)] rounded-full text-xs font-bold focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 focus:border-[var(--brand-primary)] transition-all placeholder:text-[var(--surface-400)]"
+            />
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2 bg-[var(--surface-50)]/50 border border-[var(--surface-border)] rounded-full text-xs font-black uppercase tracking-tight focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 transition-all appearance-none pr-8 relative"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5l3 3 3-3'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+          >
+            <option value="all text-[var(--surface-900)]">CATEGORIES: ALL</option>
+            <option value="Irregularity">IRREGULARITY</option>
+            <option value="Complaint">COMPLAINT</option>
+            <option value="Compliment">COMPLIMENT</option>
+          </select>
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-        >
-          <option value="all">All Categories</option>
-          <option value="Irregularity">Irregularity</option>
-          <option value="Complaint">Complaint</option>
-          <option value="Compliment">Compliment</option>
-        </select>
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-[#6b8e3d] text-white rounded-lg text-sm font-medium"
+          className="flex items-center gap-2 px-6 py-2 bg-[var(--surface-900)] text-white rounded-full text-[11px] font-black uppercase tracking-widest hover:brightness-125 transition-all shadow-lg active:scale-95"
         >
-          <Download size={16} />
-          Export CSV
+          <Download size={14} />
+          EXPORT INTELLIGENCE
         </button>
       </div>
 
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              {columns.map(col => (
-                <th key={col} onClick={() => handleSort(col)} className="px-4 py-3 text-left font-semibold text-gray-600 cursor-pointer hover:bg-gray-100">
-                  <div className="flex items-center gap-1">
-                    {col}
-                    {sortField === col && <span className="text-[#6b8e3d]">{sortDir === 'asc' ? '\u2191' : '\u2193'}</span>}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((row, idx) => (
-              <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
+      <div className="bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)] shadow-xl overflow-hidden">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead>
+              <tr className="bg-[var(--surface-0)]/50">
                 {columns.map(col => (
-                  col === 'Evidence' ? (
-                    <td key={col} className="px-4 py-2.5 text-gray-700" dangerouslySetInnerHTML={{ __html: row[col] as string || '-' }} />
-                  ) : (
-                    <td key={col} className="px-4 py-2.5 text-gray-700">{row[col] !== null && row[col] !== undefined ? String(row[col]) : '-'}</td>
-                  )
+                  <th key={col} onClick={() => handleSort(col)} className="px-6 py-4 text-left text-[10px] font-black text-[var(--surface-500)] uppercase tracking-widest border-b border-[var(--surface-border)] cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none">
+                    <div className="flex items-center gap-2">
+                      {col.replace(/_/g, ' ')}
+                      {sortField === col && <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                    </div>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[var(--surface-100)]">
+              {paginatedData.map((row, idx) => (
+                <motion.tr 
+                  key={idx} 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: idx * 0.01 }}
+                  className="hover:bg-[var(--brand-primary)]/[0.02] transition-colors group"
+                >
+                  {columns.map(col => (
+                    col === 'Evidence' ? (
+                      <td key={col} className="px-6 py-4 text-xs font-medium text-blue-600" dangerouslySetInnerHTML={{ __html: row[col] as string || '-' }} />
+                    ) : (
+                      <td key={col} className={`px-6 py-4 text-xs font-semibold ${col === 'Date' ? 'text-[var(--surface-500)]' : 'text-[var(--surface-700)]'}`}>
+                        {row[col] !== null && row[col] !== undefined ? String(row[col]) : '-'}
+                      </td>
+                    )
+                  ))}
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {totalPages > 1 && (
-          <div className="p-3 flex items-center justify-between bg-gray-50 border-t">
-            <div className="text-sm text-gray-500">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} rows
+          <div className="px-6 py-4 bg-[var(--surface-0)]/80 backdrop-blur-md border-t border-[var(--surface-border)] flex items-center justify-between">
+            <div className="text-[10px] font-black text-[var(--surface-400)] uppercase tracking-widest">
+              {(currentPage - 1) * itemsPerPage + 1} — {Math.min(currentPage * itemsPerPage, filteredData.length)} / {filteredData.length} VECTORS
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-50"
+                className="p-2 border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all"
               >
-                Previous
+                <ChevronLeft size={16} />
               </button>
-              <span className="text-sm text-gray-600">Page {currentPage} of {totalPages}</span>
+              <div className="flex items-center gap-1 px-3 py-1 bg-[var(--surface-50)] rounded-full border border-[var(--surface-border)]">
+                <span className="text-[10px] font-black text-[var(--brand-primary)]">{currentPage}</span>
+                <span className="text-[10px] font-black text-[var(--surface-300)]">/</span>
+                <span className="text-[10px] font-black text-[var(--surface-400)]">{totalPages}</span>
+              </div>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm border border-gray-200 rounded disabled:opacity-50"
+                className="p-2 border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all"
               >
-                Next
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -746,26 +881,42 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
       </section>
 
 
-      {/* 9. Management Summary */}
+      {/* Management Summary */}
       <ManagementSummary data={branchData} />
 
       {/* Investigative Table */}
-      <InvestigativeTable
-        data={investigativeData}
-        title="Investigative Table - Branch Intelligence"
-        rowsPerPage={5}
-        maxRows={40}
-      />
+      <section className="bg-[var(--surface-glass)] backdrop-blur-md rounded-[2rem] border border-[var(--surface-border)] overflow-hidden shadow-2xl">
+        <InvestigativeTable
+          data={investigativeData}
+          title="Investigative Table - Branch Intelligence"
+          rowsPerPage={5}
+          maxRows={40}
+        />
+      </section>
 
       {/* 10. Full Data Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
+      <motion.section 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[var(--surface-glass)] backdrop-blur-md rounded-[2.5rem] border border-[var(--surface-border)] overflow-hidden shadow-2xl relative group/full"
+      >
+        <div className="p-8 border-b border-[var(--surface-border)] bg-[var(--surface-0)]/40 backdrop-blur-md flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-black text-[var(--surface-900)] tracking-tight">Enterprise Data Matrix</h2>
+            <p className="text-[10px] font-bold text-[var(--surface-500)] uppercase tracking-widest mt-1">Full intelligence vector source</p>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20 text-[var(--brand-primary)] text-[10px] font-black uppercase tracking-tighter shadow-sm">
+             <LayoutList size={12} fill="currentColor" /> RAW SCALE
+          </div>
         </div>
-        <div className="p-6">
-          <DataTableWithPagination data={fullTableData} title="Branch Intelligence (Main Chart Source)" />
+        <div className="p-8">
+          <DataTableWithPagination 
+            data={fullTableData} 
+            title="Branch Intelligence (Main Chart Source)"
+            rowsPerPage={3}
+          />
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }

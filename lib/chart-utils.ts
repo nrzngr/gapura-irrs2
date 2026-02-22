@@ -82,6 +82,17 @@ export function parseDate(val: unknown): Date | null {
     }
   }
 
+  // 3. Numeric DD/MM/YYYY or DD-MM-YYYY (Indonesian standard)
+  // This prevents 12/1/2026 from being parsed as Dec 1 (US format)
+  const numericMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (numericMatch) {
+    const day = parseInt(numericMatch[1]);
+    const month = parseInt(numericMatch[2]) - 1; // 0-indexed
+    const year = parseInt(numericMatch[3]);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
   // Fallback to native Date
   const d = new Date(str);
   return isNaN(d.getTime()) ? null : d;

@@ -113,7 +113,66 @@ export interface BranchRiskAnalysis {
   severity_score: number;
 }
 
+export interface SeasonalForecastResponse {
+  monthly_averages: Record<string, number>;
+  peak_months: string[];
+  low_months: string[];
+}
 
+export interface SeasonalityForecastPoint {
+  period: number;
+  predicted: number;
+  lower_bound: number;
+  upper_bound: number;
+  confidence: number;
+}
+
+export interface SeasonalityCategoryForecast {
+  category_type: string;
+  category_name: string;
+  granularity: string;
+  baseline: number;
+  trend: string;
+  volatility: number;
+  forecasts: SeasonalityForecastPoint[];
+}
+
+export interface SeasonalityForecastResponse {
+  landside_airside: SeasonalityCategoryForecast;
+  cgo: SeasonalityCategoryForecast;
+}
+
+export async function fetchSeasonalityForecast(signal?: AbortSignal): Promise<SeasonalityForecastResponse | null> {
+  try {
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/seasonality/forecast`;
+    const response = await fetchWithTimeout(url, { signal }, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch seasonality forecast:', response.status);
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
+    console.error('[gapura-ai] Error fetching seasonality forecast:', error);
+    return null;
+  }
+}
+
+export async function fetchSeasonalForecast(signal?: AbortSignal): Promise<SeasonalForecastResponse | null> {
+  try {
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/forecast/seasonal`;
+    const response = await fetchWithTimeout(url, { signal }, 30000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch seasonal forecast:', response.status);
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
+    console.error('[gapura-ai] Error fetching seasonal forecast:', error);
+    return null;
+  }
+}
 
 export type BranchRiskSummaryResponse = Record<string, BranchRiskAnalysis>;
 
