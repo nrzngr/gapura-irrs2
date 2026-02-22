@@ -806,7 +806,7 @@ export default function HubReportDetail({ filters = {} }: { filters?: FilterPara
           data={investigativeData} 
           isLoading={tableLoading}
           title="Hub Intelligence Reports"
-          rowsPerPage={5}
+          rowsPerPage={3}
         />
       </section>
 
