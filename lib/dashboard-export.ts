@@ -61,7 +61,8 @@ function formatCol(col: string): string {
 function getChartSlug(chartTitle: string): string {
   const title = chartTitle.toLowerCase();
   if (title.includes('report by case category')) return 'report-by-case-category';
-  if (title.includes('branch report') || title.includes('hub report')) return 'branch-report';
+  if (title.includes('hub report')) return 'hub-report';
+  if (title.includes('branch report')) return 'branch-report';
   if (title.includes('airlines report') || title.includes('airline report')) return 'airline-report';
   if (title.includes('monthly report') || title.includes('bulanan')) return 'monthly-report';
   if (title.includes('category by area')) return 'category-by-area';

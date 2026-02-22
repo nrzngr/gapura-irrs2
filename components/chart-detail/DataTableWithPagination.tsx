@@ -9,14 +9,15 @@ interface DataTableWithPaginationProps {
   data: QueryResult;
   title: string;
   isLoading?: boolean;
+  rowsPerPage?: number;
 }
 
-export function DataTableWithPagination({ data, title, isLoading }: DataTableWithPaginationProps) {
+export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 50 }: DataTableWithPaginationProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const pageSize = 50;
+  const pageSize = rowsPerPage;
 
   // Deduplication & Column filtering
   const uniqueColumns = useMemo(() => {
@@ -224,7 +225,21 @@ export function DataTableWithPagination({ data, title, isLoading }: DataTableWit
                             ${cIdx === 0 ? 'border-r border-transparent group-hover:border-gray-100' : ''}
                           `}
                         >
-                           {showValue ? formatValue(val, col) : ''}
+                          {/* Handle Evidence/Link columns with HTML rendering */}
+                          {(col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link')) && typeof row[col] === 'string' && (row[col] as string).includes('<a href') ? (
+                             <span dangerouslySetInnerHTML={{ __html: row[col] as string }} />
+                          ) : (col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link')) && typeof row[col] === 'string' && (row[col] as string).startsWith('http') ? (
+                            <a 
+                              href={row[col] as string} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                            >
+                              Evidence
+                            </a>
+                          ) : (
+                             showValue ? formatValue(val, col) : ''
+                          )}
                         </td>
                       );
                     })}

@@ -2,28 +2,28 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import {
-  fetchBranchSummary,
-  fetchMonthlyTrendByBranch,
-  fetchCategoryByBranch,
-  fetchRootCauseByBranch,
-  fetchAirlineByBranch,
-  fetchAreaByBranch,
-  fetchAllBranchReports,
-  fetchBranchKPIs,
-  fetchBranchCategoryDistribution,
-  fetchAggregatedBranchReport,
-  BranchSummary,
+  fetchHubSummary,
+  fetchMonthlyTrendByHub,
+  fetchCategoryByHub,
+  fetchRootCauseByHub,
+  fetchAirlineByHub,
+  fetchAreaByHub,
+  fetchAllHubReports,
+  fetchHubKPIs,
+  fetchHubCategoryDistribution,
+  fetchAggregatedHubReport,
+  HubSummary,
   TrendDataPoint,
-  BranchCategoryData,
-  RootCauseByBranchData,
-  AirlineByBranchData,
-  AreaByBranchData,
-  BranchReportRecord,
-  BranchKPIs,
-  BranchCategoryDistribution,
+  HubCategoryData,
+  RootCauseByHubData,
+  AirlineByHubData,
+  AreaByHubData,
+  HubReportRecord,
+  HubKPIs,
+  HubCategoryDistribution,
 } from './data';
-import { fetchRiskSummaryAi, AiRiskSummary, fetchBranchRiskAnalysisAi, BranchRiskAnalysis } from '@/lib/services/gapura-ai';
-import { HeatmapChart } from '@/components/charts/HeatmapChart';
+import { fetchHubRiskAnalysis, HubRiskSummaryResponse } from '@/lib/services/gapura-ai';
+import { HubAiRiskVisualization } from './HubAiRiskVisualization';
 import { barLabelsPlugin } from '../chartConfig';
 import { Bar, Line } from 'react-chartjs-2';
 import {
@@ -43,20 +43,14 @@ import {
   ArrowDown, 
   Minus, 
   Download, 
-  FileText, 
   Filter, 
-  AlertTriangle, 
   Zap,
   Brain,
-  BarChart3,
-  Search
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
-import { BranchAIVisualization } from '@/components/chart-detail/ai/BranchAIVisualization';
-import { BranchRiskAnalysisVisualization } from '@/components/chart-detail/ai/BranchRiskVisualization';
 import type { QueryResult } from '@/types/builder';
 import { BarChart as RechartsBarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, LabelList } from 'recharts';
 
@@ -120,25 +114,25 @@ function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }:
   );
 }
 
-function AutoInsight({ data }: { data: BranchSummary[] }) {
+function AutoInsight({ data }: { data: HubSummary[] }) {
   if (data.length === 0) return null;
 
-  const topBranch = data[0];
-  const highRiskBranches = data.filter(b => b.riskIndex >= 50);
-  const totalReports = data.reduce((s, b) => s + b.total, 0);
-  const totalIrreg = data.reduce((s, b) => s + b.irregularity, 0);
+  const topHub = data[0];
+  const highRiskHubs = data.filter(h => h.riskIndex >= 50);
+  const totalReports = data.reduce((s, h) => s + h.total, 0);
+  const totalIrreg = data.reduce((s, h) => s + h.irregularity, 0);
   const overallIrregRate = totalReports > 0 ? (totalIrreg / totalReports) * 100 : 0;
 
   const insightParts: string[] = [];
-  if (highRiskBranches.length > 0) {
-    insightParts.push(`${highRiskBranches.length} branch${highRiskBranches.length > 1 ? 'es' : ''} flagged as high risk (${highRiskBranches.slice(0, 3).map(b => b.branch).join(', ')}${highRiskBranches.length > 3 ? '...' : ''})`);
+  if (highRiskHubs.length > 0) {
+    insightParts.push(`${highRiskHubs.length} hub${highRiskHubs.length > 1 ? 's' : ''} flagged as high risk (${highRiskHubs.slice(0, 3).map(h => h.hub).join(', ')}${highRiskHubs.length > 3 ? '...' : ''})`);
   }
-  insightParts.push(`${topBranch.branch} leads with ${topBranch.total} reports (${topBranch.contribution.toFixed(1)}% share)`);
-  insightParts.push(`Overall irregularity rate is ${overallIrregRate.toFixed(1)}% across ${data.length} branches`);
+  insightParts.push(`${topHub.hub} leads with ${topHub.total} reports (${topHub.contribution.toFixed(1)}% share)`);
+  insightParts.push(`Overall irregularity rate is ${overallIrregRate.toFixed(1)}% across ${data.length} hubs`);
 
-  const mainInsight = highRiskBranches.length > 0
-    ? `Action required: ${highRiskBranches.length} branches identified with high operational risk.`
-    : `Operational stability: All branches currently below high-risk thresholds.`;
+  const mainInsight = highRiskHubs.length > 0
+    ? `Action required: ${highRiskHubs.length} hubs identified with high operational risk.`
+    : `Operational stability: All hubs currently below high-risk thresholds.`;
 
   return (
     <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 mb-8">
@@ -159,7 +153,7 @@ function AutoInsight({ data }: { data: BranchSummary[] }) {
   );
 }
 
-function BranchRankTable({ data }: { data: BranchSummary[] }) {
+function HubRankTable({ data }: { data: HubSummary[] }) {
   const getRiskLevel = (riskIndex: number) => {
     if (riskIndex >= 50) return { label: 'High', color: 'bg-red-500' };
     if (riskIndex >= 20) return { label: 'Medium', color: 'bg-orange-500' };
@@ -172,7 +166,7 @@ function BranchRankTable({ data }: { data: BranchSummary[] }) {
         <thead className="bg-gray-50">
           <tr>
             <th className="px-3 py-2 text-left font-semibold text-gray-600">Rank</th>
-            <th className="px-3 py-2 text-left font-semibold text-gray-600">Branch</th>
+            <th className="px-3 py-2 text-left font-semibold text-gray-600">Hub</th>
             <th className="px-3 py-2 text-right font-semibold text-gray-600">Total</th>
             <th className="px-3 py-2 text-right font-semibold text-gray-600">Irreg.</th>
             <th className="px-3 py-2 text-right font-semibold text-gray-600">Complaint</th>
@@ -183,18 +177,18 @@ function BranchRankTable({ data }: { data: BranchSummary[] }) {
           </tr>
         </thead>
         <tbody>
-          {data.slice(0, 15).map((branch) => {
-            const risk = getRiskLevel(branch.riskIndex);
+          {data.slice(0, 15).map((hub) => {
+            const risk = getRiskLevel(hub.riskIndex);
             return (
-              <tr key={branch.branch} className="border-t border-gray-100 hover:bg-gray-50">
-                <td className="px-3 py-2 font-bold text-gray-700">#{branch.rank}</td>
-                <td className="px-3 py-2 font-semibold text-gray-900">{branch.branch}</td>
-                <td className="px-3 py-2 text-right font-medium">{branch.total.toLocaleString('id-ID')}</td>
-                <td className="px-3 py-2 text-right text-red-600">{branch.irregularity}</td>
-                <td className="px-3 py-2 text-right text-orange-600">{branch.complaint}</td>
-                <td className="px-3 py-2 text-right text-green-600">{branch.compliment}</td>
-                <td className="px-3 py-2 text-right">{branch.irregularityRate.toFixed(1)}%</td>
-                <td className="px-3 py-2 text-right">{branch.netSentiment > 0 ? '+' : ''}{branch.netSentiment.toFixed(1)}%</td>
+              <tr key={hub.hub} className="border-t border-gray-100 hover:bg-gray-50">
+                <td className="px-3 py-2 font-bold text-gray-700">#{hub.rank}</td>
+                <td className="px-3 py-2 font-semibold text-gray-900">{hub.hub}</td>
+                <td className="px-3 py-2 text-right font-medium">{hub.total.toLocaleString('id-ID')}</td>
+                <td className="px-3 py-2 text-right text-red-600">{hub.irregularity}</td>
+                <td className="px-3 py-2 text-right text-orange-600">{hub.complaint}</td>
+                <td className="px-3 py-2 text-right text-green-600">{hub.compliment}</td>
+                <td className="px-3 py-2 text-right">{hub.irregularityRate.toFixed(1)}%</td>
+                <td className="px-3 py-2 text-right">{hub.netSentiment > 0 ? '+' : ''}{hub.netSentiment.toFixed(1)}%</td>
                 <td className="px-3 py-2 text-center">
                   <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${risk.color}`}>{risk.label}</span>
                 </td>
@@ -260,9 +254,9 @@ function MonthlyTrendChart({ data }: { data: TrendDataPoint[] }) {
   return <div className="h-[250px]"><Line data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
 }
 
-function CategoryStackedBar({ data }: { data: BranchCategoryData[] }) {
+function CategoryStackedBar({ data }: { data: HubCategoryData[] }) {
   const chartData = {
-    labels: data.slice(0, 10).map(d => d.branch.split(' ')),
+    labels: data.slice(0, 10).map(d => d.hub.split(' ')),
     datasets: [
       { label: 'Irregularity', data: data.slice(0, 10).map(d => d.Irregularity), backgroundColor: '#ef4444', borderRadius: 4 },
       { label: 'Complaint', data: data.slice(0, 10).map(d => d.Complaint), backgroundColor: '#f97316', borderRadius: 4 },
@@ -292,7 +286,7 @@ function CategoryStackedBar({ data }: { data: BranchCategoryData[] }) {
 }
 
 
-function AirlineBreakdownChart({ data }: { data: AirlineByBranchData[] }) {
+function AirlineBreakdownChart({ data }: { data: AirlineByHubData[] }) {
   const topAirlines = Array.from(
     data.reduce((acc, curr) => {
       const existing = acc.get(curr.airline) || 0;
@@ -330,7 +324,7 @@ function AirlineBreakdownChart({ data }: { data: AirlineByBranchData[] }) {
   return <div className="h-[300px]"><Bar data={chartData} options={options} plugins={[barLabelsPlugin]} /></div>;
 }
 
-function AreaBreakdownChart({ data }: { data: AreaByBranchData[] }) {
+function AreaBreakdownChart({ data }: { data: AreaByHubData[] }) {
   const areaTotals = Array.from(
     data.reduce((acc, curr) => {
       const existing = acc.get(curr.area) || 0;
@@ -363,7 +357,7 @@ function AreaBreakdownChart({ data }: { data: AreaByBranchData[] }) {
   return <div className="h-[300px]"><Bar data={chartData} options={options} /></div>;
 }
 
-function DataTable({ data }: { data: BranchReportRecord[] }) {
+function DataTable({ data }: { data: HubReportRecord[] }) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortField, setSortField] = useState('Date');
@@ -416,7 +410,7 @@ function DataTable({ data }: { data: BranchReportRecord[] }) {
     ).join('\n');
     const csv = `${headers}\n${rows}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'branch-report.csv');
+    saveAs(blob, 'hub-report.csv');
   };
 
   return (
@@ -512,19 +506,19 @@ function DataTable({ data }: { data: BranchReportRecord[] }) {
   );
 }
 
-function ManagementSummary({ data }: { data: BranchSummary[] }) {
+function ManagementSummary({ data }: { data: HubSummary[] }) {
   if (data.length === 0) return null;
 
-  const topBranch = data[0];
-  const highRiskCount = data.filter(b => b.riskIndex >= 50).length;
-  const totalIrreg = data.reduce((sum, b) => sum + b.irregularity, 0);
-  const totalReports = data.reduce((sum, b) => sum + b.total, 0);
+  const topHub = data[0];
+  const highRiskCount = data.filter(h => h.riskIndex >= 50).length;
+  const totalIrreg = data.reduce((sum, h) => sum + h.irregularity, 0);
+  const totalReports = data.reduce((sum, h) => sum + h.total, 0);
   const avgIrregRate = totalReports > 0 ? (totalIrreg / totalReports) * 100 : 0;
 
   const insights = [
-    `${topBranch.branch} leads with ${topBranch.total} reports (${topBranch.contribution.toFixed(1)}% of total).`,
-    `${highRiskCount} branch${highRiskCount !== 1 ? 'es' : ''} identified as high risk.`,
-    `Average irregularity rate across branches: ${avgIrregRate.toFixed(1)}%.`,
+    `${topHub.hub} leads with ${topHub.total} reports (${topHub.contribution.toFixed(1)}% of total).`,
+    `${highRiskCount} hub${highRiskCount !== 1 ? 's' : ''} identified as high risk.`,
+    `Average irregularity rate across hubs: ${avgIrregRate.toFixed(1)}%.`,
     `Total volume: ${totalReports.toLocaleString('id-ID')} reports.`,
   ];
 
@@ -545,22 +539,22 @@ function ManagementSummary({ data }: { data: BranchSummary[] }) {
   );
 }
 
-export default function BranchReportDetail({ filters = {} }: { filters?: FilterParams }) {
+export default function HubReportDetail({ filters = {} }: { filters?: FilterParams }) {
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [branchData, setBranchData] = useState<BranchSummary[]>([]);
+  const [hubData, setHubData] = useState<HubSummary[]>([]);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
-  const [categoryData, setCategoryData] = useState<BranchCategoryData[]>([]);
-  const [rootCauseData, setRootCauseData] = useState<RootCauseByBranchData[]>([]);
-  const [airlineData, setAirlineData] = useState<AirlineByBranchData[]>([]);
-  const [areaData, setAreaData] = useState<AreaByBranchData[]>([]);
-  const [tableData, setTableData] = useState<BranchReportRecord[]>([]);
-  const [kpis, setKpis] = useState<BranchKPIs | null>(null);
-  const [categoryDistribution, setCategoryDistribution] = useState<BranchCategoryDistribution[]>([]);
-  const [aiRiskSummary, setAiRiskSummary] = useState<AiRiskSummary | null>(null);
-  const [aiRiskHeatmap, setAiRiskHeatmap] = useState<any[]>([]);
-  const [branchRiskAnalysis, setBranchRiskAnalysis] = useState<Record<string, BranchRiskAnalysis> | null>(null);
+  const [categoryData, setCategoryData] = useState<HubCategoryData[]>([]);
+  const [rootCauseData, setRootCauseData] = useState<RootCauseByHubData[]>([]);
+  const [airlineData, setAirlineData] = useState<AirlineByHubData[]>([]);
+  const [areaData, setAreaData] = useState<AreaByHubData[]>([]);
+  const [tableData, setTableData] = useState<HubReportRecord[]>([]);
+  const [kpis, setKpis] = useState<HubKPIs | null>(null);
+  const [categoryDistribution, setCategoryDistribution] = useState<HubCategoryDistribution[]>([]);
+  const [hubRiskAnalysis, setHubRiskAnalysis] = useState<HubRiskSummaryResponse | null>(null);
+  const [riskLoading, setRiskLoading] = useState(true);
+  const [riskError, setRiskError] = useState<string | null>(null);
 
   const investigativeData: QueryResult = useMemo(() => {
     const rows = tableData as unknown as Record<string, unknown>[];
@@ -575,7 +569,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
   }, [tableData]);
 
   const fullTableData: QueryResult = useMemo(() => {
-    const rows = branchData.map(item => ({ ...item })) as unknown as Record<string, unknown>[];
+    const rows = hubData.map(item => ({ ...item })) as unknown as Record<string, unknown>[];
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
     return {
@@ -584,7 +578,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       rowCount: rows.length,
       executionTimeMs: 0,
     };
-  }, [branchData]);
+  }, [hubData]);
 
   // Deferred loading for heavy data
   useEffect(() => {
@@ -594,15 +588,15 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       setLoading(true);
       setError(null);
       try {
-        const aggregated = await fetchAggregatedBranchReport(filters);
-        if (aggregated && aggregated.branchData) {
-          setBranchData(aggregated.branchData);
+        const aggregated = await fetchAggregatedHubReport(filters);
+        if (aggregated && aggregated.hubData) {
+          setHubData(aggregated.hubData);
           setTrendData(aggregated.trendData || []);
-          setCategoryData((aggregated.branchData || []).map(b => ({
-            branch: b.branch,
-            Irregularity: b.irregularity,
-            Complaint: b.complaint,
-            Compliment: b.compliment
+          setCategoryData((aggregated.hubData || []).map(h => ({
+            hub: h.hub,
+            Irregularity: h.irregularity,
+            Complaint: h.complaint,
+            Compliment: h.compliment
           })));
           setKpis(aggregated.kpis);
           setCategoryDistribution(aggregated.categoryDistribution || []);
@@ -611,7 +605,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
         }
       } catch (err) {
         if ((err as any).name === 'AbortError') return;
-        console.error('Failed to load initial branch data:', err);
+        console.error('Failed to load initial hub data:', err);
         setError('Failed to load initial dashboard data.');
       } finally {
         if (!controller.signal.aborted) {
@@ -624,44 +618,17 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       setTableLoading(true);
       try {
         // Parallel fetch of non-critical data
-        const [
-          rootCause, 
-          airline, 
-          area, 
-          table, 
-          riskSummaryRes,
-          branchRiskRes
-        ] = await Promise.all([
-          fetchRootCauseByBranch(filters),
-          fetchAirlineByBranch(filters),
-          fetchAreaByBranch(filters),
-          fetchAllBranchReports(filters),
-          fetchRiskSummaryAi(controller.signal).catch(() => null), // Resilient AI fetch
-          fetchBranchRiskAnalysisAi(controller.signal).catch(() => null),
+        const [rootCause, airline, area, table] = await Promise.all([
+          fetchRootCauseByHub(filters),
+          fetchAirlineByHub(filters),
+          fetchAreaByHub(filters),
+          fetchAllHubReports(filters),
         ]);
  
         setRootCauseData(rootCause);
         setAirlineData(airline);
         setAreaData(area);
         setTableData(table);
-        
-        if (branchRiskRes) {
-          setBranchRiskAnalysis(branchRiskRes);
-        }
-
-        if (riskSummaryRes) {
-          setAiRiskSummary(riskSummaryRes);
-          if (riskSummaryRes.branch_details) {
-            const heatmapData = riskSummaryRes.branch_details.flatMap(b => 
-              Object.entries(b.severity_distribution).map(([sev, count]) => ({
-                branch: b.name,
-                severity: sev,
-                count: count as number
-              }))
-            );
-            setAiRiskHeatmap(heatmapData);
-          }
-        }
       } catch (err) {
         if ((err as any).name === 'AbortError') return;
         console.warn('Deferred data failed to load:', err);
@@ -672,8 +639,34 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       }
     }
 
+    async function loadRiskData() {
+      setRiskLoading(true);
+      setRiskError(null);
+      try {
+        const data = await fetchHubRiskAnalysis(controller.signal);
+        
+        // Check if aborted after await
+        if (controller.signal.aborted) return;
+
+        if (data) {
+          setHubRiskAnalysis(data);
+        } else {
+          setRiskError('Failed to load risk analysis data');
+        }
+      } catch (err) {
+        if ((err as any).name === 'AbortError' || controller.signal.aborted) return;
+        console.error('Error loading hub risk analysis:', err);
+        setRiskError('An error occurred while loading data');
+      } finally {
+        if (!controller.signal.aborted) {
+          setRiskLoading(false);
+        }
+      }
+    }
+
     loadInitialData();
     loadDeferredData();
+    loadRiskData();
 
     return () => {
       controller.abort();
@@ -699,72 +692,72 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
     );
   }
 
-  const totalReports = branchData.reduce((sum: number, b: any) => sum + b.total, 0);
-  const totalIrreg = branchData.reduce((sum: number, b: any) => sum + b.irregularity, 0);
-  const totalComplaint = branchData.reduce((sum: number, b: any) => sum + b.complaint, 0);
-  const totalCompliment = branchData.reduce((sum: number, b: any) => sum + b.compliment, 0);
-
-  const avgRiskIndex = branchData.length > 0 ? branchData.reduce((sum: number, b: any) => sum + b.riskIndex, 0) / branchData.length : 0;
-  const overallIrregRate = totalReports > 0 ? (totalIrreg / totalReports) * 100 : 0;
-  const overallNetSentiment = (totalCompliment + totalComplaint) > 0 
-    ? ((totalCompliment - totalComplaint) / (totalCompliment + totalComplaint)) * 100 
-    : 0;
-  const avgGrowth = branchData.length > 0 ? branchData.reduce((sum: number, b: any) => sum + b.growth, 0) / branchData.length : 0;
+  const totalReports = hubData.reduce((sum: number, h: any) => sum + h.total, 0);
+  const totalIrreg = hubData.reduce((sum: number, h: any) => sum + h.irregularity, 0);
+  const totalComplaint = hubData.reduce((sum: number, h: any) => sum + h.complaint, 0);
+  const totalCompliment = hubData.reduce((sum: number, h: any) => sum + h.compliment, 0);
 
   return (
     <div className="space-y-8">
       {/* Auto-Insight Block */}
-      <AutoInsight data={branchData} />
+      <AutoInsight data={hubData} />
+
+      {/* AI Hub Risk Visualization */}
+      <HubAiRiskVisualization 
+        data={hubRiskAnalysis} 
+        isLoading={riskLoading} 
+        error={riskError} 
+      />
 
       {/* Enhanced KPI Cards - 5 custom KPIs */}
       {kpis && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <KPICard title="Total Branches" value={kpis.totalBranches} color="blue" explanation="Jumlah cabang yang dipantau dalam laporan ini." />
+          <KPICard title="Total Hubs" value={kpis.totalHubs} color="blue" explanation="Jumlah hub yang dipantau dalam laporan ini." />
           <KPICard
             title="Top Performer"
             value={kpis.topPerformer.name}
             subtitle={`${kpis.topPerformer.count} reports`}
             color="green"
-            explanation="Cabang dengan jumlah laporan tertinggi pada periode ini." 
+            explanation="Hub dengan jumlah laporan terendah (Kinerja Terbaik)." 
           />
           <KPICard
             title="Worst Performer"
             value={kpis.worstPerformer.name}
             subtitle={`${kpis.worstPerformer.count} reports`}
             color="red"
-            explanation="Cabang dengan performa terendah dalam periode ini." 
+            explanation="Hub dengan jumlah laporan tertinggi (Perlu Perhatian)." 
           />
           <KPICard
-            title="Avg Reports/Branch"
-            value={kpis.avgReportsPerBranch}
+            title="Avg Reports/Hub"
+            value={kpis.avgReportsPerHub}
             color="yellow"
-            explanation="Rata-rata laporan per cabang pada periode ini." 
+            explanation="Rata-rata laporan per hub pada periode ini." 
           />
           <KPICard
             title="MoM Change"
             value={kpis.momChange > 0 ? `+${kpis.momChange}%` : `${kpis.momChange}%`}
             trend={kpis.momChange}
             color="blue"
-            explanation="Perubahan bulan-ke-bulan pada jumlah laporan cabang." 
+            explanation="Perubahan bulan-ke-bulan pada jumlah laporan hub." 
           />
         </div>
       )}
 
-      {/* Branch Ranking Table */}
+      {/* Hub Ranking Table */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Branch Performance Ranking</h2>
-        <BranchRankTable data={branchData} />
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Hub Performance Ranking</h2>
+        <HubRankTable data={hubData} />
       </section>
 
       {/* Category Distribution Stacked Bar Chart */}
       {categoryDistribution.length > 0 && (
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Category Distribution per Branch (Top 10)</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Category Distribution per Hub (Top 10)</h2>
           <ResponsiveContainer width="100%" height={400}>
             <RechartsBarChart data={categoryDistribution.slice(0, 10)} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis dataKey="branch" type="category" width={100} />
+              <YAxis dataKey="hub" type="category" width={100} />
               <RechartsTooltip />
               <RechartsLegend />
               <RechartsBar dataKey="irregularity" fill="#ef4444" name="Irregularity">
@@ -781,26 +774,6 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
         </section>
       )}
 
-      {/* AI Risk Heatmap */}
-      {aiRiskHeatmap.length > 0 && (
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-1">
-            <Brain className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
-          </div>
-          <p className="text-xs text-gray-500 mb-4">Proactive risk analysis by severity across branches (AI Service Data)</p>
-          <div className="h-[400px]">
-            <HeatmapChart 
-              data={aiRiskHeatmap}
-              xAxis="severity"
-              yAxis="branch"
-              metric="count"
-              showTitle={false}
-            />
-          </div>
-        </section>
-      )}
-
       {/* Monthly Trend */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Monthly Trend Analysis</h2>
@@ -809,7 +782,7 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
 
       {/* Category Composition */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Category Composition by Branch</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Category Composition by Hub</h2>
         <CategoryStackedBar data={categoryData} />
       </section>
 
@@ -824,30 +797,16 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
         <AiRootCauseInvestigation source={filters.sourceSheet || "NON CARGO"} />
       </section>
 
-      {/* AI Detailed Risk Analysis */}
-      {branchRiskAnalysis && (
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <BranchRiskAnalysisVisualization 
-            data={branchRiskAnalysis} 
-            selectedBranch={filters.branch || 'all'} 
-          />
-        </section>
-      )}
-
-      {/* AI Branch Risk Visualization */}
-      <section className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <BranchAIVisualization filters={filters.branch ? [{ field: 'branch', value: filters.branch }] : []} />
-      </section>
-
       {/* Reports Detail Table */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-800">Branch Intelligence Reports</h2>
+          <h2 className="text-lg font-bold text-gray-800">Hub Intelligence Reports</h2>
         </div>
         <DataTableWithPagination 
           data={investigativeData} 
           isLoading={tableLoading}
-          title="Branch Intelligence Reports"
+          title="Hub Intelligence Reports"
+          rowsPerPage={5}
         />
       </section>
 
@@ -864,12 +823,12 @@ export default function BranchReportDetail({ filters = {} }: { filters?: FilterP
       </div>
 
       {/* Management Summary */}
-      <ManagementSummary data={branchData} />
+      <ManagementSummary data={hubData} />
 
       {/* Investigative Table */}
       <InvestigativeTable
         data={investigativeData}
-        title="Investigative Table - Branch Reports"
+        title="Investigative Table - Hub Reports"
         rowsPerPage={5}
         maxRows={40}
         isLoading={tableLoading}

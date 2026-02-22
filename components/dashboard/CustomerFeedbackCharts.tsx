@@ -186,6 +186,7 @@ interface FilterParams {
 
 interface DashboardData {
     caseCategory: ChartDataItem[];
+    hub: ChartDataItem[];
     branch: ChartDataItem[];
     airlines: ChartDataItem[];
     monthly: ChartDataItem[];
@@ -219,7 +220,18 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                     sorts: [],
                 };
 
-                // 2. Branch Bar - Join with stations to get actual station codes
+                // 2. Hub Bar
+                const hubQuery: QueryDefinition = {
+                    source: 'reports',
+                    joins: [],
+                    dimensions: [{ table: 'reports', field: 'hub', alias: 'name' }],
+                    measures: [{ table: 'reports', field: 'id', function: 'COUNT', alias: 'value' }],
+                    filters: apiFilters,
+                    sorts: [{ field: 'value', direction: 'desc' }],
+                    limit: 10
+                };
+
+                // 3. Branch Bar - Join with stations to get actual station codes
                 const branchQuery: QueryDefinition = {
                     source: 'reports',
                     joins: [{ from: 'reports', to: 'stations', joinKey: 'reports_stations' }],
@@ -230,7 +242,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                     limit: 10
                 };
 
-                // 3. Airlines Bar
+                // 4. Airlines Bar
                 const airlinesQuery: QueryDefinition = {
                     source: 'reports',
                     joins: [],
@@ -241,7 +253,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                     limit: 10
                 };
 
-                // 4. Monthly Trend
+                // 5. Monthly Trend
                 const monthlyQuery: QueryDefinition = {
                     source: 'reports',
                     joins: [],
@@ -253,8 +265,9 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
                 };
 
                 // Execute all queries in parallel
-                const [caseCat, branches, airlines, monthly] = await Promise.all([
+                const [caseCat, hubs, branches, airlines, monthly] = await Promise.all([
                     fetchChartData(caseCategoryQuery),
+                    fetchChartData(hubQuery),
                     fetchChartData(branchQuery),
                     fetchChartData(airlinesQuery),
                     fetchChartData(monthlyQuery)
@@ -269,6 +282,7 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
 
                 setData({
                     caseCategory: coloredCaseCat,
+                    hub: hubs,
                     branch: branches,
                     airlines: airlines,
                     monthly: [...monthly].slice(-14)
@@ -336,11 +350,16 @@ export function CustomerFeedbackDashboardCharts({ filters }: { filters: FilterPa
     return (
         <div className="space-y-6">
             {/* ROW 1: Charts */}
-            <div className="grid grid-cols-4 gap-6 min-h-[300px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[300px]">
                  <DonutChart 
                     title="Report by Case Category" 
                     data={data.caseCategory} 
                     onViewDetail={() => router.push('/dashboard/charts/report-by-case-category/detail')}
+                />
+                <HorizontalBarChart 
+                    title="Hub Report" 
+                    data={data.hub} 
+                    onViewDetail={() => router.push('/dashboard/charts/hub-report/detail')}
                 />
                 <HorizontalBarChart 
                     title="Branch Report" 

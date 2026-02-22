@@ -420,24 +420,19 @@ export function InvestigativeTable({
                         const isEvidence = col === evidenceCol;
                         const isLongText = ['root_cause', 'root caused', 'root cause', 'action_taken', 'action taken', 'action', 'corrective_action'].includes(col.toLowerCase());
                         
-                        if (isEvidence) {
-                          const urls = parseEvidenceLinks(row[col]);
+                        // Link/Evidence Logic
+                        if ((col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link')) && typeof row[col] === 'string' && (row[col] as string).trim().startsWith('http')) {
                           return (
                             <td key={col} className="px-3 py-3 text-xs align-top">
-                              <div className="flex flex-wrap gap-2 min-w-0">
-                                {urls.map((url, uIdx) => (
-                                  <a 
-                                    key={uIdx} 
-                                    href={url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline decoration-blue-200 hover:decoration-blue-500 transition-all font-medium whitespace-nowrap"
-                                  >
-                                    Evidence {urls.length > 1 ? uIdx + 1 : ''}
-                                  </a>
-                                ))}
-                                {urls.length === 0 && <span className="text-gray-300">-</span>}
-                              </div>
+                              <a 
+                                href={row[col] as string} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors"
+                              >
+                                <span className="truncate max-w-[120px] inline-block align-bottom">Evidence</span>
+                              </a>
                             </td>
                           );
                         }
@@ -447,7 +442,10 @@ export function InvestigativeTable({
                             {col === 'flight' || col === 'airlines' ? (
                               <span className="font-mono break-all line-clamp-2 md:line-clamp-none whitespace-normal inline-block w-full">{formatDisplayValue(row[col], col)}</span>
                             ) : (
-                              <span className="break-words line-clamp-3 md:line-clamp-none whitespace-normal inline-block w-full">{formatDisplayValue(row[col], col)}</span>
+                              <span 
+                                className="break-words line-clamp-3 md:line-clamp-none whitespace-normal inline-block w-full"
+                                dangerouslySetInnerHTML={{ __html: formatDisplayValue(row[col], col) }}
+                              />
                             )}
                           </td>
                         );

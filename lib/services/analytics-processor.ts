@@ -40,6 +40,11 @@ export class AnalyticsProcessor {
     // Complexity: Time O(1) | Space O(1)
   }
 
+  private static getHub(report: Report): string {
+    return report.hub || 'Unknown';
+    // Complexity: Time O(1) | Space O(1)
+  }
+
   private static getAirline(report: Report): string {
     return report.airlines || report.airline || 'Unknown';
     // Complexity: Time O(1) | Space O(1)
@@ -462,6 +467,113 @@ export class AnalyticsProcessor {
         bestPerformer: airlineSummaries.length > 0 ? { name: airlineSummaries[airlineSummaries.length - 1].airline, count: airlineSummaries[airlineSummaries.length - 1].total } : { name: '-', count: 0 },
         avgReportsPerAirline: airlineMap.size > 0 ? Math.round(totalCount / airlineMap.size) : 0,
         complimentRatio: totalCount > 0 ? Math.round((Array.from(airlineMap.values()).reduce((sum, a) => sum + a.compliment, 0) / totalCount) * 100) : 0
+      }
+    };
+  }
+
+  /**
+   * Aggregates data for the Hub Intelligence dashboard
+   * Complexity: Time O(N) | Space O(H) where H is unique hubs
+   */
+  public static processHubReport(reports: Report[]) {
+    const hubMap = new Map<string, { 
+      total: number; 
+      irregularity: number; 
+      complaint: number; 
+      compliment: number;
+    }>();
+
+    reports.forEach(report => {
+      const hub = this.getHub(report);
+      if (hub === 'Unknown') return;
+      
+      if (!hubMap.has(hub)) hubMap.set(hub, { total: 0, irregularity: 0, complaint: 0, compliment: 0 });
+      const data = hubMap.get(hub)!;
+      data.total++;
+      
+      const category = this.normalizeCategory(report.main_category || report.category || report.irregularity_complain_category);
+      if (category === 'Irregularity') data.irregularity++;
+      else if (category === 'Complaint') data.complaint++;
+      else if (category === 'Compliment') data.compliment++;
+    });
+
+    const totalCount = reports.length;
+    const hubSummaries = Array.from(hubMap.entries())
+      .map(([hub, data]) => {
+        const total = data.total;
+        return {
+          hub,
+          total,
+          irregularity: data.irregularity,
+          complaint: data.complaint,
+          compliment: data.compliment,
+          irregularityRate: total > 0 ? (data.irregularity / total) * 100 : 0,
+          netSentiment: (data.compliment + data.complaint) > 0 ? ((data.compliment - data.complaint) / (data.compliment + data.complaint)) * 100 : 0,
+          riskIndex: (data.irregularity * 2) + data.complaint,
+          rank: 0,
+          contribution: totalCount > 0 ? (total / totalCount) * 100 : 0,
+          growth: 0
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .map((item, idx) => ({ ...item, rank: idx + 1 }));
+
+    // Monthly Trend
+    const monthMap = new Map<string, { total: number; Irregularity: number; Complaint: number }>();
+    reports.forEach(report => {
+      const monthKey = this.getMonthKey(report.date_of_event || report.created_at);
+      if (!monthKey) return;
+      if (!monthMap.has(monthKey)) monthMap.set(monthKey, { total: 0, Irregularity: 0, Complaint: 0 });
+      const data = monthMap.get(monthKey)!;
+      data.total++;
+      const category = this.normalizeCategory(report.main_category || report.category || report.irregularity_complain_category);
+      if (category === 'Irregularity') data.Irregularity++;
+      else if (category === 'Complaint') data.Complaint++;
+    });
+
+    const trendData = Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-14)
+      .map(([month, data]) => ({ month, ...data }));
+
+    // KPIs
+    const totalHubs = hubMap.size;
+    const sortedByCount = [...hubSummaries].sort((a, b) => a.total - b.total);
+    const topPerformer = sortedByCount[0] || { hub: '-', total: 0 };
+    const worstPerformer = sortedByCount[sortedByCount.length - 1] || { hub: '-', total: 0 };
+    
+    // Calculate MoM Change
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+    
+    let currentMonthCount = 0;
+    let lastMonthCount = 0;
+    
+    reports.forEach(r => {
+      const mk = this.getMonthKey(r.date_of_event || r.created_at);
+      if (mk === currentMonthKey) currentMonthCount++;
+      if (mk === lastMonthKey) lastMonthCount++;
+    });
+    
+    const momChange = lastMonthCount > 0 ? ((currentMonthCount - lastMonthCount) / lastMonthCount) * 100 : 0;
+
+    return {
+      hubData: hubSummaries,
+      trendData,
+      categoryDistribution: hubSummaries.slice(0, 10).map(b => ({
+        hub: b.hub,
+        irregularity: b.irregularity,
+        complaint: b.complaint,
+        compliment: b.compliment
+      })),
+      kpis: {
+        totalHubs,
+        topPerformer: { name: topPerformer.hub, count: topPerformer.total },
+        worstPerformer: { name: worstPerformer.hub, count: worstPerformer.total },
+        avgReportsPerHub: totalHubs > 0 ? Math.round(totalCount / totalHubs) : 0,
+        momChange: Math.round(momChange * 10) / 10
       }
     };
   }

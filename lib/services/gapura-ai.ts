@@ -96,6 +96,27 @@ export interface DashboardSummaryAi {
   severity_distribution: Record<string, number>;
 }
 
+export interface BranchRiskAnalysis {
+  risk_score: number;
+  risk_level: string;
+  total_issues: number;
+  severity_distribution: {
+    High?: number;
+    Medium?: number;
+    Low?: number;
+    Critical?: number;
+  };
+  issue_categories: string[];
+  category_count: number;
+  data_quality_score: number;
+  frequency_score: number;
+  severity_score: number;
+}
+
+
+
+export type BranchRiskSummaryResponse = Record<string, BranchRiskAnalysis>;
+
 export interface RootCauseCategory {
   name: string;
   count: number;
@@ -423,6 +444,77 @@ export async function fetchReportSummaryAi(source: 'non-cargo' | 'cgo'): Promise
     return data as AiReportSummaryResponse;
   } catch (error) {
     console.error(`[gapura-ai] Error fetching report summary for ${source}:`, error);
+    return null;
+  }
+}
+
+export interface HubRiskAnalysis {
+  risk_score: number;
+  risk_level: string;
+  total_issues: number;
+  severity_distribution: {
+    High?: number;
+    Medium?: number;
+    Low?: number;
+    Critical?: number;
+  };
+  issue_categories: string[];
+  category_count: number;
+  data_quality_score: number;
+  frequency_score: number;
+  severity_score: number;
+}
+
+export type HubRiskSummaryResponse = Record<string, HubRiskAnalysis>;
+
+export async function fetchHubRiskAnalysis(signal?: AbortSignal): Promise<HubRiskSummaryResponse | null> {
+  try {
+    // Use local proxy to avoid CORS and hide upstream URL
+    const url = '/api/ai/risk/hubs';
+    console.log('[gapura-ai] Fetching hub risk analysis from:', url);
+    const response = await fetchWithTimeout(url, { signal }, 120000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch hub risk analysis:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    if (Object.keys(data).length === 0) {
+      console.warn('[gapura-ai] API returned empty data');
+      return null;
+    }
+    return data as HubRiskSummaryResponse;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
+    console.error('[gapura-ai] Error fetching hub risk analysis:', error);
+    return null;
+  }
+}
+
+
+export async function fetchBranchRiskAnalysisAi(signal?: AbortSignal): Promise<BranchRiskSummaryResponse | null> {
+  try {
+    // Use the specific HF Space URL as requested
+    const url = 'https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/risk/branches';
+    console.log('[gapura-ai] Fetching branch risk analysis from:', url);
+    const response = await fetchWithTimeout(url, { signal }, 120000);
+    if (!response.ok) {
+      console.error('[gapura-ai] Failed to fetch branch risk analysis:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // Check if data is empty (API returning {} despite 200 OK)
+    if (Object.keys(data).length === 0) {
+      console.warn('[gapura-ai] API returned empty data');
+      return null;
+    }
+
+    return data as BranchRiskSummaryResponse;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null;
+    console.error('[gapura-ai] Error fetching branch risk analysis:', error);
     return null;
   }
 }

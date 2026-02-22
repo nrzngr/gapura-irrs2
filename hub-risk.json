@@ -1,0 +1,109 @@
+{
+    "HUB 1": {
+        "risk_score": 70.27,
+        "risk_level": "Critical",
+        "total_issues": 775,
+        "severity_distribution": {
+            "High": 342,
+            "Medium": 74,
+            "Low": 355,
+            "Critical": 4
+        },
+        "issue_categories": [
+            "Operation",
+            "Pax Handling",
+            "Baggage Handling",
+            "GSE",
+            "Cargo Problems"
+        ],
+        "category_count": 5,
+        "data_quality_score": 1.0,
+        "frequency_score": 3.85,
+        "severity_score": 2.91
+    },
+    "HUB 3": {
+        "risk_score": 32.37,
+        "risk_level": "Medium",
+        "total_issues": 99,
+        "severity_distribution": {
+            "Low": 57,
+            "Medium": 30,
+            "High": 7,
+            "Critical": 5
+        },
+        "issue_categories": [
+            "Operation",
+            "Pax Handling",
+            "GSE",
+            "Baggage Handling",
+            "Cargo Problems"
+        ],
+        "category_count": 5,
+        "data_quality_score": 1.01,
+        "frequency_score": 0.49,
+        "severity_score": 2.04
+    },
+    "HUB 2": {
+        "risk_score": 27.28,
+        "risk_level": "Low",
+        "total_issues": 65,
+        "severity_distribution": {
+            "Low": 50,
+            "Medium": 12,
+            "High": 3
+        },
+        "issue_categories": [
+            "Operation",
+            "Pax Handling",
+            "Baggage Handling",
+            "GSE",
+            "Cargo Problems"
+        ],
+        "category_count": 5,
+        "data_quality_score": 1.0,
+        "frequency_score": 0.32,
+        "severity_score": 1.37
+    },
+    "HUB 5": {
+        "risk_score": 26.77,
+        "risk_level": "Low",
+        "total_issues": 47,
+        "severity_distribution": {
+            "Low": 32,
+            "Medium": 13,
+            "High": 2
+        },
+        "issue_categories": [
+            "Operation",
+            "Pax Handling",
+            "Baggage Handling",
+            "GSE",
+            "Cargo Problems"
+        ],
+        "category_count": 5,
+        "data_quality_score": 1.0,
+        "frequency_score": 0.23,
+        "severity_score": 1.45
+    },
+    "HUB 4": {
+        "risk_score": 26.69,
+        "risk_level": "Low",
+        "total_issues": 20,
+        "severity_distribution": {
+            "Medium": 10,
+            "Low": 9,
+            "High": 1
+        },
+        "issue_categories": [
+            "Operation",
+            "Pax Handling",
+            "Baggage Handling",
+            "GSE",
+            "Cargo Problems"
+        ],
+        "category_count": 5,
+        "data_quality_score": 1.0,
+        "frequency_score": 0.1,
+        "severity_score": 1.7
+    }
+}

@@ -53,6 +53,9 @@ export async function GET(request: NextRequest) {
       case 'branch-report':
         aggregatedData = AnalyticsProcessor.processBranchReport(reports);
         break;
+      case 'hub-report':
+        aggregatedData = AnalyticsProcessor.processHubReport(reports);
+        break;
       default:
         return NextResponse.json({ error: `Unsupported view: ${view}` }, { status: 400 });
     }

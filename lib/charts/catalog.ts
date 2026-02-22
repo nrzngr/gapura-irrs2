@@ -19,6 +19,14 @@ export const chartCatalog: ChartCatalogEntry[] = [
     dataSource: 'google-sheets',
   },
   {
+    slug: 'hub-report',
+    title: 'Hub Report',
+    description: 'Hub performance analysis & risk profile',
+    detailPath: '/dashboard/charts/hub-report/detail',
+    category: 'Customer Feedback',
+    dataSource: 'google-sheets',
+  },
+  {
     slug: 'branch-report',
     title: 'Branch Report',
     description: 'Branch performance & risk profile analysis',

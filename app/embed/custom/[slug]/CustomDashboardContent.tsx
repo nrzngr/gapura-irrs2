@@ -420,7 +420,7 @@ export function CustomDashboardContent() {
     if (title.includes('terminal area category')) return 'terminal-area-category';
     if (title.includes('apron area category')) return 'apron-area-category';
     if (title.includes('general category')) return 'general-category';
-    if (title.includes('hub report')) return 'branch-report';
+    if (title.includes('hub report')) return 'hub-report';
     if (title.includes('terminal area by branch')) return 'terminal-area-category';
     if (title.includes('apron area by branch')) return 'apron-area-category';
     if (title.includes('general category by branch')) return 'general-category';
