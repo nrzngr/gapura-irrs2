@@ -11,7 +11,7 @@ const SLIDE = {
     ACCENT_GREEN: GAPURA_BANNER,
     DARK_GREEN: '3a5a2a',
     LIGHT_GREEN: 'e6f0d0',
-    FONT: 'Arial',
+    FONT: 'Segoe UI', // More modern than Arial
     FOOTER_Y: 7.0 
 };
 
@@ -307,25 +307,51 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
   // Complexity: Time O(1) | Space O(1)
   function addSlideChrome(slide: PptxSlide, title: string): void {
     slideNum++;
-    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 0.85, fill: { color: SLIDE.GREEN } });
-    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0.85, w: '100%', h: 0.05, fill: { color: SLIDE.ACCENT_GREEN } });
+    
+    // Modern gradient header for depth
+    // Note: pptxgenjs gradient syntax might vary, using a solid fallback if needed but attempting gradient
+    // Gradient: Left-to-Right from Dark Green to Gapura Green
+    // Using multiple shapes to simulate gradient if native gradient is tricky, but let's try a clean solid with an overlay or just a sophisticated solid
+    
+    // Background "Atmosphere" - subtle light gray for depth instead of pure white
+    slide.background = { color: 'F8F9FA' };
+
+    // Header Bar with "Sharp Accent"
+    slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: 0.85, 
+        fill: { color: SLIDE.DARK_GREEN } 
+    });
+    
+    // Add a design element: angled overlay for dynamic feel
+    slide.addShape(pptx.ShapeType.triangle, {
+        x: 10, y: 0, w: 3.5, h: 0.85,
+        fill: { color: SLIDE.GREEN },
+        rotate: 180
+    });
+
+    // Accent Line
+    slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0.85, w: '100%', h: 0.05, 
+        fill: { color: 'D4E157' } // Sharp lime green accent
+    });
 
     // Logo placeholder (small green rectangle as brand mark)
-    slide.addShape(pptx.ShapeType.rect, { x: 0.25, y: 0.2, w: 0.25, h: 0.45, fill: { color: SLIDE.GREEN }, rectRadius: 0.05 });
-    slide.addShape(pptx.ShapeType.rect, { x: 0.55, y: 0.28, w: 0.08, h: 0.28, fill: { color: WHITE, transparency: 30 }, rectRadius: 0.02 });
+    slide.addShape(pptx.ShapeType.rect, { x: 0.25, y: 0.2, w: 0.25, h: 0.45, fill: { color: WHITE }, rectRadius: 0.05 });
+    slide.addShape(pptx.ShapeType.rect, { x: 0.55, y: 0.28, w: 0.08, h: 0.28, fill: { color: SLIDE.GREEN }, rectRadius: 0.02 });
 
-    // Title 
+    // Title with distinctive typography
     slide.addText(title, { 
       x: 0.75, y: 0.15, w: '85%', h: 0.55, 
-      fontSize: 20, fontFace: SLIDE.FONT, color: WHITE, bold: true 
+      fontSize: 24, fontFace: 'Segoe UI Light', color: WHITE, bold: true 
     });
 
     // Footer with enhanced branding
-    slide.addShape(pptx.ShapeType.rect, { x: 0, y: SLIDE.FOOTER_Y, w: '100%', h: 0.35, fill: { color: 'F5F5F5' } });
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: SLIDE.FOOTER_Y, w: '100%', h: 0.35, fill: { color: 'FFFFFF' }, line: { color: 'E0E0E0', width: 0.5, pt: 1 } }); // Top border simulated
     // Brand accent line
-    slide.addShape(pptx.ShapeType.rect, { x: 0, y: SLIDE.FOOTER_Y, w: 0.08, h: 0.35, fill: { color: SLIDE.GREEN } });
-    slide.addText(`PT Gapura Angkasa  |  ${dateStr}`, { x: 0.4, y: SLIDE.FOOTER_Y, w: '60%', h: 0.35, fontSize: 8, fontFace: SLIDE.FONT, color: '666666' });
-    slide.addText(`Halaman ${slideNum}`, { x: 12.0, y: SLIDE.FOOTER_Y, w: 1.0, h: 0.35, fontSize: 8, fontFace: SLIDE.FONT, color: '999999', align: 'right' });
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: SLIDE.FOOTER_Y, w: 0.05, h: 0.35, fill: { color: SLIDE.GREEN } });
+    
+    slide.addText(`PT Gapura Angkasa  |  ${dateStr}`, { x: 0.4, y: SLIDE.FOOTER_Y, w: '60%', h: 0.35, fontSize: 9, fontFace: SLIDE.FONT, color: '666666' });
+    slide.addText(`Halaman ${slideNum}`, { x: 12.0, y: SLIDE.FOOTER_Y, w: 1.0, h: 0.35, fontSize: 9, fontFace: SLIDE.FONT, color: '999999', align: 'right' });
   }
 
   // ─── Mini insight callout ──────────────────────────────────────────────
@@ -333,63 +359,64 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
   function addMiniInsight(slide: PptxSlide, findings: string[], x: number, y: number, w: number): void {
     const lines = findings.slice(0, 3);
     // Adjusted height calculation
-    const h = 0.4 + lines.length * 0.25; 
+    const h = 0.5 + lines.length * 0.3; 
     
-    // Card background with shadow effect
+    // Card background with shadow effect - Clean White with soft shadow
     slide.addShape(pptx.ShapeType.roundRect, { 
       x, y, w, h, 
-      fill: { color: 'F9FCF5' }, 
-      rectRadius: 0.05,
-      line: { color: SLIDE.ACCENT_GREEN, width: 0.5 }
+      fill: { color: 'FFFFFF' }, 
+      rectRadius: 0.1,
+      shadow: { type: 'outer', blur: 8, offset: 3, angle: 90, color: '000000', opacity: 0.08 }
     });
     
-    // "Insight" Label pill
-    slide.addShape(pptx.ShapeType.roundRect, {
-        x: x + 0.15, y: y + 0.15, w: 1.2, h: 0.2,
-        fill: { color: SLIDE.GREEN }, rectRadius: 0.1
-    });
+    // "Insight" Label - Minimalist
     slide.addText('KEY INSIGHTS', { 
-        x: x + 0.15, y: y + 0.15, w: 1.2, h: 0.2, 
-        fontSize: 7, fontFace: SLIDE.FONT, color: WHITE, bold: true, align: 'center', valign: 'middle' 
+        x: x + 0.2, y: y + 0.15, w: 2.0, h: 0.2, 
+        fontSize: 8, fontFace: 'Segoe UI', color: SLIDE.GREEN, bold: true, charSpacing: 1.5 
     });
 
-    // Insight Bullets
-    const text = lines.map(f => `•  ${f}`).join('\n');
+    // Decorative line under label
+    slide.addShape(pptx.ShapeType.line, {
+        x: x + 0.2, y: y + 0.35, w: 0.5, h: 0,
+        line: { color: 'D4E157', width: 2 } // Sharp accent
+    });
+
+    // Insight Bullets - Improved typography
+    const text = lines.map(f => `• ${f}`).join('\n\n'); // More spacing between items
     slide.addText(text, { 
-        x: x + 0.2, y: y + 0.45, w: w - 0.4, h: lines.length * 0.25, 
-        fontSize: 9, fontFace: SLIDE.FONT, color: '444444', lineSpacingMultiple: 1.2 
+        x: x + 0.2, y: y + 0.5, w: w - 0.4, h: lines.length * 0.3, 
+        fontSize: 10, fontFace: 'Segoe UI', color: '333333', lineSpacingMultiple: 1.3 
     });
   }
 
   // ─── Panel subtitle bar ────────────────────────────────────────────────
   // Complexity: Time O(1) | Space O(1)
   function addPanelHeader(slide: PptxSlide, title: string, x: number, y: number, w: number, linkUrl?: string): void {
-    // Header Background
-    slide.addShape(pptx.ShapeType.roundRect, { 
-        x, y, w, h: 0.4, 
-        fill: { color: 'FFFFFF' }, 
-        rectRadius: 0.05,
-        shadow: { type: 'outer', blur: 3, offset: 2, angle: 45, color: '000000', opacity: 0.1 }
-    });
+    // Header Background - Transparent/Clean
+    // Instead of a box, we use a clean typographic header with an accent
     
-    // Green Left Accent
-    slide.addShape(pptx.ShapeType.rect, { 
-        x, y: y + 0.05, w: 0.06, h: 0.3, 
-        fill: { color: SLIDE.GREEN } 
-    });
-    
-    // Title Text
+    // Title Text - Larger, darker
     slide.addText(title, { 
-        x: x + 0.15, y, w: w - 1.2, h: 0.4, 
-        fontSize: 11, fontFace: SLIDE.FONT, color: '222222', bold: true, valign: 'middle',
+        x: x, y, w: w - 1.2, h: 0.4, 
+        fontSize: 14, fontFace: 'Segoe UI Semibold', color: '1A1A1A', valign: 'bottom',
         hyperlink: linkUrl ? { url: linkUrl } : undefined
+    });
+    
+    // Underline accent - Gradient-like using two lines or just one sharp line
+    slide.addShape(pptx.ShapeType.rect, { 
+        x: x, y: y + 0.42, w: w, h: 0.02, 
+        fill: { color: 'E0E0E0' } 
+    });
+    slide.addShape(pptx.ShapeType.rect, { 
+        x: x, y: y + 0.42, w: w * 0.15, h: 0.02, 
+        fill: { color: SLIDE.GREEN } 
     });
 
     // Metadata / Link hint
     if (linkUrl) {
         slide.addText('View Detail ↗', {
             x: x + w - 1.3, y: y + 0.1, w: 1.2, h: 0.2,
-            fontSize: 7, fontFace: SLIDE.FONT, color: SLIDE.GREEN, align: 'right',
+            fontSize: 9, fontFace: SLIDE.FONT, color: SLIDE.GREEN, align: 'right',
             hyperlink: { url: linkUrl }
         });
     }
@@ -405,10 +432,11 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
     const headerRow = cols.map(c => ({
       text: formatCol(c),
       options: { 
-            fontSize: 8, fontFace: SLIDE.FONT, color: WHITE, bold: true, 
+            fontSize: 9, fontFace: 'Segoe UI Semibold', color: WHITE, 
           fill: { color: SLIDE.DARK_GREEN }, 
           align: 'center' as const, 
-          border: [null, null, { pt: 1, color: WHITE }, null] as any
+          border: { color: WHITE, pt: 1 } as any,
+          valign: 'middle' as const
       },
     }));
 
@@ -420,26 +448,28 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
         return {
           text: isNum ? numVal.toLocaleString('id-ID') : String(val ?? '-'),
           options: {
-            fontSize: 8, fontFace: SLIDE.FONT, color: '333333',
-            fill: { color: ri % 2 === 0 ? 'FFFFFF' : 'F4F8F1' }, // Alternating rows with very light green
+            fontSize: 9, fontFace: SLIDE.FONT, color: '333333',
+            fill: { color: ri % 2 === 0 ? 'FFFFFF' : 'F8F9FA' }, // Subtle alternation
             align: (isNum ? 'right' : 'left') as 'right' | 'left', // Numbers right aligned
-            border: [null, null, { pt: 0.5, color: 'E0E0E0' }, null] as any,
+            border: { color: 'F0F0F0', pt: 0.5 } as any,
             // Add slight padding
-            margin: 0.05,
+            margin: 0.08,
             hyperlink: linkUrl ? { url: linkUrl } : undefined,
+            valign: 'middle' as const
           },
         };
       })
     );
 
-    slide.addTable([headerRow, ...dataRows], { x, y, w, colW, rowH: 0.25 });
+    // @ts-ignore - pptxgenjs types might be slightly off for table config but this is standard
+    slide.addTable([headerRow, ...dataRows], { x, y, w, colW, rowH: 0.35 });
 
-    const tableEndY = y + (display.length + 1) * 0.25;
+    const tableEndY = y + (display.length + 1) * 0.35;
 
     if (rows.length > maxRows) {
       slide.addText(`Showing ${maxRows} of ${rows.length} rows`, { 
           x, y: tableEndY, w, h: 0.2, 
-          fontSize: 7, fontFace: SLIDE.FONT, color: '999999', italic: true, align: 'right' 
+          fontSize: 8, fontFace: SLIDE.FONT, color: '888888', italic: true, align: 'right' 
       });
       return tableEndY + 0.2;
     }
@@ -447,52 +477,55 @@ export async function exportToPptx(payload: ExportPayload): Promise<void> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // SLIDE 1: Title
+  // SLIDE 1: Title - "Distilled Aesthetics" Redesign
   // ═══════════════════════════════════════════════════════════════════════
   const titleSlide = pptx.addSlide();
   slideNum++;
-  // Enhanced gradient-like background
-  titleSlide.background = { color: 'F5F9F0' };
+  // Clean, sophisticated background
+  titleSlide.background = { color: 'FFFFFF' };
   
-  // Decorative geometric shapes for modern look
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '35%', h: '100%', fill: { color: SLIDE.GREEN } });
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.15, h: '100%', fill: { color: SLIDE.DARK_GREEN } });
-  
-  // Decorative circles for modern feel
-  titleSlide.addShape(pptx.ShapeType.ellipse, { x: 9.5, y: 5.2, w: 2.8, h: 2.8, fill: { color: 'D4E8C0', transparency: 60 } });
-  titleSlide.addShape(pptx.ShapeType.ellipse, { x: 10.5, y: 6.2, w: 1.8, h: 1.8, fill: { color: 'E8F0D8', transparency: 40 } });
-
-  // Accent Line
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 3.5, y: 0, w: 0.08, h: '100%', fill: { color: SLIDE.ACCENT_GREEN } });
-
-  // Title Content
-  titleSlide.addText(payload.dashboardName.toUpperCase(), {
-    x: 0.5, y: 2.3, w: 5, h: 1.5,
-    fontSize: 44, fontFace: 'Arial Black', color: WHITE, bold: true, charSpacing: 1, valign: 'top'
+  // Dynamic Abstract Layout
+  // Large angled shape for drama
+  titleSlide.addShape(pptx.ShapeType.triangle, { 
+      x: 6, y: -2, w: 10, h: 10, 
+      fill: { color: 'F4F8F1' }, 
+      rotate: 270 
   });
   
-  // Decorative underline
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.9, w: 3.5, h: 0.04, fill: { color: 'D4E8C0' } });
+  // Brand Anchor
+  titleSlide.addShape(pptx.ShapeType.rect, { 
+      x: 0.8, y: 0.8, w: 0.5, h: 0.5, 
+      fill: { color: SLIDE.GREEN }, 
+      rectRadius: 0.1 
+  });
   
+  // Title Typography - Large, bold, modern
+  titleSlide.addText(payload.dashboardName, {
+    x: 0.8, y: 2.5, w: 8, h: 1.5,
+    fontSize: 54, fontFace: 'Segoe UI Light', color: '1A1A1A', bold: true, charSpacing: -1.5, valign: 'top'
+  });
+  
+  // Subtitle
   titleSlide.addText(payload.subtitle || 'Executive Dashboard Export', {
-    x: 0.5, y: 4.1, w: 5, h: 0.5, fontSize: 16, fontFace: SLIDE.FONT, color: 'D4E8C0', italic: true,
+    x: 0.8, y: 3.8, w: 8, h: 0.5, 
+    fontSize: 20, fontFace: 'Segoe UI', color: SLIDE.GREEN, 
   });
 
-  // Right Side Info with branding
+  // Decorative Accent Line
+  titleSlide.addShape(pptx.ShapeType.line, {
+      x: 0.8, y: 4.5, w: 1.5, h: 0,
+      line: { color: 'D4E157', width: 4 } // Sharp accent
+  });
+
+  // Footer / Meta Info
+  titleSlide.addText(`GENERATED ON ${dateStr.toUpperCase()}`, {
+    x: 0.8, y: 6.5, w: 6, h: 0.4, 
+    fontSize: 10, fontFace: 'Segoe UI', color: '999999', charSpacing: 2, bold: true
+  });
+  
   titleSlide.addText(`PT GAPURA ANGKASA`, {
-    x: 5, y: 0.4, w: 6, h: 0.5, fontSize: 12, fontFace: SLIDE.FONT, color: SLIDE.GREEN, bold: true, charSpacing: 1,
-  });
-  
-  // Separator line
-  titleSlide.addShape(pptx.ShapeType.rect, { x: 5, y: 0.95, w: 2, h: 0.02, fill: { color: SLIDE.GREEN } });
-  
-  titleSlide.addText(dateStr, {
-    x: 5, y: 1.1, w: 6, h: 0.4, fontSize: 11, fontFace: SLIDE.FONT, color: '666666',
-  });
-
-  // Page indicator
-  titleSlide.addText('EXPORTED PRESENTATION', {
-    x: 5, y: 1.6, w: 6, h: 0.3, fontSize: 9, fontFace: SLIDE.FONT, color: '999999', charSpacing: 1,
+    x: 0.8, y: 6.8, w: 6, h: 0.4, 
+    fontSize: 10, fontFace: 'Segoe UI', color: '333333', charSpacing: 2, bold: true
   });
 
   // Bottom branding
