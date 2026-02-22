@@ -202,7 +202,7 @@ function calculateTopRisky(
 
 export async function fetchSeverityDistributionsAi(signal?: AbortSignal): Promise<SeverityDistributionsAiResponse | null> {
   try {
-    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/reports/severity-distribution`, { signal }, 120000);
+    const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/risk/summary`, { signal }, 120000);
     if (!response.ok) {
       console.error('[gapura-ai] Failed to fetch severity distributions:', response.status);
       return null;
@@ -264,7 +264,7 @@ export async function fetchSeverityDistributionsAi(signal?: AbortSignal): Promis
 
 export async function fetchRiskSummaryAi(signal?: AbortSignal): Promise<AiRiskSummary | null> {
   try {
-    const url = `${GAPURA_AI_BASE_URL}/api/ai/reports/risk-summary`;
+    const url = `${GAPURA_AI_BASE_URL}/api/ai/risk/summary`;
     console.log('[gapura-ai] Fetching risk summary from:', url);
     const response = await fetchWithTimeout(url, { signal }, 120000);
     if (!response.ok) {
@@ -410,9 +410,9 @@ export async function fetchBranchSummaryAi(signal?: AbortSignal): Promise<AiBran
   }
 }
 
-export async function fetchReportSummaryAi(source: 'NON CARGO' | 'CGO'): Promise<AiReportSummaryResponse | null> {
+export async function fetchReportSummaryAi(source: 'non-cargo' | 'cgo'): Promise<AiReportSummaryResponse | null> {
   try {
-    const slug = source === 'CGO' ? 'cargo' : 'non-cargo';
+    const slug = source === 'cgo' ? 'cgo' : 'non-cargo';
     const response = await fetchWithTimeout(`${GAPURA_AI_BASE_URL}/api/ai/summarize/${slug}`, {}, 120000);
     if (!response.ok) {
       console.error(`[gapura-ai] Failed to fetch report summary for ${source}:`, response.status);

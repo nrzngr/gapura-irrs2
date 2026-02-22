@@ -137,45 +137,84 @@ const WRITE_MAPPING: Record<string, string> = {
 const CACHE_KEY_ALL_REPORTS = 'reports:all:v3';
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
+const MonthMap: Record<string, number> = {
+  januari: 0, jan: 0,
+  februari: 1, feb: 1,
+  maret: 2, mar: 2,
+  april: 3, apr: 3,
+  mei: 4,
+  juni: 5, jun: 5,
+  juli: 6, jul: 6,
+  agustus: 7, ags: 7, agt: 7,
+  september: 8, sep: 8,
+  oktober: 9, okt: 9, 
+  november: 10, nov: 10,
+  desember: 11, des: 11
+};
+
 // Helper to parse dates robustly
 function parseDate(dateStr: string | number | Date): Date | null {
   if (!dateStr) return null;
-  if (dateStr instanceof Date) return dateStr;
+  if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
   
   if (typeof dateStr === 'number') {
     return new Date(Math.round((dateStr - 25569) * 86400 * 1000));
   }
 
   const str = String(dateStr).trim();
+  if (!str) return null;
 
-   // Try DD/MM/YYYY
-   const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-   if (ddmmyyyy) {
-     const day = parseInt(ddmmyyyy[1], 10);
-     const month = parseInt(ddmmyyyy[2], 10) - 1; 
-     const year = parseInt(ddmmyyyy[3], 10);
-     const d = new Date(year, month, day);
-     if (!isNaN(d.getTime())) return d;
-   }
+  // 1. ISO Patterns (YYYY-MM-DD, YYYY-MM)
+  // Match common ISO-like strings from spreadsheets
+  const isoMatch = str.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+  if (isoMatch) {
+    const d = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+    if (!isNaN(d.getTime())) return d;
+  }
 
-   // Try Month DD, YYYY
-   if (str.match(/^[a-zA-Z]+ \d+, \d{4}$/)) {
-      const d = new Date(str + ' UTC'); // append UTC to avoid timezone shifts
-      if (!isNaN(d.getTime())) return d;
-   }
+  // 2. DD Mon YYYY or Mon YYYY (Indonesian/English)
+  const parts = str.toLowerCase().split(/[\s,/-]+/);
+  if (parts.length >= 2) {
+    let day = 1;
+    let month = -1;
+    let year = -1;
 
-   const d = new Date(str);
-   if (!isNaN(d.getTime())) return d;
-   
-   // Handle common Indonesian formats or 2024-05-30
-   const isoMatch = str.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
-   if (isoMatch) {
-      const d = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
-      if (!isNaN(d.getTime())) return d;
-   }
+    const yearIdx = parts.findIndex(p => /^\d{4}$/.test(p));
+    if (yearIdx !== -1) {
+      year = parseInt(parts[yearIdx]);
+      for (let i = 0; i < parts.length; i++) {
+        if (i === yearIdx) continue;
+        if (MonthMap[parts[i]] !== undefined) {
+          month = MonthMap[parts[i]];
+          const dayCandidates = [parts[i-1], parts[i+1]].filter(p => p && /^\d{1,2}$/.test(p));
+          if (dayCandidates.length > 0) {
+            day = parseInt(dayCandidates[0]);
+          }
+          break;
+        }
+      }
+    }
 
-   return null;
+    if (year !== -1 && month !== -1) {
+      return new Date(year, month, day);
+    }
+  }
+
+  // 3. DD/MM/YYYY
+  const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (ddmmyyyy) {
+    const day = parseInt(ddmmyyyy[1], 10);
+    const month = parseInt(ddmmyyyy[2], 10) - 1; 
+    const year = parseInt(ddmmyyyy[3], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Fallback to native Date
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
 }
+
 
 export class ReportsService {
   

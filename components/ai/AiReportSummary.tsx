@@ -53,7 +53,8 @@ export function AiReportSummary({ source }: { source?: 'NON CARGO' | 'CGO' }) {
       if (!source) return;
       try {
         setLoading(true);
-        const result = await fetchReportSummaryAi(source);
+        const normalizedSource = source === 'CGO' ? 'cgo' : 'non-cargo';
+        const result = await fetchReportSummaryAi(normalizedSource);
         if (result) {
           setData(result);
         } else {
