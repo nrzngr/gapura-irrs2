@@ -885,13 +885,13 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
       </div>
 
       {/* Airline Ranking Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Airline Intelligence Ranking</h2>
         <AirlineRankTable data={airlineData} />
       </section>
 
       {/* 3. Category Composition */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-1">Category Composition by Airline</h2>
         <p className="text-xs text-gray-500 mb-4">Stacked Irregularity / Complaint / Compliment per airline (top 10)</p>
         <CategoryCompositionChart data={categoryData} />
@@ -899,12 +899,12 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
 
       {/* 4 & 5. Branch Distribution + Area Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Branch Distribution (Airline)</h2>
           <p className="text-xs text-gray-500 mb-4">Shows local issue vs national issue -- are reports concentrated in one branch?</p>
           <BranchDistributionChart data={branchData} />
         </section>
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Area Breakdown (Airline)</h2>
           <p className="text-xs text-gray-500 mb-4">Stacked Terminal / Apron / General per airline</p>
           <AreaBreakdownChart data={areaData} />
@@ -912,14 +912,14 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
       </div>
 
       {/* 6. Monthly Trend */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-1">Monthly Trend (Stability Check)</h2>
         <p className="text-xs text-gray-500 mb-4">Airline volume over time -- is performance improving or declining?</p>
         <MonthlyTrendChart data={trendData} />
       </section>
 
       {/* 7. AI Root Cause Investigation */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+      <section className="relative overflow-hidden bg-[var(--surface-1)]/50 backdrop-blur-xl rounded-3xl border border-[var(--surface-2)] p-8 shadow-spatial-md transition-all">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
@@ -941,7 +941,7 @@ export default function AirlineIntelligenceDetail({ filters = {} }: { filters?: 
       />
 
       {/* 10. Full Data Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
         </div>

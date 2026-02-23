@@ -837,19 +837,19 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
       </div>
 
       {/* Branch Ranking Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Branch Risk Ranking</h2>
         <BranchRankTable data={branchData} />
       </section>
 
       {/* Split View: Category Composition & Trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Category Composition</h2>
           <p className="text-xs text-gray-500 mb-4">Irregularity / Complaint / Compliment per branch</p>
           <CategoryCompositionChart data={categoryData} />
         </section>
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Monthly Trend</h2>
           <MonthlyTrendChart data={trendData} />
         </section>
@@ -857,12 +857,12 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
 
       {/* 5 & 6: Split View — Area Breakdown & Airline Contribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Area Breakdown (Branch x Area)</h2>
           <p className="text-xs text-gray-500 mb-4">Volume breakdown reveals where inside the branch the problem lies</p>
           <AreaBreakdownChart data={areaData} />
         </section>
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Airline Contribution inside Branch</h2>
           <p className="text-xs text-gray-500 mb-4">Top airlines contributing to reports in this branch</p>
           <AirlineContributionChart data={airlineData} />
@@ -870,7 +870,7 @@ export default function BranchIntelligenceDetail({ filters = {} }: { filters?: F
       </div>
 
       {/* 7. AI Root Cause Investigation */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+      <section className="relative overflow-hidden bg-[var(--surface-1)]/50 backdrop-blur-xl rounded-3xl border border-[var(--surface-2)] p-8 shadow-spatial-md transition-all">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>

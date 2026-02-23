@@ -51,6 +51,7 @@ import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
+import { motion } from 'framer-motion';
 import type { QueryResult } from '@/types/builder';
 import { BarChart as RechartsBarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, LabelList } from 'recharts';
 
@@ -87,30 +88,39 @@ interface KPICardProps {
 
 function KPICard({ title, value, subtitle, trend, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    yellow: 'bg-amber-50 border-amber-200 text-amber-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
+    green: 'bg-[var(--brand-emerald-50)] border-[oklch(0.9_0.02_160)] text-[var(--brand-emerald-700)] shadow-[0_4px_12px_oklch(0.65_0.18_160/0.05)]',
+    red: 'bg-[oklch(0.98_0.02_25)] border-[oklch(0.9_0.05_25)] text-[oklch(0.45_0.2_25)] shadow-[0_4px_12px_oklch(0.6_0.22_25/0.05)]',
+    yellow: 'bg-[oklch(0.98_0.03_75)] border-[oklch(0.9_0.06_75)] text-[oklch(0.5_0.16_75)] shadow-[0_4px_12px_oklch(0.75_0.16_75/0.05)]',
+    blue: 'bg-[oklch(0.98_0.01_250)] border-[oklch(0.9_0.04_250)] text-[oklch(0.45_0.15_250)] shadow-[0_4px_12px_oklch(0.6_0.15_250/0.05)]',
+    orange: 'bg-[oklch(0.98_0.04_45)] border-[oklch(0.9_0.08_45)] text-[oklch(0.55_0.2_45)] shadow-[0_4px_12px_oklch(0.65_0.25_45/0.05)]',
   };
 
   return (
-    <div className={`p-4 rounded-xl border ${colorClasses[color]} transition-all hover:shadow-md`}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
-      <div className="text-2xl font-black tracking-tight">{value}</div>
-      {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
-      {trend !== undefined && (
-        <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-          {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
-          <span>{Math.abs(trend).toFixed(1)}% MoM</span>
-        </div>
-      )}
-      {explanation && (
-        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
-          {explanation}
-        </div>
-      )}
-    </div>
+    <motion.div 
+      whileHover={{ y: -4, scale: 1.01 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className={`relative overflow-hidden p-5 rounded-prism border ${colorClasses[color]} transition-all duration-300 isolate group`}
+    >
+      <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+      <div className="absolute -inset-24 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl pointer-events-none" />
+      
+      <div className="relative z-10">
+        <div className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1.5">{title}</div>
+        <div className="text-3xl font-display font-black tracking-tighter leading-none mb-1">{value}</div>
+        {subtitle && <div className="text-xs font-semibold opacity-75 mt-2">{subtitle}</div>}
+        {trend !== undefined && (
+          <div className="flex items-center gap-1.5 text-[11px] font-bold mt-3 opacity-90 bg-white/40 w-fit px-2 py-1 rounded-md backdrop-blur-sm border border-white/20">
+            {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
+            <span>{Math.abs(trend).toFixed(1)}% MoM</span>
+          </div>
+        )}
+        {explanation && (
+          <div className="text-xs font-medium opacity-70 mt-3 pt-3 border-t border-black/5 leading-relaxed">
+            {explanation}
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -135,21 +145,33 @@ function AutoInsight({ data }: { data: HubSummary[] }) {
     : `Operational stability: All hubs currently below high-risk thresholds.`;
 
   return (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 mb-8">
-      <div className="flex items-center gap-2 mb-3">
-        <Zap size={18} className="text-amber-600" />
-        <h3 className="font-bold text-gray-800">Auto-Insight</h3>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="relative overflow-hidden bg-gradient-to-r from-[oklch(0.98_0.03_75)] to-[oklch(0.96_0.04_45)] border border-[oklch(0.9_0.06_75)] rounded-prism p-6 shadow-spatial-sm isolate group mb-8"
+    >
+      <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+      <div className="absolute right-0 top-0 w-64 h-64 bg-white/40 blur-3xl -translate-y-1/2 translate-x-1/3 rounded-full pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col sm:flex-row gap-6 items-start">
+        <div className="flex-shrink-0 bg-white/60 p-3 rounded-2xl border border-white shadow-inner-rim">
+          <Zap size={24} className="text-[var(--accent-amber)]" />
+        </div>
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-[oklch(0.5_0.16_75)] mb-2">Auto-Insight</h3>
+          <p className="text-base font-display font-semibold text-[var(--text-primary)] mb-4 leading-snug text-balance">{mainInsight}</p>
+          <ul className="grid sm:grid-cols-2 gap-3">
+            {insightParts.map((insight, idx) => (
+              <li key={idx} className="flex items-start gap-2.5 text-sm font-medium text-[var(--text-secondary)] bg-white/40 rounded-lg px-3 py-2 border border-white/50 shadow-sm">
+                <span className="text-[var(--accent-amber)] mt-0.5 animate-pulse">•</span>
+                {insight}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-      <p className="text-sm font-semibold text-gray-800 mb-2">{mainInsight}</p>
-      <ul className="space-y-1.5">
-        {insightParts.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-amber-500 mt-0.5">•</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+    </motion.div>
   );
 }
 
@@ -429,7 +451,7 @@ function DataTable({ data }: { data: HubReportRecord[] }) {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+         className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
         >
           <option value="all">All Categories</option>
           <option value="Irregularity">Irregularity</option>
@@ -523,19 +545,27 @@ function ManagementSummary({ data }: { data: HubSummary[] }) {
   ];
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-        <span className="text-xl">🏆</span> Management Summary
+    <motion.div 
+      whileHover={{ y: -2 }}
+      className="relative overflow-hidden bg-gradient-to-br from-[var(--surface-2)] to-[var(--surface-1)] border border-[oklch(0.92_0.01_250/0.8)] rounded-prism p-6 shadow-spatial-sm isolate group"
+    >
+      <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+      <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--brand-emerald-600)] mb-4 flex items-center gap-2">
+        <span>🏆</span> Management Summary
       </h3>
-      <ul className="space-y-2">
+      <ul className="grid sm:grid-cols-2 gap-4">
         {insights.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-[#6b8e3d] mt-0.5">•</span>
-            {insight}
+          <li key={idx} className="flex items-start gap-3 bg-white/50 backdrop-blur-sm p-3 rounded-lg border border-white shadow-[var(--inner-rim)] transition-colors hover:bg-white/80">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--brand-emerald-50)] text-[var(--brand-emerald-600)] flex items-center justify-center text-[10px] font-bold">
+              0{idx + 1}
+            </span>
+            <span className="text-sm font-medium text-[var(--text-secondary)] leading-snug">
+              {insight}
+            </span>
           </li>
         ))}
       </ul>
-    </div>
+    </motion.div>
   );
 }
 
@@ -744,14 +774,14 @@ export default function HubReportDetail({ filters = {} }: { filters?: FilterPara
       )}
 
       {/* Hub Ranking Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Hub Performance Ranking</h2>
         <HubRankTable data={hubData} />
       </section>
 
       {/* Category Distribution Stacked Bar Chart */}
       {categoryDistribution.length > 0 && (
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Category Distribution per Hub (Top 10)</h2>
           <ResponsiveContainer width="100%" height={400}>
             <RechartsBarChart data={categoryDistribution.slice(0, 10)} layout="vertical">
@@ -775,19 +805,19 @@ export default function HubReportDetail({ filters = {} }: { filters?: FilterPara
       )}
 
       {/* Monthly Trend */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Monthly Trend Analysis</h2>
         <MonthlyTrendChart data={trendData} />
       </section>
 
       {/* Category Composition */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Category Composition by Hub</h2>
         <CategoryStackedBar data={categoryData} />
       </section>
 
       {/* AI Root Cause Investigation - Full Width */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+      <section className="relative overflow-hidden bg-[var(--surface-1)]/50 backdrop-blur-xl rounded-3xl border border-[var(--surface-2)] p-8 shadow-spatial-md transition-all">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
@@ -798,7 +828,7 @@ export default function HubReportDetail({ filters = {} }: { filters?: FilterPara
       </section>
 
       {/* Reports Detail Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-gray-800">Hub Intelligence Reports</h2>
         </div>
@@ -812,11 +842,11 @@ export default function HubReportDetail({ filters = {} }: { filters?: FilterPara
 
       {/* Split View: Airline & Area */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Airline Distribution</h2>
           <AirlineBreakdownChart data={airlineData} />
         </section>
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Area Breakdown</h2>
           <AreaBreakdownChart data={areaData} />
         </section>

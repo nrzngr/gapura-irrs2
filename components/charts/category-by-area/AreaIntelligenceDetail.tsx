@@ -895,7 +895,7 @@ export default function AreaIntelligenceDetail({ filters = {} }: { filters?: Fil
       </motion.section>
 
       {/* 7. AI Root Cause Investigation */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+      <section className="relative overflow-hidden bg-[var(--surface-1)]/50 backdrop-blur-xl rounded-3xl border border-[var(--surface-2)] p-8 shadow-spatial-md transition-all">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>

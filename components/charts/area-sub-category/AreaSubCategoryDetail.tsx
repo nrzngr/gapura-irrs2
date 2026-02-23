@@ -14,6 +14,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { motion } from 'framer-motion';
 import { Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
@@ -125,19 +126,31 @@ function HeatCell({ value, max }: { value: number; max: number }) {
   );
 }
 
-function StatCard({ label, value, tone = 'green' }: { label: string; value: string; tone?: 'green' | 'blue' | 'amber' | 'red' }) {
-  const tones: Record<string, string> = {
-    green: 'text-emerald-700 bg-emerald-50 border-emerald-100',
-    blue: 'text-sky-700 bg-sky-50 border-sky-100',
-    amber: 'text-amber-700 bg-amber-50 border-amber-100',
-    red: 'text-rose-700 bg-rose-50 border-rose-100',
+function KPICard({ title, value, color = 'blue' }: { title: string; value: string | number; color?: 'green' | 'blue' | 'amber' | 'red' }) {
+  const colorClasses = {
+    green: 'bg-[var(--surface-1)] border-emerald-500/20 text-emerald-400',
+    red: 'bg-[var(--surface-1)] border-red-500/20 text-red-400',
+    amber: 'bg-[var(--surface-1)] border-amber-500/20 text-amber-400',
+    blue: 'bg-[var(--surface-1)] border-blue-500/20 text-blue-400',
   };
 
   return (
-    <div className={`rounded-2xl border p-4 ${tones[tone]}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</p>
-      <p className="text-2xl font-black mt-1">{value}</p>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className={`group relative overflow-hidden p-5 rounded-3xl border shadow-spatial-md backdrop-blur-xl ${colorClasses[color]} transition-all duration-300`}
+    >
+      <div className="absolute inset-0 bg-noise opacity-[0.02] mix-blend-overlay pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shine pointer-events-none"></div>
+      
+      <div className="relative z-10">
+        <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
+        <div className="text-2xl font-black tracking-tight">{value}</div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -505,7 +518,7 @@ export default function AreaSubCategoryDetail({
         <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
       </div>
       {/* AI Root Cause Investigation */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+      <section className="relative overflow-hidden bg-[var(--surface-1)]/50 backdrop-blur-xl rounded-3xl border border-[var(--surface-2)] p-8 shadow-spatial-md transition-all">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
@@ -525,18 +538,23 @@ export default function AreaSubCategoryDetail({
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Reports" value={filteredReports.length.toLocaleString('id-ID')} tone="green" />
-        <StatCard label="Distinct Branches" value={new Set(filteredReports.map((r) => cleanLabel(r.branch || r.reporting_branch || r.station_code)).filter(isValidLabel)).size.toLocaleString('id-ID')} tone="blue" />
-        <StatCard label="Distinct Airlines" value={new Set(filteredReports.map((r) => cleanLabel(r.airlines || r.airline)).filter(isValidLabel)).size.toLocaleString('id-ID')} tone="amber" />
-        <StatCard
-          label="Irregularity Rate"
+        <KPICard title="Total Reports" value={filteredReports.length.toLocaleString('id-ID')} color="green" />
+        <KPICard title="Distinct Branches" value={new Set(filteredReports.map((r) => cleanLabel(r.branch || r.reporting_branch || r.station_code)).filter(isValidLabel)).size.toLocaleString('id-ID')} color="blue" />
+        <KPICard title="Distinct Airlines" value={new Set(filteredReports.map((r) => cleanLabel(r.airlines || r.airline)).filter(isValidLabel)).size.toLocaleString('id-ID')} color="amber" />
+        <KPICard
+          title="Irregularity Rate"
           value={`${filteredReports.length ? ((irregularityCount / filteredReports.length) * 100).toFixed(1) : '0.0'}%`}
-          tone="red"
+          color="red"
         />
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">{contextMeta.singular} ranking (Top 10)</h3>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-[var(--surface-1)] border border-[var(--surface-2)] rounded-3xl p-6 shadow-spatial-sm"
+      >
+        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">{contextMeta.singular} ranking (Top 10)</h3>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={categoryRanking.slice(0, 10)} layout="vertical" margin={{ top: 8, right: 20, left: 12, bottom: 8 }}>
@@ -548,10 +566,15 @@ export default function AreaSubCategoryDetail({
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">Monthly trend (Top 3 {contextMeta.plural})</h3>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-[var(--surface-1)] border border-[var(--surface-2)] rounded-3xl p-6 shadow-spatial-sm"
+      >
+        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">Monthly trend (Top 3 {contextMeta.plural})</h3>
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={monthlyTrend}>
@@ -566,17 +589,22 @@ export default function AreaSubCategoryDetail({
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">Branch x {contextMeta.singular} hotspot</h3>
-        <div className="overflow-auto">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-[var(--surface-1)] border border-[var(--surface-2)] rounded-3xl p-6 shadow-spatial-sm"
+      >
+        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">Branch x {contextMeta.singular} hotspot</h3>
+        <div className="overflow-auto custom-scrollbar">
           <table className="w-full border-separate border-spacing-1">
             <thead>
               <tr>
-                <th className="sticky left-0 bg-white text-left text-[10px] uppercase tracking-wide text-gray-500 min-w-[140px]">Branch</th>
+                <th className="sticky left-0 bg-[var(--surface-1)] text-left text-[10px] uppercase tracking-wide text-[var(--text-secondary)] min-w-[140px]">Branch</th>
                 {branchHeatmap.categories.map((cat) => (
-                  <th key={cat} className="text-[10px] font-bold text-gray-500 min-w-[90px] max-w-[140px] whitespace-normal break-words">
+                  <th key={cat} className="text-[10px] font-bold text-[var(--text-secondary)] min-w-[90px] max-w-[140px] whitespace-normal break-words">
                     {cat}
                   </th>
                 ))}
@@ -585,7 +613,7 @@ export default function AreaSubCategoryDetail({
             <tbody>
               {branchHeatmap.branches.map((branch) => (
                 <tr key={branch}>
-                  <td className="sticky left-0 bg-white text-[11px] font-semibold text-gray-700">{branch}</td>
+                  <td className="sticky left-0 bg-[var(--surface-1)] text-[11px] font-semibold text-[var(--text-primary)]">{branch}</td>
                   {branchHeatmap.categories.map((cat) => {
                     const value = branchHeatmap.cells.get(`${branch}::${cat}`) || 0;
                     return (
@@ -599,10 +627,15 @@ export default function AreaSubCategoryDetail({
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800 mb-3">Airline Contribution (Top 8)</h3>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-[var(--surface-1)] border border-[var(--surface-2)] rounded-3xl p-6 shadow-spatial-sm"
+      >
+        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">Airline Contribution (Top 8)</h3>
         <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={airlineContribution} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
@@ -617,14 +650,18 @@ export default function AreaSubCategoryDetail({
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
 
       {/* Focused root cause & risk section removed as per request for Terminal, Apron, and General categories */}
 
       {/* ── Sub-Category Picker ── */}
       {categoryRanking.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[var(--surface-1)] border border-[var(--surface-2)] rounded-3xl p-6 shadow-spatial-sm"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-4">
             Filter table by {contextMeta.singular}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -634,10 +671,10 @@ export default function AreaSubCategoryDetail({
                 type="button"
                 aria-pressed={focusedCategory === ''}
                 onClick={() => setFocusedCategory('')}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
                   focusedCategory === ''
-                    ? 'bg-[#6b8e3d] text-white border-[#6b8e3d]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-md shadow-[var(--brand-primary)]/20'
+                    : 'bg-[var(--surface-0)] text-[var(--text-secondary)] border-[var(--surface-2)] hover:bg-[var(--surface-2)]'
                 }`}
               >
                 All · {filteredReports.length.toLocaleString('id-ID')}
@@ -651,29 +688,33 @@ export default function AreaSubCategoryDetail({
                 type="button"
                 aria-pressed={focusedCategory === category}
                 onClick={() => setFocusedCategory(category)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
                   focusedCategory === category
-                    ? 'bg-[#6b8e3d] text-white border-[#6b8e3d]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)] shadow-md shadow-[var(--brand-primary)]/20'
+                    : 'bg-[var(--surface-0)] text-[var(--text-secondary)] border-[var(--surface-2)] hover:bg-[var(--surface-2)]'
                 }`}
               >
                 {category} · {count.toLocaleString('id-ID')}
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 className="text-sm font-bold text-gray-800 mb-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[var(--surface-1)] border border-[var(--surface-2)] rounded-3xl p-6 shadow-spatial-sm overflow-hidden"
+      >
+        <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">
           Full Data Table{focusedCategory ? ` — ${focusedCategory}` : ''}
         </h3>
         <InvestigativeTable
           title={focusedCategory || title}
           data={queryResult}
-          className="shadow-none border-0"
+          className="shadow-none border-0 bg-transparent"
         />
-      </div>
+      </motion.div>
 
       <div className="text-[11px] text-gray-400 font-medium">
         {contextMeta.footerLabel}: {filteredReports.length.toLocaleString('id-ID')} | Complaint: {complaintCount.toLocaleString('id-ID')}

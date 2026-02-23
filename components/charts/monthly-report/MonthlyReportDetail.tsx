@@ -41,6 +41,7 @@ import {
 import { BarChart, Bar as RechartsBar, LineChart, Line as RechartsLine, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer } from 'recharts';
 import { ArrowUp, ArrowDown, Minus, Download, Filter, Zap, Brain } from 'lucide-react';
 import { saveAs } from 'file-saver';
+import { motion } from 'framer-motion';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
 import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
 import { AiRootCauseInvestigation } from '../ai-root-cause/AiRootCauseInvestigation';
@@ -87,28 +88,40 @@ interface KPICardProps {
 
 function KPICard({ title, value, subtitle, trend, trendLabel, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    yellow: 'bg-amber-50 border-amber-200 text-amber-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
+    green: 'bg-[var(--surface-1)] border-emerald-500/20 text-emerald-400',
+    red: 'bg-[var(--surface-1)] border-red-500/20 text-red-400',
+    yellow: 'bg-[var(--surface-1)] border-amber-500/20 text-amber-400',
+    blue: 'bg-[var(--surface-1)] border-blue-500/20 text-blue-400',
+    orange: 'bg-[var(--surface-1)] border-orange-500/20 text-orange-400',
   };
 
   return (
-    <div className={`p-4 rounded-xl border ${colorClasses[color]} transition-all hover:shadow-md`}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
-      <div className="text-2xl font-black tracking-tight">{value}</div>
-      {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
-      {trend !== undefined && (
-        <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-          {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
-          <span>{Math.abs(trend).toFixed(1)}% {trendLabel || 'vs Prev'}</span>
-        </div>
-      )}
-      {explanation && (
-        <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-current/10 leading-relaxed">{explanation}</div>
-      )}
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className={`group relative overflow-hidden p-5 rounded-3xl border shadow-spatial-md backdrop-blur-xl ${colorClasses[color]} transition-all duration-300`}
+    >
+      <div className="absolute inset-0 bg-noise opacity-[0.03] mix-blend-overlay pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+      
+      <div className="relative z-10">
+        <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
+        <div className="text-3xl font-black tracking-tight text-[var(--text-primary)]">{value}</div>
+        {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
+        {trend !== undefined && (
+          <div className={`flex items-center gap-1 text-xs font-bold mt-2 ${trend > 0 ? 'text-emerald-400' : trend < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+            {trend > 0 ? <ArrowUp size={12} /> : trend < 0 ? <ArrowDown size={12} /> : <Minus size={12} />}
+            <span>{Math.abs(trend).toFixed(1)}% {trendLabel || 'vs Prev'}</span>
+          </div>
+        )}
+        {explanation && (
+          <div className="text-xs text-[var(--text-secondary)] mt-3 pt-3 border-t border-[var(--surface-2)] leading-relaxed">{explanation}</div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -145,20 +158,37 @@ function AutoInsight({ monthly, peakDay, dominantBranch, dominantAirline }: {
   ].filter(Boolean);
 
   return (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <Zap size={18} className="text-amber-600" />
-        <h3 className="font-bold text-gray-800">Auto-Insight</h3>
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="relative overflow-hidden bg-[var(--surface-1)] border border-[var(--brand-aurora-2)]/30 rounded-3xl p-6 shadow-spatial-md group"
+    >
+      <div className="absolute inset-0 bg-noise opacity-[0.03] mix-blend-overlay pointer-events-none"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-[var(--brand-aurora-1)] via-[var(--brand-aurora-2)] to-[var(--brand-aurora-3)] opacity-5 blur-xl group-hover:opacity-10 transition-opacity duration-500 pointer-events-none"></div>
+      
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-2 bg-[var(--brand-aurora-2)]/10 rounded-xl">
+            <Zap size={20} className="text-[var(--brand-aurora-2)]" />
+          </div>
+          <h3 className="text-lg font-bold text-[var(--text-primary)]">Auto-Insight</h3>
+        </div>
+        <ul className="space-y-3">
+          {insightParts.map((insight, idx) => (
+            <motion.li 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              key={idx} 
+              className="flex items-start gap-3 text-sm text-[var(--text-secondary)] leading-relaxed"
+            >
+              <span className="text-[var(--brand-aurora-2)] mt-1 shrink-0">•</span>
+              <span>{insight}</span>
+            </motion.li>
+          ))}
+        </ul>
       </div>
-      <ul className="space-y-1.5">
-        {insightParts.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-amber-500 mt-0.5">•</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+    </motion.div>
   );
 }
 
@@ -556,19 +586,28 @@ function ManagementSummary({ data, dominantBranch, dominantAirline }: {
   ].filter(Boolean);
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-        📅 Management Summary
-      </h3>
-      <ul className="space-y-2">
-        {insights.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-[#6b8e3d] mt-0.5">•</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden bg-[var(--surface-1)] border border-[var(--accent-1)]/30 rounded-3xl p-6 shadow-spatial-md group"
+    >
+      <div className="absolute inset-0 bg-noise opacity-[0.03] mix-blend-overlay pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-1)]/5 to-transparent pointer-events-none"></div>
+      
+      <div className="relative z-10">
+        <h3 className="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2 text-lg">
+          📅 Management Summary
+        </h3>
+        <ul className="space-y-3">
+          {insights.map((insight, idx) => (
+            <li key={idx} className="flex items-start gap-3 text-sm text-[var(--text-secondary)] leading-relaxed">
+              <span className="text-[var(--accent-1)] mt-1 shrink-0">•</span>
+              <span>{insight}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </motion.div>
   );
 }
 
@@ -746,7 +785,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
 
       {/* AI Risk Heatmap */}
       {aiRiskHeatmap.length > 0 && (
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm mt-6">
           <div className="flex items-center gap-2 mb-1">
             <Brain className="w-5 h-5 text-emerald-600" />
             <h2 className="text-lg font-bold text-gray-800">AI Risk Heatmap</h2>
@@ -805,7 +844,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
 
       {/* Category Trends Over Time */}
       {trendData.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <h3 className="text-lg font-bold mb-4">Category Trends Over Time</h3>
           <p className="text-xs text-gray-500 mb-4">Tren kategori laporan per bulan untuk melihat pola perubahan kategori Irregularity, Complaint, dan Compliment</p>
           <ResponsiveContainer width="100%" height={400}>
@@ -885,7 +924,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       </div>
 
       {/* Monthly Trend Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Monthly Trend</h2>
@@ -899,7 +938,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       </section>
 
       {/* Daily Timeline */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Daily Timeline</h2>
@@ -913,7 +952,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       </section>
 
       {/* Historical Context: Rolling Average Comparison */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Historical Context</h2>
@@ -927,7 +966,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       </section>
       
       {/* AI Root Cause Investigation - Full Width */}
-      <section className="bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-8 shadow-2xl shadow-indigo-500/10 transition-all hover:shadow-indigo-500/20">
+      <section className="relative overflow-hidden bg-[var(--surface-1)]/50 backdrop-blur-xl rounded-3xl border border-[var(--surface-2)] p-8 shadow-spatial-md transition-all">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Root Cause Analysis</h2>
@@ -939,7 +978,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
 
       {/* Attribution: Top Branches & Airlines */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-lg font-bold text-gray-800">Top Contributing Branches</h2>
@@ -951,7 +990,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
           </div>
           <TopBranchesChart data={branchData} />
         </section>
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-lg font-bold text-gray-800">Top Contributing Airlines</h2>
@@ -977,7 +1016,7 @@ export default function MonthlyReportDetail({ filters = {} }: { filters?: Filter
       />
 
       {/* Data Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="p-6 border-b border-gray-200 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>

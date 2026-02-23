@@ -144,7 +144,12 @@ export default function NewReportWizard() {
             try {
                 // Fetch all stations
                 const stationsRes = await fetch('/api/master-data?type=stations');
-                const stationsData = await stationsRes.json();
+                let stationsData: any = [];
+                try {
+                    stationsData = await stationsRes.json();
+                } catch {
+                    stationsData = [];
+                }
                 if (Array.isArray(stationsData)) {
                     setStations(stationsData);
                 }
@@ -152,10 +157,12 @@ export default function NewReportWizard() {
                 // Fetch user's station as default
                 const userRes = await fetch('/api/auth/me');
                 if (userRes.ok) {
-                    const userData = await userRes.json();
-                    if (userData.station?.id) {
-                        setSelectedStationId(userData.station.id);
-                    }
+                    try {
+                        const userData = await userRes.json();
+                        if (userData.station?.id) {
+                            setSelectedStationId(userData.station.id);
+                        }
+                    } catch {}
                 }
             } catch (err) {
                 console.error('Failed to fetch data:', err);
@@ -276,9 +283,14 @@ export default function NewReportWizard() {
                 }),
             });
 
+            const contentType = res.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const text = await res.text();
+                throw new Error('Respons server tidak valid. Mohon coba lagi.');
+            }
+            const data = await res.json();
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Gagal mengirim laporan');
+                throw new Error(data?.error || 'Gagal mengirim laporan');
             }
 
             setSuccess(true);

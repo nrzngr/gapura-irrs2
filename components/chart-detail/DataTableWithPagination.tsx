@@ -71,9 +71,12 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
 
   // Pagination
   const totalPages = Math.ceil(filteredRows.length / pageSize);
+  const MathMaxPage = Math.max(1, totalPages);
+  const safeCurrentPage = Math.min(currentPage, MathMaxPage);
+  
   const paginatedRows = filteredRows.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
   );
 
   const handleSort = (col: string) => {
@@ -116,45 +119,48 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.19, 1, 0.22, 1] }}
-      className="flex flex-col h-full bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)] shadow-xl overflow-hidden relative group/fulltable"
+      className="flex flex-col h-full bg-[var(--surface-1)] backdrop-blur-3xl rounded-3xl border border-[var(--surface-2)] shadow-spatial-md overflow-hidden relative group/fulltable isolate"
     >
       {/* Glow Ornament */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-0 group-hover/fulltable:opacity-100 transition-opacity duration-1000">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--brand-primary)]/5 blur-[100px] rounded-full" />
-      </div>
+      <div className="absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-[var(--brand-primary)]/10 to-transparent blur-3xl opacity-50 pointer-events-none" />
+      <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
 
       {/* Header */}
-      <div className="relative z-10 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--surface-border)] bg-[var(--surface-0)]/40 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)]/10 flex items-center justify-center border border-[var(--brand-primary)]/20 shadow-inner">
-            <LayoutList size={16} className="text-[var(--brand-primary)]" />
+      <div className="relative z-10 px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--surface-border)]/50 bg-[var(--surface-0)]/30 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--brand-primary)]/20 to-[var(--brand-primary)]/5 flex items-center justify-center border border-[var(--brand-primary)]/20 shadow-inner-rim relative overflow-hidden group">
+            <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+            <LayoutList size={18} className="text-[var(--brand-primary)] drop-shadow-md group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]" />
           </div>
           <div>
-            <h3 className="text-xs font-black text-[var(--surface-900)] uppercase tracking-[0.2em]">
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-[0.15em] font-display">
               {title}
             </h3>
-            <div className="text-[9px] font-bold text-[var(--surface-400)] uppercase tracking-wider flex items-center gap-1 mt-0.5">
+            <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest flex items-center gap-2 mt-1">
               <span>Syncing Archive</span>
-              <span className="w-1 h-1 rounded-full bg-[var(--brand-emerald-500)] animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-emerald-500)] shadow-[0_0_8px_var(--brand-emerald-500)] animate-pulse" />
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
           <div className="relative group/search">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--surface-400)] group-focus-within/search:text-[var(--brand-primary)] transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-tertiary)] group-focus-within/search:text-[var(--brand-primary)] transition-colors" />
             <input
               type="text"
               placeholder="QUERYS_SEARCH..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 text-[10px] font-black uppercase tracking-widest bg-[var(--surface-50)] border border-[var(--surface-border)] rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] w-full sm:w-48 transition-all shadow-inner"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-9 pr-4 py-2 text-[10px] font-black uppercase tracking-[0.15em] bg-[var(--surface-2)]/50 border border-[var(--surface-border)] rounded-full focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 focus:border-[var(--brand-primary)]/50 w-full sm:w-56 transition-all shadow-inner placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
             />
           </div>
           
           <button
             onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2 text-[10px] font-black text-white bg-[var(--surface-900)] rounded-full hover:brightness-125 transition-all shadow-lg active:scale-95 uppercase tracking-wider"
+            className="flex items-center gap-2 px-5 py-2 text-[10px] font-black text-[var(--text-on-brand)] bg-[var(--text-primary)] rounded-full hover:bg-[var(--text-secondary)] transition-all shadow-lg active:scale-95 uppercase tracking-[0.15em]"
           >
             <FileText size={12} />
             <span>Export</span>
@@ -163,16 +169,16 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
       </div>
 
       {/* Table Content */}
-      <div className="flex-1 overflow-auto custom-scrollbar relative z-10">
+      <div className="flex-1 overflow-auto custom-scrollbar relative z-10 bg-[var(--surface-0)]/20">
         <table className="w-full border-separate border-spacing-0">
           <thead className="sticky top-0 z-20">
-            <tr className="bg-[var(--surface-0)]/90 backdrop-blur-md">
-              <th className="px-6 py-4 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--surface-400)] uppercase tracking-widest text-center">#</th>
+            <tr className="bg-[var(--surface-1)]/80 backdrop-blur-xl shadow-sm">
+              <th className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] text-center w-16 bg-transparent">idx</th>
               {uniqueColumns.map(col => (
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
-                  className="px-6 py-4 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--surface-400)] uppercase tracking-widest cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none group/th"
+                  className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none group/th text-left bg-transparent"
                 >
                   <div className="flex items-center gap-2">
                     <span>{col.replace(/_/g, ' ')}</span>
@@ -181,14 +187,14 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                         {sortDirection === 'asc' ? '▲' : '▼'}
                       </span>
                     ) : (
-                      <span className="opacity-0 group-hover/th:opacity-100 text-[var(--surface-300)] transition-opacity">▼</span>
+                      <span className="opacity-0 group-hover/th:opacity-100 text-[var(--text-tertiary)] transition-opacity">▼</span>
                     )}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--surface-100)]">
+          <tbody className="divide-y divide-[var(--surface-border)]/50">
             {isLoading ? (
               <tr>
                 <td colSpan={uniqueColumns.length + 1} className="px-6 py-24 text-center">
@@ -197,13 +203,13 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                       <div className="absolute inset-0 bg-[var(--brand-primary)]/20 blur-2xl rounded-full animate-pulse" />
                       <div className="relative w-12 h-12 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin" />
                     </div>
-                    <span className="text-xs font-black text-[var(--surface-900)] tracking-widest uppercase italic">Streaming Records...</span>
+                    <span className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.2em] uppercase italic">Streaming Records...</span>
                   </div>
                 </td>
               </tr>
             ) : paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={uniqueColumns.length + 1} className="px-6 py-16 text-center text-[var(--surface-400)] text-xs font-medium italic">
+                <td colSpan={uniqueColumns.length + 1} className="px-6 py-16 text-center text-[var(--text-tertiary)] text-[11px] font-medium italic">
                   Null result set.
                 </td>
               </tr>
@@ -220,14 +226,14 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                       key={idx}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.01 }}
+                      transition={{ delay: idx * 0.015, ease: [0.19, 1, 0.22, 1] }}
                       className={`
-                        group/tr transition-colors duration-200
-                        ${isGrandTotal ? 'bg-[var(--brand-primary)]/5 font-black text-[var(--surface-900)] sticky bottom-0 z-10 border-t-2 border-[var(--brand-primary)]/10 shadow-xl backdrop-blur-xl' : 'hover:bg-[var(--brand-primary)]/[0.02]'}
+                        group/tr transition-colors duration-300
+                        ${isGrandTotal ? 'bg-[var(--brand-primary)]/5 font-black text-[var(--text-primary)] sticky bottom-0 z-10 border-t border-[var(--brand-primary)]/20 shadow-[0_-8px_24px_rgba(0,0,0,0.05)] backdrop-blur-2xl' : 'hover:bg-[var(--surface-2)]/40'}
                       `}
                     >
-                      <td className={`px-6 py-4 text-[10px] font-bold text-center ${isRepeated && !isGrandTotal ? 'text-transparent' : 'text-[var(--surface-400)]'}`}>
-                        {isGrandTotal ? '∑' : (currentPage - 1) * pageSize + idx + 1}
+                      <td className={`px-6 py-4 text-[10px] font-bold text-center border-b border-transparent ${isRepeated && !isGrandTotal ? 'text-transparent' : 'text-[var(--text-tertiary)]'}`}>
+                        {isGrandTotal ? '∑' : (safeCurrentPage - 1) * pageSize + idx + 1}
                       </td>
                       {uniqueColumns.map((col, cIdx) => {
                         const val = row[col];
@@ -238,9 +244,9 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                           <td
                             key={col}
                             className={`
-                              px-6 py-4 text-[11px] 
-                              ${cIdx === 0 && !isGrandTotal ? 'font-black text-[var(--surface-900)] whitespace-nowrap' : 'text-[var(--surface-600)] font-medium'}
-                              ${isNumber ? 'tabular-nums' : ''}
+                              px-6 py-4 border-b border-transparent text-[11px] 
+                              ${cIdx === 0 && !isGrandTotal ? 'font-black text-[var(--text-primary)] whitespace-nowrap' : 'text-[var(--text-secondary)] font-medium'}
+                              ${isNumber ? 'tabular-nums tracking-tight font-mono text-[10px]' : ''}
                               ${cIdx === 0 ? 'relative' : ''}
                             `}
                           >
@@ -271,49 +277,49 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
       </div>
 
       {/* Pagination Controls */}
-      <div className="relative z-10 px-6 py-4 border-t border-[var(--surface-border)] bg-[var(--surface-0)]/80 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="text-[10px] font-black text-[var(--surface-400)] uppercase tracking-widest">
+      <div className="relative z-10 px-6 py-5 border-t border-[var(--surface-border)]/50 bg-[var(--surface-0)]/50 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em]">
            {filteredRows.length > 0
-            ? `SYNCING ${((currentPage - 1) * pageSize + 1)} — ${Math.min(currentPage * pageSize, filteredRows.length)} / ${filteredRows.length} RECORDS`
+            ? `SYNCING ${((safeCurrentPage - 1) * pageSize + 1).toString().padStart(3, '0')} — ${Math.min(safeCurrentPage * pageSize, filteredRows.length).toString().padStart(3, '0')} / ${filteredRows.length.toString().padStart(3, '0')} RECORDS`
             : 'NULL SET'}
         </div>
         
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-            className="px-3 py-1.5 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all uppercase tracking-tighter"
+            disabled={safeCurrentPage === 1}
+            className="px-4 py-2 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-2)] transition-all uppercase tracking-[0.15em] text-[var(--text-secondary)]"
           >
             Start
           </button>
           
-          <div className="flex items-center gap-1 bg-[var(--surface-50)] px-3 py-1.5 rounded-full border border-[var(--surface-border)] shadow-inner">
-            <span className="text-[10px] font-black text-[var(--brand-primary)]">{currentPage}</span>
-            <span className="text-[10px] font-black text-[var(--surface-300)]">/</span>
-            <span className="text-[10px] font-black text-[var(--surface-400)]">{totalPages}</span>
+          <div className="flex items-center gap-1 bg-[var(--surface-0)] px-4 py-2 rounded-full border border-[var(--surface-border)] shadow-inner-rim">
+            <span className="text-[10px] font-black text-[var(--brand-primary)]">{safeCurrentPage}</span>
+            <span className="text-[10px] font-black text-[var(--text-tertiary)] mx-1">/</span>
+            <span className="text-[10px] font-black text-[var(--text-secondary)]">{MathMaxPage}</span>
           </div>
           
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all"
+              disabled={safeCurrentPage === 1}
+              className="p-2 border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-2)] transition-all text-[var(--text-secondary)]"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={14} strokeWidth={3} />
             </button>
             <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1.5 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all uppercase tracking-tighter"
+            onClick={() => setCurrentPage(p => Math.min(MathMaxPage, p + 1))}
+            disabled={safeCurrentPage === MathMaxPage || filteredRows.length === 0}
+            className="px-4 py-2 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-2)] transition-all uppercase tracking-[0.15em] text-[var(--text-secondary)]"
           >
             Next Phase
           </button>
             <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all"
+              onClick={() => setCurrentPage(p => Math.min(MathMaxPage, p + 1))}
+              disabled={safeCurrentPage === MathMaxPage || filteredRows.length === 0}
+              className="p-2 border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-2)] transition-all text-[var(--text-secondary)]"
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={14} strokeWidth={3} />
             </button>
           </div>
         </div>
@@ -321,3 +327,4 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
     </motion.div>
   );
 }
+

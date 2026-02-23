@@ -27,6 +27,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
+import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Minus, Download, Filter } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { InvestigativeTable } from '@/components/chart-detail/InvestigativeTable';
@@ -65,24 +66,34 @@ interface KPICardProps {
 
 function KPICard({ title, value, subtitle, color = 'blue', explanation }: KPICardProps) {
   const colorClasses = {
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    yellow: 'bg-amber-50 border-amber-200 text-amber-700',
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
+    green: 'bg-[var(--surface-1)] border-emerald-500/20 text-emerald-400',
+    red: 'bg-[var(--surface-1)] border-red-500/20 text-red-400',
+    yellow: 'bg-[var(--surface-1)] border-amber-500/20 text-amber-400',
+    blue: 'bg-[var(--surface-1)] border-blue-500/20 text-blue-400',
+    orange: 'bg-[var(--surface-1)] border-orange-500/20 text-orange-400',
   };
 
   return (
-    <div className={`p-4 rounded-xl border ${colorClasses[color]} transition-all hover:shadow-md`}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
-      <div className="text-2xl font-black tracking-tight">{value}</div>
-      {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
-      {explanation && (
-        <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200 leading-relaxed">
-          {explanation}
-        </div>
-      )}
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className={`group relative overflow-hidden p-5 rounded-3xl border shadow-spatial-md backdrop-blur-xl ${colorClasses[color]} transition-all duration-300`}
+    >
+      <div className="absolute inset-0 bg-noise opacity-[0.02] mix-blend-overlay pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shine pointer-events-none"></div>
+      
+      <div className="relative z-10">
+        <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</div>
+        <div className="text-2xl font-black tracking-tight">{value}</div>
+        {subtitle && <div className="text-xs font-medium opacity-70 mt-1">{subtitle}</div>}
+        {explanation && (
+          <div className="text-xs text-[var(--text-secondary)] mt-3 pt-3 border-t border-[var(--surface-2)] leading-relaxed">{explanation}</div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -404,19 +415,28 @@ function ManagementSummary({ matrix, rowLabel, colLabel }: { matrix: PivotMatrix
   ];
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-      <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-        <span className="text-xl">📊</span> Management Summary
-      </h3>
-      <ul className="space-y-2">
-        {insights.map((insight, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-            <span className="text-[#6b8e3d] mt-0.5">•</span>
-            {insight}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden bg-[var(--surface-1)] border border-[var(--accent-1)]/30 rounded-3xl p-6 shadow-spatial-md group"
+    >
+      <div className="absolute inset-0 bg-noise opacity-[0.03] mix-blend-overlay pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-1)]/5 to-transparent pointer-events-none"></div>
+      
+      <div className="relative z-10">
+        <h3 className="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2 text-lg">
+          <span className="text-xl">📊</span> Management Summary
+        </h3>
+        <ul className="space-y-3">
+          {insights.map((insight, idx) => (
+            <li key={idx} className="flex items-start gap-3 text-sm text-[var(--text-secondary)] leading-relaxed">
+              <span className="text-[var(--accent-1)] mt-1 shrink-0">•</span>
+              <span>{insight}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </motion.div>
   );
 }
 
@@ -553,30 +573,49 @@ export default function PivotReportDetail({ filters = {}, pivotTitle = '' }: { f
       </div>
 
       {/* Enlarged Heatmap/Pivot Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">
+      <motion.section 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[var(--surface-1)] rounded-3xl p-6 border shadow-spatial-sm"
+      >
+        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">
           {pivotTitle || `${colLabel} by ${rowLabel}`}
         </h2>
         <HeatmapTable matrix={matrix} />
-      </section>
+      </motion.section>
 
       {/* Split View: Row & Column Dimension Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">{rowLabel} Breakdown</h2>
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-[var(--surface-1)] rounded-3xl p-6 border shadow-spatial-sm"
+        >
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">{rowLabel} Breakdown</h2>
           <DimensionChart data={rowBreakdown} label={rowLabel} color="#3b82f6" />
-        </section>
-        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">{colLabel} Breakdown</h2>
+        </motion.section>
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-[var(--surface-1)] rounded-3xl p-6 border shadow-spatial-sm"
+        >
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">{colLabel} Breakdown</h2>
           <DimensionChart data={colBreakdown} label={colLabel} color="#8b5cf6" />
-        </section>
+        </motion.section>
       </div>
 
       {/* Monthly Trend */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Monthly Trend Analysis</h2>
+      <motion.section 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-[var(--surface-1)] rounded-3xl p-6 border shadow-spatial-sm"
+      >
+        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">Monthly Trend Analysis</h2>
         <MonthlyTrendChart data={trendData} />
-      </section>
+      </motion.section>
 
       {/* Management Summary */}
       <ManagementSummary matrix={matrix} rowLabel={rowLabel} colLabel={colLabel} />
@@ -590,9 +629,13 @@ export default function PivotReportDetail({ filters = {}, pivotTitle = '' }: { f
       />
 
       {/* Data Table */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800">Full Data Table</h2>
+      <motion.section 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[var(--surface-1)] rounded-3xl border shadow-spatial-sm overflow-hidden"
+      >
+        <div className="p-6 border-b border-[var(--surface-2)]">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Full Data Table</h2>
         </div>
         <div className="p-6">
           <DataTableWithPagination 
@@ -601,7 +644,7 @@ export default function PivotReportDetail({ filters = {}, pivotTitle = '' }: { f
           rowsPerPage={3}
         />
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }

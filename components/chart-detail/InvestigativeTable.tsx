@@ -39,15 +39,15 @@ type SortDir = 'asc' | 'desc';
 const getCategoryBadgeStyle = (category: string) => {
   const cat = category.toLowerCase();
   if (cat.includes('complaint') || cat.includes('komplain')) {
-    return 'bg-rose-500/10 text-rose-600 border-rose-500/20 ring-rose-500/5'; // Rose for Complaint
+    return 'bg-[oklch(0.98_0.02_25)] border-[oklch(0.9_0.05_25)] text-[oklch(0.45_0.2_25)] shadow-[0_4px_12px_oklch(0.6_0.22_25/0.05)]';
   }
   if (cat.includes('irregularity') || cat.includes('irreg')) {
-    return 'bg-amber-500/10 text-amber-600 border-amber-500/20 ring-amber-500/5'; // Amber for Irregularity
+    return 'bg-[oklch(0.98_0.04_45)] border-[oklch(0.9_0.08_45)] text-[oklch(0.55_0.2_45)] shadow-[0_4px_12px_oklch(0.65_0.25_45/0.05)]';
   }
   if (cat.includes('compliment') || cat.includes('apresiasi')) {
-    return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 ring-emerald-500/5'; // Emerald for Compliment
+    return 'bg-[var(--surface-1)] border-[oklch(0.9_0.02_160)] text-[var(--brand-emerald-700)] shadow-[0_4px_12px_oklch(0.65_0.18_160/0.05)]';
   }
-  return 'bg-slate-500/10 text-slate-600 border-slate-500/20 ring-slate-500/5'; // Default Neutral
+  return 'bg-[var(--surface-2)]/50 border-[var(--surface-border)] text-[var(--text-secondary)] shadow-sm';
 };
 
 const getCategoryIcon = (category: string) => {
@@ -252,34 +252,45 @@ export function InvestigativeTable({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.19, 1, 0.22, 1] }}
-      className={`flex flex-col h-full bg-[var(--surface-glass)] backdrop-blur-md rounded-2xl border border-[var(--surface-border)] shadow-xl overflow-hidden relative group/table ${className}`}
+      className={`flex flex-col h-full bg-[var(--surface-1)] backdrop-blur-3xl rounded-3xl border border-[var(--surface-2)] shadow-spatial-md overflow-hidden relative group/table isolate ${className}`}
     >
       {/* Dynamic Glow Ornament */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-0 group-hover/table:opacity-100 transition-opacity duration-1000">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--brand-primary)]/5 blur-[100px] rounded-full" />
-      </div>
+      <div className="absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-[var(--brand-primary)]/10 to-transparent blur-3xl opacity-50 pointer-events-none" />
+      <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
 
       {/* ─── 1. HEADER STRIP ─────────────────────────────────────────────────── */}
-      <div className="relative z-10 px-6 py-5 border-b border-[var(--surface-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--surface-0)]/50">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-bold text-[var(--surface-900)] tracking-tight font-display">{title}</h3>
+      <div className="relative z-10 px-6 py-5 border-b border-[var(--surface-border)]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--surface-0)]/30 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--brand-primary)]/20 to-[var(--brand-primary)]/5 flex items-center justify-center border border-[var(--brand-primary)]/20 shadow-inner-rim relative overflow-hidden group">
+            <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+            <Sparkles size={18} className="text-[var(--brand-primary)] drop-shadow-md group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)]" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-[0.15em] font-display">
+              {title}
+            </h3>
+            <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest flex items-center gap-2 mt-1">
+              <span>Scanning Operations</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-emerald-500)] shadow-[0_0_8px_var(--brand-emerald-500)] animate-pulse" />
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
            {/* Summary Stats Pucks */}
            <div className="flex flex-wrap items-center gap-2">
              {stats.complaints > 0 && (
-               <div className="px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-600 font-bold text-[10px] flex items-center gap-1.5 shadow-sm">
+               <div className="px-3 py-1.5 rounded-full bg-[oklch(0.98_0.02_25)] border border-[oklch(0.9_0.05_25)] text-[oklch(0.45_0.2_25)] font-black text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5 shadow-[0_4px_12px_oklch(0.6_0.22_25/0.05)]">
                  <AlertCircle size={12} strokeWidth={2.5} /> {stats.complaints} Cases
                </div>
              )}
              {stats.irregularities > 0 && (
-               <div className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 font-bold text-[10px] flex items-center gap-1.5 shadow-sm">
+               <div className="px-3 py-1.5 rounded-full bg-[oklch(0.98_0.04_45)] border border-[oklch(0.9_0.08_45)] text-[oklch(0.55_0.2_45)] font-black text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5 shadow-[0_4px_12px_oklch(0.65_0.25_45/0.05)]">
                  <HelpCircle size={12} strokeWidth={2.5} /> {stats.irregularities} Events
                </div>
              )}
              {stats.compliments > 0 && (
-               <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 font-bold text-[10px] flex items-center gap-1.5 shadow-sm">
+               <div className="px-3 py-1.5 rounded-full bg-[var(--surface-1)] border border-[oklch(0.9_0.02_160)] text-[var(--brand-emerald-700)] font-black text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5 shadow-[0_4px_12px_oklch(0.65_0.18_160/0.05)]">
                  <CheckCircle2 size={12} strokeWidth={2.5} /> {stats.compliments} Wins
                </div>
              )}
@@ -288,32 +299,32 @@ export function InvestigativeTable({
            {/* Search & Actions */}
            <div className="flex items-center gap-2 sm:ml-4">
             <div className="relative group/search">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--surface-400)] group-focus-within/search:text-[var(--brand-primary)] transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-tertiary)] group-focus-within/search:text-[var(--brand-primary)] transition-colors" />
               <input
                 type="text"
-                placeholder="Search matrix..."
+                placeholder="QUERYS_SEARCH..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                   setExpandedRowId(null);
                 }}
-                className="pl-9 pr-4 py-2 text-xs bg-[var(--surface-50)]/50 border border-[var(--surface-border)] rounded-full focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 focus:border-[var(--brand-primary)] w-full sm:w-64 transition-all placeholder:text-[var(--surface-400)]"
+                className="pl-9 pr-4 py-2 text-[10px] font-black uppercase tracking-[0.15em] bg-[var(--surface-2)]/50 border border-[var(--surface-border)] rounded-full focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 focus:border-[var(--brand-primary)]/50 w-full sm:w-56 transition-all shadow-inner placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
               />
             </div>
 
             <button 
               onClick={handleExport}
-              className="p-2 text-[var(--surface-500)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 rounded-full transition-all border border-[var(--surface-border)] hover:border-[var(--brand-primary)]/20" 
+              className="p-2 text-[var(--text-tertiary)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 rounded-full transition-all border border-[var(--surface-border)] hover:border-[var(--brand-primary)]/20 shadow-sm" 
               title="Export CSV"
             >
-              <Download size={16} />
+              <Download size={14} strokeWidth={2.5} />
             </button>
 
             {onViewDetail && (
               <button
                 onClick={onViewDetail}
-                className="flex items-center gap-2 px-4 py-2 text-[11px] font-bold text-white bg-[var(--brand-primary)] hover:brightness-110 rounded-full transition-all shadow-lg shadow-[var(--brand-primary)]/20 active:scale-95 whitespace-nowrap"
+                className="flex items-center gap-2 px-5 py-2 text-[10px] font-black text-[var(--text-on-brand)] bg-[var(--text-primary)] rounded-full hover:bg-[var(--text-secondary)] transition-all shadow-lg active:scale-95 uppercase tracking-[0.15em]"
               >
                 <Maximize2 size={12} strokeWidth={2.5} />
                 <span>EXPAND VIEW</span>
@@ -325,40 +336,58 @@ export function InvestigativeTable({
 
       {/* ─── 2. TABLE BODY ────────────────────────────────────────────────────── */}
       <div
-        className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative px-1 pb-1"
+        className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative z-10 bg-[var(--surface-0)]/20 pb-1"
         style={{ maxHeight: `${tableViewportHeight}px` }}
       >
         <table className="w-full border-separate border-spacing-0">
-          <thead className="sticky top-0 z-20 bg-[var(--surface-0)]/80 backdrop-blur-xl">
-            <tr>
-              <th className="px-4 py-4 text-left w-12" />
+          <thead className="sticky top-0 z-40">
+            <tr className="bg-[var(--surface-1)]/80 backdrop-blur-xl shadow-sm">
+              <th className="px-6 py-5 text-left w-12 border-b border-[var(--surface-border)] bg-transparent" />
               {categoryCol && (
-                <th onClick={() => handleSort(categoryCol)} className="px-4 py-4 text-left text-[10px] font-black text-[var(--surface-500)] uppercase tracking-[0.1em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors group select-none">
-                  <div className="flex items-center gap-2">{categoryCol} {sortCol === categoryCol && (sortDir === 'asc' ? '↑' : '↓')}</div>
+                <th onClick={() => handleSort(categoryCol)} className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors group select-none text-left bg-transparent">
+                  <div className="flex items-center gap-2">
+                    {categoryCol} 
+                    {sortCol === categoryCol ? (
+                      <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                    ) : (
+                      <span className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] transition-opacity">▼</span>
+                    )}
+                  </div>
                 </th>
               )}
               {dateCol && (
-                <th onClick={() => handleSort(dateCol)} className="px-4 py-4 text-left text-[10px] font-black text-[var(--surface-500)] uppercase tracking-[0.1em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none">
-                  <div className="flex items-center gap-2">{dateCol} {sortCol === dateCol && (sortDir === 'asc' ? '↑' : '↓')}</div>
+                <th onClick={() => handleSort(dateCol)} className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors group select-none text-left bg-transparent">
+                  <div className="flex items-center gap-2">
+                    {dateCol} 
+                    {sortCol === dateCol ? (
+                      <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                    ) : (
+                      <span className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] transition-opacity">▼</span>
+                    )}
+                  </div>
                 </th>
               )}
               {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => (
-                <th key={col} onClick={() => handleSort(col)} className="px-4 py-4 text-left text-[10px] font-black text-[var(--surface-400)] uppercase tracking-[0.1em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none">
+                <th key={col} onClick={() => handleSort(col)} className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors group select-none text-left bg-transparent">
                   <div className="flex items-center gap-2">
                     {col.replace(/_/g, ' ')}
-                    {sortCol === col && <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                    {sortCol === col ? (
+                      <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                    ) : (
+                      <span className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] transition-opacity">▼</span>
+                    )}
                   </div>
                 </th>
               ))}
               {reportCol && (
-                <th className="px-4 py-4 text-left text-[10px] font-black text-[var(--surface-400)] uppercase tracking-[0.1em]">
+                <th className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] text-left bg-transparent">
                   PREVIEW
                 </th>
               )}
             </tr>
           </thead>
           
-          <tbody className="divide-y divide-[var(--surface-100)]">
+          <tbody className="divide-y divide-[var(--surface-border)]/50">
             {isLoading ? (
               <tr>
                 <td colSpan={100} className="px-6 py-24 text-center">
@@ -367,229 +396,235 @@ export function InvestigativeTable({
                       <div className="absolute inset-0 bg-[var(--brand-primary)]/20 blur-2xl rounded-full animate-pulse" />
                       <div className="relative w-12 h-12 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin" />
                     </div>
-                    <span className="text-sm font-black text-[var(--surface-900)] tracking-widest uppercase">SYPHONING DATA...</span>
+                    <span className="text-[10px] font-black text-[var(--text-primary)] tracking-[0.2em] uppercase italic">SYPHONING DATA...</span>
                   </div>
                 </td>
               </tr>
             ) : filteredData.length === 0 ? (
               <tr>
-                <td colSpan={100} className="px-6 py-16 text-center text-[var(--surface-400)] text-sm font-medium italic">
-                  No matches found in current query.
+                <td colSpan={100} className="px-6 py-16 text-center text-[var(--text-tertiary)] text-[11px] font-medium italic">
+                  Null result set in current query.
                 </td>
               </tr>
             ) : (
-              paginatedData.map((row, idx) => {
-                const absoluteIdx = (safeCurrentPage - 1) * rowsPerPage + idx;
-                const isExpanded = expandedRowId === absoluteIdx;
-                const badges = categoryCol ? getCategoryBadgeStyle(String(row[categoryCol])) : '';
-                const Icon = categoryCol ? getCategoryIcon(String(row[categoryCol])) : <FileText size={12} />;
+              <AnimatePresence mode="popLayout">
+                {paginatedData.map((row, idx) => {
+                  const absoluteIdx = (safeCurrentPage - 1) * rowsPerPage + idx;
+                  const isExpanded = expandedRowId === absoluteIdx;
+                  const badges = categoryCol ? getCategoryBadgeStyle(String(row[categoryCol])) : '';
+                  const Icon = categoryCol ? getCategoryIcon(String(row[categoryCol])) : <FileText size={12} />;
 
-                return (
-                  <Fragment key={absoluteIdx}>
-                    <motion.tr 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      onClick={() => toggleRow(absoluteIdx)}
-                      className={`
-                        group hover:bg-[var(--brand-primary)]/[0.02] cursor-pointer transition-colors duration-200
-                        ${isExpanded ? 'bg-[var(--brand-primary)]/5' : ''}
-                      `}
-                    >
-                      <td className="px-4 py-4 text-center w-12">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${isExpanded ? 'bg-[var(--brand-primary)] text-white rotate-90' : 'bg-[var(--surface-100)] text-[var(--surface-400)] group-hover:bg-[var(--surface-200)]'}`}>
-                          <ChevronRight size={14} strokeWidth={3} />
-                        </div>
-                      </td>
-
-                      {categoryCol && (
-                        <td className="px-4 py-4">
-                           <span className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider border shadow-sm ${badges}`}>
-                             {Icon} {String(row[categoryCol]).toUpperCase()}
-                           </span>
-                        </td>
-                      )}
-
-                      {dateCol && (
-                        <td className="px-4 py-4 text-xs font-medium text-[var(--surface-600)]">
-                           <div className="flex items-center gap-2">
-                             <Clock size={12} className="text-[var(--surface-300)]" />
-                             {formatDisplayValue(row[dateCol], dateCol)}
-                           </div>
-                        </td>
-                      )}
-
-                      {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => {
-                        const isEvidence = evidenceCol === col || col.toLowerCase().includes('evidence') || col.toLowerCase() === 'link';
-                        
-                        if (isEvidence) {
-                          const urls = parseEvidenceLinks(row[col]);
-                          return (
-                            <td key={col} className="px-4 py-4 text-xs font-semibold text-[var(--surface-700)]">
-                              {urls.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {urls.map((url, i) => (
-                                    <a 
-                                      key={i} 
-                                      href={url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 hover:underline transition-colors text-[10px] font-bold uppercase tracking-wider border border-blue-100"
-                                    >
-                                      <LinkIcon size={10} /> Link {urls.length > 1 ? i + 1 : ''}
-                                    </a>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-[var(--surface-400)]">-</span>
-                              )}
-                            </td>
-                          );
-                        }
-
-                        return (
-                          <td key={col} className="px-4 py-4 text-xs font-semibold text-[var(--surface-700)]">
-                            <span dangerouslySetInnerHTML={{ __html: formatDisplayValue(row[col], col) }} />
-                          </td>
-                        );
-                      })}
-
-                      {reportCol && (
-                        <td className="px-4 py-4 text-xs text-[var(--surface-500)] max-w-xs">
-                          <div className="truncate font-normal italic opacity-60">
-                            {String(row[reportCol])}
+                  return (
+                    <Fragment key={absoluteIdx}>
+                      <motion.tr 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.015, ease: [0.19, 1, 0.22, 1] }}
+                        onClick={() => toggleRow(absoluteIdx)}
+                        className={`
+                          group/tr cursor-pointer transition-colors duration-300
+                          ${isExpanded ? 'bg-[var(--brand-primary)]/5 sticky top-[69px] z-30 shadow-[0_8px_32px_rgba(0,0,0,0.05)] backdrop-blur-xl border-t border-[var(--brand-primary)]/20' : 'hover:bg-[var(--surface-2)]/40'}
+                        `}
+                      >
+                        <td className="px-6 py-4 text-center w-12 border-b border-transparent">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-[var(--brand-primary)] text-[var(--text-on-brand)] rotate-90 shadow-md' : 'bg-[var(--surface-2)] text-[var(--text-tertiary)] group-hover/tr:bg-[var(--surface-border)] group-hover/tr:text-[var(--text-primary)]'}`}>
+                            <ChevronRight size={14} strokeWidth={3} />
                           </div>
                         </td>
-                      )}
-                    </motion.tr>
 
-                    {/* ─── EXPANDED DRAWER ─────────────────────────────────── */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <tr key={`${absoluteIdx}-expanded`}>
-                          <td colSpan={100} className="p-0 border-0">
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-                              className="overflow-hidden bg-[var(--surface-50)]/30 border-y border-[var(--surface-border)]"
-                            >
-                              <div className="p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
-                                <div className="lg:col-span-4 space-y-8">
-                                  <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black text-[var(--surface-400)] uppercase tracking-widest flex items-center gap-2">
-                                       <FileText size={14} className="text-[var(--brand-primary)]" /> LOGISTICS METADATA
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-6 bg-white/50 p-6 rounded-2xl border border-[var(--surface-border)] shadow-sm">
-                                      {allColumns.map(col => {
-                                        if ([reportCol, rootCauseCol, actionTakenCol, 'evidence'].includes(col)) return null;
-                                        return (
-                                          <div key={col} className="space-y-1">
-                                             <div className="text-[9px] font-black text-[var(--surface-400)] uppercase tracking-tight">{col.replace(/_/g, ' ')}</div>
-                                             <div className="text-xs font-bold text-[var(--surface-900)]">{String(row[col] || '-')}</div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="lg:col-span-8 space-y-8">
-                                  {reportCol && (
-                                    <div className="space-y-3">
-                                      <h4 className="text-[10px] font-black text-[var(--brand-primary)] uppercase tracking-widest flex items-center gap-2">
-                                        <FileText size={14} /> NARRATIVE RECORD
-                                      </h4>
-                                      <div className="bg-white p-6 rounded-2xl border border-[var(--surface-border)] shadow-sm text-sm text-[var(--surface-700)] leading-relaxed italic font-medium">
-                                        "{String(row[reportCol])}"
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {rootCauseCol && row[rootCauseCol] && (
-                                       <div className="space-y-3">
-                                        <h4 className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
-                                          <AlertCircle size={14} /> ROOT CAUSE ANALYSIS
-                                        </h4>
-                                        <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-500/10 text-xs font-bold text-amber-900 leading-relaxed ring-1 ring-amber-500/5">
-                                          {String(row[rootCauseCol])}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {actionTakenCol && row[actionTakenCol] && (
-                                       <div className="space-y-3">
-                                        <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
-                                          <CheckCircle2 size={14} /> REMEDIATION STEPS
-                                        </h4>
-                                        <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-500/10 text-xs font-bold text-emerald-900 leading-relaxed ring-1 ring-emerald-500/5">
-                                          {String(row[actionTakenCol])}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Evidence Links */}
-                                  {allColumns.filter(c => c.toLowerCase().includes('evidence') || c.toLowerCase().includes('link')).map(col => {
-                                    const urls = parseEvidenceLinks(row[col]);
-                                    if (urls.length === 0) return null;
-                                    return (
-                                      <div key={col} className="space-y-3">
-                                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                                          <LinkIcon size={14} /> ATTACHED EVIDENCE
-                                        </h4>
-                                        <div className="flex flex-wrap gap-3">
-                                          {urls.map((url, uIdx) => (
-                                            <a key={uIdx} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-500/10 text-blue-600 text-[10px] font-black rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-sm ring-1 ring-blue-500/5">
-                                              <Download size={12} /> EVIDENCE {urls.length > 1 ? uIdx + 1 : ''}
-                                            </a>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            </motion.div>
+                        {categoryCol && (
+                          <td className="px-6 py-4 border-b border-transparent">
+                             <span className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest border shadow-sm ${badges}`}>
+                               {Icon} {String(row[categoryCol]).toUpperCase()}
+                             </span>
                           </td>
-                        </tr>
-                      )}
-                    </AnimatePresence>
-                  </Fragment>
-                );
-              })
+                        )}
+
+                        {dateCol && (
+                          <td className="px-6 py-4 text-[11px] font-black tracking-tight text-[var(--text-secondary)] font-mono border-b border-transparent">
+                             <div className="flex items-center gap-2">
+                               <Clock size={12} className="text-[var(--text-tertiary)]" />
+                               {formatDisplayValue(row[dateCol], dateCol)}
+                             </div>
+                          </td>
+                        )}
+
+                        {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => {
+                          const isEvidence = evidenceCol === col || col.toLowerCase().includes('evidence') || col.toLowerCase() === 'link';
+                          
+                          if (isEvidence) {
+                            const urls = parseEvidenceLinks(row[col]);
+                            return (
+                              <td key={col} className="px-6 py-4 text-[11px] font-medium text-[var(--text-secondary)] border-b border-transparent">
+                                {urls.length > 0 ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    {urls.map((url, i) => (
+                                      <a 
+                                        key={i} 
+                                        href={url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white transition-all duration-300 text-[9px] font-black uppercase tracking-wider shadow-sm"
+                                      >
+                                        <LinkIcon size={10} strokeWidth={2.5} /> Link {urls.length > 1 ? i + 1 : ''}
+                                      </a>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-[var(--text-tertiary)]">—</span>
+                                )}
+                              </td>
+                            );
+                          }
+
+                          return (
+                            <td key={col} className="px-6 py-4 text-[11px] font-medium text-[var(--text-secondary)] border-b border-transparent">
+                              <span dangerouslySetInnerHTML={{ __html: formatDisplayValue(row[col], col) }} />
+                            </td>
+                          );
+                        })}
+
+                        {reportCol && (
+                          <td className="px-6 py-4 text-[11px] text-[var(--text-tertiary)] max-w-xs border-b border-transparent">
+                            <div className="truncate font-medium italic opacity-80">
+                              {String(row[reportCol])}
+                            </div>
+                          </td>
+                        )}
+                      </motion.tr>
+
+                      {/* ─── EXPANDED DRAWER ─────────────────────────────────── */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <tr key={`${absoluteIdx}-expanded`} className="relative z-20">
+                            <td colSpan={100} className="p-0 border-0">
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+                                className="overflow-hidden bg-[var(--text-primary)] text-[var(--surface-1)] border-y border-[var(--text-primary)] relative isolate group/drawer shadow-inner"
+                              >
+                                {/* Drawer Textures and Effects */}
+                                <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
+                                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[var(--brand-primary)]/10 to-transparent pointer-events-none blur-3xl opacity-50" />
+
+                                <div className="p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
+                                  <div className="lg:col-span-4 space-y-8">
+                                    <div className="space-y-4">
+                                      <h4 className="text-[10px] font-black text-[var(--surface-400)] uppercase tracking-[0.2em] flex items-center gap-2">
+                                         <FileText size={14} className="text-[var(--brand-primary)]" /> LOGISTICS METADATA
+                                      </h4>
+                                      <div className="grid grid-cols-2 gap-6 bg-white/5 p-6 rounded-2xl border border-white/10 shadow-inner">
+                                        {allColumns.map(col => {
+                                          if ([reportCol, rootCauseCol, actionTakenCol, 'evidence'].includes(col)) return null;
+                                          return (
+                                            <div key={col} className="space-y-1">
+                                               <div className="text-[9px] font-black text-[var(--surface-500)] uppercase tracking-widest">{col.replace(/_/g, ' ')}</div>
+                                               <div className="text-[11px] font-bold text-[var(--surface-50)]">{String(row[col] || '-')}</div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="lg:col-span-8 space-y-8">
+                                    {reportCol && (
+                                      <div className="space-y-3">
+                                        <h4 className="text-[10px] font-black text-[var(--brand-primary)] uppercase tracking-[0.2em] flex items-center gap-2">
+                                          <FileText size={14} /> NARRATIVE RECORD
+                                        </h4>
+                                        <div className="bg-white/5 p-6 rounded-2xl border border-white/10 shadow-inner text-[13px] text-[var(--surface-100)] leading-relaxed italic font-medium">
+                                          "{String(row[reportCol])}"
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                      {rootCauseCol && row[rootCauseCol] && (
+                                         <div className="space-y-3">
+                                          <h4 className="text-[10px] font-black text-[oklch(0.65_0.25_45)] uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <AlertCircle size={14} strokeWidth={2.5} /> ROOT CAUSE ANALYSIS
+                                          </h4>
+                                          <div className="bg-[oklch(0.98_0.04_45)]/10 p-6 rounded-2xl border border-[oklch(0.65_0.25_45)]/20 text-[11px] font-bold text-[oklch(0.9_0.1_45)] leading-relaxed ring-1 ring-[oklch(0.65_0.25_45)]/10 shadow-inner">
+                                            {String(row[rootCauseCol])}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {actionTakenCol && row[actionTakenCol] && (
+                                         <div className="space-y-3">
+                                          <h4 className="text-[10px] font-black text-[var(--brand-emerald-400)] uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <CheckCircle2 size={14} strokeWidth={2.5} /> REMEDIATION STEPS
+                                          </h4>
+                                          <div className="bg-[var(--brand-emerald-900)]/20 p-6 rounded-2xl border border-[var(--brand-emerald-500)]/20 text-[11px] font-bold text-[var(--brand-emerald-100)] leading-relaxed ring-1 ring-[var(--brand-emerald-500)]/10 shadow-inner">
+                                            {String(row[actionTakenCol])}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Evidence Links */}
+                                    {allColumns.filter(c => c.toLowerCase().includes('evidence') || c.toLowerCase().includes('link')).map(col => {
+                                      const urls = parseEvidenceLinks(row[col]);
+                                      if (urls.length === 0) return null;
+                                      return (
+                                        <div key={col} className="space-y-3">
+                                          <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <LinkIcon size={14} strokeWidth={2.5} /> ATTACHED EVIDENCE
+                                          </h4>
+                                          <div className="flex flex-wrap gap-3">
+                                            {urls.map((url, uIdx) => (
+                                              <a key={uIdx} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-400/20 text-blue-300 text-[10px] font-black rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_4px_12px_rgba(59,130,246,0.2)] active:scale-95 uppercase tracking-widest">
+                                                <Download size={12} strokeWidth={2.5} /> EVIDENCE {urls.length > 1 ? uIdx + 1 : ''}
+                                              </a>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            </td>
+                          </tr>
+                        )}
+                      </AnimatePresence>
+                    </Fragment>
+                  );
+                })}
+              </AnimatePresence>
             )}
           </tbody>
         </table>
       </div>
 
       {/* ─── 3. FOOTER (PAGINATION) ────────────────────────────────────────── */}
-      <div className="relative z-10 px-6 py-4 border-t border-[var(--surface-border)] bg-[var(--surface-0)]/80 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="text-[10px] font-bold text-[var(--surface-400)] uppercase tracking-widest">
+      <div className="relative z-10 px-6 py-5 border-t border-[var(--surface-border)]/50 bg-[var(--surface-0)]/50 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em]">
           {filteredData.length > 0
-            ? `SYNCING ${((safeCurrentPage - 1) * rowsPerPage + 1)} — ${Math.min(safeCurrentPage * rowsPerPage, filteredData.length)} / ${filteredData.length} RECORDS`
+            ? `SYNCING ${((safeCurrentPage - 1) * rowsPerPage + 1).toString().padStart(3, '0')} — ${Math.min(safeCurrentPage * rowsPerPage, filteredData.length).toString().padStart(3, '0')} / ${filteredData.length.toString().padStart(3, '0')} RECORDS`
             : 'NULL SET'}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentPage(1)}
             disabled={safeCurrentPage === 1}
-            className="px-3 py-1.5 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all uppercase tracking-tighter"
+            className="px-4 py-2 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-2)] transition-all uppercase tracking-[0.15em] text-[var(--text-secondary)]"
           >
             Start
           </button>
-          <div className="flex items-center gap-1 bg-[var(--surface-50)] px-3 py-1.5 rounded-full border border-[var(--surface-border)]">
+          <div className="flex items-center gap-1 bg-[var(--surface-0)] px-4 py-2 rounded-full border border-[var(--surface-border)] shadow-inner-rim">
             <span className="text-[10px] font-black text-[var(--brand-primary)]">{safeCurrentPage}</span>
-            <span className="text-[10px] font-black text-[var(--surface-300)]">/</span>
-            <span className="text-[10px] font-black text-[var(--surface-400)]">{totalPages}</span>
+            <span className="text-[10px] font-black text-[var(--text-tertiary)] mx-1">/</span>
+            <span className="text-[10px] font-black text-[var(--text-secondary)]">{totalPages}</span>
           </div>
           <button
             onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
             disabled={safeCurrentPage === totalPages}
-            className="px-3 py-1.5 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-50)] transition-all uppercase tracking-tighter"
+            className="px-4 py-2 text-[10px] font-black border border-[var(--surface-border)] rounded-full disabled:opacity-20 hover:bg-[var(--surface-2)] transition-all uppercase tracking-[0.15em] text-[var(--text-secondary)]"
           >
             Next Phase
           </button>

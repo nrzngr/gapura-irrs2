@@ -48,7 +48,7 @@ function EmbedBranchReportContent() {
       isStatic={isStatic}
       filters={filters}
     >
-      <BranchReportDetail filters={filters} />
+      <BranchReportDetail filters={filters} hideAnalyzeButton />
     </EmbedDetailLayout>
   );
 }
