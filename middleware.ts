@@ -23,18 +23,7 @@ export async function middleware(request: NextRequest) {
     console.log(`[MIDDLEWARE] ${request.method} ${path}`);
 
     const cookieStore = request.cookies;
-    // Multi-Account Support: Try to extract active session from bundle first
-    let session = cookieStore.get('session')?.value;
-    const authBundle = cookieStore.get('auth_bundle')?.value;
-
-    if (authBundle) {
-        try {
-            const bundle = JSON.parse(authBundle);
-            if (bundle.active_uid && bundle.sessions[bundle.active_uid]) {
-                session = bundle.sessions[bundle.active_uid];
-            }
-        } catch { /* fallback to legacy */ }
-    }
+    const session = cookieStore.get('session')?.value;
 
     // EXPLICIT BYPASS for public embed routes
     if (path.startsWith('/embed') || path.startsWith('/api/embed')) {

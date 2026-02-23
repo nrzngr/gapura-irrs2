@@ -105,28 +105,7 @@ export async function POST(request: Request) {
         // 1. Register Session in DB for security monitoring
         await registerSession(user.id, sid, getClientIp(request), request.headers.get('user-agent'));
 
-        // 2. Multi-Account Management (Auth Bundle)
-        const bundle = { active_uid: user.id, sessions: {} as Record<string, string> };
-        const existingBundle = cookieStore.get('auth_bundle')?.value;
-        if (existingBundle) {
-            try {
-                const parsed = JSON.parse(existingBundle);
-                bundle.sessions = parsed.sessions || {};
-            } catch { /* ignore parse errors */ }
-        }
-        
-        bundle.active_uid = user.id;
-        bundle.sessions[user.id] = token;
-
-        // Set the multi-session bundle
-        cookieStore.set('auth_bundle', JSON.stringify(bundle), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24,
-            path: '/',
-        });
-
-        // Maintain legacy 'session' cookie for backward compatibility
+        // Maintain standard 'session' cookie
         cookieStore.set('session', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',

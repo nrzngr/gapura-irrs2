@@ -52,14 +52,26 @@ export default function RegisterPage() {
 
     useEffect(() => {
         const fetchMasterData = async () => {
-            const [stationsRes, unitsRes, positionsRes] = await Promise.all([
-                fetch('/api/master-data?type=stations'),
-                fetch('/api/master-data?type=units'),
-                fetch('/api/master-data?type=positions'),
-            ]);
-            setStations(await stationsRes.json());
-            setUnits(await unitsRes.json());
-            setPositions(await positionsRes.json());
+            try {
+                const [stationsRes, unitsRes, positionsRes] = await Promise.all([
+                    fetch('/api/master-data?type=stations'),
+                    fetch('/api/master-data?type=units'),
+                    fetch('/api/master-data?type=positions'),
+                ]);
+                
+                const stationsData = await stationsRes.json();
+                const unitsData = await unitsRes.json();
+                const positionsData = await positionsRes.json();
+                
+                setStations(Array.isArray(stationsData) ? stationsData : []);
+                setUnits(Array.isArray(unitsData) ? unitsData : []);
+                setPositions(Array.isArray(positionsData) ? positionsData : []);
+            } catch (error) {
+                console.error("Failed to fetch master data:", error);
+                setStations([]);
+                setUnits([]);
+                setPositions([]);
+            }
         };
         fetchMasterData();
     }, []);

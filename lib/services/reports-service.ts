@@ -85,6 +85,8 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   lokal_mpa_lookup: ['Lokal_MPA_VLOOKUP', 'Lokal / MPA (VLOOKUP)'],
   hub: ['Hub', 'HUB'],
   kode_hub: ['KODE_HUB_VLOOKUP', 'KODE HUB (VLOOKUP)', 'Kode Hub'],
+  delay_code: ['Delay Code', 'Delay_Code', 'Kode Delay'],
+  delay_duration: ['Delay Duration', 'Delay_Duration', 'Durasi Delay'],
   
   // Triage Columns
   primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
@@ -127,11 +129,20 @@ const WRITE_MAPPING: Record<string, string> = {
   status: 'Status',
   hub: 'Hub',
   kode_hub: 'Kode Hub',
+  delay_code: 'Delay Code',
+  delay_duration: 'Delay Duration',
 
   // Triage Write Mappings
   primary_tag: 'Primary Tag',
   sub_category_note: 'Remarks Gapura KPS',
   target_division: 'Target Division',
+
+  // System Fields
+  user_id: 'User ID',
+  created_at: 'Created At',
+  updated_at: 'Updated At',
+  severity: 'Severity',
+  priority: 'Priority',
 };
 
 const CACHE_KEY_ALL_REPORTS = 'reports:all:v3';
@@ -303,8 +314,143 @@ export class ReportsService {
       if (cached) return cached;
     }
 
-    if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
+    // --- PARALLEL FETCHING: Google Sheets & Supabase ---
+    const sheetsPromise = this.fetchGoogleSheetsReports();
+    const supabasePromise = this.fetchSupabaseReports();
 
+    const [sheetReports, dbReports] = await Promise.all([
+      sheetsPromise.catch(err => {
+        console.error('[ReportsService] Google Sheets fetch failed:', err);
+        return [] as Report[];
+      }),
+      supabasePromise.catch(err => {
+        console.error('[ReportsService] Supabase fetch failed:', err);
+        return [] as Report[];
+      })
+    ]);
+
+    console.log(`[ReportsService] Fetched ${sheetReports.length} from Sheets, ${dbReports.length} from Supabase`);
+
+    // --- MERGE STRATEGY ---
+    // 1. Create a map of Sheet reports by ID for O(1) lookup
+    // 2. Iterate DB reports
+    //    - If DB report matches a Sheet report (via sheet_id or id):
+    //      * ENRICH the Sheet report with critical fields from DB (user_id, status, etc.) if missing in Sheet
+    //    - If no match found in Sheet reports, add DB report to the list
+    
+    const combinedReports: Report[] = [...sheetReports];
+    const sheetReportMap = new Map<string, Report>();
+    sheetReports.forEach(r => sheetReportMap.set(r.id, r));
+    
+    // Add DB reports that are NOT in Sheets (based on sheet_id reference)
+    dbReports.forEach(dbReport => {
+      // Check if this DB report corresponds to a Sheet report we already have
+      const linkedSheetId = dbReport.source_sheet ? dbReport.id : (dbReport as any).sheet_id; 
+      
+      let matchFound = false;
+      let existingReport: Report | undefined;
+      
+      if (linkedSheetId && sheetReportMap.has(linkedSheetId)) {
+        matchFound = true;
+        existingReport = sheetReportMap.get(linkedSheetId);
+      } else if (sheetReportMap.has(dbReport.id)) {
+        matchFound = true;
+        existingReport = sheetReportMap.get(dbReport.id);
+      }
+
+      if (matchFound && existingReport) {
+        // ENRICHMENT: Copy critical fields from DB if missing in Sheet
+        // This fixes the issue where user_id might be missing in Sheet but present in DB
+        if (!existingReport.user_id && dbReport.user_id) {
+            existingReport.user_id = dbReport.user_id;
+        }
+        if (!existingReport.created_at && dbReport.created_at) {
+            existingReport.created_at = dbReport.created_at;
+        }
+        if (!existingReport.target_division && dbReport.target_division) {
+            existingReport.target_division = dbReport.target_division;
+        }
+        // Sync status if DB is more recent (optional, but good for tracking)
+        // For now, trust Sheet as primary, but if Sheet status is 'Pending' and DB is 'Done', maybe update?
+        // Let's stick to Sheet as primary for status to avoid confusion.
+      } else {
+        // No match found in Sheets, so this is a Supabase-only report
+        combinedReports.push(dbReport);
+      }
+    });
+
+    // --- FILTERING ---
+    const filteredReports = combinedReports.filter(report => {
+        // ... (existing filtering logic)
+        if (filters) {
+          // Date filtering
+          if (filters.dateFrom || filters.dateTo) {
+            const reportDate = parseDate(report.date_of_event || report.created_at);
+            if (!reportDate) return false;
+            
+            if (filters.dateFrom) {
+              const fromDate = new Date(filters.dateFrom);
+              if (reportDate < fromDate) return false;
+            }
+            
+            if (filters.dateTo) {
+              const toDate = new Date(filters.dateTo);
+              toDate.setHours(23, 59, 59, 999);
+              if (reportDate > toDate) return false;
+            }
+          }
+
+          // Hub filtering
+          if (filters.hub && filters.hub !== 'all' && (report.hub !== filters.hub)) return false;
+
+          // Branch filtering
+          if (filters.branch && filters.branch !== 'all') {
+            const reportBranch = report.branch || report.reporting_branch || report.station_code;
+            if (reportBranch !== filters.branch) return false;
+          }
+
+          // Area filtering
+          if (filters.area && filters.area !== 'all') {
+            const reportArea = report.area || report.terminal_area_category || report.apron_area_category || report.general_category || '';
+            if (reportArea !== filters.area) return false;
+          }
+
+          // Airlines filtering
+          if (filters.airlines && filters.airlines !== 'all' && report.airlines !== filters.airlines) return false;
+          
+          // Source Sheet filtering
+          if (filters.sourceSheet && report.source_sheet !== filters.sourceSheet) return false;
+        }
+        return true;
+    });
+
+    // --- SORTING ---
+    filteredReports.sort((a, b) => {
+      const dateA = a.date_of_event ? new Date(a.date_of_event).getTime() : 0;
+      const dateB = b.date_of_event ? new Date(b.date_of_event).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    // --- FIELD PROJECTION ---
+    const finalReports = fields && fields.length > 0 
+      ? filteredReports.map(r => {
+          const projected: any = {};
+          fields.forEach(f => {
+            // @ts-ignore
+            if (r[f] !== undefined) projected[f] = r[f];
+          });
+          projected.id = r.id; // Always keep ID
+          return projected as Report;
+        })
+      : filteredReports;
+
+    setCache(cacheKey, finalReports);
+    return finalReports;
+  }
+
+  // Extracted Google Sheets Fetch Logic
+  private async fetchGoogleSheetsReports(): Promise<Report[]> {
+    if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
     const sheets = await this.getSheets();
     
     // Batch fetch for performance consolidation (O(1) HTTP requests)
@@ -315,9 +461,7 @@ export class ReportsService {
     });
 
     const allReports: Report[] = [];
-    console.log('[ReportsService] Starting getReports fetch from Sheets...');
     const valueRanges = batchRes.data.valueRanges || [];
-    console.log('[ReportsService] Batch fetched', valueRanges.length, 'sheets');
 
     for (let i = 0; i < REPORT_SHEETS.length; i++) {
       const sheetName = REPORT_SHEETS[i];
@@ -326,7 +470,6 @@ export class ReportsService {
 
       const headers = (data[0] || []).map((h: any) => String(h).trim());
       const rows = data.slice(1);
-      console.log(`[ReportsService] Sheet "${sheetName}": ${headers.length} headers, ${rows.length} rows`);
 
       // Pre-calculate mapping for this sheet
       const columnMapping: Record<string, number> = {};
@@ -355,11 +498,9 @@ export class ReportsService {
         });
 
         // Ensure title is never undefined or empty
-        // Prioritize 'report' column content as the title if available
         if (report.report && report.report.trim()) {
             report.title = report.report.trim();
         }
-
         if (!report.title) report.title = '(Tanpa Judul)';
 
         // Post-processing & Defaults
@@ -368,7 +509,6 @@ export class ReportsService {
           report.date_of_event = parsedEventDate.toISOString();
           if (!report.created_at) report.created_at = report.date_of_event;
         } else if (report.created_at) {
-          // If event date fails, try parsing created_at to clean it up
           const parsedCreated = parseDate(report.created_at as string);
           if (parsedCreated) {
             report.created_at = parsedCreated.toISOString();
@@ -376,7 +516,6 @@ export class ReportsService {
             report.created_at = new Date().toISOString();
           }
         } else {
-          // If no date, use current time (fallback)
           report.created_at = new Date().toISOString();
         }
 
@@ -387,52 +526,32 @@ export class ReportsService {
           }
         }
 
-        // Map Google Sheets status to internal status
+        // Status Normalization
         const statusMapping: Record<string, string> = {
-          'Closed': 'SELESAI',
-          'Open': 'MENUNGGU_FEEDBACK',
-          'OPEN': 'MENUNGGU_FEEDBACK',
-          'CLOSED': 'SELESAI',
-          'closed': 'SELESAI',
-          'open': 'MENUNGGU_FEEDBACK',
-          'Selesai': 'SELESAI',
-          'selesai': 'SELESAI',
-          'Menunggu': 'MENUNGGU_FEEDBACK',
+          'Closed': 'SELESAI', 'Open': 'MENUNGGU_FEEDBACK', 'OPEN': 'MENUNGGU_FEEDBACK',
+          'CLOSED': 'SELESAI', 'closed': 'SELESAI', 'open': 'MENUNGGU_FEEDBACK',
+          'Selesai': 'SELESAI', 'selesai': 'SELESAI', 'Menunggu': 'MENUNGGU_FEEDBACK',
           'menunggu': 'MENUNGGU_FEEDBACK',
         };
         
         if (report.status) {
           const normalizedStatus = report.status.toString().trim().toUpperCase();
           report.status = statusMapping[normalizedStatus] || normalizedStatus;
-          
-          // Legacy check for specific Indonesian words if not in map
-          if (report.status === 'SELESAI' || report.status === 'CLOSED') {
-            report.status = 'SELESAI';
-          } else if (report.status === 'OPEN' || report.status === 'MENUNGGU' || report.status === 'ACTIVE') {
-            report.status = 'MENUNGGU_FEEDBACK';
-          }
+          if (report.status === 'SELESAI' || report.status === 'CLOSED') report.status = 'SELESAI';
+          else if (report.status === 'OPEN' || report.status === 'MENUNGGU' || report.status === 'ACTIVE') report.status = 'MENUNGGU_FEEDBACK';
         } else {
           report.status = 'MENUNGGU_FEEDBACK';
         }
         
-        // Map severity values to standard format
+        // Severity Normalization
         if (report.severity) {
           const severityMap: Record<string, string> = {
-            'High': 'high',
-            'high': 'high',
-            'HIGH': 'high',
-            'Medium': 'medium',
-            'medium': 'medium',
-            'MEDIUM': 'medium',
-            'Low': 'low',
-            'low': 'low',
-            'LOW': 'low',
-            'Urgent': 'urgent',
-            'urgent': 'urgent',
-            'URGENT': 'urgent',
+            'High': 'high', 'high': 'high', 'HIGH': 'high',
+            'Medium': 'medium', 'medium': 'medium', 'MEDIUM': 'medium',
+            'Low': 'low', 'low': 'low', 'LOW': 'low',
+            'Urgent': 'urgent', 'urgent': 'urgent', 'URGENT': 'urgent',
           };
-          const normalizedSeverity = report.severity.toString().trim();
-          report.severity = severityMap[normalizedSeverity] || 'low';
+          report.severity = severityMap[report.severity.toString().trim()] || 'low';
         } else {
           report.severity = 'low';
         }
@@ -440,14 +559,10 @@ export class ReportsService {
         if (!report.priority) report.priority = 'low';
         
         // Critical aliases and field mapping
-        // Map category from irregularity_complain_category if main_category is empty
-        if (!report.main_category && report.irregularity_complain_category) {
-          report.main_category = report.irregularity_complain_category;
-        }
+        if (!report.main_category && report.irregularity_complain_category) report.main_category = report.irregularity_complain_category;
         if (report.main_category && !report.category) report.category = report.main_category;
         if (report.category && !report.main_category) report.main_category = report.category;
         
-        // FINAL NORMALIZATION for Case Category Dashboards
         if (report.main_category) {
           const cat = String(report.main_category).toLowerCase();
           if (cat.includes('irregular')) report.main_category = 'Irregularity';
@@ -456,23 +571,15 @@ export class ReportsService {
           report.category = report.main_category;
         }
 
-        // Map airline fields
         if (report.airline && !report.airlines) report.airlines = report.airline;
         if (report.airlines && !report.airline) report.airline = report.airlines;
         
-        // Map branch/station fields
-        if (!report.branch && report.reporting_branch) {
-          report.branch = report.reporting_branch;
-        }
-        if (!report.branch && report.station_code) {
-          report.branch = report.station_code;
-        }
+        if (!report.branch && report.reporting_branch) report.branch = report.reporting_branch;
+        if (!report.branch && report.station_code) report.branch = report.station_code;
 
-        // Compatibility: Populate station_id and stations object from branch
         if (report.branch) {
             report.station_id = report.branch;
             report.stations = { code: report.branch as string, name: report.branch as string };
-            // Also ensure location falls back to branch if empty
             if (!report.location) report.location = report.branch;
         }
 
@@ -482,89 +589,58 @@ export class ReportsService {
           } catch (_) {}
         }
         
-        // Populate Area based on Sheet Source if missing
-        if (sheetName === 'CGO' && !report.area) {
-            report.area = 'CARGO';
-        } else if (sheetName === 'NON CARGO' && !report.area) {
-             // Heuristic: If it has terminal category, likely TERMINAL. If apron category, likely APRON.
-             // Defaulting to 'TERMINAL' if unknown as per common distribution, or keep empty if strict.
+        if (sheetName === 'CGO' && !report.area) report.area = 'CARGO';
+        else if (sheetName === 'NON CARGO' && !report.area) {
              if (report.terminal_area_category) report.area = 'TERMINAL';
              else if (report.apron_area_category) report.area = 'APRON';
         }
 
         if (report.status === 'SELESAI' && !report.resolved_at) {
-            // Fallback: use date_of_event as proxy for resolution date since Sheet doesn't have specific column
             report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
         }
 
-        report.source_sheet = sheetName;
-
-        // --- Server-side Filtering ---
-        if (filters) {
-          // Date filtering
-          if (filters.dateFrom || filters.dateTo) {
-            const reportDate = parseDate(report.date_of_event || report.created_at);
-            if (!reportDate) continue;
-            
-            if (filters.dateFrom) {
-              const fromDate = new Date(filters.dateFrom);
-              if (reportDate < fromDate) continue;
-            }
-            
-            if (filters.dateTo) {
-              const toDate = new Date(filters.dateTo);
-              toDate.setHours(23, 59, 59, 999);
-              if (reportDate > toDate) continue;
-            }
-          }
-
-          // Hub filtering
-          if (filters.hub && filters.hub !== 'all' && (report.hub !== filters.hub)) continue;
-
-          // Branch filtering
-          if (filters.branch && filters.branch !== 'all') {
-            const reportBranch = report.branch || report.reporting_branch || report.station_code;
-            if (reportBranch !== filters.branch) continue;
-          }
-
-          // Area filtering
-          if (filters.area && filters.area !== 'all') {
-            const reportArea = report.area || report.terminal_area_category || report.apron_area_category || report.general_category || '';
-            if (reportArea !== filters.area) continue;
-          }
-
-          // Airlines filtering
-          if (filters.airlines && filters.airlines !== 'all' && report.airlines !== filters.airlines) continue;
-          
-          // Source Sheet filtering
-          if (filters.sourceSheet && report.source_sheet !== filters.sourceSheet) continue;
-        }
-
-        let finalReport = report as Report;
-
-        // --- Field Projection ---
-        if (fields && fields.length > 0) {
-          const projected: any = {};
-          fields.forEach(f => {
-            if (report[f] !== undefined) projected[f] = report[f];
-          });
-          // Always include ID for stability
-          projected.id = report.id;
-          finalReport = projected as Report;
-        }
-
-        allReports.push(finalReport);
+        allReports.push(report as Report);
       }
     }
-
-    allReports.sort((a, b) => {
-      const dateA = a.date_of_event ? new Date(a.date_of_event).getTime() : 0;
-      const dateB = b.date_of_event ? new Date(b.date_of_event).getTime() : 0;
-      return dateB - dateA;
-    });
-
-    setCache(cacheKey, allReports);
     return allReports;
+  }
+
+  // Supabase Fetch Logic
+  private async fetchSupabaseReports(): Promise<Report[]> {
+    const { data, error } = await supabase
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[ReportsService] Supabase fetch error:', error);
+      return [];
+    }
+
+    if (!data) return [];
+
+    return data.map((row: any) => ({
+      ...row,
+      // Map DB fields to Report interface if needed
+      // Most fields should match due to direct mapping in POST
+      id: row.id, // UUID
+      sheet_id: row.sheet_id, // Reference to Google Sheet ID
+      
+      // Ensure specific fields are present
+      evidence_urls: row.evidence_urls || (row.evidence_url ? [row.evidence_url] : []),
+      
+      // Fallbacks
+      status: row.status || 'MENUNGGU_FEEDBACK',
+      severity: row.severity || 'low',
+      priority: row.priority || 'low',
+      
+      // Date Normalization
+      date_of_event: row.date_of_event || row.event_date || row.created_at,
+      created_at: row.created_at || new Date().toISOString(),
+
+      // Re-construct nested objects if needed
+      stations: row.station_id ? { code: row.station_id, name: row.station_id } : undefined,
+    })) as Report[];
   }
 
   async getStations(): Promise<Station[]> {

@@ -25,6 +25,17 @@ export async function GET() {
         try {
             reports = await reportsService.getReports();
             console.log(`[REPORTS_API] Fetched ${reports?.length} raw reports`);
+            
+            // DEBUG: Log first report to check user_id presence
+            if (reports.length > 0) {
+                const firstReport = reports[0];
+                console.log('[REPORTS_API] First report sample:', {
+                    id: firstReport.id,
+                    title: firstReport.title,
+                    user_id: firstReport.user_id,
+                    sheet_id: firstReport.sheet_id
+                });
+            }
         } catch (srvErr: any) {
             console.error('[REPORTS_API] Service error:', srvErr.message);
             throw srvErr;
@@ -34,9 +45,13 @@ export async function GET() {
         const role = String(payload.role).trim().toUpperCase();
 
         // APPLY STRICT FILTERING BASED ON ROLE
+        console.log(`[REPORTS_API] Filtering for role: ${role}, user_id: ${payload.id}`);
+        
         if (role === 'CABANG' || role === 'EMPLOYEE') {
+            const originalCount = reports.length;
             // Employees only see their own reports
             reports = reports.filter(r => r.user_id === payload.id);
+            console.log(`[REPORTS_API] Filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
         } else if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
              // Division/Partner users only see reports assigned to their division
              const division = role.split('_')[1]; // OS, OT, OP, UQ, HC, HT, etc.
@@ -111,6 +126,9 @@ export async function POST(request: Request) {
             action_taken,
             reporter_name,
             area_category,
+            // Delay fields
+            delay_code,
+            delay_duration,
             // CSV-aligned fields
             station_code,
             hub,
@@ -169,6 +187,8 @@ export async function POST(request: Request) {
             root_caused: root_cause || null,
             action_taken: action_taken || null,
             reporter_name: reporter_name || null,
+            delay_code: delay_code || null,
+            delay_duration: delay_duration || null,
             // CSV-aligned fields
             station_code: station_code || null,
             hub: hub || null,
@@ -184,6 +204,46 @@ export async function POST(request: Request) {
         };
 
         const newReport = await reportsService.createReport(reportData);
+
+        // Attempt to sync to Supabase (Best Effort for Tracking)
+        try {
+            // We map the fields to match the database schema as closely as possible
+            // Note: If the table 'reports' does not exist or has different schema, this will fail gracefully
+            const { error: sbError } = await supabase.from('reports').insert({
+                user_id: payload.id,
+                title: newReport.title,
+                description: newReport.description,
+                status: newReport.status,
+                severity: newReport.severity,
+                location: newReport.location,
+                flight_number: newReport.flight_number,
+                aircraft_reg: newReport.aircraft_reg,
+                date_of_event: newReport.date_of_event,
+                station_id: newReport.station_id,
+                incident_type_id: newReport.incident_type_id,
+                
+                // Store Google Sheet ID for reference
+                sheet_id: newReport.id, 
+                
+                // Additional fields
+                reporter_name: newReport.reporter_name,
+                action_taken: newReport.action_taken,
+                root_caused: newReport.root_caused,
+                delay_code: newReport.delay_code,
+                delay_duration: newReport.delay_duration,
+                
+                created_at: newReport.created_at,
+                updated_at: newReport.updated_at
+            });
+
+            if (sbError) {
+                console.warn('[Supabase] Sync failed (non-blocking):', sbError.message);
+            } else {
+                console.log('[Supabase] Report synced successfully');
+            }
+        } catch (err) {
+            console.warn('[Supabase] Sync error:', err);
+        }
 
         return NextResponse.json({ success: true, message: 'Laporan berhasil dikirim', data: newReport });
     } catch (error) {

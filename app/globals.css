@@ -9,47 +9,48 @@
 
 :root {
   /* ========================================
-     1. PRISM V3 LIGHT PHYSICS (IVORY & INK)
+     1. PRISM V3 LIGHT PHYSICS (AEROSPACE CLAY)
      ======================================== */
 
-  /* Elevated surface system - subtle emerald atmosphere */
-  --surface-0: oklch(0.99 0.005 160);    /* Page background */
-  --surface-1: oklch(0.98 0.008 160);    /* Elevation layer 1 */
-  --surface-2: oklch(0.97 0.012 160);    /* Card backgrounds */
-  --surface-3: oklch(0.95 0.015 160);    /* Hover states */
-  --surface-4: oklch(0.92 0.02 160);     /* Active/pressed states */
-  --surface-glass: oklch(1 0 0 / 0.65);  /* High-transparency glass */
+  /* Elevated surface system - ultra clean warm ivory */
+  --surface-0: oklch(0.99 0.01 90);      /* Off-white page background */
+  --surface-1: oklch(0.985 0.015 90);    /* Elevation layer 1 */
+  --surface-2: oklch(0.975 0.02 90);     /* Card backgrounds */
+  --surface-3: oklch(0.95 0.025 90);     /* Hover states */
+  --surface-4: oklch(0.92 0.03 90);      /* Active/pressed states */
+  --surface-glass: oklch(0.99 0.01 90 / 0.65); /* High-transparency glass */
 
-  /* Aurora Mesh Gradient Tokens */
-  --aurora-1: oklch(0.95 0.05 165);
-  --aurora-2: oklch(0.92 0.08 240);
-  --aurora-3: oklch(0.90 0.10 280);
+  /* Aurora Mesh Gradient Tokens - vibrant accents */
+  --aurora-1: oklch(0.85 0.15 200);   /* Vivid Cyan */
+  --aurora-2: oklch(0.80 0.18 280);   /* Soft Violet */
+  --aurora-3: oklch(0.85 0.16 170);   /* Bright Emerald */
 
-  /* Command center emerald - bright, saturated, no dark tones */
+  /* Command center emerald - tuned for light mode striking contrast */
   --brand-emerald-50: oklch(0.95 0.05 165);
   --brand-emerald-100: oklch(0.90 0.08 163);
   --brand-emerald-400: oklch(0.70 0.16 160);
-  --brand-emerald-500: oklch(0.65 0.18 160);  /* Primary brand */
-  --brand-emerald-600: oklch(0.58 0.2 162);
-  --brand-emerald-700: oklch(0.55 0.18 164);  /* Medium emerald - not dark */
+  --brand-emerald-500: oklch(0.65 0.18 160);  
+  --brand-emerald-600: oklch(0.58 0.2 162);   
+  --brand-emerald-700: oklch(0.55 0.18 164);  
 
-  --brand-primary: var(--brand-emerald-500);
-  --brand-accent: oklch(0.6 0.14 240);
+  /* Kinetic Brand Highlights */
+  --brand-primary: oklch(0.60 0.18 190); /* Electric Cyan-Emerald */
+  --brand-accent: oklch(0.65 0.25 20);   /* Deep Orange */
   
-  --brand-gradient-start: oklch(0.65 0.18 160);
-  --brand-gradient-end: oklch(0.55 0.15 170);
+  --brand-gradient-start: oklch(0.60 0.18 190); /* Cyan-Emerald */
+  --brand-gradient-end: oklch(0.55 0.15 250);   /* Deep Blue */
 
   /* Aviation-inspired accents */
-  --accent-cyan: oklch(0.7 0.15 200);
-  --accent-amber: oklch(0.75 0.14 75);
-  --accent-coral: oklch(0.65 0.18 25);
-  --accent-purple: oklch(0.62 0.16 280);
+  --accent-cyan: oklch(0.65 0.18 200);
+  --accent-amber: oklch(0.70 0.20 75);
+  --accent-coral: oklch(0.60 0.22 25);
+  --accent-purple: oklch(0.55 0.18 280);
 
-  /* Dark text with emerald undertone for readability */
-  --text-primary: oklch(0.20 0.03 160);
-  --text-secondary: oklch(0.40 0.04 160);
-  --text-muted: oklch(0.55 0.02 160);
-  --text-on-brand: oklch(0.99 0.005 160);
+  /* Deep ink text for maximum contrast on light */
+  --text-primary: oklch(0.20 0.03 250); 
+  --text-secondary: oklch(0.40 0.04 250);
+  --text-muted: oklch(0.55 0.03 250);
+  --text-on-brand: oklch(0.99 0.01 250);
 
   /* ========================================
      2. SPATIAL DEPTH & KINETIC PHYSICS
@@ -64,18 +65,15 @@
   --shadow-sm: 0 2px 4px oklch(0 0 0 / 0.04);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
   --shadow-lg: 0 12px 24px oklch(0 0 0 / 0.12);
-  
-  --shadow-spatial-sm: 
-    0 2px 4px oklch(0 0 0 / 0.02),
-    0 4px 8px -2px oklch(0 0 0 / 0.04);
-  
-  --shadow-spatial-md: 
-    0 8px 16px -4px oklch(0 0 0 / 0.06),
-    0 20px 40px -8px oklch(0 0 0 / 0.08);
 
-  --shadow-spatial-lg: 
-    0 24px 48px -12px oklch(0 0 0 / 0.1),
-    0 48px 96px -16px oklch(0 0 0 / 0.12);
+  --shadow-spatial-sm:
+    0 2px 4px oklch(0 0 0 / 0.02), 0 4px 8px -2px oklch(0 0 0 / 0.04);
+
+  --shadow-spatial-md:
+    0 8px 16px -4px oklch(0 0 0 / 0.06), 0 20px 40px -8px oklch(0 0 0 / 0.08);
+
+  --shadow-spatial-lg:
+    0 24px 48px -12px oklch(0 0 0 / 0.1), 0 48px 96px -16px oklch(0 0 0 / 0.12);
 
   /* Inner rim (Light mode "Paper Edge") */
   --inner-rim: inset 0 0 0 1px oklch(0 0 0 / 0.05);
@@ -85,9 +83,9 @@
      3. TYPOGRAPHY — Editorial Sharpness
      ======================================== */
 
-  --font-display: "Outfit", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: var(--font-display), "Outfit", system-ui, sans-serif;
+  --font-body: var(--font-display), "Inter", system-ui, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", monospace;
 
   --text-hero: clamp(3rem, 2.5rem + 5vw, 5rem);
   --text-4xl: clamp(1.75rem, 1.5rem + 2vw, 2.5rem);

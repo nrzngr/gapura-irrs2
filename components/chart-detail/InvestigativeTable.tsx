@@ -64,16 +64,13 @@ const getCategoryIcon = (category: string) => {
     const str = String(val).trim();
     if (!str) return [];
   
-    // Handle Postgres array format {url1,url2}
-    if (str.startsWith('{') && str.endsWith('}')) {
-      return str.slice(1, -1).split(',').map(s => s.trim().replace(/"/g, '')).filter(Boolean);
-    }
-  
-    // Split by common delimiters: space, comma, newline, semicolon
-    // We filter to ensure they look like URLs
-    return str.split(/[\s,\n;]+/)
-      .map(s => s.trim())
-      .filter(s => s.startsWith('http') || s.includes('www.'));
+    // Extract all URLs
+    const urlRegex = /(https?:\/\/[^\s"',<>]+)/g;
+    const matches = str.match(urlRegex);
+    if (!matches) return [];
+    
+    // Deduplicate
+    return Array.from(new Set(matches));
   };
 
 export function InvestigativeTable({
@@ -214,8 +211,10 @@ export function InvestigativeTable({
     const start = (safeCurrentPage - 1) * rowsPerPage;
     return filteredData.slice(start, start + rowsPerPage);
   }, [filteredData, safeCurrentPage, rowsPerPage]);
-  const tableViewportHeight = Math.min(560, Math.max(260, rowsPerPage * 56 + 72));
-
+  
+  const tableViewportMaxHeight = expandedRowId !== null 
+    ? 'none' 
+    : `${Math.min(560, Math.max(260, rowsPerPage * 56 + 72))}px`;
 
   // ─── HANDLERS ───────────────────────────────────────────────────────────────
   const handleSort = (col: string) => {
@@ -337,7 +336,7 @@ export function InvestigativeTable({
       {/* ─── 2. TABLE BODY ────────────────────────────────────────────────────── */}
       <div
         className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative z-10 bg-[var(--surface-0)]/20 pb-1"
-        style={{ maxHeight: `${tableViewportHeight}px` }}
+        style={{ maxHeight: tableViewportMaxHeight }}
       >
         <table className="w-full border-separate border-spacing-0">
           <thead className="sticky top-0 z-40">
@@ -506,9 +505,7 @@ export function InvestigativeTable({
                                 transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
                                 className="overflow-hidden bg-[var(--text-primary)] text-[var(--surface-1)] border-y border-[var(--text-primary)] relative isolate group/drawer shadow-inner"
                               >
-                                {/* Drawer Textures and Effects */}
-                                <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
-                                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[var(--brand-primary)]/10 to-transparent pointer-events-none blur-3xl opacity-50" />
+                                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[var(--brand-primary)]/5 to-transparent pointer-events-none" />
 
                                 <div className="p-8 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
                                   <div className="lg:col-span-4 space-y-8">
@@ -518,7 +515,12 @@ export function InvestigativeTable({
                                       </h4>
                                       <div className="grid grid-cols-2 gap-6 bg-white/5 p-6 rounded-2xl border border-white/10 shadow-inner">
                                         {allColumns.map(col => {
-                                          if ([reportCol, rootCauseCol, actionTakenCol, 'evidence'].includes(col)) return null;
+                                          const lowerCol = col.toLowerCase();
+                                          if (lowerCol === reportCol?.toLowerCase() || 
+                                              lowerCol === rootCauseCol?.toLowerCase() || 
+                                              lowerCol === actionTakenCol?.toLowerCase() || 
+                                              lowerCol.includes('evidence') || 
+                                              lowerCol.includes('link')) return null;
                                           return (
                                             <div key={col} className="space-y-1">
                                                <div className="text-[9px] font-black text-[var(--surface-500)] uppercase tracking-widest">{col.replace(/_/g, ' ')}</div>

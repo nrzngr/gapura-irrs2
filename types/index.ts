@@ -143,6 +143,10 @@ export interface Report {
     maskapai_lookup?: string;
     lokal_mpa_lookup?: string;
 
+    // Delay Info
+    delay_code?: string;
+    delay_duration?: string;
+
     // Triage / Pivot Fields
     primary_tag?: string; // 'Landside' | 'Airside'
     sub_category_note?: string;

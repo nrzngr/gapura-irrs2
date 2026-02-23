@@ -135,12 +135,7 @@ interface NavContentProps {
     groups: NavGroup[];
     pathname: string;
     role: string;
-    bundle: { active: string | null, accounts: { id: string; name: string; role: string; email?: string; isCurrent?: boolean }[] };
-    showSwitcher: boolean;
-    setShowSwitcher: (value: boolean) => void;
     onLogout: () => void;
-    onSwitch: (uid: string) => void;
-    onAddAccount: () => void;
     loading: boolean;
     setMobileOpen: (value: boolean) => void;
 }
@@ -149,12 +144,7 @@ const NavContent = ({
     groups, 
     pathname, 
     role, 
-    bundle, 
-    showSwitcher, 
-    setShowSwitcher, 
     onLogout, 
-    onSwitch, 
-    onAddAccount, 
     loading,
     setMobileOpen 
 }: NavContentProps) => (
@@ -238,70 +228,21 @@ const NavContent = ({
             </div>
         </nav>
 
-        {/* 3. User Footer & Account Switcher */}
+        {/* 3. User Footer */}
         <div className="p-4 border-t border-dashed border-gray-200 bg-[var(--surface-1)]">
              <div className="bg-[var(--surface-2)] rounded-xl p-3 border border-gray-100 shadow-sm relative">
                 {/* Active Account Info */}
-                <div 
-                    className="flex items-center gap-3 mb-3 cursor-pointer group/user"
-                    onClick={() => setShowSwitcher(!showSwitcher)}
-                >
+                <div className="flex items-center gap-3 mb-3 group/user">
                      <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-white border border-emerald-400">
                          {role.charAt(0)}
                      </div>
                      <div className="min-w-0 flex-1">
-                         <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/user:text-[var(--brand-primary)] italic transition-colors">
-                            {bundle.accounts.find(a => a.isCurrent)?.name || role.replace('_', ' ')}
+                         <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/user:text-[var(--brand-primary)] italic transition-colors uppercase">
+                            {role.replace('_', ' ')}
                         </p>
-                         <p className="text-[10px] text-[var(--text-muted)] truncate">{bundle.accounts.find(a => a.isCurrent)?.email || 'Active Account'}</p>
+                         <p className="text-[10px] text-[var(--text-muted)] truncate">Active Account</p>
                      </div>
-                     <button className="text-[var(--text-muted)]">
-                        <ChevronRight size={14} className={cn("transition-transform", showSwitcher && "rotate-90")} />
-                     </button>
                 </div>
-
-                {/* Switcher Dropdown */}
-                <AnimatePresence>
-                    {showSwitcher && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-2xl border border-gray-100 shadow-2xl overflow-hidden z-50 p-2"
-                        >
-                            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest p-2 mb-1">Switch Account</p>
-                            <div className="space-y-1 max-h-48 overflow-y-auto">
-                                {bundle.accounts.map(acc => (
-                                    <button
-                                        key={acc.id}
-                                        onClick={() => !acc.isCurrent && onSwitch(acc.id)}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all",
-                                            acc.isCurrent ? "bg-emerald-50 text-emerald-700" : "hover:bg-gray-50 text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold", acc.isCurrent ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400")}>
-                                            {acc.name?.charAt(0) || acc.email?.charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold truncate">{acc.name || acc.email}</p>
-                                            <p className="text-[9px] opacity-70 truncate">{acc.role}</p>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="mt-2 border-t border-gray-50 p-1">
-                                <button 
-                                    onClick={onAddAccount}
-                                    className="w-full py-2 flex items-center justify-center gap-2 text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                >
-                                    <Shield size={12} />
-                                    Add Another Account
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
                 <button
                     onClick={onLogout}
@@ -325,53 +266,17 @@ export default function Sidebar({ role }: { role: string }) {
     const configKey = GET_LINKS_KEY(role || '');
     const groups = LINKS_CONFIG[configKey];
 
-    const [bundle, setBundle] = useState<{ active: string | null, accounts: { id: string; name: string; role: string; email?: string; isCurrent?: boolean }[] }>({ active: null, accounts: [] });
-    const [showSwitcher, setShowSwitcher] = useState(false);
-
-    const fetchBundle = async () => {
-        const res = await fetch('/api/auth/bundle');
-        const data = await res.json();
-        setBundle(data);
-    };
-
-    useEffect(() => {
-        // Use a microtask to avoid synchronous setState in effect
-        Promise.resolve().then(() => fetchBundle());
-    }, []);
-
     const handleLogout = async () => {
         setLoading(true);
         await fetch('/api/auth/logout', { method: 'POST' });
-        // After logout, check if we have more accounts or should go to login
-        const res = await fetch('/api/auth/bundle');
-        const data = await res.json();
-        if (data.active) {
-            window.location.reload();
-        } else {
-            router.push('/auth/login');
-        }
-    };
-
-    const handleSwitch = async (uid: string) => {
-        setLoading(true);
-        await fetch('/api/auth/switch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: uid })
-        });
-        window.location.reload();
+        router.push('/auth/login');
     };
 
     const navContentProps = {
         groups,
         pathname,
         role,
-        bundle,
-        showSwitcher,
-        setShowSwitcher,
         onLogout: handleLogout,
-        onSwitch: handleSwitch,
-        onAddAccount: () => router.push('/auth/login'),
         loading,
         setMobileOpen
     };

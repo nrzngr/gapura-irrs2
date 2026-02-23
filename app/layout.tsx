@@ -2,22 +2,18 @@ import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
-// Aviation fonts
-import '@fontsource/work-sans/400.css';
-import '@fontsource/work-sans/600.css';
-import '@fontsource/work-sans/700.css';
-import '@fontsource/work-sans/800.css';
-import '@fontsource/manrope/400.css';
-import '@fontsource/manrope/500.css';
-import '@fontsource/manrope/600.css';
-import '@fontsource/jetbrains-mono/500.css';
-import '@fontsource/jetbrains-mono/600.css';
+import { Bricolage_Grotesque, JetBrains_Mono } from 'next/font/google';
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const bricolage = Bricolage_Grotesque({
     subsets: ['latin'],
     display: 'swap',
     variable: '--font-display',
-    weight: ['400', '500', '600', '700', '800'],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ['latin'],
+    display: 'swap',
+    variable: '--font-mono',
 });
 
 export const viewport: Viewport = {
@@ -48,8 +44,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="id" className={plusJakartaSans.variable}>
-            <body className={plusJakartaSans.className}>{children}</body>
+        <html lang="id" className={`${bricolage.variable} ${jetbrainsMono.variable}`}>
+            <body className={bricolage.className}>{children}</body>
         </html>
     );
 }
