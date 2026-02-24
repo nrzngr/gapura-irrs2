@@ -70,6 +70,7 @@ export interface Report {
     title: string;
     description: string;
     location: string;
+    reporter_email?: string;
     evidence_url?: string;
     evidence_urls?: string[];
     status: ReportStatus;

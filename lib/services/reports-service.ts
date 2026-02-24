@@ -76,6 +76,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   preventive_action: ['Preventive Action', 'Preventive_Action'],
   remarks_gapura_kps: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS'],
   reporter_name: ['Report_By', 'Report By', 'Pelapor', 'Reporter'],
+  reporter_email: ['Reporter Email', 'Email'],
   evidence_url: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti'],
   evidence_urls: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti', 'Lampiran'],
   area: ['Area', 'Wilayah'],
@@ -129,6 +130,7 @@ const WRITE_MAPPING: Record<string, string> = {
   gapura_kps_action_taken: 'Gapura KPS Action Taken',
   preventive_action: 'Preventive Action',
   reporter_name: 'Report By',
+  reporter_email: 'Reporter Email',
   // Prefer writing the concatenated evidence_urls over single evidence_url
   evidence_urls: 'Upload Irregularity Photo',
   evidence_url: 'Upload Irregularity Photo',
