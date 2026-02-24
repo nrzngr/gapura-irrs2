@@ -11,6 +11,7 @@ import {
   Save,
   RotateCcw,
   FileText,
+  FileType,
   ChevronLeft,
   Plane,
   MapPin,
@@ -31,6 +32,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { type Report } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { supabase } from "@/lib/supabase";
+import { generatePDF, generateWord } from "@/lib/utils/document-generator";
 
 /* ============================================
    DESIGN TOKENS — PRISM v3 Compliant
@@ -441,6 +443,28 @@ export function ReportDetailView({
               {statusConfig?.label || report.status}
             </span>
           </div>
+
+          {/* Download Actions */}
+          {userRole === "CABANG" && (
+            <div className="hidden sm:flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => generatePDF(report)}
+                className="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors"
+                title="Download PDF"
+                aria-label="Download PDF"
+              >
+                <FileType size={16} />
+              </button>
+              <button
+                onClick={() => generateWord(report)}
+                className="w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors"
+                title="Download DOCX"
+                aria-label="Download DOCX"
+              >
+                <FileText size={16} />
+              </button>
+            </div>
+          )}
 
           {/* Edit Actions */}
           {canEdit && !isClosed && (
