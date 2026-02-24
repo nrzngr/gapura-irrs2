@@ -121,8 +121,8 @@ export default function LoginPage() {
                 </div>
 
                 <div className="relative z-10 space-y-6">
-                    <h1 className="text-5xl font-bold text-white leading-tight">
-                        Sistem Pelaporan<br />Irregularity<br />Terintegrasi
+                    <h1 className="text-4xl font-bold text-white leading-tight">
+                        Gapura<br />Integrated Service<br />Analytics
                     </h1>
                     <p className="text-white/80 text-lg max-w-md">
                         Platform digital untuk pelaporan, pelacakan, dan penyelesaian masalah operasional penerbangan.

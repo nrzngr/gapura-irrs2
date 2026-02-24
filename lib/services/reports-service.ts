@@ -837,7 +837,17 @@ export class ReportsService {
     }
 
     const headers = await this.getHeaderRow(sheetName);
-    const getColLetter = (index: number) => String.fromCharCode(65 + index);
+    // Handles columns beyond Z (AA, AB, ..., AZ, BA, ...)
+    // Complexity: Time O(log26(n)) | Space O(log26(n))
+    const getColLetter = (index: number): string => {
+        let col = '';
+        let n = index;
+        while (n >= 0) {
+            col = String.fromCharCode(65 + (n % 26)) + col;
+            n = Math.floor(n / 26) - 1;
+        }
+        return col;
+    };
 
     // Update individual cells based on headers mapping
     for (const [key, value] of Object.entries(updates)) {

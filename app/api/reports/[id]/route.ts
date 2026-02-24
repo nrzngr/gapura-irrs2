@@ -148,6 +148,43 @@ export async function PATCH(
              return NextResponse.json({ error: 'Report not found or update failed' }, { status: 404 });
         }
 
+        // Supabase write-through sync (best-effort)
+        // Match by sheet_id since Supabase stores the Google Sheets ID
+        try {
+            const supabaseUpdates: Record<string, unknown> = {};
+            const syncableFields = [
+                'title', 'description', 'severity', 'status',
+                'flight_number', 'aircraft_reg', 'category', 'priority',
+                'location', 'station_id', 'action_taken', 'root_caused',
+                'primary_tag', 'target_division',
+            ] as const;
+
+            for (const field of syncableFields) {
+                if (updates[field] !== undefined) {
+                    supabaseUpdates[field] = updates[field];
+                }
+            }
+
+            if (sub_category_note !== undefined) {
+                supabaseUpdates.remarks_gapura_kps = sub_category_note;
+            }
+
+            if (Object.keys(supabaseUpdates).length > 0) {
+                supabaseUpdates.updated_at = new Date().toISOString();
+
+                const { error: sbError } = await supabaseAdmin
+                    .from('reports')
+                    .update(supabaseUpdates)
+                    .eq('sheet_id', id);
+
+                if (sbError) {
+                    console.warn('[Supabase] PATCH sync failed (non-blocking):', sbError.message);
+                }
+            }
+        } catch (syncErr) {
+            console.warn('[Supabase] PATCH sync error:', syncErr);
+        }
+
         return NextResponse.json({ success: true, data: updatedReport });
     } catch (error) {
         console.error('Error updating report:', error);
