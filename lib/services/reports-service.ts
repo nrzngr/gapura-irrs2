@@ -118,7 +118,10 @@ const WRITE_MAPPING: Record<string, string> = {
   airline: 'Airlines',
   flight_number: 'Flight Number',
   branch: 'Branch',
+  reporting_branch: 'Reporting Branch',
+  route: 'Route',
   main_category: 'Report Category',
+  irregularity_complain_category: 'Irregularity/Complain Category',
   description: 'Report',
   root_caused: 'Root Caused',
   action_taken: 'Action Taken',
@@ -126,21 +129,22 @@ const WRITE_MAPPING: Record<string, string> = {
   gapura_kps_action_taken: 'Gapura KPS Action Taken',
   preventive_action: 'Preventive Action',
   reporter_name: 'Report By',
-  evidence_url: 'Upload Irregularity Photo',
+  // Prefer writing the concatenated evidence_urls over single evidence_url
   evidence_urls: 'Upload Irregularity Photo',
+  evidence_url: 'Upload Irregularity Photo',
   area: 'Area',
   terminal_area_category: 'Terminal Area Category',
   apron_area_category: 'Apron Area Category',
   general_category: 'General Category',
   status: 'Status',
   hub: 'Hub',
-  kode_hub: 'Kode Hub',
+  week_in_month: 'Per Week in Month',
   delay_code: 'Delay Code',
   delay_duration: 'Delay Duration',
 
   // Triage Write Mappings
   primary_tag: 'Primary Tag',
-  sub_category_note: 'Remarks Gapura KPS',
+  sub_category_note: 'Sub Category Note',
   target_division: 'Target Division',
 
   // System Fields
@@ -277,6 +281,20 @@ export class ReportsService {
             if (typeof report[prop] === 'string') report[prop] = report[prop].trim();
         }
     });
+
+    // Post-parse evidence URLs into an array and primary value for compatibility
+    if (report.evidence_urls && typeof report.evidence_urls === 'string') {
+      const parts = String(report.evidence_urls)
+        .split(/\s*\|\s*|\n+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      if (parts.length) {
+        report.evidence_urls = parts;
+        report.evidence_url = parts[0];
+      }
+    } else if (report.evidence_url && typeof report.evidence_url === 'string' && !report.evidence_urls) {
+      report.evidence_urls = [report.evidence_url];
+    }
 
     // Handle internal IDs
     if (report.row_number) {
@@ -508,15 +526,23 @@ export class ReportsService {
     
     // Add DB reports that are NOT in Sheets (based on sheet_id reference)
     dbReports.forEach(dbReport => {
-      // Check if this DB report corresponds to a Sheet report we already have
-      const linkedSheetId = dbReport.source_sheet ? dbReport.id : (dbReport as any).sheet_id; 
-      
+      // Attempt to link a Supabase report to its Sheet counterpart using canonical UUID of sheet_id
+      let linkedSheetUuid: string | null = null;
+      const sheetIdRef = (dbReport as any).sheet_id as string | undefined;
+      if (sheetIdRef) {
+        try {
+          linkedSheetUuid = this.getReportUuid(sheetIdRef);
+        } catch {
+          linkedSheetUuid = null;
+        }
+      }
+
       let matchFound = false;
       let existingReport: Report | undefined;
-      
-      if (linkedSheetId && sheetReportMap.has(linkedSheetId)) {
+
+      if (linkedSheetUuid && sheetReportMap.has(linkedSheetUuid)) {
         matchFound = true;
-        existingReport = sheetReportMap.get(linkedSheetId);
+        existingReport = sheetReportMap.get(linkedSheetUuid);
       } else if (sheetReportMap.has(dbReport.id)) {
         matchFound = true;
         existingReport = sheetReportMap.get(dbReport.id);
@@ -756,18 +782,37 @@ export class ReportsService {
       location: reportData.location || '',
     } as Report;
 
+    // Normalize aliases
+    if (!(newReport as any).root_caused && (newReport as any).root_cause) {
+      (newReport as any).root_caused = (newReport as any).root_cause;
+    }
+
     const row = headers.map((header: string) => {
-      // Find which property maps to this header
-      const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === header.trim().toLowerCase());
-       if (propEntry) {
-         const prop = propEntry[0] as keyof Report;
-         // @ts-ignore
-         return newReport[prop] !== undefined ? newReport[prop] : '';
-       }
-       // Fallback: try direct property match if header is simple
-       // @ts-ignore
-       if (newReport[header]) return newReport[header];
-       return '';
+      const normalizedHeader = header.trim().toLowerCase();
+      const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === normalizedHeader);
+      if (propEntry) {
+        const prop = propEntry[0] as keyof Report;
+        if (prop === 'evidence_url' || prop === 'evidence_urls') {
+          const urls = Array.isArray((newReport as any).evidence_urls)
+            ? (newReport as any).evidence_urls
+            : ((newReport as any).evidence_url ? [(newReport as any).evidence_url] : []);
+          return urls.length ? urls.join(' | ') : '';
+        }
+        // @ts-ignore
+        const val = newReport[prop];
+        if (Array.isArray(val)) return val.join(' | ');
+        if (val && typeof val === 'object') return JSON.stringify(val);
+        return val !== undefined ? val : '';
+      }
+      // Fallback: try direct property match if header is simple
+      // @ts-ignore
+      if (newReport[header]) {
+        const v = newReport[header];
+        if (Array.isArray(v)) return v.join(' | ');
+        if (v && typeof v === 'object') return JSON.stringify(v);
+        return v;
+      }
+      return '';
     });
 
     const appendRes = await sheets.spreadsheets.values.append({
@@ -785,7 +830,11 @@ export class ReportsService {
     if (updatedRange) {
         const match = updatedRange.match(/!A(\d+)/);
         if (match && match[1]) {
-            newReport.id = `${targetSheet}!row_${match[1]}`;
+            const originalId = `${targetSheet}!row_${match[1]}`;
+            // Persist both original_id (sheet reference) and canonical UUID id
+            (newReport as any).original_id = originalId;
+            (newReport as any).id = this.getReportUuid(originalId);
+            (newReport as any).source_sheet = targetSheet;
         }
     }
 
@@ -883,8 +932,9 @@ export class ReportsService {
         const colLetter = getColLetter(colIndex);
         const cellRange = `${sheetName}!${colLetter}${rowIndex}`;
         
-        let stringValue = value;
+        let stringValue: any = value;
         if (value === null || value === undefined) stringValue = '';
+        else if (Array.isArray(value)) stringValue = value.join(' | ');
         else if (typeof value === 'object') stringValue = JSON.stringify(value);
         else stringValue = String(value);
 
@@ -974,14 +1024,29 @@ export class ReportsService {
         };
 
         return headers.map((header: string) => {
-          const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === header.trim().toLowerCase());
+          const normalizedHeader = header.trim().toLowerCase();
+          const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === normalizedHeader);
           if (propEntry) {
             const prop = propEntry[0] as keyof Report;
+            if (prop === 'evidence_url' || prop === 'evidence_urls') {
+              const urls = Array.isArray((newReport as any).evidence_urls)
+                ? (newReport as any).evidence_urls
+                : ((newReport as any).evidence_url ? [(newReport as any).evidence_url] : []);
+              return urls.length ? urls.join(' | ') : '';
+            }
             // @ts-ignore
-            return newReport[prop] !== undefined ? newReport[prop] : '';
+            const val = newReport[prop];
+            if (Array.isArray(val)) return val.join(' | ');
+            if (val && typeof val === 'object') return JSON.stringify(val);
+            return val !== undefined ? val : '';
           }
           // @ts-ignore
-          if (newReport[header]) return newReport[header];
+          if (newReport[header]) {
+            const v = newReport[header];
+            if (Array.isArray(v)) return v.join(' | ');
+            if (v && typeof v === 'object') return JSON.stringify(v);
+            return v;
+          }
           return '';
         });
       });

@@ -223,7 +223,7 @@ export async function POST(request: Request) {
                 incident_type_id: newReport.incident_type_id,
                 
                 // Store Google Sheet ID for reference
-                sheet_id: newReport.id, 
+                sheet_id: (newReport as any).original_id || newReport.id, 
                 
                 // Additional fields
                 reporter_name: newReport.reporter_name,

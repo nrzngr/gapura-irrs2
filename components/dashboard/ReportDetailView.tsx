@@ -144,10 +144,9 @@ export function ReportDetailView({
   const [verifyNotes, setVerifyNotes] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
   const [reopenNotes, setReopenNotes] = useState("");
-  const [closeEvidenceUrl, setCloseEvidenceUrl] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", flight_number: "", aircraft_reg: "", location: "" });
-  const [newEvidenceLink, setNewEvidenceLink] = useState("");
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastCommentRef = useRef<HTMLDivElement>(null);
@@ -215,7 +214,7 @@ export function ReportDetailView({
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [report?.id]);
+  }, [report?.id, onRefresh]);
 
 
 
@@ -242,7 +241,6 @@ export function ReportDetailView({
       setCloseNotes("");
       setVerifyNotes("");
       setReopenNotes("");
-      setCloseEvidenceUrl("");
     } finally { setActionLoading(false); }
   };
 
@@ -274,21 +272,62 @@ export function ReportDetailView({
       }
   };
 
-  const handleAddEvidenceLink = async () => {
-    if (!report || !newEvidenceLink.trim()) return;
+  const compressImage = (file: File, opts: { maxWidth?: number; maxHeight?: number; quality?: number; mimeType?: string } = {}) => {
+    const { maxWidth = 1600, maxHeight = 1600, quality = 0.8, mimeType = 'image/webp' } = opts;
+    return new Promise<File>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { URL.revokeObjectURL(url); return reject(new Error('Canvas not supported')); }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          if (!blob) return reject(new Error('Compression failed'));
+          const ext = mimeType.includes('webp') ? 'webp' : 'jpg';
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, `.${ext}`), { type: blob.type });
+          resolve(compressed);
+        }, mimeType, quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load error')); };
+      img.src = url;
+    });
+  };
+
+  const handleUploadEvidence = async () => {
+    if (!report || evidenceFiles.length === 0) return;
+    setActionLoading(true);
     try {
-      new URL(newEvidenceLink.trim());
-    } catch {
-      alert("Link tidak valid");
-      return;
-    }
-    const currentEvidence = report.evidence_urls || (report.evidence_url ? [report.evidence_url] : []);
-    const newEvidence = [...currentEvidence, newEvidenceLink.trim()];
-    try {
+      const currentEvidence = report.evidence_urls || (report.evidence_url ? [report.evidence_url] : []);
+      const uploaded: string[] = [];
+      for (const file of evidenceFiles) {
+        const compressed = await compressImage(file);
+        const fd = new FormData();
+        fd.append('file', compressed);
+        const res = await fetch(`/api/reports/${report.id}/evidence`, { method: 'POST', body: fd });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || 'Upload gagal');
+        }
+        const data = await res.json();
+        const url = data.url as string;
+        uploaded.push(url);
+      }
+      const newEvidence = [...currentEvidence, ...uploaded];
       await fetch(`/api/reports/${report.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ evidence_urls: newEvidence }) });
-      setNewEvidenceLink("");
+      setEvidenceFiles([]);
       onRefresh?.();
-    } catch (error) { console.error("Failed to add evidence link:", error); }
+    } catch (error) {
+      console.error(error);
+      alert('Gagal mengunggah bukti');
+    } finally { setActionLoading(false); }
   };
 
   const handleSaveChanges = async () => {
@@ -532,12 +571,13 @@ export function ReportDetailView({
                 </SectionCard>
               )}
 
-              {/* LAMPIRAN — Evidence Links */}
+              {/* LAMPIRAN — Evidence */}
               <SectionCard title={`Lampiran (${allEvidence.length})`}>
                 {allEvidence.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {allEvidence.map((url, i) => {
                       const isPartnerEvidence = report.partner_evidence_urls?.includes(url);
+                      const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(url) || url.includes('/storage/v1/object/public/evidence/');
                       return (
                         <a
                           key={i}
@@ -545,16 +585,22 @@ export function ReportDetailView({
                           target="_blank"
                           rel="noopener noreferrer"
                           className={cn(
-                            "flex items-center gap-3 p-3 rounded-xl border transition-colors hover:bg-gray-50",
+                            "group rounded-xl border overflow-hidden bg-white",
                             isPartnerEvidence ? "border-emerald-200 bg-emerald-50/50" : "border-gray-200"
                           )}
                         >
-                          <Link size={16} className={isPartnerEvidence ? "text-emerald-600 shrink-0" : "text-blue-500 shrink-0"} />
-                          <span className="text-sm text-[var(--text-secondary)] truncate flex-1">{url}</span>
-                          {isPartnerEvidence && (
-                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-emerald-500 text-white rounded-md shrink-0">Partner</span>
+                          {isImage ? (
+                            <div className="aspect-video bg-gray-50">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt={`evidence-${i}`} className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 p-3">
+                              <Link size={16} className={isPartnerEvidence ? "text-emerald-600 shrink-0" : "text-blue-500 shrink-0"} />
+                              <span className="text-sm text-[var(--text-secondary)] truncate flex-1">{url}</span>
+                              <ExternalLink size={14} className="text-gray-400 shrink-0" />
+                            </div>
                           )}
-                          <ExternalLink size={14} className="text-gray-400 shrink-0" />
                         </a>
                       );
                     })}
@@ -565,23 +611,23 @@ export function ReportDetailView({
                     <p className="text-sm mt-3">Tidak ada lampiran</p>
                   </div>
                 )}
-                {/* Add new link */}
+                {/* Upload new evidence */}
                 {!isClosed && (
-                  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-gray-100">
                     <input
-                      type="url"
-                      value={newEvidenceLink}
-                      onChange={(e) => setNewEvidenceLink(e.target.value)}
-                      placeholder="https://drive.google.com/..."
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
                       className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddEvidenceLink(); } }}
                     />
                     <button
-                      onClick={handleAddEvidenceLink}
-                      className="px-3 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all flex items-center gap-1.5"
+                      onClick={handleUploadEvidence}
+                      disabled={evidenceFiles.length === 0 || actionLoading}
+                      className="px-3 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all flex items-center gap-1.5 disabled:opacity-60"
                     >
-                      <Plus size={14} />
-                      Tambah
+                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Upload {evidenceFiles.length > 1 ? `(${evidenceFiles.length})` : 'Bukti'}
                     </button>
                   </div>
                 )}
@@ -895,28 +941,7 @@ export function ReportDetailView({
               <button onClick={() => setShowCloseModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
             
-            {/* Evidence Link Input */}
-            <div className="mb-5 space-y-3">
-              <p className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                <Link size={16} className="text-emerald-600" />
-                Link Bukti Penyelesaian
-                <span className="text-red-500">*</span>
-              </p>
-              <input
-                type="url"
-                value={closeEvidenceUrl}
-                onChange={(e) => setCloseEvidenceUrl(e.target.value)}
-                placeholder="https://drive.google.com/..."
-                className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none bg-gray-50"
-              />
-              {closeEvidenceUrl && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                  <Link size={14} className="text-emerald-600 shrink-0" />
-                  <a href={closeEvidenceUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-700 hover:underline truncate flex-1">{closeEvidenceUrl}</a>
-                  <button onClick={() => setCloseEvidenceUrl("")} className="p-1 hover:bg-red-100 text-red-500 rounded-lg"><X size={14} /></button>
-                </div>
-              )}
-            </div>
+            {/* Link bukti penyelesaian dihilangkan dari alur update status */}
 
             <textarea 
               value={closeNotes} 
@@ -934,20 +959,15 @@ export function ReportDetailView({
                 Batal
               </button>
               <button 
-                onClick={() => handleUpdateStatus("SELESAI", closeNotes, closeEvidenceUrl)}
-                disabled={!closeEvidenceUrl || actionLoading} 
-                className="flex-1 py-3.5 text-white font-bold rounded-xl text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
-                style={{ background: closeEvidenceUrl ? divisionColor : "#9ca3af" }}
+                onClick={() => handleUpdateStatus("SELESAI", closeNotes)}
+                disabled={actionLoading} 
+                className="flex-1 py-3.5 text-white font-bold rounded-xl text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                style={{ background: divisionColor }}
               >
                 {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                 Selesaikan
               </button>
             </div>
-            {!closeEvidenceUrl && (
-              <p className="text-[12px] text-red-500 text-center mt-4 flex items-center justify-center gap-1.5">
-                <AlertCircle size={14} />Link bukti penyelesaian wajib diisi
-              </p>
-            )}
           </div>
         </div>
       )}

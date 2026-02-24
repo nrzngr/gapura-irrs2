@@ -121,7 +121,7 @@ export default function NewReportWizard() {
     const [error, setError] = useState('');
     const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
     const [selectedStationId, setSelectedStationId] = useState<string>('');
-    const [newLinkInput, setNewLinkInput] = useState('');
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [createdReport, setCreatedReport] = useState<any>(null);
 
     const [formData, setFormData] = useState<FormData>({
@@ -200,35 +200,63 @@ export default function NewReportWizard() {
         };
     }, []);
 
-    const handleAddLink = () => {
-        const link = newLinkInput.trim();
-        if (!link) return;
-
-        if (formData.evidence_urls.length >= 3) {
-            setError('Maksimal 3 link');
-            return;
-        }
-
-        try {
-            new URL(link);
-        } catch {
-            setError('Link tidak valid. Pastikan format URL benar (contoh: https://drive.google.com/...)');
-            return;
-        }
-
-        setError('');
-        setFormData(prev => ({
-            ...prev,
-            evidence_urls: [...prev.evidence_urls, link],
-        }));
-        setNewLinkInput('');
+    const compressImage = (file: File, opts: { maxWidth?: number; maxHeight?: number; quality?: number; mimeType?: string } = {}) => {
+        const { maxWidth = 1600, maxHeight = 1600, quality = 0.8, mimeType = 'image/webp' } = opts;
+        return new Promise<File>((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let { width, height } = img;
+            const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { URL.revokeObjectURL(url); return reject(new Error('Canvas not supported')); }
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+              URL.revokeObjectURL(url);
+              if (!blob) return reject(new Error('Compression failed'));
+              const ext = mimeType.includes('webp') ? 'webp' : 'jpg';
+              const compressed = new File([blob], file.name.replace(/\.[^.]+$/, `.${ext}`), { type: blob.type });
+              resolve(compressed);
+            }, mimeType, quality);
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load error')); };
+          img.src = url;
+        });
     };
 
-    const removeLink = (index: number) => {
-        setFormData(prev => ({
-            ...prev,
-            evidence_urls: prev.evidence_urls.filter((_, i) => i !== index),
-        }));
+    const handleFilesSelected = async () => {
+        if (!selectedFiles.length) return;
+        try {
+            const uploadedUrls: string[] = [];
+            for (const file of selectedFiles) {
+                if (!file.type.startsWith('image/')) continue;
+                const compressed = await compressImage(file);
+                const fd = new FormData();
+                fd.append('file', compressed);
+                const res = await fetch('/api/uploads/evidence', { method: 'POST', body: fd });
+                if (!res.ok) {
+                    const msg = await res.text();
+                    throw new Error(msg || 'Gagal upload bukti');
+                }
+                const data = await res.json();
+                uploadedUrls.push(data.url);
+            }
+            setFormData(prev => ({ ...prev, evidence_urls: [...prev.evidence_urls, ...uploadedUrls] }));
+            setSelectedFiles([]);
+            setError('');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Gagal mengunggah bukti';
+            setError(message);
+        }
+    };
+
+    const removeEvidenceAt = (index: number) => {
+        setFormData(prev => ({ ...prev, evidence_urls: prev.evidence_urls.filter((_, i) => i !== index) }));
     };
 
     const nextStep = () => setStep(prev => Math.min(prev + 1, 5));
@@ -671,7 +699,7 @@ export default function NewReportWizard() {
                     <div className="max-w-3xl mx-auto space-y-8">
                         <div className="text-center space-y-2">
                             <h2 className="text-2xl font-bold">Evidence</h2>
-                            <p style={{ color: 'var(--text-secondary)' }}>Lampirkan link evidence sebagai bukti</p>
+                            <p style={{ color: 'var(--text-secondary)' }}>Unggah foto bukti (akan dikompres otomatis sebelum disimpan)</p>
                         </div>
 
                         <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
@@ -688,60 +716,43 @@ export default function NewReportWizard() {
                                 />
                             </div>
 
-                            {/* Google Drive Link */}
+                            {/* Evidence Upload */}
                             <div className="space-y-4">
-                                <label className="label">13. Link Evidence <span className="text-red-500">*</span></label>
-
-                                {/* Added Links */}
+                                <label className="label">13. Foto Evidence (min 1) <span className="text-red-500">*</span></label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="input-field"
+                                    onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
+                                />
+                                <div className="flex">
+                                    <button
+                                        type="button"
+                                        onClick={handleFilesSelected}
+                                        className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+                                        disabled={selectedFiles.length === 0}
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Upload Foto
+                                    </button>
+                                </div>
+                                {/* Previews */}
                                 {formData.evidence_urls.length > 0 && (
-                                    <div className="space-y-2">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                         {formData.evidence_urls.map((url, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                                                <Link className="w-4 h-4 text-emerald-600 shrink-0" />
-                                                <a
-                                                    href={url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-sm text-emerald-700 hover:underline truncate flex-1"
-                                                >
-                                                    {url}
-                                                </a>
+                                            <div key={idx} className="relative rounded-xl overflow-hidden border bg-white">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={url} alt={`evidence-${idx}`} className="w-full h-32 object-cover" />
                                                 <button
                                                     type="button"
-                                                    onClick={() => removeLink(idx)}
-                                                    className="p-1 hover:bg-red-100 text-red-500 rounded-lg transition-colors shrink-0"
+                                                    onClick={() => removeEvidenceAt(idx)}
+                                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-red-600 rounded-full p-1 shadow"
                                                 >
                                                     <X className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         ))}
-                                    </div>
-                                )}
-
-                                {/* Add Link Input */}
-                                {formData.evidence_urls.length < 3 && (
-                                    <div className="space-y-3">
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="url"
-                                                className="input-field flex-1"
-                                                placeholder="https://drive.google.com/..."
-                                                value={newLinkInput}
-                                                onChange={e => setNewLinkInput(e.target.value)}
-                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={handleAddLink}
-                                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                Tambah
-                                            </button>
-                                        </div>
-                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                            Paste link evidence (maks. {3 - formData.evidence_urls.length} lagi)
-                                        </p>
                                     </div>
                                 )}
                             </div>

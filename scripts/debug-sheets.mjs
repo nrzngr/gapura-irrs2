@@ -1,252 +1,148 @@
 #!/usr/bin/env node
-/**
- * Debug Script: Fetch data directly from Google Sheets
- * Usage: npm run debug:sheets [sheet-name] [column-name]
- * 
- * Examples:
- *   npm run debug:sheets
- *   npm run debug:sheets "NON CARGO"
- *   npm run debug:sheets "NON CARGO" "Target_Division"
- */
-
-import { google } from 'googleapis';
-import { config } from 'dotenv';
+import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { google } from 'googleapis';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
+const ROOT = path.resolve(__dirname, '..');
 
-// Load .env from project root
-config({ path: join(__dirname, '../.env') });
-
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '1TFPZOAWAKubPl7iaUk8BXt2BabY1N-AcLgi-_zBQGzk';
-const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL;
-const GOOGLE_PRIVATE_KEY = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-
-if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-  console.error('❌ Error: GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY not found in .env');
-  console.error('Please check your .env file');
-  console.error('Looking for: GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY');
-  process.exit(1);
+function getAuth() {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  if (!email || !privateKey) {
+    throw new Error('Missing Google Service Account credentials (GOOGLE_SERVICE_ACCOUNT_EMAIL/GOOGLE_PRIVATE_KEY)');
+  }
+  return new google.auth.JWT({ email, key: privateKey, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
 }
 
-async function getGoogleSheets() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: GOOGLE_CLIENT_EMAIL,
-      private_key: GOOGLE_PRIVATE_KEY,
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
-  return google.sheets({ version: 'v4', auth });
+function parseWriteMapping() {
+  const svcPath = path.join(ROOT, 'lib', 'services', 'reports-service.ts');
+  const text = fs.readFileSync(svcPath, 'utf8');
+  const start = text.indexOf('const WRITE_MAPPING');
+  if (start === -1) return {};
+  const end = text.indexOf('};', start);
+  const block = text.slice(start, end + 2);
+  const map = {};
+  const re = /([a-zA-Z0-9_]+)\s*:\s*'([^']+)'/g;
+  let m;
+  while ((m = re.exec(block))) {
+    map[m[1]] = m[2];
+  }
+  return map;
 }
 
-async function fetchSheetList() {
-  const sheets = await getGoogleSheets();
-  const response = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-  
-  console.log('\n📊 Available Sheets:');
-  console.log('=' .repeat(50));
-  response.data.sheets?.forEach((sheet, idx) => {
-    console.log(`  ${idx + 1}. ${sheet.properties?.title} (ID: ${sheet.properties?.sheetId})`);
-  });
-  
-  return response.data.sheets?.map(s => s.properties?.title) || [];
+function inferType(value) {
+  if (value === null || value === undefined) return 'empty';
+  const v = String(value).trim();
+  if (!v) return 'empty';
+  if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(v)) return 'date';
+  if (/^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$/.test(v)) return 'date';
+  if (!isNaN(Number(v)) && v.match(/^-?\d+(\.\d+)?$/)) return 'number';
+  if ((v.startsWith('{') && v.endsWith('}')) || (v.startsWith('[') && v.endsWith(']'))) {
+    try { JSON.parse(v); return 'json'; } catch {}
+  }
+  return 'string';
 }
 
-async function fetchColumnDebug(sheetName, columnName) {
-  const sheets = await getGoogleSheets();
-  
-  console.log(`\n🔍 Fetching data from "${sheetName}" column "${columnName}"...\n`);
-  
-  // Get all data
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: sheetName,
-  });
-  
-  const rows = response.data.values || [];
-  if (rows.length === 0) {
-    console.log('❌ No data found');
-    return;
-  }
-  
-  const headers = rows[0];
-  const dataRows = rows.slice(1);
-  
-  console.log(`✓ Total rows: ${dataRows.length}`);
-  console.log(`✓ Headers: ${headers.join(', ')}\n`);
-  
-  // Find column index (case insensitive, ignore underscores and spaces)
-  const searchName = columnName.toLowerCase().replace(/[_\s]/g, '');
-  const colIndex = headers.findIndex(h => 
-    h?.toString().toLowerCase().replace(/[_\s]/g, '') === searchName
-  );
-  
-  if (colIndex === -1) {
-    console.log(`❌ Column "${columnName}" not found!`);
-    console.log('\n🔍 Looking for similar columns...');
-    const similar = headers.filter(h => 
-      h?.toString().toLowerCase().includes(columnName.toLowerCase().split('_')[0])
-    );
-    if (similar.length > 0) {
-      console.log(`   Found similar: ${similar.join(', ')}`);
-    }
-    return;
-  }
-  
-  const actualColumnName = headers[colIndex];
-  console.log(`✓ Found column "${actualColumnName}" at index ${colIndex}\n`);
-  
-  // Analyze data
-  const valueCounts = {};
-  let nullCount = 0;
-  let emptyCount = 0;
-  
-  dataRows.forEach((row, idx) => {
-    const value = row[colIndex];
-    if (value === undefined || value === null) {
-      nullCount++;
-    } else if (value.toString().trim() === '') {
-      emptyCount++;
-    } else {
-      const key = value.toString().trim();
-      if (!valueCounts[key]) {
-        valueCounts[key] = { count: 0, firstRow: idx + 2 };
-      }
-      valueCounts[key].count++;
-    }
-  });
-  
-  console.log('📈 Data Distribution:');
-  console.log('=' .repeat(50));
-  console.log(`  Null values: ${nullCount}`);
-  console.log(`  Empty strings: ${emptyCount}`);
-  console.log(`  Valid values: ${dataRows.length - nullCount - emptyCount}`);
-  console.log(`  Unique values: ${Object.keys(valueCounts).length}\n`);
-  
-  console.log('🏆 Top 10 Values:');
-  console.log('=' .repeat(50));
-  const sorted = Object.entries(valueCounts)
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 10);
-  
-  sorted.forEach(([value, data], idx) => {
-    const percentage = ((data.count / dataRows.length) * 100).toFixed(1);
-    console.log(`  ${idx + 1}. "${value}"`);
-    console.log(`     Count: ${data.count} (${percentage}%) | First row: ${data.firstRow}`);
-  });
-  
-  // Sample rows
-  console.log('\n📝 Sample Rows (first 5 with this column):');
-  console.log('=' .repeat(50));
-  let sampleCount = 0;
-  for (let i = 0; i < Math.min(dataRows.length, 20) && sampleCount < 5; i++) {
-    const value = dataRows[i][colIndex];
-    if (value && value.toString().trim() !== '') {
-      console.log(`  Row ${i + 2}: "${value}"`);
-      sampleCount++;
-    }
-  }
-  
-  if (sampleCount === 0) {
-    console.log('  (No non-empty values found in first 20 rows)');
-  }
+async function fetchSheetValues(sheets, spreadsheetId, range) {
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  return res.data.values || [];
 }
 
-async function fetchSampleData(sheetName) {
-  const sheets = await getGoogleSheets();
-  
-  console.log(`\n📄 Fetching sample data from "${sheetName}"...\n`);
-  
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: sheetName,
-  });
-  
-  const rows = response.data.values || [];
-  if (rows.length === 0) {
-    console.log('❌ No data found');
-    return;
-  }
-  
-  const headers = rows[0];
-  const dataRows = rows.slice(1);
-  
-  console.log('📋 Column Headers:');
-  console.log('=' .repeat(80));
+function analyzeTypes(headers, rows) {
+  const result = {};
   headers.forEach((h, i) => {
-    console.log(`  ${i.toString().padStart(2)}: ${h}`);
+    const samples = rows.map(r => r[i]).filter(v => v !== undefined && v !== '');
+    const types = new Set(samples.slice(0, 1000).map(inferType));
+    result[h] = {
+      types: Array.from(types),
+      sample: samples.slice(0, 5)
+    };
   });
-  
-  console.log(`\n📊 Total Data Rows: ${dataRows.length}\n`);
-  
-  // Find important columns
-  const importantCols = {
-    area: headers.findIndex(h => h?.toString().toLowerCase() === 'area'),
-    terminal: headers.findIndex(h => h?.toString().toLowerCase().includes('terminal')),
-    apron: headers.findIndex(h => h?.toString().toLowerCase().includes('apron')),
-    general: headers.findIndex(h => h?.toString().toLowerCase().includes('general')),
-    category: headers.findIndex(h => h?.toString().toLowerCase().includes('category') && !h?.toString().toLowerCase().includes('area')),
-    status: headers.findIndex(h => h?.toString().toLowerCase().includes('status')),
-    severity: headers.findIndex(h => h?.toString().toLowerCase().includes('severity')),
-    priority: headers.findIndex(h => h?.toString().toLowerCase().includes('priority')),
-    division: headers.findIndex(h => h?.toString().toLowerCase().includes('division') || h?.toString().toLowerCase().includes('target_division')),
-    subCategory: headers.findIndex(h => h?.toString().toLowerCase().includes('irregularity_complain')),
-  };
-  
-  console.log('🔍 Important Column Indices:');
-  console.log('=' .repeat(80));
-  Object.entries(importantCols).forEach(([name, idx]) => {
-    const status = idx >= 0 ? `✓ Found at index ${idx} (${headers[idx]})` : '✗ Not found';
-    console.log(`  ${name.padEnd(15)}: ${status}`);
-  });
-  
-  // Sample rows
-  console.log('\n📝 Sample Data (first 3 rows):');
-  console.log('=' .repeat(80));
-  dataRows.slice(0, 3).forEach((row, idx) => {
-    console.log(`\nRow ${idx + 2}:`);
-    headers.forEach((h, i) => {
-      if (i < 15) { // Only show first 15 columns
-        const value = row[i] || '(empty)';
-        console.log(`  ${h.padEnd(25)}: ${value}`);
-      }
-    });
-    if (headers.length > 15) {
-      console.log(`  ... and ${headers.length - 15} more columns`);
-    }
-  });
+  return result;
 }
 
-// Main
+function compareMapping(headers, writeMap) {
+  const norm = s => s.trim().toLowerCase();
+  const headersNorm = headers.map(norm);
+  const headerSet = new Set(headersNorm);
+  const mappingHeaders = Object.values(writeMap).map(norm);
+  const mapHeaderSet = new Set(mappingHeaders);
+
+  const headersWithoutMapping = headers.filter((h, idx) => !mapHeaderSet.has(headersNorm[idx]));
+  const mappingWithoutHeader = Object.entries(writeMap)
+    .filter(([_, hh]) => !headerSet.has(norm(hh)))
+    .map(([k, hh]) => ({ prop: k, header: hh }));
+
+  return { headersWithoutMapping, mappingWithoutHeader };
+}
+
 async function main() {
-  const args = process.argv.slice(2);
-  const sheetName = args[0] || 'NON CARGO';
-  const columnName = args[1];
-  
-  console.log('🚀 Google Sheets Debug Tool');
-  console.log('=' .repeat(50));
-  console.log(`Spreadsheet ID: ${SPREADSHEET_ID}`);
-  console.log(`Sheet: ${sheetName}\n`);
-  
-  try {
-    if (!columnName) {
-      // If no column specified, list available sheets and show sample data
-      await fetchSheetList();
-      await fetchSampleData(sheetName);
-    } else {
-      // If column specified, debug that specific column
-      await fetchColumnDebug(sheetName, columnName);
-    }
-    
-    console.log('\n✅ Done!\n');
-  } catch (error) {
-    console.error('\n❌ Error:', error.message);
+  const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+  if (!SPREADSHEET_ID) {
+    console.error('Missing GOOGLE_SHEET_ID');
     process.exit(1);
   }
+  const SHEETS = (process.env.DEBUG_SHEETS || 'NON CARGO,CGO').split(',').map(s => s.trim());
+  const writeMap = parseWriteMapping();
+
+  const auth = getAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  console.log('=== Google Sheets Diagnostics ===');
+  console.log(`Spreadsheet: ${SPREADSHEET_ID}`);
+  console.log(`Sheets: ${SHEETS.join(', ')}`);
+  console.log('');
+
+  for (const sheetName of SHEETS) {
+    console.log(`--- Sheet: ${sheetName} ---`);
+    const headerRow = await fetchSheetValues(sheets, SPREADSHEET_ID, `${sheetName}!1:1`);
+    const headers = (headerRow[0] || []).map(h => String(h).trim()).filter(Boolean);
+    console.log(`Headers (${headers.length}):`);
+    console.log(headers.join(' | '));
+
+    const allValues = await fetchSheetValues(sheets, SPREADSHEET_ID, `${sheetName}`);
+    const dataRows = allValues.slice(1);
+    console.log(`Rows: ${dataRows.length}`);
+
+    const typeInfo = analyzeTypes(headers, dataRows);
+    const coverage = compareMapping(headers, writeMap);
+
+    console.log('Coverage:');
+    console.log(`- Headers without mapping (${coverage.headersWithoutMapping.length}): ${coverage.headersWithoutMapping.join(' | ') || '-'}`);
+    console.log(`- Mapping without header (${coverage.mappingWithoutHeader.length}):`);
+    if (coverage.mappingWithoutHeader.length) {
+      coverage.mappingWithoutHeader.slice(0, 50).forEach(({ prop, header }) => {
+        console.log(`  • ${prop} -> ${header}`);
+      });
+    } else {
+      console.log('  -');
+    }
+
+    const showCols = ['Status', 'Severity', 'Report Category', 'Area', 'Terminal Area Category', 'Apron Area Category', 'General Category'];
+    for (const col of showCols) {
+      const idx = headers.findIndex(h => h.trim().toLowerCase() === col.trim().toLowerCase());
+      if (idx !== -1) {
+        const vals = dataRows.map(r => r[idx]).filter(Boolean).map(v => String(v).trim());
+        const freq = {};
+        vals.forEach(v => { freq[v] = (freq[v] || 0) + 1; });
+        const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        console.log(`${col} top values: ${top.map(([v, c]) => `${v}(${c})`).join(', ') || '-'}`);
+      }
+    }
+
+    const sample = Object.fromEntries(Object.entries(typeInfo).map(([k, v]) => [k, v.types.join(', ')]));
+    console.log('Type inference (first N rows):');
+    Object.entries(sample).slice(0, 30).forEach(([k, t]) => console.log(`  ${k}: ${t}`));
+    console.log('');
+  }
 }
 
-main();
+main().catch(err => {
+  console.error('Diagnostics failed:', err.message);
+  process.exit(1);
+});
+
