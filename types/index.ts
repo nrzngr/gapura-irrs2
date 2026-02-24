@@ -101,6 +101,8 @@ export interface Report {
     validation_notes?: string;
     partner_evidence_urls?: string[];
     source_sheet?: string;
+    original_id?: string; // Original Sheets ID (e.g. NON CARGO!row_2)
+    row_number?: number;
     
     // Timestamps
     created_at: string;
@@ -141,6 +143,7 @@ export interface Report {
     kode_cabang?: string;
     kode_hub?: string;
     maskapai_lookup?: string;
+    case_classification?: string;
     lokal_mpa_lookup?: string;
 
     // Delay Info
@@ -160,12 +163,13 @@ export interface Report {
     // Joined data
     stations?: { code: string; name: string };
     users?: { full_name: string; email: string; role?: string };
-    comments?: {
-        id: string;
-        content: string;
-        created_at: string;
-        users: { full_name: string; avatar_url?: string };
-        attachments?: string[];
-        is_system_message?: boolean;
-    }[];
+        comments?: {
+            id: string;
+            content: string;
+            created_at: string;
+            sheet_id?: string;
+            users: { full_name: string; avatar_url?: string };
+            attachments?: string[];
+            is_system_message?: boolean;
+        }[];
 }

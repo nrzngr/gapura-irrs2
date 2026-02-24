@@ -27,7 +27,7 @@ import {
   getAllowedTransitions,
   type ReportStatus,
 } from "@/lib/constants/report-status";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { type Report } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { supabase } from "@/lib/supabase";
@@ -146,10 +146,19 @@ export function ReportDetailView({
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", description: "", flight_number: "", aircraft_reg: "", location: "" });
   const [newEvidenceLink, setNewEvidenceLink] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastCommentRef = useRef<HTMLDivElement>(null);
 
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [dispatchForm, setDispatchForm] = useState({ primary_tag: "", sub_category_note: "", target_division: "" });
+
+  // Auto scroll to bottom when new comments arrive
+  useEffect(() => {
+    if (report?.comments?.length) {
+      lastCommentRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [report?.comments?.length]);
 
   // Sync edit form with report
   useEffect(() => {
@@ -173,16 +182,38 @@ export function ReportDetailView({
   // Realtime subscription
   useEffect(() => {
     if (!report?.id) return;
+    
+    // Initial fetch to make sure we have the latest comments
+    onRefresh?.();
+
     const channel = supabase
       .channel(`report-${report.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "report_comments", filter: `report_id=eq.${report.id}` }, () => onRefresh?.())
+      .on("postgres_changes", { 
+        event: "*", 
+        schema: "public", 
+        table: "report_comments", 
+        filter: `report_id=eq.${report.id}` 
+      }, () => {
+        console.log("Realtime update for report comments");
+        onRefresh?.();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [report?.id, onRefresh]);
+  }, [report?.id]);
 
 
 
   // Handlers
+  const handleRefresh = async () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleUpdateStatus = async (status: string, notes?: string, evidenceUrl?: string) => {
     if (!onUpdateStatus || !report) return;
     setActionLoading(true);
@@ -418,7 +449,7 @@ export function ReportDetailView({
                   <DataField label="Target Divisi" value={report.target_division} />
                   <DataField label="Station" value={`${report.stations?.code || report.branch || ""}${report.stations?.name ? ` - ${report.stations.name}` : ""}`} icon={Building2} />
                   <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} />
-                  <DataField label="Tanggal Kejadian" value={report.date_of_event || report.event_date || new Date(report.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} icon={Calendar} />
+                  <DataField label="Tanggal Kejadian" value={formatDate(report.date_of_event || report.event_date || report.created_at)} icon={Calendar} />
                 </dl>
               </SectionCard>
 
@@ -595,8 +626,13 @@ export function ReportDetailView({
               )}
 
               {/* Comment Input */}
-              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                <CommentInput reportId={report.id} onSuccess={onRefresh} placeholder="Tambahkan tindak lanjut..." />
+              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm relative overflow-hidden">
+                {refreshing && (
+                  <div className="absolute top-0 left-0 w-full h-0.5 bg-gray-100 overflow-hidden z-10">
+                    <div className="h-full bg-[var(--brand-primary)] animate-progress-indeterminate origin-left" />
+                  </div>
+                )}
+                <CommentInput reportId={report.id} onSuccess={handleRefresh} placeholder="Tambahkan tindak lanjut..." />
               </div>
 
               {/* Activity Feed */}
@@ -604,10 +640,15 @@ export function ReportDetailView({
                 <p className="text-[11px] uppercase text-[var(--text-muted)] tracking-wider font-semibold mb-4">Riwayat Aktivitas</p>
                 {report.comments && report.comments.length > 0 ? (
                   <div className="space-y-3">
-                    {report.comments.slice().reverse().map((comment) => {
+                    {report.comments.slice().reverse().map((comment, idx) => {
+                      const isLast = idx === 0;
                       if (comment.is_system_message) {
                         return (
-                          <div key={comment.id} className="flex items-start gap-2.5 text-[12px] text-[var(--text-muted)] italic">
+                          <div 
+                            key={comment.id} 
+                            ref={isLast ? lastCommentRef : null}
+                            className="flex items-start gap-2.5 text-[12px] text-[var(--text-muted)] italic animate-in fade-in slide-in-from-bottom-2 duration-300"
+                          >
                             <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 shrink-0" />
                             <div className="flex-1">
                               <span>{comment.content}</span>
@@ -619,7 +660,11 @@ export function ReportDetailView({
                         );
                       }
                       return (
-                        <div key={comment.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                        <div 
+                          key={comment.id} 
+                          ref={isLast ? lastCommentRef : null}
+                          className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm animate-in fade-in slide-in-from-bottom-3 duration-500"
+                        >
                           <div className="flex items-center gap-2.5 mb-2.5">
                             <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-500">
                               {comment.users?.full_name?.charAt(0) || "?"}
@@ -627,27 +672,11 @@ export function ReportDetailView({
                             <div className="flex-1 min-w-0">
                               <span className="text-[13px] font-semibold text-[var(--text-primary)]">{comment.users?.full_name}</span>
                               <span className="text-[11px] text-[var(--text-muted)] ml-2">
-                                {new Date(comment.created_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                {formatDate(comment.created_at)} • {new Date(comment.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                               </span>
                             </div>
                           </div>
                           <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{comment.content}</p>
-                          {comment.attachments && comment.attachments.length > 0 && (
-                            <div className="space-y-1.5 mt-3">
-                              {comment.attachments.map((url, idx) => (
-                                <a
-                                  key={idx}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 text-[12px] text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  <Link size={12} className="shrink-0" />
-                                  <span className="truncate">{url}</span>
-                                </a>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       );
                     })}

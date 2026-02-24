@@ -42,11 +42,29 @@ export async function GET(
             user = u;
         }
 
+        // Fetch comments from Supabase Admin (Bypass RLS for detail view)
+        // Search by both the current ID (UUID) and the original Sheets ID for transition compatibility
+        const commentIds = [id, report.original_id].filter((val): val is string => !!val);
+        const { data: comments } = await supabaseAdmin
+            .from('report_comments')
+            .select(`
+                id,
+                content,
+                created_at,
+                is_system_message,
+                sheet_id,
+                users:user_id (
+                    full_name
+                )
+            `)
+            .in('report_id', commentIds)
+            .order('created_at', { ascending: true });
+
         // Enrich report using data from Sheets and User profile
         const enrichedReport = {
             ...report,
             users: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
-            comments: [], // Comments are no longer supported in Supabase
+            comments: comments || [],
             // Legacy / Frontend compatibility
             user: user || (report.reporter_name ? { full_name: report.reporter_name } : null),
             station: report.stations ? { ...report.stations, id: report.station_id } : undefined,

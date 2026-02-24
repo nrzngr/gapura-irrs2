@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ChartPreview } from '@/components/builder/ChartPreview';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, LayoutGrid, Box, Menu, Calendar } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, LayoutGrid, Box, Menu, Calendar, ArrowLeft } from 'lucide-react';
 import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import { processQuery } from '@/lib/engine/query-processor';
@@ -131,14 +131,53 @@ export function CustomDashboardContent() {
       if (!res.ok) throw new Error('Dashboard not found');
       const data = await res.json();
       setDashboard(data);
-      if (data.config?.dateFrom) setDateFrom(data.config.dateFrom);
-      if (data.config?.dateTo) setDateTo(data.config.dateTo);
+      if (data.config?.dateFrom && !searchParams.get('dateFrom')) setDateFrom(data.config.dateFrom);
+      if (data.config?.dateTo && !searchParams.get('dateTo')) setDateTo(data.config.dateTo);
       setFiltersInitialized(true);
       return data as Dashboard;
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, searchParams]);
+
+  // Sync state to URL params
+  useEffect(() => {
+    if (!filtersInitialized) return;
+    
+    const params = new URLSearchParams(searchParams.toString());
+    let changed = false;
+
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      if (val && val !== 'all' && params.get(key) !== val) {
+        params.set(key, val);
+        changed = true;
+      } else if ((!val || val === 'all') && params.has(key)) {
+        params.delete(key);
+        changed = true;
+      }
+    });
+
+    if (dateFrom && params.get('dateFrom') !== dateFrom) {
+      params.set('dateFrom', dateFrom);
+      changed = true;
+    }
+    if (dateTo && params.get('dateTo') !== dateTo) {
+      params.set('dateTo', dateTo);
+      changed = true;
+    }
+    if (activePage > 0 && params.get('pageIndex') !== activePage.toString()) {
+      params.set('pageIndex', activePage.toString());
+      changed = true;
+    } else if (activePage === 0 && params.has('pageIndex')) {
+      params.delete('pageIndex');
+      changed = true;
+    }
+
+    if (changed) {
+      const query = params.toString();
+      router.replace(`${window.location.pathname}${query ? `?${query}` : ''}`, { scroll: false });
+    }
+  }, [activeFilters, dateFrom, dateTo, activePage, filtersInitialized, router, searchParams]);
 
   const applyFiltersToQuery = useCallback((queryConfig: QueryDefinition): QueryDefinition => {
     const extraFilters = Object.entries(activeFilters)
@@ -308,6 +347,11 @@ export function CustomDashboardContent() {
   const isCustomerFeedbackDashboard = useMemo(() => {
     return dashboard?.name?.toLowerCase().includes('customer feedback') || slug?.includes('customer-feedback');
   }, [dashboard?.name, slug]);
+
+  const isFiltered = useMemo(() => {
+    // Only check for domain filters, ignore date range or other technical params
+    return Object.values(activeFilters).some(v => v && v !== 'all');
+  }, [activeFilters]);
 
   const useCustomerFeedbackOverviewLayout = isCustomerFeedbackDashboard && [0, 1, 2, 3, 4].includes(activePage);
 
@@ -493,6 +537,18 @@ export function CustomDashboardContent() {
                 {!sidebarCollapsed && <span className="text-[13px] font-bold tracking-wide whitespace-nowrap overflow-hidden">{p.name}</span>}
               </button>
             ))}
+            
+                {isCustomerFeedbackDashboard && !isFiltered && (
+                  <div className="pt-4 mt-4 border-t border-gray-100/50">
+                    <button 
+                      onClick={() => router.back()} 
+                      className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-500 text-gray-400 hover:bg-red-50 hover:text-red-500 group"
+                    >
+                      <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+                      {!sidebarCollapsed && <span className="text-[13px] font-bold tracking-wide uppercase">Back to Portal</span>}
+                    </button>
+                  </div>
+                )}
           </nav>
         </aside>
       )}
@@ -507,13 +563,97 @@ export function CustomDashboardContent() {
               </div>
               <div className="flex items-center gap-2.5">
                 <div className="relative group">
-                  <button onClick={() => setShowDatePicker(!showDatePicker)} className="flex items-center gap-3 bg-white border border-gray-100 px-5 py-2.5 rounded-2xl text-[13px] font-bold text-gray-600 hover:border-brand-primary/30 hover:shadow-spatial-sm transition-all shadow-sm"><Calendar size={16} className="text-brand-primary" />{dateFrom && dateTo ? `${new Date(dateFrom).toLocaleDateString()} - ${new Date(dateTo).toLocaleDateString()}` : 'Select Period'}<ChevronDownIcon size={14} className="text-gray-300" /></button>
+                  <button 
+                    onClick={() => setShowDatePicker(!showDatePicker)} 
+                    className="flex items-center gap-3 bg-white border border-gray-100 px-5 py-2.5 rounded-2xl text-[13px] font-bold text-gray-600 hover:border-brand-primary/30 hover:shadow-spatial-sm transition-all shadow-sm min-w-[200px]"
+                  >
+                    <Calendar size={16} className="text-brand-primary flex-shrink-0" />
+                    <span className="whitespace-nowrap flex-1 text-left">
+                      {(() => {
+                        if (!dateFrom && !dateTo) return 'Select Period';
+                        if (dateFrom === '1900-01-01' && dateTo === '2099-12-31') return 'All Dates';
+                        const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+                        const from = dateFrom ? new Date(dateFrom).toLocaleDateString('en-GB', options) : '...';
+                        const to = dateTo ? new Date(dateTo).toLocaleDateString('en-GB', options) : '...';
+                        return `${from} — ${to}`;
+                      })()}
+                    </span>
+                    <ChevronDownIcon size={14} className="text-gray-300 flex-shrink-0" />
+                  </button>
                   {showDatePicker && (
-                    <div className="absolute right-0 mt-3 p-6 bg-white rounded-3xl shadow-spatial-xl border border-gray-100 z-50 min-w-[320px] animate-prism-reveal">
-                      <div className="grid gap-5">
-                        <div className="grid gap-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Start Date</label><input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" /></div>
-                        <div className="grid gap-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">End Date</label><input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" /></div>
-                        <div className="flex gap-2 pt-2"><button onClick={() => setShowDatePicker(false)} className="flex-1 py-3 bg-brand-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-brand-primary/90 transition-all shadow-spatial-sm">Apply Analysis</button><button onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }} className="px-4 py-3 bg-gray-100 text-gray-500 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all"><X size={18} /></button></div>
+                    <div className="absolute right-0 mt-3 p-6 bg-white rounded-3xl shadow-spatial-xl border border-gray-100 z-50 min-w-[320px] animate-prism-reveal overflow-hidden">
+                      <div className="grid gap-6">
+                        <div>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 mb-3 block">Quick Range</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { label: 'Today', range: 'today' },
+                              { label: 'Last 7 Days', range: '7d' },
+                              { label: 'Last 30 Days', range: '30d' },
+                              { label: 'This Year', range: 'year' },
+                              { label: 'All Time', range: 'all' },
+                            ].map((preset) => (
+                              <button
+                                key={preset.range}
+                                onClick={() => {
+                                  const now = new Date();
+                                  let from = '';
+                                  let to = now.toISOString().split('T')[0];
+                                  if (preset.range === 'today') from = to;
+                                  else if (preset.range === '7d') { const d = new Date(); d.setDate(now.getDate() - 7); from = d.toISOString().split('T')[0]; }
+                                  else if (preset.range === '30d') { const d = new Date(); d.setDate(now.getDate() - 30); from = d.toISOString().split('T')[0]; }
+                                  else if (preset.range === 'year') from = `${now.getFullYear()}-01-01`;
+                                  else if (preset.range === 'all') { from = '1900-01-01'; to = '2099-12-31'; }
+                                  setDateFrom(from);
+                                  setDateTo(to);
+                                }}
+                                className="px-3 py-2.5 bg-gray-50 text-[11px] font-bold text-gray-600 rounded-xl hover:bg-brand-primary/10 hover:text-brand-primary transition-all text-left"
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="border-t border-gray-100 pt-5">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 mb-3 block">Custom Range</label>
+                          <div className="grid gap-3">
+                            <div className="grid gap-1.5">
+                              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-1">Start Date</label>
+                              <input 
+                                type="date" 
+                                value={dateFrom} 
+                                onChange={e => setDateFrom(e.target.value)} 
+                                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" 
+                              />
+                            </div>
+                            <div className="grid gap-1.5">
+                              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-1">End Date</label>
+                              <input 
+                                type="date" 
+                                value={dateTo} 
+                                onChange={e => setDateTo(e.target.value)} 
+                                className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all" 
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <button 
+                            onClick={() => setShowDatePicker(false)} 
+                            className="flex-1 py-3.5 bg-brand-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-brand-primary/90 transition-all shadow-spatial-sm"
+                          >
+                            Apply Selection
+                          </button>
+                          <button 
+                            onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }} 
+                            className="px-4 py-3.5 bg-gray-100 text-gray-500 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all"
+                            title="Reset Filter"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

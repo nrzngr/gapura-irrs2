@@ -12,9 +12,25 @@ interface QueryResult {
 
 // Helper to safely get values
 const getVal = (row: any, field: string) => {
-  // Handle known aliases if not handled in service
-  if (field === 'category' && !row.category && row.main_category) return row.main_category;
-  if (field === 'main_category' && !row.main_category && row.category) return row.category;
+  // Handle known category aliases
+  if (field === 'category' || field === 'main_category') {
+    return row.category || row.main_category || row[field];
+  }
+
+  // Handle airline aliases
+  if (field === 'airline' || field === 'airlines') {
+    return row.airline || row.airlines || row[field];
+  }
+
+  // Handle branch aliases
+  if (field === 'branch' || field === 'station_code') {
+    return row.branch || row.station_code || row.reporting_branch || row[field];
+  }
+
+  // Handle maskapai aliases
+  if (field === 'maskapai' || field === 'jenis_maskapai') {
+    return row.maskapai || row.jenis_maskapai || row[field];
+  }
   
   // Handle virtual date fields
   if (['year', 'month', 'day', 'quarter'].includes(field)) {

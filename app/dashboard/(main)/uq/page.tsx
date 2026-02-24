@@ -1,8 +1,8 @@
 'use client';
 
-import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
+import { DivisionAnalystDashboard } from '@/components/dashboard/DivisionAnalystDashboard';
 import { DIVISIONS } from '@/lib/constants/divisions';
 
 export default function UQDashboard() {
-    return <AnalyticsDashboard division={DIVISIONS.UQ} />;
+    return <DivisionAnalystDashboard division={DIVISIONS.UQ} />;
 }

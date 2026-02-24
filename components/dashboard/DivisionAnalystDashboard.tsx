@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
-// Components
 import { ResponsiveHeader } from '@/components/dashboard/analyst/ResponsiveHeader';
 import { ResponsiveStatsGrid } from '@/components/dashboard/analyst/ResponsiveStatsGrid';
 import { ReportsTableSection } from '@/components/dashboard/analyst/ReportsTableSection';
@@ -14,11 +13,10 @@ import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
 import { CustomerFeedbackFilterModal } from '@/components/dashboard/analyst/CustomerFeedbackFilterModal';
 import { TriageModal } from '@/components/dashboard/analyst/TriageModal';
 
-// Utils
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
 import type { Report } from '@/types';
+import type { DivisionConfig } from '@/components/dashboard/AnalyticsDashboard';
 
-// Dynamic import for charts
 const AnalystCharts = dynamic(
   () => import('@/components/dashboard/analyst/AnalystCharts'),
   {
@@ -37,7 +35,6 @@ const AnalystCharts = dynamic(
   }
 );
 
-// Types
 interface AnalyticsData {
   summary: {
     totalReports: number;
@@ -54,14 +51,13 @@ interface AnalyticsData {
   categoryData?: Array<{ category: string; count: number }>;
 }
 
-/**
- * Refactored Analyst Dashboard Page
- * Mobile-first responsive design
- */
-export default function AnalystDashboard() {
+interface DivisionAnalystDashboardProps {
+  division: DivisionConfig;
+}
+
+export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardProps) {
   const router = useRouter();
 
-  // State
   const [reports, setReports] = useState<Report[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,17 +66,14 @@ export default function AnalystDashboard() {
   const [dateRange, setDateRange] = useState<'all' | 'week' | 'month'>('all');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-  // Triage State
   const [triageReport, setTriageReport] = useState<Report | null>(null);
   const [isTriageOpen, setIsTriageOpen] = useState(false);
 
-  // Filter Modal State
   const [cfLoading, setCfLoading] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
   const [savedDashboards, setSavedDashboards] = useState<any[]>([]);
 
-  // Fetch data
   const fetchData = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) setRefreshing(true);
@@ -91,9 +84,12 @@ export default function AnalystDashboard() {
           await fetch('/api/reports/refresh', { method: 'POST' });
         }
 
+        const queryParams = new URLSearchParams();
+        queryParams.set('division', division.code);
+
         const [reportsRes, analyticsRes] = await Promise.all([
-          fetch('/api/admin/reports'),
-          fetch('/api/admin/analytics'),
+          fetch(`/api/admin/reports?${queryParams.toString()}`),
+          fetch(`/api/admin/analytics?${queryParams.toString()}`),
         ]);
 
         if (reportsRes.ok) {
@@ -117,14 +113,13 @@ export default function AnalystDashboard() {
         setRefreshing(false);
       }
     },
-    []
+    [division.code]
   );
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Filtered reports based on date range
   const filteredReports = useMemo(() => {
     if (dateRange === 'all') return reports;
     const now = new Date();
@@ -134,7 +129,6 @@ export default function AnalystDashboard() {
     return reports.filter((r) => new Date(r.created_at) >= cutoffDate);
   }, [reports, dateRange]);
 
-  // Calculate stats
   const filteredStats = useMemo(() => {
     const total = filteredReports.length;
     const resolved = filteredReports.filter((r) => r.status === 'SELESAI').length;
@@ -148,13 +142,11 @@ export default function AnalystDashboard() {
     return { total, resolved, pending, highSeverity, resolutionRate };
   }, [filteredReports]);
 
-  // Drilldown URL helper
   const drilldownUrl = (type: string, value: string) =>
     `/dashboard/analyst/drilldown?type=${type}&value=${encodeURIComponent(
       value
-    )}&period=${dateRange}`;
+    )}&period=${dateRange}&division=${division.code}`;
 
-  // Customer Feedback Dashboard shortcut handler
   const handleCustomerFeedbackShortcut = useCallback(async () => {
     setCfLoading(true);
     try {
@@ -175,7 +167,11 @@ export default function AnalystDashboard() {
       const res = await fetch('/api/dashboards/customer-feedback-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          filters: {
+            division: division.code
+          }
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to generate dashboard');
@@ -193,9 +189,8 @@ export default function AnalystDashboard() {
     } finally {
       setCfLoading(false);
     }
-  }, [router]);
+  }, [router, division.code]);
 
-  // Filter options
   const availableOptions = useMemo(() => {
     const hubs = new Set<string>();
     const branches = new Set<string>();
@@ -231,14 +226,19 @@ export default function AnalystDashboard() {
     [savedDashboards]
   );
 
-  // Handle filter apply
   const handleApplyFilter = async (filterData: any) => {
     setFilterLoading(true);
     try {
       const res = await fetch('/api/dashboards/customer-feedback-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(filterData),
+        body: JSON.stringify({
+          ...filterData,
+          filters: {
+            ...filterData.filters,
+            division: division.code
+          }
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to generate dashboard');
@@ -256,7 +256,6 @@ export default function AnalystDashboard() {
     }
   };
 
-  // Handle triage submit
   const handleTriageSubmit = async (data: {
     primary_tag: string;
     sub_category_note: string;
@@ -287,7 +286,6 @@ export default function AnalystDashboard() {
     }
   };
 
-  // Export handlers
   const exportToExcel = async () => {
     setExporting('excel');
     try {
@@ -306,7 +304,6 @@ export default function AnalystDashboard() {
     }
   };
 
-  // Handle stat card click
   const handleStatClick = (type: string) => {
     switch (type) {
       case 'total':
@@ -324,7 +321,6 @@ export default function AnalystDashboard() {
     }
   };
 
-  // Analytics data calculations
   const caseCategoryData = useMemo(() => {
     const irregularity = filteredReports.filter(
       (r) => r.category === 'Irregularity'
@@ -380,7 +376,7 @@ export default function AnalystDashboard() {
       else if (r.category === 'Compliment') entry.compliment++;
     });
 
-    const result = Array.from(dataMap.entries())
+    return Array.from(dataMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([_, val]) => ({
         month: `${val.date.getFullYear()} ${val.date.toLocaleString('en-US', {
@@ -391,9 +387,6 @@ export default function AnalystDashboard() {
         compliment: val.compliment,
       }))
       .slice(-14);
-    
-    console.log('[AnalystPage] monthlyReportData:', result.length, 'items');
-    return result;
   }, [filteredReports]);
 
   const categoryByAreaData = useMemo(() => {
@@ -404,7 +397,7 @@ export default function AnalystDashboard() {
       if (raw.includes('terminal')) area = 'Terminal Area';
       else if (raw.includes('apron')) area = 'Apron Area';
       else if (raw.includes('general')) area = 'General';
-      
+
       if (area) {
         areas[area] = (areas[area] || 0) + 1;
       }
@@ -450,7 +443,7 @@ export default function AnalystDashboard() {
       if (raw.includes('terminal')) area = 'Terminal Area';
       else if (raw.includes('apron')) area = 'Apron Area';
       else if (raw.includes('general')) area = 'General';
-      
+
       if (!area) return;
       const subCat = r.category || 'Uncategorized';
 
@@ -583,7 +576,6 @@ export default function AnalystDashboard() {
       .slice(0, 10);
   }, [filteredReports]);
 
-  // Case Report by Area: Branch → Airlines hierarchy, counts by area type
   const caseReportByAreaData = useMemo(() => {
     const branchMap: Record<string, Record<string, { terminal: number; apron: number; general: number }>> = {};
     filteredReports.forEach((r) => {
@@ -619,7 +611,6 @@ export default function AnalystDashboard() {
       .sort((a, b) => b.grandTotal - a.grandTotal);
   }, [filteredReports]);
 
-  // Terminal Area Category counts sorted descending
   const terminalAreaCategoryData = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredReports.forEach((r) => {
@@ -633,7 +624,6 @@ export default function AnalystDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredReports]);
 
-  // Apron Area Category counts sorted descending
   const apronAreaCategoryData = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredReports.forEach((r) => {
@@ -647,7 +637,6 @@ export default function AnalystDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredReports]);
 
-  // General Category counts sorted descending
   const generalCategoryData = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredReports.forEach((r) => {
@@ -661,7 +650,6 @@ export default function AnalystDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredReports]);
 
-  // Case Classification counts sorted descending
   const caseClassificationData = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredReports.forEach((r) => {
@@ -673,7 +661,6 @@ export default function AnalystDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredReports]);
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
@@ -685,7 +672,7 @@ export default function AnalystDashboard() {
           }}
         />
         <p className="text-sm text-[var(--text-muted)] mt-4 uppercase tracking-widest font-bold">
-          Loading Dashboard...
+          Loading {division.name} Dashboard...
         </p>
       </div>
     );
@@ -706,9 +693,7 @@ export default function AnalystDashboard() {
         backgroundColor: 'var(--surface-0)',
       }}
     >
-      {/* Full-bleed analyst dashboard container */}
       <div className="space-y-8 pb-24 pt-0 px-4 md:px-6 w-full max-w-none">
-        {/* Header Section */}
         <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
           <ResponsiveHeader
             dateRange={dateRange}
@@ -722,9 +707,26 @@ export default function AnalystDashboard() {
             onExportPDF={exportToPDF}
             exporting={exporting}
           />
+          {division.code === 'OS' && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push('/dashboard/os/joumpa')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                JOUMPA Dashboard
+              </button>
+              <button
+                onClick={() => window.open('https://lookerstudio.google.com/u/0/reporting/42384b46-8f39-4ffd-86ba-ca0e26ab56f4/page/p_8umvft5qyd', '_blank')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Customer Survey Dashboard
+              </button>
+            </div>
+          )}
         </PresentationSlide>
 
-        {/* Body: Stats (left) + Table (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
           <div className="lg:col-span-2">
             <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
@@ -749,7 +751,6 @@ export default function AnalystDashboard() {
           </div>
         </div>
 
-        {/* Charts */}
         <AnalystCharts
           analytics={analytics}
           caseCategoryData={caseCategoryData}
@@ -773,12 +774,11 @@ export default function AnalystDashboard() {
           drilldownUrl={drilldownUrl}
         />
 
-        {/* Modals */}
         <ReportDetailModal
           isOpen={!!selectedReport}
           onClose={() => setSelectedReport(null)}
           report={selectedReport}
-          userRole="ANALYST"
+          userRole={`DIVISI_${division.code}` as any}
         />
 
         <CustomerFeedbackFilterModal

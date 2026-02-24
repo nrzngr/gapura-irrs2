@@ -113,7 +113,15 @@ function getMonthKey(dateStr: string | undefined): string {
 }
 
 function getArea(report: Report): string | undefined {
-  return report.area || report.terminal_area_category || report.apron_area_category || report.general_category;
+  const rawArea = (report.area || report.terminal_area_category || report.apron_area_category || report.general_category || '').toString().trim().toLowerCase();
+  
+  if (!rawArea || rawArea === 'null' || rawArea === 'undefined') return undefined;
+  
+  if (rawArea.includes('terminal')) return 'Terminal Area';
+  if (rawArea.includes('apron')) return 'Apron Area';
+  if (rawArea.includes('general')) return 'General';
+  
+  return undefined;
 }
 
 function getBranch(report: Report): string | undefined {

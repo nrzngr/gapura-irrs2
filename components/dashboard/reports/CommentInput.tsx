@@ -6,7 +6,8 @@ import {
     X,
     Loader2,
     Link,
-    Plus
+    Plus,
+    AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,9 +25,7 @@ export function CommentInput({
 }: CommentInputProps) {
     const [content, setContent] = useState('');
     const [sending, setSending] = useState(false);
-    const [attachments, setAttachments] = useState<string[]>([]);
-    const [linkInput, setLinkInput] = useState('');
-    const [showLinkInput, setShowLinkInput] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize textarea
@@ -37,48 +36,32 @@ export function CommentInput({
         }
     }, [content]);
 
-    const handleAddLink = () => {
-        const link = linkInput.trim();
-        if (!link) return;
-
-        try {
-            new URL(link);
-        } catch {
-            return;
-        }
-
-        setAttachments(prev => [...prev, link]);
-        setLinkInput('');
-        setShowLinkInput(false);
-    };
-
-    const removeAttachment = (index: number) => {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
-    };
-
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if ((!content.trim() && attachments.length === 0) || sending) return;
+        if (!content.trim() || sending) return;
 
         setSending(true);
+        setError(null);
         try {
             const res = await fetch(`/api/reports/${reportId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     content,
-                    attachments
                 })
             });
 
             if (res.ok) {
                 setContent('');
-                setAttachments([]);
                 if (onSuccess) onSuccess();
                 if (textareaRef.current) textareaRef.current.style.height = 'auto';
+            } else {
+                const data = await res.json();
+                setError(data.error || 'Gagal mengirim pesan');
             }
         } catch (err) {
             console.error('Failed to send comment', err);
+            setError('Terjadi kesalahan koneksi');
         } finally {
             setSending(false);
         }
@@ -91,10 +74,19 @@ export function CommentInput({
         }
     };
 
-    const canSubmit = content.trim() || attachments.length > 0;
+    const canSubmit = content.trim();
 
     return (
         <div className="space-y-3">
+            {error && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <p className="flex-1 font-medium">{error}</p>
+                    <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-lg transition-colors">
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
             {/* Textarea */}
             <textarea
                 ref={textareaRef}
@@ -102,83 +94,20 @@ export function CommentInput({
                 onChange={(e) => setContent(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none transition-all resize-none"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none transition-all resize-none font-sans"
                 rows={3}
             />
 
-            {/* Attachments Preview */}
-            {attachments.length > 0 && (
-                <div className="space-y-1.5">
-                    {attachments.map((url, i) => (
-                        <div key={i} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                            <Link size={12} className="text-blue-500 shrink-0" />
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex-1">{url}</a>
-                            <button
-                                type="button"
-                                onClick={() => removeAttachment(i)}
-                                className="p-0.5 hover:bg-red-100 text-red-500 rounded transition-colors"
-                            >
-                                <X size={12} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Link Input */}
-            {showLinkInput && (
-                <div className="flex gap-2">
-                    <input
-                        type="url"
-                        value={linkInput}
-                        onChange={(e) => setLinkInput(e.target.value)}
-                        placeholder="https://drive.google.com/..."
-                        className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none"
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
-                        autoFocus
-                    />
-                    <button
-                        type="button"
-                        onClick={handleAddLink}
-                        className="px-3 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all"
-                    >
-                        <Plus size={14} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setShowLinkInput(false); setLinkInput(''); }}
-                        className="px-2 py-2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
-            )}
-
             {/* Actions */}
-            <div className="flex items-center gap-2">
-                {/* Add Link Button */}
-                <button
-                    type="button"
-                    onClick={() => setShowLinkInput(true)}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer transition-colors text-sm text-gray-600",
-                        showLinkInput && "opacity-50 pointer-events-none"
-                    )}
-                >
-                    <Link size={14} />
-                    <span className="text-xs font-medium">Lampiran</span>
-                </button>
-
-                <div className="flex-1" />
-
+            <div className="flex items-center justify-end">
                 {/* Submit Button */}
                 <button
                     onClick={() => handleSubmit()}
                     disabled={!canSubmit || sending}
                     className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+                        "flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all",
                         canSubmit && !sending
-                            ? "bg-[var(--brand-primary)] text-white hover:brightness-110 shadow-sm"
+                            ? "bg-[var(--brand-primary)] text-white hover:shadow-lg active:scale-95"
                             : "bg-gray-100 text-gray-400 cursor-not-allowed"
                     )}
                 >

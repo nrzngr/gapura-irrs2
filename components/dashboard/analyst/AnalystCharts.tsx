@@ -147,6 +147,7 @@ export interface AnalystChartsProps {
     readonly terminalAreaCategoryData: readonly CategoryCountItem[];
     readonly apronAreaCategoryData: readonly CategoryCountItem[];
     readonly generalCategoryData: readonly CategoryCountItem[];
+    readonly caseClassificationData?: readonly CategoryCountItem[];
     readonly onDrilldown: (url: string) => void;
     readonly drilldownUrl: (type: string, value: string) => string;
 }
@@ -464,6 +465,7 @@ export default function AnalystCharts({
     terminalAreaCategoryData,
     apronAreaCategoryData,
     generalCategoryData,
+    caseClassificationData = [],
     onDrilldown,
     drilldownUrl,
 }: AnalystChartsProps) {
@@ -877,16 +879,20 @@ export default function AnalystCharts({
     const cgoCategoryByAreaData = useMemo(() => {
         const counts: Record<string, number> = {};
         cgoReports.forEach(r => {
-            const area = r.area || 'Unknown';
-            counts[area] = (counts[area] || 0) + 1;
+            const raw = (r.area || '').toString().trim().toLowerCase();
+            let area: string | null = null;
+            if (raw.includes('terminal')) area = 'Terminal Area';
+            else if (raw.includes('apron')) area = 'Apron Area';
+            else if (raw.includes('general')) area = 'General';
+            
+            if (area) {
+                counts[area] = (counts[area] || 0) + 1;
+            }
         });
         const colorMap: Record<string, string> = {
             'Apron Area': '#4fc3f7',
-            APRON: '#4fc3f7',
             'Terminal Area': '#81c784',
-            TERMINAL: '#81c784',
-            General: '#dce775',
-            CARGO: '#fb923c',
+            'General': '#dce775',
         };
         return Object.entries(counts)
             .map(([name, value]) => ({ name, value, color: colorMap[name] || '#94a3b8' }))
@@ -1095,13 +1101,13 @@ export default function AnalystCharts({
                             </div>
                         </div>
 
-                        {/* Card 2: Tren Penyelesaian Bulanan */}
+                        {/* Card 2: Tren Bulanan Irregularity, Complaint, Compliment */}
                         <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
-                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Tren Penyelesaian Bulanan</h3>
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Tren Bulanan (Irregularity, Complaint, Compliment)</h3>
                             <div className="h-[280px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart
-                                        data={safeTrendData.slice(-12)}
+                                        data={monthlyReportData.slice(-12)}
                                         margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                                     >
                                         <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="oklch(0 0 0 / 0.05)" />
@@ -1119,8 +1125,17 @@ export default function AnalystCharts({
                                         <Tooltip content={<CustomTooltip />} />
                                         <Line
                                             type="monotone"
-                                            dataKey="total"
-                                            name="Laporan Masuk"
+                                            dataKey="irregularity"
+                                            name="Irregularity"
+                                            stroke={REFERENCE_COLORS.irregularity}
+                                            strokeWidth={3}
+                                            dot={{ fill: REFERENCE_COLORS.irregularity, strokeWidth: 0, r: 4 }}
+                                            activeDot={{ r: 6, stroke: 'white', strokeWidth: 2 }}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="complaint"
+                                            name="Complaint"
                                             stroke={REFERENCE_COLORS.complaint}
                                             strokeWidth={3}
                                             dot={{ fill: REFERENCE_COLORS.complaint, strokeWidth: 0, r: 4 }}
@@ -1128,11 +1143,11 @@ export default function AnalystCharts({
                                         />
                                         <Line
                                             type="monotone"
-                                            dataKey="resolved"
-                                            name="Selesai"
-                                            stroke={REFERENCE_COLORS.irregularity}
+                                            dataKey="compliment"
+                                            name="Compliment"
+                                            stroke={REFERENCE_COLORS.compliment}
                                             strokeWidth={3}
-                                            dot={{ fill: REFERENCE_COLORS.irregularity, strokeWidth: 0, r: 4 }}
+                                            dot={{ fill: REFERENCE_COLORS.compliment, strokeWidth: 0, r: 4 }}
                                             activeDot={{ r: 6, stroke: 'white', strokeWidth: 2 }}
                                         />
                                     </LineChart>
@@ -1140,12 +1155,16 @@ export default function AnalystCharts({
                             </div>
                             <div className="flex flex-wrap justify-center gap-6 mt-4">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-blue-500/20" style={{ background: REFERENCE_COLORS.complaint }} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Laporan Masuk</span>
+                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-emerald-500/20" style={{ background: REFERENCE_COLORS.irregularity }} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Irregularity</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-emerald-500/20" style={{ background: REFERENCE_COLORS.irregularity }} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Selesai</span>
+                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-blue-500/20" style={{ background: REFERENCE_COLORS.complaint }} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Complaint</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg shadow-amber-500/20" style={{ background: REFERENCE_COLORS.compliment }} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Compliment</span>
                                 </div>
                             </div>
                         </div>
@@ -1259,54 +1278,67 @@ export default function AnalystCharts({
                         </div>
                     </div>
 
-                    {/* Row 3: Area and Sub-Category Breakdown */}
-                    <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Area and Sub-Category Breakdown</h3>
-                                <p className="text-[10px] font-medium text-[var(--text-muted)]">Detail kategori per wilayah</p>
+                    {/* Row 3: Area and Sub-Category Breakdown (Half) + Case Classification (Half) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Area and Sub-Category Breakdown */}
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-70">Area and Sub-Category Breakdown</h3>
+                                    <p className="text-[10px] font-medium text-[var(--text-muted)]">Detail kategori per wilayah</p>
+                                </div>
+                            </div>
+                            <div className="h-[320px] sm:h-[360px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={areaSubCategoryData as any[]}
+                                        margin={{ top: 25, right: 10, left: -20, bottom: 5 }}
+                                        barCategoryGap="30%"
+                                    >
+                                         <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="oklch(0 0 0 / 0.05)" />
+                                         <XAxis dataKey="area" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
+                                         <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                         <Tooltip content={<CustomTooltip />} />
+                                         {allSubCategories.map((cat, idx) => (
+                                             <Bar 
+                                                 key={cat} 
+                                                 dataKey={cat} 
+                                                 name={cat} 
+                                                 fill={COLORS[idx % COLORS.length]} 
+                                                 radius={[4, 4, 0, 0]}
+                                                 maxBarSize={16}
+                                             >
+                                                 <LabelList
+                                                     dataKey={cat}
+                                                     position="top"
+                                                     fill="var(--text-muted)"
+                                                     fontSize={9}
+                                                     fontWeight={700}
+                                                     formatter={(v: any) => v > 0 ? v : ''}
+                                                 />
+                                             </Bar>
+                                         ))}
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-3 mt-4">
+                                {allSubCategories.map((cat, idx) => (
+                                    <div key={cat} className="flex items-center gap-1.5">
+                                        <div className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[idx % COLORS.length] }} />
+                                        <span className="text-[11px] font-medium text-slate-600">{cat}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="h-[320px] sm:h-[360px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={areaSubCategoryData as any[]}
-                                    margin={{ top: 25, right: 10, left: -20, bottom: 5 }}
-                                    barCategoryGap="30%"
-                                >
-                                     <CartesianGrid strokeDasharray="2 6" vertical={false} stroke="oklch(0 0 0 / 0.05)" />
-                                     <XAxis dataKey="area" tick={<WrappedXAxisTick />} axisLine={false} tickLine={false} height={80} interval={0} />
-                                     <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                     <Tooltip content={<CustomTooltip />} />
-                                     {allSubCategories.map((cat, idx) => (
-                                         <Bar 
-                                             key={cat} 
-                                             dataKey={cat} 
-                                             name={cat} 
-                                             fill={COLORS[idx % COLORS.length]} 
-                                             radius={[4, 4, 0, 0]}
-                                             maxBarSize={16}
-                                         >
-                                             <LabelList
-                                                 dataKey={cat}
-                                                 position="top"
-                                                 fill="var(--text-muted)"
-                                                 fontSize={9}
-                                                 fontWeight={700}
-                                                 formatter={(v: any) => v > 0 ? v : ''}
-                                             />
-                                         </Bar>
-                                     ))}
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="flex flex-wrap justify-center gap-3 mt-4">
-                            {allSubCategories.map((cat, idx) => (
-                                <div key={cat} className="flex items-center gap-1.5">
-                                    <div className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[idx % COLORS.length] }} />
-                                    <span className="text-[11px] font-medium text-slate-600">{cat}</span>
-                                </div>
-                            ))}
+
+                        {/* Case Classification */}
+                        <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Case Classification</h3>
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Classification</span>
+                                <span className="text-[9px] text-[var(--text-muted)] font-black uppercase tracking-widest">Total</span>
+                            </div>
+                            <CategoryBarList data={caseClassificationData} color="oklch(0.7 0.2 330)" />
                         </div>
                     </div>
 

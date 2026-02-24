@@ -1,8 +1,8 @@
 'use client';
 
-import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
+import { DivisionAnalystDashboard } from '@/components/dashboard/DivisionAnalystDashboard';
 import { DIVISIONS } from '@/lib/constants/divisions';
 
 export default function HCDashboard() {
-    return <AnalyticsDashboard division={DIVISIONS.HC} />;
+    return <DivisionAnalystDashboard division={DIVISIONS.HC} />;
 }

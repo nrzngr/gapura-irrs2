@@ -24,3 +24,24 @@ export async function fetchWithDemo(url: string, options: RequestInit = {}) {
         headers,
     });
 }
+
+/**
+ * Formats a date string, object, or number into "DD MM YYYY"
+ * Complexity: Time O(1) | Space O(1)
+ */
+export function formatDate(dateInput: string | Date | number | undefined | null): string {
+    if (!dateInput) return "N/A";
+    
+    try {
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) return "N/A";
+        
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        
+        return `${day} ${month} ${year}`;
+    } catch {
+        return "N/A";
+    }
+}

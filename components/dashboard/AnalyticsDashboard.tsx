@@ -222,20 +222,31 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
     const categoryByAreaData = useMemo(() => {
         const areas: Record<string, number> = {};
         filteredReportsList.forEach(r => {
-            const area = r.area || 'General';
-            areas[area] = (areas[area] || 0) + 1;
+            const raw = (r.area || '').toString().trim().toLowerCase();
+            let area: string | null = null;
+            if (raw.includes('terminal')) area = 'Terminal Area';
+            else if (raw.includes('apron')) area = 'Apron Area';
+            else if (raw.includes('general')) area = 'General';
+            
+            if (area) {
+                areas[area] = (areas[area] || 0) + 1;
+            }
         });
         return Object.entries(areas)
             .map(([area, count]) => ({ name: area, value: count }))
             .sort((a, b) => b.value - a.value)
-            .slice(0, 5)
             .map((item, i) => ({ ...item, fill: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'][i % 5] }));
     }, [filteredReportsList]);
 
     const areaSubCategoryData = useMemo(() => {
         const areaMap: Record<string, Record<string, number>> = {};
         filteredReportsList.forEach(r => {
-            const area = r.area || 'General';
+            const raw = (r.area || '').toString().trim().toLowerCase();
+            let area: string | null = null;
+            if (raw.includes('terminal')) area = 'Terminal Area';
+            else if (raw.includes('apron')) area = 'Apron Area';
+            else if (raw.includes('general')) area = 'General';
+            if (!area) return;
             const sub = r.main_category || 'Other';
             if (!areaMap[area]) areaMap[area] = {};
             areaMap[area][sub] = (areaMap[area][sub] || 0) + 1;
@@ -346,6 +357,80 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
         })).sort((a, b) => b.total - a.total).slice(0, 10);
     }, [filteredReportsList]);
 
+    const caseReportByAreaData = useMemo(() => {
+        const branchMap: Record<string, Record<string, { terminal: number; apron: number; general: number }>> = {};
+        filteredReportsList.forEach((r) => {
+            const branch = r.branch || r.station_code || 'Unknown';
+            const airline = (r.airlines || r.airline || 'Unknown').trim() || 'Unknown';
+            const area = (r.area || '').toLowerCase();
+            if (!branchMap[branch]) branchMap[branch] = {};
+            if (!branchMap[branch][airline]) branchMap[branch][airline] = { terminal: 0, apron: 0, general: 0 };
+            if (area.includes('terminal')) branchMap[branch][airline].terminal++;
+            else if (area.includes('apron')) branchMap[branch][airline].apron++;
+            else if (area.includes('general')) branchMap[branch][airline].general++;
+        });
+        return Object.entries(branchMap)
+            .map(([branch, airlineData]) => {
+                const airlines = Object.entries(airlineData)
+                    .map(([name, c]) => ({
+                        name,
+                        terminal: c.terminal,
+                        apron: c.apron,
+                        general: c.general,
+                        total: c.terminal + c.apron + c.general,
+                    }))
+                    .sort((a, b) => b.total - a.total);
+                return {
+                    branch,
+                    airlines,
+                    totalTerminal: Object.values(airlineData).reduce((s, v) => s + v.terminal, 0),
+                    totalApron: Object.values(airlineData).reduce((s, v) => s + v.apron, 0),
+                    totalGeneral: Object.values(airlineData).reduce((s, v) => s + v.general, 0),
+                    grandTotal: Object.values(airlineData).reduce((s, v) => s + v.terminal + v.apron + v.general, 0),
+                };
+            })
+            .sort((a, b) => b.grandTotal - a.grandTotal);
+    }, [filteredReportsList]);
+
+    const terminalAreaCategoryData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        filteredReportsList.forEach((r) => {
+            const rawArea = (r.area || '').toString().trim().toLowerCase();
+            if (!rawArea.includes('terminal')) return;
+            const cat = (r as any).terminal_area_category as string | undefined;
+            if (cat) counts[cat] = (counts[cat] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [filteredReportsList]);
+
+    const apronAreaCategoryData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        filteredReportsList.forEach((r) => {
+            const rawArea = (r.area || '').toString().trim().toLowerCase();
+            if (!rawArea.includes('apron')) return;
+            const cat = (r as any).apron_area_category as string | undefined;
+            if (cat) counts[cat] = (counts[cat] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [filteredReportsList]);
+
+    const generalCategoryData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        filteredReportsList.forEach((r) => {
+            const rawArea = (r.area || '').toString().trim().toLowerCase();
+            if (!rawArea.includes('general')) return;
+            const cat = (r as any).general_category as string | undefined;
+            if (cat) counts[cat] = (counts[cat] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [filteredReportsList]);
+
     if (loading) {
         return (
             <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -438,10 +523,10 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         hubDistributionData={hubDistributionData}
                         resolutionByBranchData={resolutionByBranchData}
                         filteredReports={filteredReportsList}
-                        caseReportByAreaData={[]}
-                        terminalAreaCategoryData={[]}
-                        apronAreaCategoryData={[]}
-                        generalCategoryData={[]}
+                        caseReportByAreaData={caseReportByAreaData}
+                        terminalAreaCategoryData={terminalAreaCategoryData}
+                        apronAreaCategoryData={apronAreaCategoryData}
+                        generalCategoryData={generalCategoryData}
                         onDrilldown={(url) => router.push(url)}
                         drilldownUrl={drilldownUrl}
                     />

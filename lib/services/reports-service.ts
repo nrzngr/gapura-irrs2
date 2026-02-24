@@ -1,8 +1,11 @@
 import { getGoogleSheets } from '@/lib/google-sheets';
 import { supabase } from '@/lib/supabase';
-import { Report, ReportStatus, UserRole, Station, Unit, Position, IncidentType } from '@/types';
+import type { Report, ReportStatus, UserRole, Station, Unit, Position, IncidentType } from '@/types';
 import { calculateSlaDeadline } from '@/lib/constants/report-status';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
+
+// Deterministic Namespace for Google Sheets ID Mapping (Fixed UUID)
+const IRRS_NAMESPACE_UUID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // Shared namespace for consistently mapping string IDs
 
 // ─── Inline TTL Cache ──────────────────────────────────────────────────────
 // Complexity: Time O(1) per get/set | Space O(entries)
@@ -32,7 +35,7 @@ function setCache(key: string, data: unknown): void {
   ttlCache.set(key, { data, ts: Date.now() });
 }
 
-function invalidateCache(key: string): void {
+function invalidateLocalCache(key: string): void {
   ttlCache.delete(key);
 }
 
@@ -83,6 +86,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   kode_cabang: ['KODE_CABANG_VLOOKUP', 'KODE CABANG (VLOOKUP)'],
   maskapai_lookup: ['MASKAPAI_VLOOKUP', 'MASKAPAI (VLOOKUP)'],
   lokal_mpa_lookup: ['Lokal_MPA_VLOOKUP', 'Lokal / MPA (VLOOKUP)'],
+  case_classification: ['Case Classification', 'Case_Classification', 'case_classification'],
   hub: ['Hub', 'HUB'],
   kode_hub: ['KODE_HUB_VLOOKUP', 'KODE HUB (VLOOKUP)', 'Kode Hub'],
   delay_code: ['Delay Code', 'Delay_Code', 'Kode Delay'],
@@ -90,7 +94,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   
   // Triage Columns
   primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
-  sub_category_note: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS', 'Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
+  sub_category_note: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS', 'Gapura KPS Remarks', 'Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
   target_division: ['Target Division', 'Target_Division', 'Divisi', 'Division'],
   
   // Standard fields
@@ -233,6 +237,158 @@ export class ReportsService {
     return await getGoogleSheets();
   }
 
+  /**
+   * Generates a stable UUID from a source string ID (e.g. "NON CARGO!row_2")
+   * This is critical for mapping Google Sheets "IDs" to Supabase UUID fields
+   * so that comments and other relational data remain stable.
+   */
+  private getReportUuid(sourceId: string): string {
+      return uuidv5(sourceId, IRRS_NAMESPACE_UUID);
+  }
+
+  private mapRowToReport(row: any[], headers: string[], sheetName: string, rowIndex: number): Report {
+    const report: any = {
+      _source: 'SHEETS',
+      _sheet: sheetName,
+      row_number: rowIndex + 2 // +2 because 0-indexed array, +1 for header, +1 for 1-based row number
+    };
+
+    // Pre-calculate mapping for this sheet
+    const columnMapping: Record<string, number> = {};
+    (Object.keys(PROP_TO_HEADER) as Array<keyof Report>).forEach((prop) => {
+        const headerNames = PROP_TO_HEADER[prop];
+        if (headerNames) {
+            const colIdx = headers.findIndex(h => 
+                headerNames.some(name => h.trim().toLowerCase() === name.trim().toLowerCase())
+            );
+            if (colIdx !== -1) {
+                columnMapping[prop as string] = colIdx;
+            }
+        }
+    });
+
+    // Fast mapping using pre-calculated indices
+    Object.entries(columnMapping).forEach(([prop, colIdx]) => {
+        if (row[colIdx] !== undefined) {
+            report[prop] = row[colIdx];
+            // Clean up text if any
+            if (typeof report[prop] === 'string') report[prop] = report[prop].trim();
+        }
+    });
+
+    // Handle internal IDs
+    if (report.row_number) {
+        const sourceId = `${sheetName}!row_${report.row_number}`;
+        report.original_id = sourceId;
+        report.id = this.getReportUuid(sourceId); // Generate stable UUID for Supabase persistence
+    }
+    report.source_sheet = sheetName;
+
+    // Ensure title is never undefined or empty
+    if (report.report && report.report.trim()) {
+        report.title = report.report.trim();
+    }
+    if (!report.title) report.title = '(Tanpa Judul)';
+
+    // Post-processing & Defaults
+    const parsedEventDate = parseDate(report.date_of_event as string);
+    if (parsedEventDate) {
+      report.date_of_event = parsedEventDate.toISOString();
+      if (!report.created_at) report.created_at = report.date_of_event;
+    } else if (report.created_at) {
+      const parsedCreated = parseDate(report.created_at as string);
+      if (parsedCreated) {
+        report.created_at = parsedCreated.toISOString();
+      } else {
+        report.created_at = new Date().toISOString();
+      }
+    } else {
+      report.created_at = new Date().toISOString();
+    }
+
+    if (report.resolved_at) {
+      const parsedResolved = parseDate(report.resolved_at as string);
+      if (parsedResolved) {
+        report.resolved_at = parsedResolved.toISOString();
+      }
+    }
+
+    // Status Normalization
+    const statusMapping: Record<string, string> = {
+      'Closed': 'SELESAI', 'Open': 'MENUNGGU_FEEDBACK', 'OPEN': 'MENUNGGU_FEEDBACK',
+      'CLOSED': 'SELESAI', 'closed': 'SELESAI', 'open': 'MENUNGGU_FEEDBACK',
+      'Selesai': 'SELESAI', 'selesai': 'SELESAI', 'Menunggu': 'MENUNGGU_FEEDBACK',
+      'menunggu': 'MENUNGGU_FEEDBACK',
+    };
+    
+    if (report.status) {
+      const normalizedStatus = report.status.toString().trim().toUpperCase();
+      report.status = statusMapping[normalizedStatus] || normalizedStatus;
+      if (report.status === 'SELESAI' || report.status === 'CLOSED') report.status = 'SELESAI';
+      else if (report.status === 'OPEN' || report.status === 'MENUNGGU' || report.status === 'ACTIVE') report.status = 'MENUNGGU_FEEDBACK';
+    } else {
+      report.status = 'MENUNGGU_FEEDBACK';
+    }
+    
+    // Severity Normalization
+    if (report.severity) {
+      const severityMap: Record<string, string> = {
+        'High': 'high', 'high': 'high', 'HIGH': 'high',
+        'Medium': 'medium', 'medium': 'medium', 'MEDIUM': 'medium',
+        'Low': 'low', 'low': 'low', 'LOW': 'low',
+        'Urgent': 'urgent', 'urgent': 'urgent', 'URGENT': 'urgent',
+      };
+      report.severity = severityMap[report.severity.toString().trim()] || 'low';
+    } else {
+      report.severity = 'low';
+    }
+    
+    if (!report.priority) report.priority = 'low';
+    
+    // Critical aliases and field mapping
+    if (!report.main_category && report.irregularity_complain_category) report.main_category = report.irregularity_complain_category;
+    if (report.main_category && !report.category) report.category = report.main_category;
+    if (report.category && !report.main_category) report.main_category = report.category;
+    
+    if (report.main_category) {
+      const cat = String(report.main_category).toLowerCase();
+      if (cat.includes('irregular')) report.main_category = 'Irregularity';
+      else if (cat.includes('complain')) report.main_category = 'Complaint';
+      else if (cat.includes('compliment')) report.main_category = 'Compliment';
+      report.category = report.main_category;
+    }
+
+    if (report.airline && !report.airlines) report.airlines = report.airline;
+    if (report.airlines && !report.airline) report.airline = report.airlines;
+    
+    if (!report.branch && report.reporting_branch) report.branch = report.reporting_branch;
+    if (!report.branch && report.station_code) report.branch = report.station_code;
+
+    if (report.branch) {
+        report.station_id = report.branch;
+        report.stations = { code: report.branch as string, name: report.branch as string };
+        if (!report.location) report.location = report.branch;
+    }
+
+    if (!report.sla_deadline && report.created_at) {
+      try {
+        report.sla_deadline = calculateSlaDeadline(report.created_at as string, report.priority as any).toISOString();
+      } catch (_) {}
+    }
+    
+    if (sheetName === 'CGO' && !report.area) report.area = 'CARGO';
+    else if (sheetName === 'NON CARGO' && !report.area) {
+         if (report.terminal_area_category) report.area = 'TERMINAL';
+         else if (report.apron_area_category) report.area = 'APRON';
+    }
+
+    if (report.status === 'SELESAI' && !report.resolved_at) {
+        report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
+    }
+
+    return report as Report;
+  }
+
   private async getSheetIdByName(sheetName: string): Promise<number | null> {
     if (SHEET_IDS[sheetName] !== undefined) {
         return SHEET_IDS[sheetName];
@@ -280,7 +436,7 @@ export class ReportsService {
   }
 
   public invalidateCache() {
-    invalidateCache(CACHE_KEY_ALL_REPORTS);
+    invalidateLocalCache(CACHE_KEY_ALL_REPORTS);
     console.log('[ReportsService] Cache invalidated');
   }
 
@@ -471,135 +627,10 @@ export class ReportsService {
       const headers = (data[0] || []).map((h: any) => String(h).trim());
       const rows = data.slice(1);
 
-      // Pre-calculate mapping for this sheet
-      const columnMapping: Record<string, number> = {};
-      (Object.keys(PROP_TO_HEADER) as Array<keyof Report>).forEach((prop) => {
-          const headerNames = PROP_TO_HEADER[prop];
-          if (headerNames) {
-              const colIdx = headers.findIndex(h => 
-                  headerNames.some(name => h.trim().toLowerCase() === name.trim().toLowerCase())
-              );
-              if (colIdx !== -1) {
-                  columnMapping[prop as string] = colIdx;
-              }
-          }
-      });
-
       for (let index = 0; index < rows.length; index++) {
         const row = rows[index];
-        const report: any = {};
-
-        report.id = `${sheetName}!row_${index + 2}`;
-        report.source_sheet = sheetName;
-
-        // Fast mapping using pre-calculated indices
-        Object.entries(columnMapping).forEach(([prop, colIdx]) => {
-            report[prop] = row[colIdx];
-        });
-
-        // Ensure title is never undefined or empty
-        if (report.report && report.report.trim()) {
-            report.title = report.report.trim();
-        }
-        if (!report.title) report.title = '(Tanpa Judul)';
-
-        // Post-processing & Defaults
-        const parsedEventDate = parseDate(report.date_of_event as string);
-        if (parsedEventDate) {
-          report.date_of_event = parsedEventDate.toISOString();
-          if (!report.created_at) report.created_at = report.date_of_event;
-        } else if (report.created_at) {
-          const parsedCreated = parseDate(report.created_at as string);
-          if (parsedCreated) {
-            report.created_at = parsedCreated.toISOString();
-          } else {
-            report.created_at = new Date().toISOString();
-          }
-        } else {
-          report.created_at = new Date().toISOString();
-        }
-
-        if (report.resolved_at) {
-          const parsedResolved = parseDate(report.resolved_at as string);
-          if (parsedResolved) {
-            report.resolved_at = parsedResolved.toISOString();
-          }
-        }
-
-        // Status Normalization
-        const statusMapping: Record<string, string> = {
-          'Closed': 'SELESAI', 'Open': 'MENUNGGU_FEEDBACK', 'OPEN': 'MENUNGGU_FEEDBACK',
-          'CLOSED': 'SELESAI', 'closed': 'SELESAI', 'open': 'MENUNGGU_FEEDBACK',
-          'Selesai': 'SELESAI', 'selesai': 'SELESAI', 'Menunggu': 'MENUNGGU_FEEDBACK',
-          'menunggu': 'MENUNGGU_FEEDBACK',
-        };
-        
-        if (report.status) {
-          const normalizedStatus = report.status.toString().trim().toUpperCase();
-          report.status = statusMapping[normalizedStatus] || normalizedStatus;
-          if (report.status === 'SELESAI' || report.status === 'CLOSED') report.status = 'SELESAI';
-          else if (report.status === 'OPEN' || report.status === 'MENUNGGU' || report.status === 'ACTIVE') report.status = 'MENUNGGU_FEEDBACK';
-        } else {
-          report.status = 'MENUNGGU_FEEDBACK';
-        }
-        
-        // Severity Normalization
-        if (report.severity) {
-          const severityMap: Record<string, string> = {
-            'High': 'high', 'high': 'high', 'HIGH': 'high',
-            'Medium': 'medium', 'medium': 'medium', 'MEDIUM': 'medium',
-            'Low': 'low', 'low': 'low', 'LOW': 'low',
-            'Urgent': 'urgent', 'urgent': 'urgent', 'URGENT': 'urgent',
-          };
-          report.severity = severityMap[report.severity.toString().trim()] || 'low';
-        } else {
-          report.severity = 'low';
-        }
-        
-        if (!report.priority) report.priority = 'low';
-        
-        // Critical aliases and field mapping
-        if (!report.main_category && report.irregularity_complain_category) report.main_category = report.irregularity_complain_category;
-        if (report.main_category && !report.category) report.category = report.main_category;
-        if (report.category && !report.main_category) report.main_category = report.category;
-        
-        if (report.main_category) {
-          const cat = String(report.main_category).toLowerCase();
-          if (cat.includes('irregular')) report.main_category = 'Irregularity';
-          else if (cat.includes('complain')) report.main_category = 'Complaint';
-          else if (cat.includes('compliment')) report.main_category = 'Compliment';
-          report.category = report.main_category;
-        }
-
-        if (report.airline && !report.airlines) report.airlines = report.airline;
-        if (report.airlines && !report.airline) report.airline = report.airlines;
-        
-        if (!report.branch && report.reporting_branch) report.branch = report.reporting_branch;
-        if (!report.branch && report.station_code) report.branch = report.station_code;
-
-        if (report.branch) {
-            report.station_id = report.branch;
-            report.stations = { code: report.branch as string, name: report.branch as string };
-            if (!report.location) report.location = report.branch;
-        }
-
-        if (!report.sla_deadline && report.created_at) {
-          try {
-            report.sla_deadline = calculateSlaDeadline(report.created_at as string, report.priority as any).toISOString();
-          } catch (_) {}
-        }
-        
-        if (sheetName === 'CGO' && !report.area) report.area = 'CARGO';
-        else if (sheetName === 'NON CARGO' && !report.area) {
-             if (report.terminal_area_category) report.area = 'TERMINAL';
-             else if (report.apron_area_category) report.area = 'APRON';
-        }
-
-        if (report.status === 'SELESAI' && !report.resolved_at) {
-            report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
-        }
-
-        allReports.push(report as Report);
+        const report = this.mapRowToReport(row, headers, sheetName, index);
+        allReports.push(report);
       }
     }
     return allReports;
@@ -739,7 +770,7 @@ export class ReportsService {
     });
     
     // Invalidate cache
-    invalidateCache(CACHE_KEY_ALL_REPORTS);
+    this.invalidateCache();
     
     // Attempt to set ID
     const updatedRange = appendRes.data.updates?.updatedRange;
@@ -755,7 +786,7 @@ export class ReportsService {
 
   async getReportById(id: string): Promise<Report | null> {
     const reports = await this.getReports();
-    return reports.find(r => r.id === id) || null;
+    return reports.find(r => r.id === id || r.original_id === id) || null;
   }
 
   private parseId(id: string): { sheetName: string, rowIndex: number } | null {
@@ -766,84 +797,70 @@ export class ReportsService {
     return { sheetName, rowIndex: index };
   }
 
+  private async resolveIdToOriginal(id: string): Promise<string | null> {
+    if (id.includes('!row_')) return id;
+    const report = await this.getReportById(id);
+    return report?.original_id || null;
+  }
+
   async updateReport(id: string, updates: Partial<Report>): Promise<Report | null> {
-    const parsed = this.parseId(id);
-    if (!parsed) {
+    const originalId = await this.resolveIdToOriginal(id);
+    if (!originalId) {
         console.error('Invalid ID format for update:', id);
         return null; 
     }
     
+    const parsed = this.parseId(originalId);
+    if (!parsed) return null;
+
     const sheets = await this.getSheets();
     if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
     const { sheetName, rowIndex } = parsed;
 
     // Check for Report Transfer Trigger (NON CARGO -> CGO)
-    // If updating primary_tag to CGO and current sheet is NOT CGO needed
     if (updates.primary_tag === 'CGO' && sheetName !== 'CGO') {
         const currentReport = await this.getReportById(id);
         if (currentReport) {
-            // Prepare payload for new report
-            // We use 'any' to bypass strict type checking for the ID delete
             const newReportPayload: any = {
                 ...currentReport,
                 ...updates,
             };
-            // Ensure ID is removed so createReport generates a new one
             delete newReportPayload.id;
-            
-            // Ensure primary_tag is set to CGO so createReport routes it correctly
             newReportPayload.primary_tag = 'CGO';
 
-            // Create in CGO sheet
             const newReport = await this.createReport(newReportPayload);
-            
-            // Delete from old sheet
-            if (newReport && newReport.id) {
-                await this.deleteReport(id);
+            if (newReport) {
+                await this.deleteReport(originalId);
                 return newReport;
-            } else {
-                 console.error('Failed to create transferred report in CGO');
-                 return null;
             }
         }
     }
 
-    // 1. Get Headers
     const headers = await this.getHeaderRow(sheetName);
-    
-    // 2. Build the update payload
-    // Helper: Column Letter from Index (0 -> A)
-    function getColLetter(index: number) {
-        let temp, letter = '';
-        while (index >= 0) {
-            temp = index % 26;
-            letter = String.fromCharCode(temp + 65) + letter;
-            index = (index - temp - 1) / 26;
-        }
-        return letter;
-    }
+    const getColLetter = (index: number) => String.fromCharCode(65 + index);
 
+    // Update individual cells based on headers mapping
     for (const [key, value] of Object.entries(updates)) {
-        // Find header(s) for this property
-        // @ts-ignore
-        const possibleHeaders = PROP_TO_HEADER[key];
-        // Also check if key matches a header directly (fallback)
-        
+        if (value === undefined) continue;
+
+        // Find column index for this property
         let colIndex = -1;
+        const propHeaders = PROP_TO_HEADER[key as keyof Report];
         
-        if (possibleHeaders) {
-             colIndex = headers.findIndex((h: string) => possibleHeaders.includes(h));
-        }
-        
-        // Fallback: Try direct match case-insensitive
-        if (colIndex === -1) {
-            colIndex = headers.findIndex((h: string) => h.toLowerCase() === key.toLowerCase() || h.toLowerCase() === key.replace(/_/g, ' ').toLowerCase());
+        if (propHeaders) {
+            colIndex = headers.findIndex(h => 
+                propHeaders.some(name => h.trim().toLowerCase() === name.trim().toLowerCase())
+            );
         }
 
         if (colIndex === -1) {
-            console.warn(`Header not found for property: ${key} in sheet ${sheetName}`);
-            continue;
+            colIndex = headers.findIndex((h: string) => {
+                const trimmedH = h.trim().toLowerCase();
+                return trimmedH === key.toLowerCase() || trimmedH === key.replace(/_/g, ' ').toLowerCase();
+            });
         }
+
+        if (colIndex === -1) continue;
 
         const colLetter = getColLetter(colIndex);
         const cellRange = `${sheetName}!${colLetter}${rowIndex}`;
@@ -861,10 +878,7 @@ export class ReportsService {
         });
     }
 
-    // Invalidate Cache
-    invalidateCache(CACHE_KEY_ALL_REPORTS);
-    
-    // Return updated report (merge generic)
+    this.invalidateCache();
     const existing = await this.getReportById(id);
     return existing ? { ...existing, ...updates } : null;
   }
@@ -898,7 +912,7 @@ export class ReportsService {
       },
     });
 
-    invalidateCache(CACHE_KEY_ALL_REPORTS);
+    this.invalidateCache();
     return true;
   }
 
@@ -962,7 +976,7 @@ export class ReportsService {
       });
     }
 
-    invalidateCache(CACHE_KEY_ALL_REPORTS);
+    this.invalidateCache();
     return true;
   }
 

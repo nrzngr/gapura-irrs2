@@ -11,10 +11,11 @@ interface SelectOption {
 export interface FilterData {
   hub?: string;
   branch?: string;
-  maskapai?: string;
-  airlines?: string;
-  category?: string;
+  maskapai?: string; // Travel type (Jenis Maskapai)
+  airline?: string;  // Actual Airline Name
+  main_category?: string;
   area?: string;
+  target_division?: string;
 }
 
 interface FilterOptionsState {
@@ -36,9 +37,21 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
   const [selectedHub, setSelectedHub] = useState(initialFilters?.hub || 'all');
   const [selectedBranch, setSelectedBranch] = useState(initialFilters?.branch || 'all');
   const [selectedMaskapai, setSelectedMaskapai] = useState(initialFilters?.maskapai || 'all');
-  const [selectedAirlines, setSelectedAirlines] = useState(initialFilters?.airlines || 'all');
-  const [selectedCategory, setSelectedCategory] = useState(initialFilters?.category || 'all');
+  const [selectedAirline, setSelectedAirline] = useState(initialFilters?.airline || 'all');
+  const [selectedCategory, setSelectedCategory] = useState(initialFilters?.main_category || 'all');
   const [selectedArea, setSelectedArea] = useState(initialFilters?.area || 'all');
+
+  // Sync state if initialFilters changes from parent (e.g. via URL navigation)
+  useEffect(() => {
+    if (initialFilters) {
+      if (initialFilters.hub) setSelectedHub(initialFilters.hub);
+      if (initialFilters.branch) setSelectedBranch(initialFilters.branch);
+      if (initialFilters.maskapai) setSelectedMaskapai(initialFilters.maskapai);
+      if (initialFilters.airline) setSelectedAirline(initialFilters.airline);
+      if (initialFilters.main_category) setSelectedCategory(initialFilters.main_category);
+      if (initialFilters.area) setSelectedArea(initialFilters.area);
+    }
+  }, [initialFilters]);
 
   const [options, setOptions] = useState<FilterOptionsState>({
     hub: [{ value: 'all', label: 'HUB: All' }],
@@ -81,11 +94,11 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
       hub: selectedHub,
       branch: selectedBranch,
       maskapai: selectedMaskapai,
-      airlines: selectedAirlines,
-      category: selectedCategory,
+      airline: selectedAirline,
+      main_category: selectedCategory,
       area: selectedArea
     });
-  }, [selectedHub, selectedBranch, selectedMaskapai, selectedAirlines, selectedCategory, selectedArea, onFilterChange]);
+  }, [selectedHub, selectedBranch, selectedMaskapai, selectedAirline, selectedCategory, selectedArea, onFilterChange]);
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 w-full">
@@ -122,8 +135,8 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.airline} 
-          value={selectedAirlines} 
-          onChange={setSelectedAirlines} 
+          value={selectedAirline} 
+          onChange={setSelectedAirline} 
           placeholder="Airlines" 
           variant={variant}
           label="Airlines Name"

@@ -1,8 +1,8 @@
 'use client';
 
-import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
+import { DivisionAnalystDashboard } from '@/components/dashboard/DivisionAnalystDashboard';
 import { DIVISIONS } from '@/lib/constants/divisions';
 
 export default function OPDashboard() {
-    return <AnalyticsDashboard division={DIVISIONS.OP} />;
+    return <DivisionAnalystDashboard division={DIVISIONS.OP} />;
 }
