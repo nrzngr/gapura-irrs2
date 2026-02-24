@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     const reportData: any = {
       reporter_email: email,
-      reporter_name: body.reporter_name || 'Publik',
+      reporter_name: body.reporter_name || email,
       title,
       description,
       location: body.location || '',
