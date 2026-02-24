@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-    title: 'Gapura Operations Dashboard',
+    title: 'Gapura Integrated Service Analytics',
     description: 'Sistem Pelaporan & Monitoring Operasional Bandara',
     icons: {
         icon: '/logo.png',

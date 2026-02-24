@@ -276,7 +276,7 @@ export default function RegisterPage() {
                     {/* Header */}
                     <div className="mb-6">
                         <h1 className="text-2xl font-bold text-gray-900">Registrasi Akun</h1>
-                        <p className="text-gray-500 mt-1">Lengkapi data untuk bergabung dengan Gapura Operations</p>
+                        <p className="text-gray-500 mt-1">Lengkapi data untuk bergabung dengan Gapura Integrated Service Analytics</p>
                     </div>
 
                     {/* Register Card */}
