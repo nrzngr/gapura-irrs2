@@ -117,6 +117,13 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchData(true);
+    }, 1000 * 60 * 2);
+    return () => clearInterval(id);
+  }, [fetchData]);
+
   const filteredReports = useMemo(() => {
     if (dateRange === 'all') return reports;
     const now = new Date();
