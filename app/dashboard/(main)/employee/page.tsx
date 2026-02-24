@@ -74,7 +74,7 @@ export default function EmployeeDashboard() {
     };
 
     return (
-        <div className="space-y-8 stagger-children pb-24">
+        <div className="space-y-8 stagger-children p-6 md:p-8 pb-24">
             
             {/* 1. KINETIC HEADER */}
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in-up">
