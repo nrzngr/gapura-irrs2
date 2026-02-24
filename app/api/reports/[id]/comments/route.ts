@@ -165,17 +165,23 @@ export async function POST(request: Request, { params }: RouteParams) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // Fetch report data to get the original_id (sheet_id)
+        // Fetch report data to get the stable UUID and original_id (sheet_id)
         const { reportsService } = await import('@/lib/services/reports-service');
         const report = await reportsService.getReportById(reportId);
+        
+        if (!report) {
+            return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+        }
+
+        const stableUuid = report.id;
         const sheetId = report?.original_id || null;
 
         // Insert comment using Admin Client
-        // The reportId is already the stable UUID from reportsService.getReportUuid
+        // We always use the stable UUID in report_id for consistency and realtime compatibility
         const { data: comment, error: insertError } = await supabaseAdmin
             .from('report_comments')
             .insert({
-                report_id: reportId,
+                report_id: stableUuid,
                 user_id: payload.id,
                 content: content?.trim() || '',
                 attachments: null, // Attachments removed per request

@@ -125,7 +125,7 @@ export default function LoginPage() {
                         Gapura<br />Integrated Service<br />Analytics
                     </h1>
                     <p className="text-white/80 text-lg max-w-md">
-                        Platform digital untuk pelaporan, pelacakan, dan penyelesaian masalah operasional penerbangan.
+                        Sistem Pelaporan Terintegrasi adalah Platform digital untuk pelaporan, pelacakan, dan penyelesaian masalah operasional penerbangan.
                     </p>
                 </div>
 

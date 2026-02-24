@@ -118,6 +118,7 @@ export async function PATCH(
             primary_tag,
             sub_category_note,
             target_division,
+            is_dispatch, // New flag for dispatch action
         } = body;
 
         const updates: any = {};
@@ -142,10 +143,28 @@ export async function PATCH(
         if (sub_category_note !== undefined) updates.sub_category_note = sub_category_note;
         if (target_division !== undefined) updates.target_division = target_division;
 
+        // Perform the update in Google Sheets
         const updatedReport = await reportsService.updateReport(id, updates);
 
         if (!updatedReport) {
              return NextResponse.json({ error: 'Report not found or update failed' }, { status: 404 });
+        }
+
+        // --- DISPATCH LOGIC: Create system comment in Supabase ---
+        if (is_dispatch && (primary_tag || target_division)) {
+            try {
+                const dispatchMsg = `Laporan telah di-dispatch ke divisi ${target_division || 'Terkait'} dengan kategori ${primary_tag || 'Umum'}${sub_category_note ? `: ${sub_category_note}` : ''}`;
+                
+                await supabaseAdmin.from('report_comments').insert({
+                    report_id: updatedReport.id || id, // Always use the UUID for report_id
+                    user_id: payload.id,
+                    content: dispatchMsg,
+                    is_system_message: true,
+                    sheet_id: updatedReport.original_id || id // Use original_id (Sheet!row_N) for sheet_id
+                });
+            } catch (dispatchErr) {
+                console.warn('[Dispatch] Failed to create system comment:', dispatchErr);
+            }
         }
 
         // Supabase write-through sync (best-effort)

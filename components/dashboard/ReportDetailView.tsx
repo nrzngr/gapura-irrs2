@@ -232,11 +232,14 @@ export function ReportDetailView({
       setActionLoading(true);
       try {
           // dispatchForm contains primary_tag, sub_category_note, target_division
-          // We update these fields via the same API route
+          // We update these fields via the same API route with is_dispatch flag
           const res = await fetch(`/api/reports/${report.id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(dispatchForm)
+              body: JSON.stringify({
+                ...dispatchForm,
+                is_dispatch: true
+              })
           });
           
           if (!res.ok) throw new Error("Failed to dispatch");
