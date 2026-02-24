@@ -72,17 +72,6 @@ export async function GET(request: Request) {
         // Normalize role for consistent checking
         const role = payload.role ? String(payload.role).trim().toUpperCase() : '';
 
-        // STRICT ROLE-BASED OVERRIDE FOR DIVISIONS
-        // If the user belongs to a specific division, they can ONLY see that division's data.
-        if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
-             const userDivision = role.split('_')[1];
-             targetDivision = userDivision;
-        }
-
-        // Filter: Target Division
-        if (targetDivision && targetDivision !== 'all') {
-            filteredData = filteredData.filter(r => r.target_division === targetDivision);
-        }
 
         // Filter: Search
         if (search) {

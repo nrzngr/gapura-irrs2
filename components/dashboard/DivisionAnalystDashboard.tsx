@@ -84,12 +84,9 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
           await fetch('/api/reports/refresh', { method: 'POST' });
         }
 
-        const queryParams = new URLSearchParams();
-        queryParams.set('division', division.code);
-
         const [reportsRes, analyticsRes] = await Promise.all([
-          fetch(`/api/admin/reports?${queryParams.toString()}`),
-          fetch(`/api/admin/analytics?${queryParams.toString()}`),
+          fetch('/api/admin/reports'),
+          fetch('/api/admin/analytics'),
         ]);
 
         if (reportsRes.ok) {
@@ -113,7 +110,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
         setRefreshing(false);
       }
     },
-    [division.code]
+    []
   );
 
   useEffect(() => {
@@ -145,7 +142,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
   const drilldownUrl = (type: string, value: string) =>
     `/dashboard/analyst/drilldown?type=${type}&value=${encodeURIComponent(
       value
-    )}&period=${dateRange}&division=${division.code}`;
+    )}&period=${dateRange}`;
 
   const handleCustomerFeedbackShortcut = useCallback(async () => {
     setCfLoading(true);
@@ -167,11 +164,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       const res = await fetch('/api/dashboards/customer-feedback-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filters: {
-            division: division.code
-          }
-        }),
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) throw new Error('Failed to generate dashboard');
@@ -189,7 +182,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
     } finally {
       setCfLoading(false);
     }
-  }, [router, division.code]);
+  }, [router]);
 
   const availableOptions = useMemo(() => {
     const hubs = new Set<string>();
@@ -232,13 +225,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       const res = await fetch('/api/dashboards/customer-feedback-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...filterData,
-          filters: {
-            ...filterData.filters,
-            division: division.code
-          }
-        }),
+        body: JSON.stringify(filterData),
       });
 
       if (!res.ok) throw new Error('Failed to generate dashboard');

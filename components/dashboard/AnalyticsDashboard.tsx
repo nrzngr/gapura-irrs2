@@ -84,14 +84,9 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                 await fetch('/api/reports/refresh', { method: 'POST' });
             }
 
-            const queryParams = new URLSearchParams();
-            if (division.code !== 'ALL') {
-                queryParams.set('division', division.code);
-            }
-
             const [reportsRes, analyticsRes] = await Promise.all([
-                fetch(`/api/admin/reports?${queryParams.toString()}`),
-                fetch(`/api/admin/analytics?${queryParams.toString()}`)
+                fetch('/api/admin/reports'),
+                fetch('/api/admin/analytics')
             ]);
 
             if (reportsRes.ok) {
@@ -108,7 +103,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             setLoading(false);
             setRefreshing(false);
         }
-    }, [division.code]);
+    }, []);
 
     const handleCustomerFeedbackShortcut = useCallback(async () => {
         setCfLoading(true);
@@ -116,11 +111,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             const res = await fetch('/api/dashboards/customer-feedback-generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    filters: {
-                        division: division.code
-                    }
-                }), 
+                body: JSON.stringify({}), 
             });
 
             if (!res.ok) throw new Error('Failed to generate dashboard');
@@ -634,13 +625,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         const res = await fetch('/api/dashboards/customer-feedback-generate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                ...config,
-                                filters: {
-                                    ...config.filters,
-                                    division: division.code
-                                }
-                            }),
+                            body: JSON.stringify(config),
                         });
                         if (!res.ok) throw new Error('Gagal membuat dashboard');
                         const data = await res.json();
