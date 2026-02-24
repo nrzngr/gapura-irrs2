@@ -72,6 +72,10 @@ export async function GET(request: Request) {
         // Normalize role for consistent checking
         const role = payload.role ? String(payload.role).trim().toUpperCase() : '';
 
+        // Filter: Target Division (query param only — no role-based override)
+        if (targetDivision && targetDivision !== 'all') {
+            filteredData = filteredData.filter(r => r.target_division === targetDivision);
+        }
 
         // Filter: Search
         if (search) {

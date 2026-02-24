@@ -117,7 +117,7 @@ function SectionCard({
 interface ReportDetailViewProps {
   report: Report | null;
   onUpdateStatus?: (reportId: string, status: string, notes?: string, evidenceUrl?: string) => Promise<void>;
-  onRefresh?: (updatedReport?: any) => void;
+  onRefresh?: (updatedReport?: Report) => void;
   onClose?: () => void;
   userRole?: string;
   divisionColor?: string;
@@ -140,6 +140,8 @@ export function ReportDetailView({
   const [actionLoading, setActionLoading] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyNotes, setVerifyNotes] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
   const [reopenNotes, setReopenNotes] = useState("");
   const [closeEvidenceUrl, setCloseEvidenceUrl] = useState("");
@@ -159,6 +161,20 @@ export function ReportDetailView({
       lastCommentRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [report?.comments?.length]);
+
+  // Realtime refresh when this report row updates in Supabase (best-effort)
+  useEffect(() => {
+    if (!report?.id) return;
+    const channel = supabase
+      .channel(`realtime-report-${report.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports', filter: `id=eq.${report.id}` }, () => {
+        onRefresh?.();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [report?.id, onRefresh]);
 
   // Sync edit form with report
   useEffect(() => {
@@ -219,9 +235,12 @@ export function ReportDetailView({
     setActionLoading(true);
     try {
       await onUpdateStatus(report.id, status, notes, evidenceUrl);
+      onRefresh?.();
       setShowCloseModal(false);
       setShowReopenModal(false);
+      setShowVerifyModal(false);
       setCloseNotes("");
+      setVerifyNotes("");
       setReopenNotes("");
       setCloseEvidenceUrl("");
     } finally { setActionLoading(false); }
@@ -311,7 +330,9 @@ export function ReportDetailView({
   const isClosed = report.status === "SELESAI";
 
   let actionLabel = "Update Status";
-  if (primaryAction === "SUDAH_DIVERIFIKASI") actionLabel = "Verifikasi Laporan";
+  if (primaryAction === "SUDAH_DIVERIFIKASI") {
+    actionLabel = "Verifikasi Laporan";
+  }
   else if (primaryAction === "SELESAI") actionLabel = "Selesaikan Kasus";
   else if (primaryAction === "MENUNGGU_FEEDBACK") actionLabel = "Buka Kembali";
 
@@ -594,6 +615,7 @@ export function ReportDetailView({
                       onClick={() => {
                         if (primaryAction === "SELESAI") setShowCloseModal(true);
                         else if (primaryAction === "MENUNGGU_FEEDBACK") setShowReopenModal(true);
+                        else if (primaryAction === "SUDAH_DIVERIFIKASI") setShowVerifyModal(true);
                         else handleUpdateStatus(primaryAction);
                       }}
                       disabled={actionLoading}
@@ -778,6 +800,46 @@ export function ReportDetailView({
               >
                 {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <Plane size={18} />}
                 Dispatch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Modal */}
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Verifikasi Laporan</h3>
+              <button onClick={() => setShowVerifyModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
+            </div>
+            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl text-[13px] mb-5 flex items-center gap-3 border border-emerald-100">
+              <CheckCircle2 size={18} className="shrink-0" />
+              <span>Laporan akan ditandai sebagai sudah diverifikasi. Tambahkan catatan verifikasi di bawah ini.</span>
+            </div>
+            <textarea
+              value={verifyNotes}
+              onChange={(e) => setVerifyNotes(e.target.value)}
+              className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none bg-gray-50 mb-5 resize-none"
+              rows={4}
+              placeholder="Tambahkan catatan verifikasi (wajib)..."
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowVerifyModal(false)}
+                className="flex-1 py-3.5 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-[15px]"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleUpdateStatus("SUDAH_DIVERIFIKASI", verifyNotes)}
+                disabled={actionLoading || !verifyNotes.trim()}
+                className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                Verifikasi
               </button>
             </div>
           </div>

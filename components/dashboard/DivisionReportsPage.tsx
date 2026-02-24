@@ -44,6 +44,9 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
   const filteredReports = useMemo(() => {
     const lowerSearch = search.toLowerCase();
     return allReports.filter(report => {
+      // Ensure it matches the division code if provided in config
+      if (config.code && report.target_division !== config.code) return false;
+      
       if (filter !== 'all' && report.status !== filter) return false;
       if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
 
@@ -65,6 +68,21 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
     pending: filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length,
     resolved: filteredReports.filter(r => r.status === 'SELESAI').length
   }), [filteredReports]);
+
+  const handleUpdateStatus = async (reportId: string, status: string, notes?: string, evidenceUrl?: string) => {
+    try {
+      const res = await fetch(`/api/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, action_taken: notes, evidence_urls: evidenceUrl ? [evidenceUrl] : undefined })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      await handleRefresh();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Gagal mengupdate status laporan');
+    }
+  };
 
   const Icon = config.icon;
 
@@ -222,6 +240,7 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
             report={selectedReport}
             onClose={() => setSelectedReport(null)}
             userRole={config.userRole}
+            onUpdateStatus={handleUpdateStatus}
             onRefresh={handleRefresh}
           />
         )}

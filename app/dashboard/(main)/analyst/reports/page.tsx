@@ -77,6 +77,21 @@ export default function AnalystReportsPage() {
     resolved: filteredReports.filter(r => r.status === 'SELESAI').length
   }), [filteredReports]);
 
+  const handleUpdateStatus = async (reportId: string, status: string, notes?: string, evidenceUrl?: string) => {
+    try {
+      const res = await fetch(`/api/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, action_taken: notes, evidence_urls: evidenceUrl ? [evidenceUrl] : undefined })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      await handleRefresh();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Gagal mengupdate status laporan');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--surface-0)] pb-24 overflow-x-hidden">
       {/* 1. Kinetic Hero Header */}
@@ -232,6 +247,7 @@ export default function AnalystReportsPage() {
             report={selectedReport}
             onClose={() => setSelectedReport(null)}
             userRole="ANALYST"
+            onUpdateStatus={handleUpdateStatus}
             onRefresh={handleRefresh}
           />
         )}

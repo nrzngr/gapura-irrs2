@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, Shield, Brain } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, Shield, Brain, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,6 +54,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             items: [
                 { href: '/dashboard/os', label: 'Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/os/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/os/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
     ],
@@ -62,7 +63,8 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Divisi Teknik',
             items: [
                 { href: '/dashboard/ot', label: 'Dashboard OT', icon: LayoutDashboard },
-                { href: '/dashboard/ot/reports', label: 'Laporan OT', icon: ClipboardList },
+                { href: '/dashboard/ot/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/ot/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
     ],
@@ -71,7 +73,8 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Divisi Operasi',
             items: [
                 { href: '/dashboard/op', label: 'Dashboard OP', icon: LayoutDashboard },
-                { href: '/dashboard/op/reports', label: 'Laporan OP', icon: ClipboardList },
+                { href: '/dashboard/op/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/op/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
     ],
@@ -80,7 +83,8 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Divisi Quality',
             items: [
                 { href: '/dashboard/uq', label: 'Dashboard UQ', icon: LayoutDashboard },
-                { href: '/dashboard/uq/reports', label: 'Laporan UQ', icon: ClipboardList },
+                { href: '/dashboard/uq/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/uq/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
     ],
@@ -89,7 +93,8 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Human Capital',
             items: [
                 { href: '/dashboard/hc', label: 'Dashboard HC', icon: LayoutDashboard },
-                { href: '/dashboard/hc/reports', label: 'Laporan HC', icon: ClipboardList },
+                { href: '/dashboard/hc/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/hc/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
     ],
@@ -98,7 +103,8 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Human Training',
             items: [
                 { href: '/dashboard/ht', label: 'Dashboard HT', icon: LayoutDashboard },
-                { href: '/dashboard/ht/reports', label: 'Laporan HT', icon: ClipboardList },
+                { href: '/dashboard/ht/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/ht/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
     ],

@@ -10,7 +10,7 @@ interface ReportDetailModalProps {
     isOpen?: boolean;
     onClose: () => void;
     report: Report | null;
-    onUpdateStatus?: (reportId: string, status: string) => Promise<void>;
+    onUpdateStatus?: (reportId: string, status: string, notes?: string, evidenceUrl?: string) => Promise<void>;
     onRefresh?: () => Promise<void> | void;
     userRole?: string;
 }

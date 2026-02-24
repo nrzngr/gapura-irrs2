@@ -123,10 +123,23 @@ export async function PATCH(
 
         const updates: any = {};
 
+        // Normalize status to canonical value (underscored, uppercased)
+        const normalizeStatus = (val: unknown) => {
+            if (!val) return val;
+            const up = String(val).trim().toUpperCase().replace(/\s+/g, '_');
+            const map: Record<string, string> = {
+                'OPEN': 'MENUNGGU_FEEDBACK',
+                'MENUNGGU': 'MENUNGGU_FEEDBACK',
+                'ACTIVE': 'MENUNGGU_FEEDBACK',
+                'CLOSED': 'SELESAI'
+            };
+            return map[up] || up;
+        };
+
         if (title !== undefined) updates.title = title;
         if (description !== undefined) updates.description = description;
         if (severity !== undefined) updates.severity = severity;
-        if (status !== undefined) updates.status = status;
+        if (status !== undefined) updates.status = normalizeStatus(status);
         if (evidence_urls !== undefined) updates.evidence_urls = evidence_urls;
         if (flight_number !== undefined) updates.flight_number = flight_number;
         if (aircraft_reg !== undefined) updates.aircraft_reg = aircraft_reg;
@@ -166,6 +179,22 @@ export async function PATCH(
                 console.warn('[Dispatch] Failed to create system comment:', dispatchErr);
             }
         }
+        
+        // --- STATUS CHANGE LOGIC: Create system comment in Supabase ---
+        if (updates.status !== undefined) {
+            try {
+                const statusMsg = `Status laporan diubah ke ${updates.status}${updates.action_taken ? ` — Catatan: ${updates.action_taken}` : ''}`;
+                await supabaseAdmin.from('report_comments').insert({
+                    report_id: updatedReport.id || id,
+                    user_id: payload.id,
+                    content: statusMsg,
+                    is_system_message: true,
+                    sheet_id: updatedReport.original_id || id
+                });
+            } catch (statusErr) {
+                console.warn('[Status] Failed to create system comment:', statusErr);
+            }
+        }
 
         // Supabase write-through sync (best-effort)
         // Match by sheet_id since Supabase stores the Google Sheets ID
@@ -194,7 +223,7 @@ export async function PATCH(
                 const { error: sbError } = await supabaseAdmin
                     .from('reports')
                     .update(supabaseUpdates)
-                    .eq('sheet_id', id);
+                    .eq('sheet_id', updatedReport.original_id || id);
 
                 if (sbError) {
                     console.warn('[Supabase] PATCH sync failed (non-blocking):', sbError.message);

@@ -13,7 +13,6 @@ const demoCredentials = [
     { role: 'Divisi OT', email: 'partner.ot@gapura.demo', division: 'OT', color: '#f59e0b', description: 'ACC & Evidence' },
     { role: 'Divisi OP', email: 'partner.op@gapura.demo', division: 'OP', color: '#06b6d4', description: 'ACC & Evidence' },
     { role: 'Divisi UQ', email: 'partner.uq@gapura.demo', division: 'UQ', color: '#ec4899', description: 'ACC & Evidence' },
-    { role: 'Cabang / Reporter', email: 'reporter@gapura.demo', division: 'CGK', color: '#ef4444', description: 'Buat Laporan' },
     { role: 'Karyawan Cabang', email: 'karyawan@gapura.co.id', division: 'CGK', color: '#f87171', description: 'Akses Cabang' },
 ];
 

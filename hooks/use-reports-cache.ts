@@ -2,6 +2,7 @@
 import useSWR, { SWRConfiguration } from 'swr';
 import { Report } from '@/types';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 const STORAGE_KEY = 'reports-cache-v2';
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
@@ -18,6 +19,7 @@ const fetcher = async (url: string) => {
 };
 
 export function useReportsData(url: string = '/api/reports', options?: SWRConfiguration) {
+  const STORAGE_KEY_WITH_URL = `${STORAGE_KEY}:${url}`;
   // L1 Cache: Local Storage
   const [isOffline, setIsOffline] = useState(false);
   
@@ -31,7 +33,7 @@ export function useReportsData(url: string = '/api/reports', options?: SWRConfig
       dedupingInterval: 1000 * 60, // 1 minute dedupe
       onSuccess: (newData) => {
         if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          localStorage.setItem(STORAGE_KEY_WITH_URL, JSON.stringify({
             data: newData,
             timestamp: Date.now()
           }));
@@ -51,7 +53,7 @@ export function useReportsData(url: string = '/api/reports', options?: SWRConfig
 
   // Hydrate from local storage on mount
   useEffect(() => {
-      const local = localStorage.getItem(STORAGE_KEY);
+      const local = localStorage.getItem(STORAGE_KEY_WITH_URL);
       if (local && !data) {
         try {
            const parsed = JSON.parse(local);
@@ -59,7 +61,21 @@ export function useReportsData(url: string = '/api/reports', options?: SWRConfig
            mutate(parsed.data, false); 
         } catch(e) {}
       }
-  }, []); // Run once on mount
+  }, [url]); // Re-run when url changes
+
+  // Realtime refresh on updates (reports table or system comments)
+  useEffect(() => {
+    const channel = supabase
+      .channel(`realtime-reports`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports' }, () => {
+        mutate();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'report_comments', filter: 'is_system_message=eq.true' }, () => {
+        mutate();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [url, mutate]);
 
   // Sync offline status
   useEffect(() => {
@@ -83,6 +99,6 @@ export function useReportsData(url: string = '/api/reports', options?: SWRConfig
     isOffline,
     refresh: () => mutate(),
     lastUpdated: typeof window !== 'undefined' ? 
-      (JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')?.timestamp || null) : null
+      (JSON.parse(localStorage.getItem(STORAGE_KEY_WITH_URL) || 'null')?.timestamp || null) : null
   };
 }

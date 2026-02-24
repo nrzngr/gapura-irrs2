@@ -77,6 +77,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   remarks_gapura_kps: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS'],
   reporter_name: ['Report_By', 'Report By', 'Pelapor', 'Reporter'],
   evidence_url: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti'],
+  evidence_urls: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti', 'Lampiran'],
   area: ['Area', 'Wilayah'],
   terminal_area_category: ['Terminal_Area_Category', 'Terminal Area Category'],
   apron_area_category: ['Apron_Area_Category', 'Apron Area Category'],
@@ -126,6 +127,7 @@ const WRITE_MAPPING: Record<string, string> = {
   preventive_action: 'Preventive Action',
   reporter_name: 'Report By',
   evidence_url: 'Upload Irregularity Photo',
+  evidence_urls: 'Upload Irregularity Photo',
   area: 'Area',
   terminal_area_category: 'Terminal Area Category',
   apron_area_category: 'Apron Area Category',
@@ -322,10 +324,13 @@ export class ReportsService {
     };
     
     if (report.status) {
-      const normalizedStatus = report.status.toString().trim().toUpperCase();
-      report.status = statusMapping[normalizedStatus] || normalizedStatus;
-      if (report.status === 'SELESAI' || report.status === 'CLOSED') report.status = 'SELESAI';
-      else if (report.status === 'OPEN' || report.status === 'MENUNGGU' || report.status === 'ACTIVE') report.status = 'MENUNGGU_FEEDBACK';
+      let normalizedStatus = report.status.toString().trim().toUpperCase();
+      normalizedStatus = statusMapping[normalizedStatus] || normalizedStatus;
+      // Canonicalize: underscores instead of spaces (e.g., "SUDAH DIVERIFIKASI" -> "SUDAH_DIVERIFIKASI")
+      normalizedStatus = normalizedStatus.replace(/\s+/g, '_');
+      if (normalizedStatus === 'SELESAI' || normalizedStatus === 'CLOSED') normalizedStatus = 'SELESAI';
+      else if (normalizedStatus === 'OPEN' || normalizedStatus === 'MENUNGGU' || normalizedStatus === 'ACTIVE') normalizedStatus = 'MENUNGGU_FEEDBACK';
+      report.status = normalizedStatus;
     } else {
       report.status = 'MENUNGGU_FEEDBACK';
     }
@@ -436,7 +441,10 @@ export class ReportsService {
   }
 
   public invalidateCache() {
-    invalidateLocalCache(CACHE_KEY_ALL_REPORTS);
+    const keys = Array.from(ttlCache.keys());
+    keys.forEach((k) => {
+      if (k.startsWith(CACHE_KEY_ALL_REPORTS)) ttlCache.delete(k);
+    });
     console.log('[ReportsService] Cache invalidated');
   }
 
