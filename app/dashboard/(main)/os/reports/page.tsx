@@ -15,6 +15,7 @@ export default function OSReportsPage() {
                 userRole: 'DIVISI_OS',
                 basePath: '/dashboard/os/reports',
                 apiEndpoint: '/api/admin/reports',
+                enforceDivisionScope: false,
             }}
         />
     );

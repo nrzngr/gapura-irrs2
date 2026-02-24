@@ -22,6 +22,7 @@ interface DivisionConfig {
   userRole: string;
   basePath: string;
   apiEndpoint?: string;
+  enforceDivisionScope?: boolean;
 }
 
 // Complexity: Time O(n) | Space O(n)
@@ -44,8 +45,8 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
   const filteredReports = useMemo(() => {
     const lowerSearch = search.toLowerCase();
     return allReports.filter(report => {
-      // Ensure it matches the division code if provided in config
-      if (config.code && report.target_division !== config.code) return false;
+      // Apply division scoping only when enabled (default: true)
+      if (config.code && config.enforceDivisionScope !== false && report.target_division !== config.code) return false;
       
       if (filter !== 'all' && report.status !== filter) return false;
       if (severityFilter !== 'all' && report.severity !== severityFilter) return false;

@@ -14,6 +14,7 @@ export default function OPReportsPage() {
                 icon: Plane,
                 userRole: 'DIVISI_OP',
                 basePath: '/dashboard/op/reports',
+                enforceDivisionScope: false,
             }}
         />
     );

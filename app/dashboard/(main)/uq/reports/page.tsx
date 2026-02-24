@@ -14,6 +14,7 @@ export default function UQReportsPage() {
                 icon: Shield,
                 userRole: 'DIVISI_UQ',
                 basePath: '/dashboard/uq/reports',
+                enforceDivisionScope: false,
             }}
         />
     );

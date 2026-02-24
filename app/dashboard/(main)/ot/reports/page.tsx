@@ -14,6 +14,7 @@ export default function OTReportsPage() {
                 icon: Wrench,
                 userRole: 'DIVISI_OT',
                 basePath: '/dashboard/ot/reports',
+                enforceDivisionScope: false,
             }}
         />
     );

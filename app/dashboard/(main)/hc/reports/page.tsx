@@ -14,6 +14,7 @@ export default function HCReportsPage() {
                 icon: Users,
                 userRole: 'DIVISI_HC',
                 basePath: '/dashboard/hc/reports',
+                enforceDivisionScope: false,
             }}
         />
     );

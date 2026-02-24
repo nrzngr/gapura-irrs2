@@ -68,13 +68,8 @@ export async function POST(request: NextRequest) {
       (!filters.categories || filters.categories.length === 0)
     ));
 
-    // Inject division scoping for division roles
+    // No division scoping: generate like analyst for all allowed roles
     const generationOptions = { ...filters };
-    if (isDivisionRole) {
-        generationOptions.division = role.split('_')[1];
-    }
-
-    // Generate dashboard definition
     const dashboard = generateCustomerFeedbackDashboard(effectiveDateFrom, effectiveDateTo, { filters: generationOptions });
 
     // Determine if this is a filtered dashboard (has custom filters)

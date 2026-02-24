@@ -14,6 +14,7 @@ export default function HTReportsPage() {
                 icon: GraduationCap,
                 userRole: 'DIVISI_HT',
                 basePath: '/dashboard/ht/reports',
+                enforceDivisionScope: false,
             }}
         />
     );

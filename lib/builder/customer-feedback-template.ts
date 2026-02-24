@@ -91,9 +91,7 @@ export function generateCustomerFeedbackDashboard(dateFrom: string, dateTo: stri
   // I'll use 'airlines'.
   
   const categoryFilters = arrayFilter('main_category', options?.filters?.categories);
-  const divisionFilter: QueryFilter[] = options?.filters?.division 
-    ? [{ table: 'reports', field: 'target_division', operator: 'eq', value: options.filters.division, conjunction: 'AND' }]
-    : [];
+  const divisionFilter: QueryFilter[] = [];
 
   const cgoFilter: QueryFilter = { 
     table: 'reports', 
