@@ -26,7 +26,7 @@ interface DivisionConfig {
 
 // Complexity: Time O(n) | Space O(n)
 export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
-  const endpoint = config.apiEndpoint ?? `/api/admin/reports?target_division=${config.code}`;
+  const endpoint = config.apiEndpoint ?? '/api/admin/reports';
   const { reports: allReports, isLoading: loading, refresh } = useReportsData(endpoint);
 
   const [filter, setFilter] = useState('all');
