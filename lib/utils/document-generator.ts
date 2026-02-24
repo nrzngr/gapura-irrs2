@@ -193,6 +193,7 @@ export const generatePDF = (report: Report) => {
 
     addBoxSection('IV. POTENTIAL/ROOT CAUSE(S)', report.root_caused || report.root_cause || '');
     addBoxSection('V. CORRECTIVE ACTION(S)', report.action_taken || '');
+    addBoxSection('VI. PREVENTIVE ACTION(S)', report.preventive_action || '');
 
     // Signature Area
     // @ts-ignore
@@ -410,8 +411,8 @@ export const generateWord = async (report: Report) => {
         children: [
             createTextCell("1", false, { alignment: AlignmentType.CENTER }),
             createTextCell(report.reporter_name || "-"),
-            createTextCell("GAPURA OPS"),
-            createTextCell("REPORTER"),
+            createTextCell("..................."),
+            createTextCell("..................."),
         ]
     }));
 
@@ -420,7 +421,7 @@ export const generateWord = async (report: Report) => {
             children: [
                  createTextCell(`${i}`, false, { alignment: AlignmentType.CENTER }),
                  createTextCell(""),
-                 createTextCell("GAPURA OPS"),
+                 createTextCell("..................."),
                  createTextCell(""),
             ]
         }));
@@ -511,6 +512,33 @@ export const generateWord = async (report: Report) => {
                         children: [
                             new Paragraph({
                                 children: [new TextRun({ text: report.action_taken ? `1. ${report.action_taken}` : "\n\n" })],
+                                spacing: { before: 40, after: 40 }
+                            })
+                        ],
+                        margins: { top: 50, bottom: 50, left: 100, right: 100 }
+                    })
+                ]
+            })
+        ]
+    });
+
+    const sectionVI = [
+        new Paragraph({ text: "" }),
+        new Paragraph({
+            children: [createBoldText('VI. PREVENTIVE ACTION(S)')],
+            spacing: { before: 100, after: 100 }
+        })
+    ];
+
+    const preventiveActionTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+            new TableRow({
+                children: [
+                   new TableCell({
+                        children: [
+                            new Paragraph({
+                                children: [new TextRun({ text: report.preventive_action ? `1. ${report.preventive_action}` : "\n\n" })],
                                 spacing: { before: 40, after: 40 }
                             })
                         ],
@@ -645,6 +673,8 @@ export const generateWord = async (report: Report) => {
                 rootCauseTable,
                 ...sectionV,
                 correctiveActionTable,
+                ...sectionVI,
+                preventiveActionTable,
                 new Paragraph({ text: "", spacing: { before: 200, after: 200 } }),
                 signatureTable,
                 new Paragraph({ 

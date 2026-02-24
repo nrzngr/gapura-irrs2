@@ -73,7 +73,8 @@ export async function middleware(request: NextRequest) {
         const role = String(payload.role).trim().toUpperCase();
 
         // 2. If logged in and trying to access AUTH pages (login/register), redirect to dashboard
-        if (isAuthPath) {
+        // CRITICAL BUGFIX: We must NOT redirect if the path is the logout endpoint!
+        if (isAuthPath && path !== '/api/auth/logout') {
             const dashboardUrl = ROLE_DASHBOARDS[role] || '/dashboard/employee';
             return NextResponse.redirect(new URL(dashboardUrl, request.url));
         }

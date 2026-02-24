@@ -268,8 +268,10 @@ export default function Sidebar({ role }: { role: string }) {
 
     const handleLogout = async () => {
         setLoading(true);
-        await fetch('/api/auth/logout', { method: 'POST' });
-        router.push('/auth/login');
+        // Force the browser itself to navigate to the logout route. 
+        // This ensures the browser natively processes the Set-Cookie (maxAge: 0)
+        // headers returned by the server, completely bypassing fetch/CORS/cache issues.
+        window.location.href = '/api/auth/logout';
     };
 
     const navContentProps = {
