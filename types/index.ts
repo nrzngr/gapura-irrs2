@@ -94,7 +94,7 @@ export interface Report {
     incident_type_id?: string;
     category?: string;
     main_category?: string; // Explicit field for dashboard compatibility
-    
+
     // Details
     investigator_notes?: string;
     manager_notes?: string;
@@ -104,7 +104,7 @@ export interface Report {
     source_sheet?: string;
     original_id?: string; // Original Sheets ID (e.g. NON CARGO!row_2)
     row_number?: number;
-    
+
     // Timestamps
     created_at: string;
     updated_at: string;
@@ -173,4 +173,59 @@ export interface Report {
             attachments?: string[];
             is_system_message?: boolean;
         }[];
+}
+
+// Calendar Event types
+export type RecurrencePattern = 'daily' | 'weekly' | 'monthly';
+
+export interface CalendarEvent {
+    id: string;
+    title: string;
+    event_date: string;  // ISO date string YYYY-MM-DD
+    event_time?: string | null;  // HH:MM format
+    notes?: string | null;
+    meeting_minutes_link?: string | null;
+
+    // Recurring
+    is_recurring: boolean;
+    recurrence_pattern?: RecurrencePattern | null;
+    recurrence_end_date?: string | null;  // ISO date string
+    parent_event_id?: string | null;
+
+    // Metadata
+    created_by: string;
+    created_by_name?: string;  // Joined from users table
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string | null;
+}
+
+export interface CreateCalendarEventInput {
+    title: string;
+    event_date: string;
+    event_time?: string | null;
+    notes?: string | null;
+    meeting_minutes_link?: string | null;
+    is_recurring?: boolean;
+    recurrence_pattern?: RecurrencePattern;
+    recurrence_end_date?: string;
+}
+
+export interface UpdateCalendarEventInput {
+    title?: string;
+    event_date?: string;
+    event_time?: string | null;
+    notes?: string | null;
+    meeting_minutes_link?: string | null;
+    is_recurring?: boolean;
+    recurrence_pattern?: RecurrencePattern | null;
+    recurrence_end_date?: string | null;
+    edit_scope?: 'single' | 'all';  // For recurring events
+}
+
+export interface CalendarEventFilters {
+    search?: string;
+    created_by?: string;
+    start_date?: string;
+    end_date?: string;
 }
