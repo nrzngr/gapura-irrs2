@@ -7,7 +7,10 @@ CREATE TABLE calendar_events (
     event_date DATE NOT NULL,
     event_time TIME,
     notes TEXT CHECK (char_length(notes) <= 2000),
-    meeting_minutes_link TEXT,
+    meeting_minutes_link TEXT CHECK (
+        meeting_minutes_link IS NULL
+        OR (meeting_minutes_link ~ '^https?://')
+    ),
 
     -- Recurring events
     is_recurring BOOLEAN DEFAULT false NOT NULL,
@@ -24,10 +27,14 @@ CREATE TABLE calendar_events (
     -- Constraints
     CONSTRAINT valid_recurrence CHECK (
         (is_recurring = false) OR
-        (is_recurring = true AND recurrence_pattern IS NOT NULL AND recurrence_end_date IS NOT NULL)
+        (is_recurring = true AND parent_event_id IS NULL AND recurrence_pattern IS NOT NULL AND recurrence_end_date IS NOT NULL)
     ),
     CONSTRAINT valid_end_date CHECK (
         recurrence_end_date IS NULL OR recurrence_end_date > event_date
+    ),
+    CONSTRAINT recurrence_duration_max CHECK (
+        recurrence_end_date IS NULL
+        OR (recurrence_end_date - event_date) <= interval '1 year'
     )
 );
 
