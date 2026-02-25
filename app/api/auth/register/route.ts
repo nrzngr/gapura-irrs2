@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { hashPassword } from '@/lib/auth-utils';
 
 // Complexity: Time O(1) | Space O(1)
@@ -18,9 +18,34 @@ export async function POST(request: Request) {
             division // Only for GPS (central office)
         } = body;
 
-        // Determine if this is a central office (GPS) registration
-        // station_id is now a string code (e.g. 'GPS', 'CGK')
-        const isGPS = station_id === 'GPS';
+        // Resolve station by ID or CODE; derive isGPS by station.code
+        let stationRow: { id: string; code: string } | null = null;
+        // Try by ID first
+        const { data: byId } = await supabase
+            .from('stations')
+            .select('id, code')
+            .eq('id', station_id)
+            .single();
+        if (byId) {
+            stationRow = byId as any;
+        } else {
+            // Fallback by CODE (accept uppercase/lowercase)
+            const { data: byCode } = await supabase
+                .from('stations')
+                .select('id, code')
+                .ilike('code', String(station_id).toUpperCase())
+                .single();
+            if (byCode) stationRow = byCode as any;
+        }
+
+        if (!stationRow) {
+            return NextResponse.json(
+                { error: 'Station tidak valid' },
+                { status: 400 }
+            );
+        }
+
+        const isGPS = String(stationRow.code || '').toUpperCase() === 'GPS';
 
         // Basic field validation
         // unit_id is NOT required if isGPS is true
@@ -107,15 +132,14 @@ export async function POST(request: Request) {
         const hashedPassword = await hashPassword(password);
 
         // Determine role and division based on station
-        // GPS users: role based on position (can be DIVISI_OS, DIVISI_OT, etc.)
-        // Branch users: role = CABANG, division = GENERAL
+        // GPS users: role can be central roles; Branch users: role = CABANG
         const userData = {
             email: email.toLowerCase(),
             password: hashedPassword,
             full_name: full_name.trim(),
             nik: nik.toUpperCase(),
             phone,
-            station_id, 
+            station_id: stationRow.id, 
             unit_id,
             position_id,
             role: 'CABANG', // Default role, admin can upgrade

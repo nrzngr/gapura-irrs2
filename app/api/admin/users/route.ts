@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth-utils';
 import { supabase } from '@/lib/supabase';
 
 // GET all users (for admin) with relations
 export async function GET(request: Request) {
     try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('session')?.value;
+        if (!token) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const payload = await verifySession(token);
+        if (!payload || payload.role !== 'SUPER_ADMIN') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
 
@@ -35,6 +46,15 @@ export async function GET(request: Request) {
 // PATCH to update user status, role, or division
 export async function PATCH(request: Request) {
     try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('session')?.value;
+        if (!token) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const payload = await verifySession(token);
+        if (!payload || payload.role !== 'SUPER_ADMIN') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
         const body = await request.json();
         const { userId, status, role, division } = body;
 

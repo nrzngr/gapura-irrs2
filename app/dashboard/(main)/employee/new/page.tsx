@@ -491,7 +491,7 @@ export default function NewReportWizard() {
                                     <option value="">Select Branch...</option>
                                     {stations.map((station) => (
                                         <option key={station.id} value={station.id}>
-                                            {station.code} - {station.name}
+                                            {station.code}
                                         </option>
                                     ))}
                                 </select>

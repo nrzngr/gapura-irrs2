@@ -32,7 +32,6 @@ import {
 import { cn, formatDate } from "@/lib/utils";
 import { type Report } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
-import { supabase } from "@/lib/supabase";
 import { generatePDF, generateWord } from "@/lib/utils/document-generator";
 
 /* ============================================
@@ -177,19 +176,6 @@ export function ReportDetailView({
     return () => setMounted(false);
   }, []);
 
-  useEffect(() => {
-    if (!report?.id) return;
-    const channel = supabase
-      .channel(`realtime-report-${report.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports', filter: `id=eq.${report.id}` }, () => {
-        if (!showDispatchModal) onRefresh?.();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [report?.id, onRefresh, showDispatchModal]);
-
   // Sync edit form with report
   useEffect(() => {
     if (report) {
@@ -225,23 +211,7 @@ export function ReportDetailView({
     }
   }, [showDispatchModal]);
 
-  useEffect(() => {
-    if (!report?.id) return;
-    if (!showDispatchModal) onRefresh?.();
-
-    const channel = supabase
-      .channel(`report-${report.id}`)
-      .on("postgres_changes", { 
-        event: "*", 
-        schema: "public", 
-        table: "report_comments", 
-        filter: `report_id=eq.${report.id}` 
-      }, () => {
-        if (!showDispatchModal) onRefresh?.();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [report?.id, onRefresh, showDispatchModal]);
+  useEffect(() => {}, []);
 
 
 
@@ -290,7 +260,9 @@ export function ReportDetailView({
           
           const updatedReport = await res.json();
           setShowDispatchModal(false);
-          onRefresh?.(updatedReport);
+          setTimeout(() => {
+            onRefresh?.(updatedReport);
+          }, 0);
       } catch (error) {
           console.error(error);
           alert("Gagal melakukan dispatch");

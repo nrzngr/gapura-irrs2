@@ -2,7 +2,6 @@
 import useSWR, { SWRConfiguration } from 'swr';
 import { Report } from '@/types';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 
 const STORAGE_KEY = 'reports-cache-v2';
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
@@ -27,10 +26,9 @@ export function useReportsData(url: string = '/api/reports', options?: SWRConfig
     url,
     fetcher,
     {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      refreshInterval: 1000 * 60 * 5, // 5 minutes background refresh
-      dedupingInterval: 1000 * 60, // 1 minute dedupe
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 1000 * 60,
       onSuccess: (newData) => {
         if (typeof window !== 'undefined') {
           localStorage.setItem(STORAGE_KEY_WITH_URL, JSON.stringify({
@@ -63,19 +61,7 @@ export function useReportsData(url: string = '/api/reports', options?: SWRConfig
       }
   }, [url]); // Re-run when url changes
 
-  // Realtime refresh on updates (reports table or system comments)
-  useEffect(() => {
-    const channel = supabase
-      .channel(`realtime-reports`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports' }, () => {
-        mutate();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'report_comments', filter: 'is_system_message=eq.true' }, () => {
-        mutate();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [url, mutate]);
+  useEffect(() => {}, []);
 
   // Sync offline status
   useEffect(() => {

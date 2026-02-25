@@ -121,7 +121,7 @@ export default function LoginPage() {
 
                 <div className="relative z-10 space-y-6">
                     <h1 className="text-4xl font-bold text-white leading-tight">
-                        Gapura<br />Integrated Service<br />Analytics
+                        <em>&quot;One Click&quot;</em> Irregularity Report
                     </h1>
                     <p className="text-white/80 text-lg max-w-md">
                         Sistem Pelaporan Terintegrasi adalah Platform digital untuk pelaporan, pelacakan, dan penyelesaian masalah operasional penerbangan.

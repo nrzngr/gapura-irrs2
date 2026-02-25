@@ -28,7 +28,7 @@ interface DivisionConfig {
 // Complexity: Time O(n) | Space O(n)
 export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
   const endpoint = config.apiEndpoint ?? '/api/admin/reports';
-  const { reports: allReports, isLoading: loading, refresh } = useReportsData(endpoint, { refreshInterval: 1000 * 60 * 2, dedupingInterval: 1000 * 60 });
+  const { reports: allReports, isLoading: loading, refresh } = useReportsData(endpoint);
 
   const [filter, setFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
@@ -49,13 +49,7 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    const id = setInterval(async () => {
-      await serverRefresh();
-      await refresh();
-    }, 1000 * 60 * 2);
-    return () => clearInterval(id);
-  }, [refresh, serverRefresh]);
+  useEffect(() => {}, []);
 
   const filteredReports = useMemo(() => {
     const lowerSearch = search.toLowerCase();

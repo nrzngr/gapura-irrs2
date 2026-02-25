@@ -98,8 +98,14 @@ export function ReportDetailModal({
                             onUpdateStatus={onUpdateStatus}
                             userRole={userRole}
                              onRefresh={(updatedReport?: Report) => {
-                                 if (suspendRefresh) return;
-                                 if (onRefresh) onRefresh();
+                                 if (updatedReport) {
+                                     // Force update immediately after dispatch
+                                     setFullReport(updatedReport);
+                                     if (onRefresh) onRefresh();
+                                 } else {
+                                     if (suspendRefresh) return;
+                                     if (onRefresh) onRefresh();
+                                 }
                                  
                                  // Handle Report Transfer (ID Change)
                                  if (updatedReport && updatedReport.id && initialReport?.id && updatedReport.id !== initialReport.id) {
@@ -118,9 +124,7 @@ export function ReportDetailModal({
                                             }
                                             return res.json();
                                         })
-                                        .then(data => {
-                                            if (!suspendRefresh) setFullReport(data);
-                                        })
+                                        .then(data => setFullReport(data))
                                         .catch(err => console.error("Error refreshing detail:", err));
                                  }
                              }}

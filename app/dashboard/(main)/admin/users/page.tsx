@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Users, Search, RefreshCw, Check, X, Shield, User,
     Filter, ChevronDown, Mail, Building2,
@@ -123,12 +124,38 @@ function EditUserModal({ user, onClose, onSave, isLoading }: {
 
 
 export default function AdminUsersPage() {
+    const router = useRouter();
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [authorized, setAuthorized] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const res = await fetch('/api/auth/session');
+                if (!res.ok) {
+                    setAuthorized(false);
+                    router.replace('/dashboard');
+                    return;
+                }
+                const data = await res.json();
+                if (data?.user?.role !== 'SUPER_ADMIN') {
+                    setAuthorized(false);
+                    router.replace('/dashboard');
+                } else {
+                    setAuthorized(true);
+                }
+            } catch {
+                setAuthorized(false);
+                router.replace('/dashboard');
+            }
+        };
+        checkAuth();
+    }, [router]);
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -144,8 +171,8 @@ export default function AdminUsersPage() {
     }, [filter]);
 
     useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
+        if (authorized) fetchUsers();
+    }, [authorized, fetchUsers]);
 
     const updateUserStatus = async (userId: string, status: string) => {
         setActionLoading(userId);
@@ -195,6 +222,9 @@ export default function AdminUsersPage() {
         user.nik?.toLowerCase().includes(search.toLowerCase())
     );
 
+    if (authorized === false) {
+        return null;
+    }
     return (
         <div className="space-y-6">
             {/* Header */}

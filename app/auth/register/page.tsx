@@ -45,33 +45,32 @@ export default function RegisterPage() {
 
     // Check if selected station is GPS (Gapura Pusat)
     const isGPS = useMemo(() => {
-        if (formData.station_id === 'GPS') return true;
         const station = stations.find(s => s.id === formData.station_id);
         return station?.code === 'GPS';
     }, [formData.station_id, stations]);
 
     useEffect(() => {
         const fetchMasterData = async () => {
-            try {
-                const [stationsRes, unitsRes, positionsRes] = await Promise.all([
-                    fetch('/api/master-data?type=stations'),
-                    fetch('/api/master-data?type=units'),
-                    fetch('/api/master-data?type=positions'),
-                ]);
-                
-                const stationsData = await stationsRes.json();
-                const unitsData = await unitsRes.json();
-                const positionsData = await positionsRes.json();
-                
-                setStations(Array.isArray(stationsData) ? stationsData : []);
-                setUnits(Array.isArray(unitsData) ? unitsData : []);
-                setPositions(Array.isArray(positionsData) ? positionsData : []);
-            } catch (error) {
-                console.error("Failed to fetch master data:", error);
-                setStations([]);
-                setUnits([]);
-                setPositions([]);
-            }
+            const settleJson = async (p: Promise<Response>): Promise<any[]> => {
+                try {
+                    const res = await p;
+                    if (!res.ok) return [];
+                    const data = await res.json().catch(() => []);
+                    return Array.isArray(data) ? data : [];
+                } catch {
+                    return [];
+                }
+            };
+            const [stationsData, unitsData, positionsData] = await Promise.all([
+                settleJson(fetch('/api/master-data?type=stations')),
+                settleJson(fetch('/api/master-data?type=units')),
+                settleJson(fetch('/api/master-data?type=positions')),
+            ]);
+            const fallbackCodes = ['GPS', 'CGK', 'DPS', 'SUB', 'UPG', 'KNO', 'BPN', 'MDC', 'PDG', 'PKU', 'BTH', 'PLM'];
+            const fallbackStations = fallbackCodes.map(code => ({ id: code, code, name: code }));
+            setStations(stationsData.length ? stationsData : fallbackStations);
+            setUnits(unitsData);
+            setPositions(positionsData);
         };
         fetchMasterData();
     }, []);
@@ -87,7 +86,6 @@ export default function RegisterPage() {
 
     // Filter stations to exclude GPS for branch registration
     const filteredStations = useMemo(() => {
-        // Show GPS option at the top, then other stations
         const gps = stations.find(s => s.code === 'GPS');
         const others = stations.filter(s => s.code !== 'GPS');
         return gps ? [gps, ...others] : others;
@@ -390,7 +388,7 @@ export default function RegisterPage() {
                                                 <option value="">Pilih Station</option>
                                                 {filteredStations.map((s) => (
                                                     <option key={s.id} value={s.id}>
-                                                        {s.code} - {s.name}
+                                                        {s.code}
                                                     </option>
                                                 ))}
                                             </select>

@@ -124,13 +124,6 @@ export default function AnalystDashboard() {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      fetchData(true);
-    }, 1000 * 60 * 2);
-    return () => clearInterval(id);
-  }, [fetchData]);
-
   // Filtered reports based on date range
   const filteredReports = useMemo(() => {
     if (dateRange === 'all') return reports;
