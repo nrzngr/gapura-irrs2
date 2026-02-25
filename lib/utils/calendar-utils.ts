@@ -1,4 +1,12 @@
-import { addDays, addWeeks, addMonths, parseISO, format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
+import { addDays } from 'date-fns/addDays';
+import { addWeeks } from 'date-fns/addWeeks';
+import { addMonths } from 'date-fns/addMonths';
+import { parseISO } from 'date-fns/parseISO';
+import { format } from 'date-fns/format';
+import { differenceInDays } from 'date-fns/differenceInDays';
+import { differenceInWeeks } from 'date-fns/differenceInWeeks';
+import { differenceInMonths } from 'date-fns/differenceInMonths';
+import { set } from 'date-fns/set';
 import { CalendarEvent, RecurrencePattern } from '@/types';
 
 /**
@@ -16,33 +24,38 @@ export function generateRecurringDates(
   maxOccurrences: number = 365
 ): string[] {
   const dates: string[] = [];
-  const start = parseISO(startDate);
-  const end = parseISO(endDate);
 
-  let currentDate = start;
-  let count = 0;
+  try {
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
 
-  while (currentDate <= end && count < maxOccurrences) {
-    dates.push(format(currentDate, 'yyyy-MM-dd'));
-    count++;
+    let currentDate = start;
+    let count = 0;
 
-    switch (pattern) {
-      case 'daily':
-        currentDate = addDays(currentDate, 1);
-        break;
-      case 'weekly':
-        currentDate = addWeeks(currentDate, 1);
-        break;
-      case 'monthly':
-        currentDate = addMonths(currentDate, 1);
-        break;
-      default:
-        // If pattern is not recognized, break the loop
-        return dates;
+    while (currentDate <= end && count < maxOccurrences) {
+      dates.push(format(currentDate, 'yyyy-MM-dd'));
+      count++;
+
+      switch (pattern) {
+        case 'daily':
+          currentDate = addDays(currentDate, 1);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, 1);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, 1);
+          break;
+        default:
+          // If pattern is not recognized, break the loop
+          return dates;
+      }
     }
-  }
 
-  return dates;
+    return dates;
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -57,27 +70,31 @@ export function calculateOccurrences(
   endDate: string,
   pattern: RecurrencePattern
 ): number {
-  const start = parseISO(startDate);
-  const end = parseISO(endDate);
+  try {
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
 
-  let occurrences = 0;
+    let occurrences = 0;
 
-  switch (pattern) {
-    case 'daily':
-      occurrences = differenceInDays(end, start);
-      break;
-    case 'weekly':
-      occurrences = differenceInWeeks(end, start);
-      break;
-    case 'monthly':
-      occurrences = differenceInMonths(end, start);
-      break;
-    default:
-      return 0;
+    switch (pattern) {
+      case 'daily':
+        occurrences = differenceInDays(end, start);
+        break;
+      case 'weekly':
+        occurrences = differenceInWeeks(end, start);
+        break;
+      case 'monthly':
+        occurrences = differenceInMonths(end, start);
+        break;
+      default:
+        return 0;
+    }
+
+    // Include the start date
+    return occurrences + 1;
+  } catch {
+    return 0;
   }
-
-  // Include the start date
-  return occurrences + 1;
 }
 
 /**
@@ -104,20 +121,30 @@ export function isValidUrl(url: string): boolean {
  * @param event - Calendar event object
  * @returns Formatted event object with Date objects
  */
-export function formatEventForCalendar(event: CalendarEvent) {
-  const eventDate = parseISO(event.event_date);
+export function formatEventForCalendar(event: CalendarEvent): {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+  resource: CalendarEvent;
+} {
+  let startDate = parseISO(event.event_date);
 
   // If event_time exists, parse and set the time
   if (event.event_time) {
     const [hours, minutes] = event.event_time.split(':').map(Number);
-    eventDate.setHours(hours, minutes, 0, 0);
+    // Validate hours and minutes
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      startDate = set(startDate, { hours, minutes, seconds: 0, milliseconds: 0 });
+    }
   }
 
   return {
     id: event.id,
     title: event.title,
-    start: eventDate,
-    end: eventDate, // Same as start for single events
+    start: startDate,
+    end: startDate, // Same as start for single events
     allDay: !event.event_time,
     resource: event,
   };
