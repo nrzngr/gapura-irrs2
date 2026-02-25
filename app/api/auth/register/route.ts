@@ -131,19 +131,37 @@ export async function POST(request: Request) {
         // Hash password
         const hashedPassword = await hashPassword(password);
 
-        // Determine role and division based on station
-        // GPS users: role can be central roles; Branch users: role = CABANG
+        // Determine role and division based on station and email
+        const isGapuraEmail = email.toLowerCase().endsWith('@gapura.id');
+
+        let role: string;
+        let userDivision: string;
+
+        if (isGPS) {
+            // GPS users: role can be central roles based on position/division
+            role = 'CABANG'; // Default role, admin can upgrade to ANALYST, DIVISI_*, etc.
+            userDivision = body.division || 'GENERAL';
+        } else {
+            // Branch users: role based on email domain
+            if (isGapuraEmail) {
+                role = 'MANAGER_CABANG';
+            } else {
+                role = 'STAFF_CABANG';
+            }
+            userDivision = 'GENERAL';
+        }
+
         const userData = {
             email: email.toLowerCase(),
             password: hashedPassword,
             full_name: full_name.trim(),
             nik: nik.toUpperCase(),
             phone,
-            station_id: stationRow.id, 
+            station_id: stationRow.id,
             unit_id,
             position_id,
-            role: 'CABANG', // Default role, admin can upgrade
-            division: isGPS && division ? division : 'GENERAL',
+            role,
+            division: userDivision,
             status: 'pending',
         };
 
