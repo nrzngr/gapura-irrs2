@@ -194,14 +194,27 @@ export function ReportDetailView({
         aircraft_reg: report.aircraft_reg || "",
         location: report.location || "",
       });
-      // Initialize dispatch form if data exists
-      setDispatchForm({
+      // Jangan override pilihan user saat dialog dispatch sedang terbuka
+      if (!showDispatchModal) {
+        setDispatchForm({
           primary_tag: report.primary_tag || "",
           sub_category_note: report.sub_category_note || "",
           target_division: report.target_division || ""
+        });
+      }
+    }
+  }, [report, showDispatchModal]);
+
+  // Prefill saat dialog dispatch dibuka
+  useEffect(() => {
+    if (showDispatchModal && report) {
+      setDispatchForm({
+        primary_tag: report.primary_tag || "",
+        sub_category_note: report.sub_category_note || "",
+        target_division: report.target_division || ""
       });
     }
-  }, [report]);
+  }, [showDispatchModal, report]);
 
   // Realtime subscription
   useEffect(() => {
