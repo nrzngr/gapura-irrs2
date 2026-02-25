@@ -157,6 +157,7 @@ export function ReportDetailView({
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [dispatchForm, setDispatchForm] = useState({ primary_tag: "", sub_category_note: "", target_division: "" });
   const [mounted, setMounted] = useState(false);
+  const prefillOnceRef = useRef(false);
 
   // Auto scroll to bottom when new comments arrive
   useEffect(() => {
@@ -204,14 +205,19 @@ export function ReportDetailView({
   }, [report, showDispatchModal]);
 
   useEffect(() => {
-    if (showDispatchModal && report) {
-      setDispatchForm({
-        primary_tag: report.primary_tag || "",
-        sub_category_note: report.sub_category_note || "",
-        target_division: report.target_division || ""
-      });
+    if (showDispatchModal) {
+      if (!prefillOnceRef.current && report) {
+        setDispatchForm({
+          primary_tag: report.primary_tag || "",
+          sub_category_note: report.sub_category_note || "",
+          target_division: report.target_division || ""
+        });
+        prefillOnceRef.current = true;
+      }
+    } else {
+      prefillOnceRef.current = false;
     }
-  }, [showDispatchModal, report]);
+  }, [showDispatchModal]);
 
   useEffect(() => {
     if (!report?.id) return;
@@ -235,7 +241,7 @@ export function ReportDetailView({
 
   // Handlers
   const handleRefresh = async () => {
-    if (!onRefresh || refreshing) return;
+    if (!onRefresh || refreshing || showDispatchModal) return;
     setRefreshing(true);
     try {
       await onRefresh();
