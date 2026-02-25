@@ -78,7 +78,7 @@ export const canViewAuditLogs = (role: UserRole): boolean =>
 
 /**
  * Check if user can create reports
- * CABANG (station-scoped), ANALYST (HQ reports), SUPER_ADMIN
+ * MANAGER_CABANG and STAFF_CABANG (station-scoped), ANALYST (HQ reports), SUPER_ADMIN, DIVISI_OS
  */
 export const canCreateReport = (role: UserRole): boolean =>
     role === 'MANAGER_CABANG' ||
@@ -89,7 +89,7 @@ export const canCreateReport = (role: UserRole): boolean =>
 
 /**
  * Check if user has global data access (all stations)
- * All except CABANG
+ * All except MANAGER_CABANG and STAFF_CABANG
  */
 export const hasGlobalAccess = (role: UserRole): boolean =>
     ROLE_HIERARCHY[role] >= 2;
@@ -129,7 +129,7 @@ export const canEditReport = (
     if (role.startsWith('DIVISI_')) return true;
 
     // MANAGER_CABANG can edit reports from their station
-    if (role === 'MANAGER_CABANG' && userStationId === reportStationId) return true;
+    if (role === 'MANAGER_CABANG' && userStationId && userStationId === reportStationId) return true;
 
     // STAFF_CABANG can only edit own reports
     if (role === 'STAFF_CABANG' && userId === reportUserId) return true;
@@ -154,7 +154,7 @@ export const canApproveStaff = (
     staffStationId?: string
 ): boolean => {
     if (role === 'SUPER_ADMIN') return true;
-    if (role === 'MANAGER_CABANG' && userStationId === staffStationId) return true;
+    if (role === 'MANAGER_CABANG' && userStationId && userStationId === staffStationId) return true;
     return false;
 };
 
