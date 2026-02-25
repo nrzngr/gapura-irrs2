@@ -126,6 +126,7 @@ interface ReportDetailViewProps {
   divisionColor?: string;
   isModal?: boolean;
   currentUserId?: string;
+  onDispatchOpenChange?: (open: boolean) => void;
 }
 
 /* ============================================
@@ -138,6 +139,7 @@ export function ReportDetailView({
   onClose,
   userRole = "PARTNER_ADMIN",
   divisionColor = "#10b981",
+  onDispatchOpenChange,
 }: ReportDetailViewProps) {
   // State
   const [actionLoading, setActionLoading] = useState(false);
@@ -158,6 +160,10 @@ export function ReportDetailView({
   const [dispatchForm, setDispatchForm] = useState({ primary_tag: "", sub_category_note: "", target_division: "" });
   const [mounted, setMounted] = useState(false);
   const prefillOnceRef = useRef(false);
+
+  useEffect(() => {
+    onDispatchOpenChange?.(showDispatchModal);
+  }, [showDispatchModal, onDispatchOpenChange]);
 
   // Auto scroll to bottom when new comments arrive
   useEffect(() => {

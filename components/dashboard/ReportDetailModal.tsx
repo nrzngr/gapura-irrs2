@@ -27,6 +27,7 @@ export function ReportDetailModal({
     const [fullReport, setFullReport] = useState<Report | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [suspendRefresh, setSuspendRefresh] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -97,6 +98,7 @@ export function ReportDetailModal({
                             onUpdateStatus={onUpdateStatus}
                             userRole={userRole}
                              onRefresh={(updatedReport?: Report) => {
+                                 if (suspendRefresh) return;
                                  if (onRefresh) onRefresh();
                                  
                                  // Handle Report Transfer (ID Change)
@@ -116,10 +118,13 @@ export function ReportDetailModal({
                                             }
                                             return res.json();
                                         })
-                                        .then(data => setFullReport(data))
+                                        .then(data => {
+                                            if (!suspendRefresh) setFullReport(data);
+                                        })
                                         .catch(err => console.error("Error refreshing detail:", err));
                                  }
                              }}
+                             onDispatchOpenChange={(open) => setSuspendRefresh(open)}
                         />
                     </div>
                 </div>
@@ -128,4 +133,3 @@ export function ReportDetailModal({
         document.body
     );
 }
-
