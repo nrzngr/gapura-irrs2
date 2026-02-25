@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   User,
   CheckCircle2,
@@ -155,6 +156,7 @@ export function ReportDetailView({
 
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [dispatchForm, setDispatchForm] = useState({ primary_tag: "", sub_category_note: "", target_division: "" });
+  const [mounted, setMounted] = useState(false);
 
   // Auto scroll to bottom when new comments arrive
   useEffect(() => {
@@ -162,6 +164,11 @@ export function ReportDetailView({
       lastCommentRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [report?.comments?.length]);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Realtime refresh when this report row updates in Supabase (best-effort)
   useEffect(() => {
@@ -792,70 +799,63 @@ export function ReportDetailView({
           ============================================= */}
       
       {/* Dispatch / Triage Modal (Analyst Only) */}
-      {showDispatchModal && (
-        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      {showDispatchModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in">
-             <div className="flex justify-between items-center mb-5">
+            <div className="flex justify-between items-center mb-5">
               <h3 className="text-lg font-bold text-[var(--text-primary)]">Triage & Dispatch</h3>
               <button onClick={() => setShowDispatchModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-
             <div className="space-y-4 mb-6">
-                {/* Primary Tag (Area Category) */}
-                <div>
-                     <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Kategori Area (Primary Tag)</label>
-                     <div className="flex gap-3">
-                         {['Landside & Airside', 'CGO'].map((tag) => (
-                             <button
-                                key={tag}
-                                onClick={() => setDispatchForm(prev => ({ ...prev, primary_tag: tag }))}
-                                className={cn(
-                                    "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
-                                    dispatchForm.primary_tag === tag 
-                                        ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                                )}
-                             >
-                                 {tag}
-                             </button>
-                         ))}
-                     </div>
+              <div>
+                <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Kategori Area (Primary Tag)</label>
+                <div className="flex gap-3">
+                  {['Landside & Airside', 'CGO'].map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => setDispatchForm(prev => ({ ...prev, primary_tag: tag }))}
+                      className={cn(
+                        "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
+                        dispatchForm.primary_tag === tag 
+                          ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
+                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </div>
-
-                {/* Target Division */}
-                <div>
-                    <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Target Divisi</label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {['OS', 'OP', 'OT', 'UQ', 'HC', 'HT'].map((div) => (
-                            <button
-                                key={div}
-                                onClick={() => setDispatchForm(prev => ({ ...prev, target_division: div }))}
-                                className={cn(
-                                    "py-2 rounded-lg border text-sm font-bold transition-all",
-                                    dispatchForm.target_division === div
-                                        ? "bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm"
-                                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                                )}
-                            >
-                                {div}
-                            </button>
-                        ))}
-                    </div>
+              </div>
+              <div>
+                <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Target Divisi</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['OS', 'OP', 'OT', 'UQ', 'HC', 'HT'].map((div) => (
+                    <button
+                      key={div}
+                      onClick={() => setDispatchForm(prev => ({ ...prev, target_division: div }))}
+                      className={cn(
+                        "py-2 rounded-lg border text-sm font-bold transition-all",
+                        dispatchForm.target_division === div
+                          ? "bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm"
+                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      {div}
+                    </button>
+                  ))}
                 </div>
-
-                {/* Remarks Gapura KPS */}
-                <div>
-                    <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Remarks Gapura KPS</label>
-                    <textarea
-                        value={dispatchForm.sub_category_note}
-                        onChange={(e) => setDispatchForm(prev => ({ ...prev, sub_category_note: e.target.value }))}
-                        className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none resize-none bg-gray-50"
-                        rows={3}
-                        placeholder="Tambahkan catatan, konteks, atau instruksi khusus Gapura KPS..."
-                    />
-                </div>
+              </div>
+              <div>
+                <label className="text-[13px] font-bold uppercase text-[var(--text-secondary)] mb-2 block">Remarks Gapura KPS</label>
+                <textarea
+                  value={dispatchForm.sub_category_note}
+                  onChange={(e) => setDispatchForm(prev => ({ ...prev, sub_category_note: e.target.value }))}
+                  className="w-full p-3 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none resize-none bg-gray-50"
+                  rows={3}
+                  placeholder="Tambahkan catatan, konteks, atau instruksi khusus Gapura KPS..."
+                />
+              </div>
             </div>
-
             <div className="flex gap-3">
               <button 
                 onClick={() => setShowDispatchModal(false)} 
@@ -873,7 +873,8 @@ export function ReportDetailView({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Verify Modal */}
