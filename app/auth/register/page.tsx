@@ -50,6 +50,13 @@ export default function RegisterPage() {
         return station?.code === 'GPS';
     }, [formData.station_id, stations]);
 
+    // Clear email hint when switching to GPS station
+    useEffect(() => {
+        if (isGPS) {
+            setEmailHint('');
+        }
+    }, [isGPS]);
+
     useEffect(() => {
         const fetchMasterData = async () => {
             const settleJson = async (p: Promise<Response>): Promise<any[]> => {
@@ -127,11 +134,11 @@ export default function RegisterPage() {
         // Transform NIK to uppercase
         if (name === 'nik') value = value.toUpperCase();
 
-        // Email domain hint
+        // Email domain hint - use memoized isGPS
         if (name === 'email') {
-            const isGPS = stations.find(s => s.id === formData.station_id)?.code === 'GPS';
             if (!isGPS) {
-                if (value.toLowerCase().endsWith('@gapura.id')) {
+                const emailLower = value.toLowerCase();
+                if (emailLower.endsWith('@gapura.id')) {
                     setEmailHint('✓ Anda akan terdaftar sebagai Manager/Supervisor');
                 } else if (value.includes('@')) {
                     setEmailHint('ℹ Anda akan terdaftar sebagai Staff (perlu approval Manager)');
@@ -145,14 +152,11 @@ export default function RegisterPage() {
 
         setFormData(prev => ({ ...prev, [name]: value }));
 
-        // Validate on change
         const error = validateField(name, value);
         setFieldErrors(prev => ({ ...prev, [name]: error }));
 
-        // Reset position when station changes
         if (name === 'station_id') {
             setFormData(prev => ({ ...prev, station_id: value, position_id: '', division: 'GENERAL' }));
-            setEmailHint(''); // Reset hint when station changes
         }
     };
 
@@ -370,7 +374,11 @@ export default function RegisterPage() {
                                         </div>
                                         {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
                                         {!fieldErrors.email && emailHint && !isGPS && (
-                                            <p className={`text-xs mt-1 ${emailHint.startsWith('✓') ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                            <p
+                                                className={`text-xs mt-1 ${emailHint.startsWith('✓') ? 'text-emerald-600' : 'text-blue-600'}`}
+                                                role="status"
+                                                aria-live="polite"
+                                            >
                                                 {emailHint}
                                             </p>
                                         )}
