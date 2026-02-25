@@ -38,6 +38,7 @@ export default function RegisterPage() {
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [emailHint, setEmailHint] = useState('');
 
     const [stations, setStations] = useState<Station[]>([]);
     const [units, setUnits] = useState<Unit[]>([]);
@@ -125,16 +126,33 @@ export default function RegisterPage() {
     const handleChange = (name: string, value: string) => {
         // Transform NIK to uppercase
         if (name === 'nik') value = value.toUpperCase();
-        
+
+        // Email domain hint
+        if (name === 'email') {
+            const isGPS = stations.find(s => s.id === formData.station_id)?.code === 'GPS';
+            if (!isGPS) {
+                if (value.toLowerCase().endsWith('@gapura.id')) {
+                    setEmailHint('✓ Anda akan terdaftar sebagai Manager/Supervisor');
+                } else if (value.includes('@')) {
+                    setEmailHint('ℹ Anda akan terdaftar sebagai Staff (perlu approval Manager)');
+                } else {
+                    setEmailHint('');
+                }
+            } else {
+                setEmailHint('');
+            }
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
-        
+
         // Validate on change
         const error = validateField(name, value);
         setFieldErrors(prev => ({ ...prev, [name]: error }));
-        
+
         // Reset position when station changes
         if (name === 'station_id') {
             setFormData(prev => ({ ...prev, station_id: value, position_id: '', division: 'GENERAL' }));
+            setEmailHint(''); // Reset hint when station changes
         }
     };
 
@@ -351,6 +369,11 @@ export default function RegisterPage() {
                                             />
                                         </div>
                                         {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
+                                        {!fieldErrors.email && emailHint && !isGPS && (
+                                            <p className={`text-xs mt-1 ${emailHint.startsWith('✓') ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                {emailHint}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className={labelStyle}>No. WhatsApp</label>
