@@ -30,7 +30,6 @@ const statusConfig = {
 };
 
 const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof User }> = {
-    CABANG: { label: 'Cabang', color: 'bg-slate-100 text-slate-700', icon: User },
     DIVISI_OS: { label: 'Divisi OS', color: 'bg-blue-100 text-blue-700', icon: Eye },
     DIVISI_OT: { label: 'Divisi OT', color: 'bg-orange-100 text-orange-700', icon: Wrench },
     DIVISI_OP: { label: 'Divisi OP', color: 'bg-teal-100 text-teal-700', icon: User },
@@ -39,6 +38,8 @@ const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof 
     DIVISI_HT: { label: 'Divisi HT', color: 'bg-sky-100 text-sky-700', icon: User },
     ANALYST: { label: 'Analyst', color: 'bg-indigo-100 text-indigo-700', icon: Star },
     SUPER_ADMIN: { label: 'Super Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
+    MANAGER_CABANG: { label: 'Manager Cabang', color: 'bg-emerald-100 text-emerald-700', icon: Shield },
+    STAFF_CABANG: { label: 'Staff Cabang', color: 'bg-gray-100 text-gray-700', icon: User },
 };
 
 const divisionConfig: Record<DivisionType, string> = {
@@ -193,26 +194,51 @@ export default function AdminUsersPage() {
     const handleSaveUser = async (data: { role: UserRole, division: DivisionType }) => {
         if (!editingUser) return;
         setActionLoading(editingUser.id);
-        
+
         try {
             const res = await fetch('/api/admin/users', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    userId: editingUser.id, 
+                body: JSON.stringify({
+                    userId: editingUser.id,
                     role: data.role,
-                    division: data.division 
+                    division: data.division
                 }),
             });
 
             if (!res.ok) throw new Error('Failed to update');
-            
+
             setEditingUser(null);
             fetchUsers();
         } catch {
             alert('Gagal menyimpan perubahan user');
         } finally {
             setActionLoading(null);
+        }
+    };
+
+    const handleApproveStaff = async (userId: string) => {
+        try {
+            const res = await fetch('/api/admin/users/approve-staff', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to approve staff');
+            }
+
+            // Refresh user list
+            fetchUsers();
+
+            // Show success message (if you have toast/notification system)
+            alert('Staff berhasil disetujui');
+        } catch (error: any) {
+            console.error('Approve staff error:', error);
+            alert(error.message || 'Gagal menyetujui staff');
         }
     };
 
@@ -365,13 +391,23 @@ export default function AdminUsersPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-2">
                                                     {/* Edit Button for Active Users */}
-                                                    <button 
+                                                    <button
                                                         onClick={() => setEditingUser(user)}
                                                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
                                                         title="Edit User"
                                                     >
                                                         <Edit2 size={16} />
                                                     </button>
+
+                                                    {/* Approve Staff Button for STAFF_CABANG */}
+                                                    {user.role === 'STAFF_CABANG' && user.status === 'pending' && (
+                                                        <button
+                                                            onClick={() => handleApproveStaff(user.id)}
+                                                            className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                                                        >
+                                                            Approve Staff
+                                                        </button>
+                                                    )}
 
                                                     {user.status === 'pending' && (
                                                         <>
