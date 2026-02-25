@@ -6,6 +6,13 @@ import { randomUUID } from 'crypto';
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        { error: 'Server misconfigured: SUPABASE service role key is missing' },
+        { status: 503 }
+      );
+    }
+
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -49,9 +56,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, url: publicUrl, path });
-  } catch (e: any) {
+  } catch (e) {
     console.error('[UPLOAD_TEMP_EVIDENCE_ERROR]', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

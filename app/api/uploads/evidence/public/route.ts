@@ -4,6 +4,13 @@ import { randomUUID } from 'crypto';
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        { error: 'Server misconfigured: SUPABASE service role key is missing' },
+        { status: 503 }
+      );
+    }
+
     const form = await request.formData();
     const file = form.get('file');
     if (!file || !(file instanceof File)) {
@@ -41,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, url: publicUrl, path });
-  } catch (e: any) {
+  } catch (e) {
     console.error('[UPLOAD_PUBLIC_EVIDENCE_ERROR]', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

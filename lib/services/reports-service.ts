@@ -715,16 +715,31 @@ export class ReportsService {
     const cached = getCache<Station[]>(cacheKey, CACHE_TTL);
     if (cached) return cached;
 
-    // Use reported branches from existing data as fallback for stations list
-    // This avoids needing a separate 'HUB' sheet just for mapping
+    try {
+      const { data, error } = await supabase.from('stations').select('id, code, name').order('code');
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const stationsDb: Station[] = data.map((row: any) => ({
+          id: row.id,
+          code: row.code,
+          name: row.name,
+        }));
+        setCache(cacheKey, stationsDb);
+        return stationsDb;
+      }
+    } catch {}
+
     const reports = await this.getReports();
     const branchNames = Array.from(new Set(reports.map(r => r.branch).filter(Boolean)));
-    
-    const stations: Station[] = branchNames.map((name, idx) => ({
-      id: name as string,
-      code: name as string,
-      name: name as string,
+    let stations: Station[] = branchNames.map((name) => ({
+      id: String(name),
+      code: String(name),
+      name: String(name),
     }));
+
+    if (stations.length === 0) {
+      const fallbackCodes = ['GPS', 'CGK', 'DPS', 'SUB', 'UPG', 'KNO', 'BPN', 'MDC', 'PDG', 'PKU', 'BTH', 'PLM'];
+      stations = fallbackCodes.map(code => ({ id: code, code, name: code }));
+    }
 
     setCache(cacheKey, stations);
     return stations;

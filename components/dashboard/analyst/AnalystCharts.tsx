@@ -878,16 +878,19 @@ export default function AnalystCharts({
     // 5. Category by Area
     const cgoCategoryByAreaData = useMemo(() => {
         const counts: Record<string, number> = {};
-        cgoReports.forEach(r => {
+        const deriveArea = (r: any): 'Terminal Area' | 'Apron Area' | 'General' | null => {
+            if (r?.terminal_area_category && String(r.terminal_area_category).trim()) return 'Terminal Area';
+            if (r?.apron_area_category && String(r.apron_area_category).trim()) return 'Apron Area';
+            if (r?.general_category && String(r.general_category).trim()) return 'General';
             const raw = (r.area || '').toString().trim().toLowerCase();
-            let area: string | null = null;
-            if (raw.includes('terminal')) area = 'Terminal Area';
-            else if (raw.includes('apron')) area = 'Apron Area';
-            else if (raw.includes('general')) area = 'General';
-            
-            if (area) {
-                counts[area] = (counts[area] || 0) + 1;
-            }
+            if (raw.includes('terminal')) return 'Terminal Area';
+            if (raw.includes('apron')) return 'Apron Area';
+            if (raw.includes('general')) return 'General';
+            return null;
+        };
+        cgoReports.forEach(r => {
+            const area = deriveArea(r);
+            if (area) counts[area] = (counts[area] || 0) + 1;
         });
         const colorMap: Record<string, string> = {
             'Apron Area': '#4fc3f7',
@@ -935,15 +938,26 @@ export default function AnalystCharts({
     // 8. CGO Case Report by Area pivot — Branch → Airlines → { terminal, apron, general }
     const cgoCaseReportByArea = useMemo((): CaseReportByAreaBranchItem[] => {
         const branchMap: Record<string, Record<string, { terminal: number; apron: number; general: number }>> = {};
+        const normalize = (v: any) => (typeof v === 'string' ? v.trim() : String(v || '')).trim();
+        const getBranch = (r: any) => normalize(r.branch || r.stations?.code || r.station_code || 'Unknown') || 'Unknown';
+        const getAirline = (r: any) => normalize(r.airlines || r.airline || 'Unknown') || 'Unknown';
+        const getAreaKey = (r: any): 'terminal' | 'apron' | 'general' | null => {
+            if (r?.terminal_area_category && String(r.terminal_area_category).trim()) return 'terminal';
+            if (r?.apron_area_category && String(r.apron_area_category).trim()) return 'apron';
+            if (r?.general_category && String(r.general_category).trim()) return 'general';
+            const raw = normalize(r.area).toLowerCase();
+            if (raw.includes('terminal')) return 'terminal';
+            if (raw.includes('apron')) return 'apron';
+            if (raw.includes('general')) return 'general';
+            return null;
+        };
         cgoReports.forEach((r) => {
-            const branch = r.branch || r.stations?.code || 'Unknown';
-            const airline = ((r.airlines || (r as any).airline || 'Unknown') as string).trim() || 'Unknown';
-            const area = (r.area || '').toLowerCase();
+            const branch = getBranch(r);
+            const airline = getAirline(r);
+            const k = getAreaKey(r);
             if (!branchMap[branch]) branchMap[branch] = {};
             if (!branchMap[branch][airline]) branchMap[branch][airline] = { terminal: 0, apron: 0, general: 0 };
-            if (area.includes('terminal')) branchMap[branch][airline].terminal++;
-            else if (area.includes('apron')) branchMap[branch][airline].apron++;
-            else if (area.includes('general')) branchMap[branch][airline].general++;
+            if (k) branchMap[branch][airline][k]++;
         });
         return Object.entries(branchMap)
             .map(([branch, airlineData]) => {

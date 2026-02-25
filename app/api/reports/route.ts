@@ -133,12 +133,17 @@ export async function POST(request: Request) {
             station_code,
             hub,
             airline_type,
+            jenis_maskapai, // from client wizard
             report_content,
             reporting_branch,
             week_in_month,
             reporter_email,
             form_submitted_at,
             form_completed_at,
+            // Area-specific category columns (from client wizard)
+            terminal_area_category,
+            apron_area_category,
+            general_category,
         } = body;
 
         if (!title || !description) {
@@ -171,7 +176,9 @@ export async function POST(request: Request) {
             evidence_meta: evidence_meta || null,
             status: REPORT_STATUS.MENUNGGU_FEEDBACK,
             // Insert new fields
-            event_date: incident_date || null,
+            // Sheets expect "date_of_event" header, map from incident_date
+            date_of_event: incident_date || null,
+            event_date: incident_date || null, // keep legacy alias for compatibility
             incident_time: incident_time || null,
             area: area || null,
             specific_location: specific_location || null,
@@ -192,15 +199,20 @@ export async function POST(request: Request) {
             // CSV-aligned fields
             station_code: station_code || null,
             hub: hub || null,
-            jenis_maskapai: airline_type || null,
+            // Support both airline_type and jenis_maskapai from client
+            jenis_maskapai: airline_type || jenis_maskapai || null,
             report: report_content || description || null,
-            reporting_branch: reporting_branch || null,
+            reporting_branch: reporting_branch || station_code || null,
             week_in_month: week_in_month || null,
             reporter_email: reporter_email || null,
             form_submitted_at: form_submitted_at || null,
             form_completed_at: form_completed_at || null,
             // Ensure branch is populated if possible
             branch: station_code || null, 
+            // Area-specific categories (ensure write to appropriate columns)
+            terminal_area_category: terminal_area_category || (area === 'TERMINAL' ? area_category || null : null),
+            apron_area_category: apron_area_category || (area === 'APRON' ? area_category || null : null),
+            general_category: general_category || ((area === 'GENERAL' || area === 'CARGO') ? area_category || null : null),
         };
 
         const newReport = await reportsService.createReport(reportData);
