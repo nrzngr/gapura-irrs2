@@ -170,19 +170,18 @@ export function ReportDetailView({
     return () => setMounted(false);
   }, []);
 
-  // Realtime refresh when this report row updates in Supabase (best-effort)
   useEffect(() => {
     if (!report?.id) return;
     const channel = supabase
       .channel(`realtime-report-${report.id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'reports', filter: `id=eq.${report.id}` }, () => {
-        onRefresh?.();
+        if (!showDispatchModal) onRefresh?.();
       })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [report?.id, onRefresh]);
+  }, [report?.id, onRefresh, showDispatchModal]);
 
   // Sync edit form with report
   useEffect(() => {
@@ -194,7 +193,6 @@ export function ReportDetailView({
         aircraft_reg: report.aircraft_reg || "",
         location: report.location || "",
       });
-      // Jangan override pilihan user saat dialog dispatch sedang terbuka
       if (!showDispatchModal) {
         setDispatchForm({
           primary_tag: report.primary_tag || "",
@@ -205,7 +203,6 @@ export function ReportDetailView({
     }
   }, [report, showDispatchModal]);
 
-  // Prefill saat dialog dispatch dibuka
   useEffect(() => {
     if (showDispatchModal && report) {
       setDispatchForm({
@@ -216,12 +213,9 @@ export function ReportDetailView({
     }
   }, [showDispatchModal, report]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!report?.id) return;
-    
-    // Initial fetch to make sure we have the latest comments
-    onRefresh?.();
+    if (!showDispatchModal) onRefresh?.();
 
     const channel = supabase
       .channel(`report-${report.id}`)
@@ -231,12 +225,11 @@ export function ReportDetailView({
         table: "report_comments", 
         filter: `report_id=eq.${report.id}` 
       }, () => {
-        console.log("Realtime update for report comments");
-        onRefresh?.();
+        if (!showDispatchModal) onRefresh?.();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [report?.id, onRefresh]);
+  }, [report?.id, onRefresh, showDispatchModal]);
 
 
 
