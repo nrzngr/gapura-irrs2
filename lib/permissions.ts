@@ -8,7 +8,8 @@ import { UserRole, DivisionType } from '@/types';
  * Role hierarchy level (higher = more access)
  */
 const ROLE_HIERARCHY: Record<UserRole, number> = {
-    CABANG: 1,
+    STAFF_CABANG: 1,
+    MANAGER_CABANG: 2,
     DIVISI_OS: 2,
     DIVISI_OT: 2,
     DIVISI_OP: 2,
@@ -80,7 +81,11 @@ export const canViewAuditLogs = (role: UserRole): boolean =>
  * CABANG (station-scoped), ANALYST (HQ reports), SUPER_ADMIN
  */
 export const canCreateReport = (role: UserRole): boolean =>
-    role === 'CABANG' || role === 'ANALYST' || role === 'SUPER_ADMIN' || role === 'DIVISI_OS';
+    role === 'MANAGER_CABANG' ||
+    role === 'STAFF_CABANG' ||
+    role === 'ANALYST' ||
+    role === 'SUPER_ADMIN' ||
+    role === 'DIVISI_OS';
 
 /**
  * Check if user has global data access (all stations)
@@ -93,11 +98,72 @@ export const hasGlobalAccess = (role: UserRole): boolean =>
  * Get the redirect path after login based on role
  */
 export const getLoginRedirectPath = (role: UserRole): string => {
-    if (role === 'CABANG') {
+    if (role === 'MANAGER_CABANG' || role === 'STAFF_CABANG') {
         return '/dashboard/employee';
     }
     return '/dashboard/admin';
 };
+
+/**
+ * Check if user can view all reports from their station
+ * MANAGER_CABANG can see all station reports
+ */
+export const canViewAllStationReports = (role: UserRole): boolean =>
+    role === 'MANAGER_CABANG' || ROLE_HIERARCHY[role] >= 3;
+
+/**
+ * Check if user can edit a specific report
+ * MANAGER_CABANG can edit all station reports, STAFF_CABANG only own reports
+ */
+export const canEditReport = (
+    role: UserRole,
+    userId: string,
+    reportUserId: string,
+    userStationId?: string,
+    reportStationId?: string
+): boolean => {
+    // ANALYST and SUPER_ADMIN can edit any report
+    if (role === 'ANALYST' || role === 'SUPER_ADMIN') return true;
+
+    // Central division roles can edit any report
+    if (role.startsWith('DIVISI_')) return true;
+
+    // MANAGER_CABANG can edit reports from their station
+    if (role === 'MANAGER_CABANG' && userStationId === reportStationId) return true;
+
+    // STAFF_CABANG can only edit own reports
+    if (role === 'STAFF_CABANG' && userId === reportUserId) return true;
+
+    return false;
+};
+
+/**
+ * Check if user can export branch data (Excel/PDF)
+ * MANAGER_CABANG can export, STAFF_CABANG cannot
+ */
+export const canExportBranchData = (role: UserRole): boolean =>
+    role === 'MANAGER_CABANG' || canExportData(role);
+
+/**
+ * Check if user can approve staff registration
+ * MANAGER_CABANG can approve staff from same station
+ */
+export const canApproveStaff = (
+    role: UserRole,
+    userStationId?: string,
+    staffStationId?: string
+): boolean => {
+    if (role === 'SUPER_ADMIN') return true;
+    if (role === 'MANAGER_CABANG' && userStationId === staffStationId) return true;
+    return false;
+};
+
+/**
+ * Check if user can only view own reports
+ * True for STAFF_CABANG only
+ */
+export const isRestrictedToOwnReports = (role: UserRole): boolean =>
+    role === 'STAFF_CABANG';
 
 /**
  * Division labels for UI display
@@ -116,7 +182,8 @@ export const DIVISION_LABELS: Record<DivisionType, string> = {
  * Role labels for UI display
  */
 export const ROLE_LABELS: Record<UserRole, string> = {
-    CABANG: 'Cabang',
+    MANAGER_CABANG: 'Manager Cabang',
+    STAFF_CABANG: 'Staff Cabang',
     DIVISI_OS: 'Divisi OS',
     DIVISI_OT: 'Divisi OT',
     DIVISI_OP: 'Divisi OP',
@@ -131,7 +198,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
  * Role descriptions for tooltips/help text
  */
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-    CABANG: 'Akses terbatas pada station sendiri. Dapat membuat laporan.',
+    MANAGER_CABANG: 'Manager/Supervisor cabang (@gapura.id). Akses penuh station, approve staff, export data.',
+    STAFF_CABANG: 'Staff cabang (non-@gapura.id). Hanya lihat laporan sendiri, perlu approval manager.',
     DIVISI_OS: 'Divisi Operational Services. Full superview, export data, monitoring global.',
     DIVISI_OT: 'Divisi Teknik. Eksekutor laporan terkait GSE dan peralatan.',
     DIVISI_OP: 'Divisi Operasi. Eksekutor laporan terkait operasional.',
