@@ -223,7 +223,7 @@ export default function LoginPage() {
                                 href="/auth/public-report"
                                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-emerald-200 text-emerald-700 font-semibold hover:bg-emerald-50 transition-colors"
                             >
-                                Akses Umum: Laporkan Irregularity
+                                Quick Access: Laporkan Irregularity
                             </Link>
                         </div>
 

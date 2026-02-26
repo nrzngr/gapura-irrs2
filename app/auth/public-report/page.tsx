@@ -135,22 +135,7 @@ export default function PublicReportPage() {
     fetchStations();
   }, []);
 
-  useEffect(() => {
-    const hideMobileNav = () => {
-      const mobileNav = document.querySelector('[data-hide-mobile-nav]');
-      if (mobileNav) {
-        (mobileNav as HTMLElement).style.display = 'none';
-      }
-    };
-
-    hideMobileNav();
-    return () => {
-      const mobileNav = document.querySelector('[data-hide-mobile-nav]');
-      if (mobileNav) {
-        (mobileNav as HTMLElement).style.display = '';
-      }
-    };
-  }, []);
+  // Ensure mobile bottom nav (GuestNav) remains visible on public access pages
 
   const compressImage = (file: File, opts: { maxWidth?: number; maxHeight?: number; quality?: number; mimeType?: string } = {}) => {
     const { maxWidth = 1600, maxHeight = 1600, quality = 0.8, mimeType = 'image/webp' } = opts;
@@ -334,7 +319,7 @@ export default function PublicReportPage() {
         </div>
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
           <div className="text-center space-y-2 animate-fade-in-up px-4">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Buat Laporan Irregularity (Akses Umum)</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Buat Laporan Irregularity (Quick Access)</h1>
             <p className="text-base md:text-lg" style={{ color: 'var(--text-secondary)' }}>
               Langkah {step} dari 5
             </p>

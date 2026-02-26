@@ -62,7 +62,7 @@ export default function GuestNav() {
           </div>
           <div className="px-4 py-5 flex-1 overflow-y-auto">
             <div className="mb-3 px-2">
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Akses Umum</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Quick Access</h3>
             </div>
             <div className="space-y-2">
               {items.map((item) => {

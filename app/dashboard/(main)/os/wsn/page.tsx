@@ -41,13 +41,13 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 function driveId(link: string): string | null {
   if (!link) return null;
   const fileD = link.match(/\/file\/d\/([^/]+)/);
-  if (fileD && fileD[1]) return fileD[1];
-  const uc = link.match(/[?&]id=([^&]+)/);
-  if (uc && uc[1]) return uc[1];
-  const thumb = link.match(/[?&]id=([^&]+)/);
-  if (thumb && thumb[1]) return thumb[1];
-  const plain = link.match(/^[A-Za-z0-9_-]{25,}$/);
-  if (plain && plain[0]) return plain[0];
+  if (fileD?.[1]) return fileD[1];
+  const idParam = link.match(/[?&]id=([^&]+)/);
+  if (idParam?.[1]) return idParam[1];
+  const openParam = link.match(/open\?id=([^&]+)/);
+  if (openParam?.[1]) return openParam[1];
+  const plain = link.match(/^[A-Za-z0-9_-]{20,}$/);
+  if (plain?.[0]) return plain[0];
   return null;
 }
 
@@ -56,10 +56,31 @@ function drivePreview(link: string): string | null {
   return id ? `https://drive.google.com/file/d/${id}/preview` : null;
 }
 
-function driveThumb(link: string, size = 1000): string {
+function driveCandidates(link: string, size = 480): string[] {
   const id = driveId(link);
-  if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`;
-  return link;
+  if (!id) return [link];
+  return [
+    `https://lh3.googleusercontent.com/d/${id}=w${size}`,
+    `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`,
+    `https://drive.google.com/uc?export=download&id=${id}`,
+  ];
+}
+
+function DriveImage({ link, alt, className, size = 480 }: { link: string; alt?: string; className?: string; size?: number }) {
+  const [attempt, setAttempt] = useState(0);
+  const urls = useMemo(() => driveCandidates(link, size), [link, size]);
+  const src = attempt < urls.length ? urls[attempt] : '';
+  const onError = () => {
+    setAttempt((a) => (a + 1));
+  };
+  const placeholder =
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${Math.floor(
+        size * 4 / 3
+      )}" viewBox="0 0 ${size} ${Math.floor(size * 4 / 3)}"><rect width="100%" height="100%" fill="#f0f2f5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="14" fill="#99a1ab">No Thumbnail</text></svg>`
+    );
+  return <img src={src || placeholder} alt={alt} className={className} onError={onError} />;
 }
 
 export default function WSNPage() {
@@ -68,6 +89,7 @@ export default function WSNPage() {
   const [bulan, setBulan] = useState('All');
   const [unit, setUnit] = useState('All');
   const [petugas, setPetugas] = useState('All');
+  const [sheet, setSheet] = useState('All');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WSNRecord | null>(null);
   const [page, setPage] = useState(1);
@@ -78,9 +100,10 @@ export default function WSNPage() {
     if (bulan !== 'All') p.set('bulan', bulan);
     if (unit !== 'All') p.set('unit', unit);
     if (petugas !== 'All') p.set('petugas', petugas);
+    if (sheet !== 'All') p.set('sheet', sheet);
     if (search.trim()) p.set('search', search.trim());
     return p.toString();
-  }, [bulan, unit, petugas, search]);
+  }, [bulan, unit, petugas, sheet, search]);
 
   useEffect(() => {
     let ignore = false;
@@ -112,6 +135,7 @@ export default function WSNPage() {
     setBulan('All');
     setUnit('All');
     setPetugas('All');
+    setSheet('All');
     setSearch('');
   };
 
@@ -125,6 +149,7 @@ export default function WSNPage() {
         <div className="flex flex-col gap-3">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Dashboard WSN</h1>
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            <Select label="Sheet" value={sheet} onChange={setSheet} options={['WSN', 'WSN Baru']} />
             <Select label="Bulan" value={bulan} onChange={setBulan} options={data?.filters.bulan || []} />
             <Select label="Unit" value={unit} onChange={setUnit} options={data?.filters.unit || []} />
             <Select label="Petugas" value={petugas} onChange={setPetugas} options={data?.filters.petugas || []} />
@@ -169,8 +194,9 @@ export default function WSNPage() {
                           allow="autoplay"
                         />
                       ) : (
-                        <img
-                          src={driveThumb(selected.Link, 1600)}
+                        <DriveImage
+                          link={selected.Link}
+                          size={1600}
                           alt={selected.Keterangan || selected.NomorWSN}
                           className="w-full h-full object-contain"
                         />
@@ -230,7 +256,7 @@ export default function WSNPage() {
                     title={r.Keterangan}
                   >
                     <div className="w-full aspect-[3/4] bg-[var(--surface-2)]">
-                      <img src={driveThumb(r.Link, 480)} alt={r.Keterangan || r.NomorWSN} className="w-full h-full object-cover" />
+                      <DriveImage link={r.Link} size={480} alt={r.Keterangan || r.NomorWSN} className="w-full h-full object-cover" />
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1">
                       {r.NomorWSN}

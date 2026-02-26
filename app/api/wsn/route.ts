@@ -63,6 +63,8 @@ export async function GET(request: NextRequest) {
     if (!SHEET_ID) {
       return NextResponse.json({ error: 'WSN_SHEET_ID not configured' }, { status: 500 });
     }
+    const { searchParams } = new URL(request.url);
+    const sheetParam = (searchParams.get('sheet') || 'All').toLowerCase();
     const sheets = await getGoogleSheets();
     const batch = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: SHEET_ID,
@@ -71,15 +73,20 @@ export async function GET(request: NextRequest) {
     const getValues = (i: number) => batch.data.valueRanges?.[i]?.values || [];
     const wsnA = mapRows(getValues(0));
     const wsnB = mapRows(getValues(1));
-    const all = [...wsnA, ...wsnB].filter((r) => r.Link || r.NomorWSN);
+    const all =
+      sheetParam === 'wsn'
+        ? wsnA
+        : sheetParam === 'wsn baru' || sheetParam === 'wsn%20baru'
+        ? wsnB
+        : [...wsnA, ...wsnB];
+    const usable = all.filter((r) => r.Link || r.NomorWSN);
 
-    const { searchParams } = new URL(request.url);
-    const filtered = filterRows(all, searchParams);
+    const filtered = filterRows(usable, searchParams);
 
     const filters = {
-      bulan: uniqueSorted(all.map((r) => r.Bulan)),
-      unit: uniqueSorted(all.map((r) => r.Unit)),
-      petugas: uniqueSorted(all.map((r) => r.Petugas)),
+      bulan: uniqueSorted(usable.map((r) => r.Bulan)),
+      unit: uniqueSorted(usable.map((r) => r.Unit)),
+      petugas: uniqueSorted(usable.map((r) => r.Petugas)),
     };
 
     return NextResponse.json(
@@ -99,4 +106,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: m }, { status: 500 });
   }
 }
-
