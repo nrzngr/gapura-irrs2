@@ -200,6 +200,9 @@ export interface CalendarEvent {
     deleted_at?: string | null;
 }
 
+// Calendar types (UI segmentation, not persisted by API)
+export type CalendarType = 'event' | 'meeting';
+
 export interface CreateCalendarEventInput {
     title: string;
     event_date: string;
@@ -207,8 +210,9 @@ export interface CreateCalendarEventInput {
     notes?: string | null;
     meeting_minutes_link?: string | null;
     is_recurring?: boolean;
-    recurrence_pattern?: RecurrencePattern;
-    recurrence_end_date?: string;
+    recurrence_pattern?: RecurrencePattern | null;
+    recurrence_end_date?: string | null;
+    calendar_type?: CalendarType;
 }
 
 export interface UpdateCalendarEventInput {
