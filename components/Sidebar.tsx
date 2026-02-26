@@ -61,6 +61,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             items: [
                 { href: '/dashboard/employee/ai-reports', label: 'AI Reports', icon: Brain },
             ]
+        },
+        {
+            title: 'Management',
+            items: [
+                { href: '/dashboard/admin/users', label: 'Kelola Staff', icon: Users },
+            ]
         }
     ],
     'OS': [
