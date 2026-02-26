@@ -35,6 +35,26 @@ export async function GET(
             return NextResponse.json({ error: 'Report not found' }, { status: 404 });
         }
 
+        // Authorization check: Ensure users can only access reports they're permitted to see
+        if (payload.role === 'STAFF_CABANG') {
+            // STAFF_CABANG can only access their own reports
+            if (report.user_id !== payload.id) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+            }
+        } else if (payload.role === 'MANAGER_CABANG') {
+            // MANAGER_CABANG can only access reports from their station
+            const { data: userData } = await supabase
+                .from('users')
+                .select('station_id')
+                .eq('id', payload.id)
+                .single();
+
+            if (report.station_id !== userData?.station_id) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+            }
+        }
+        // Other roles (ANALYST, OS, ADMIN, etc.) have full access
+
         // Fetch user from Supabase if user_id is present
         let user: any = null;
         if (report.user_id && !report.user_id.includes('!')) {
