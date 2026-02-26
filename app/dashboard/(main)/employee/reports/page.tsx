@@ -46,26 +46,9 @@ export default function EmployeeReportsPage() {
             const res = await fetch('/api/reports');
             if (res.ok) {
                 const data = await res.json();
-                const allReports = data || [];
-
-                // Client-side filtering based on role
-                if (userSession) {
-                    if (userSession.role === 'STAFF_CABANG') {
-                        // STAFF_CABANG: Only show own reports
-                        const filteredReports = allReports.filter((r: Report) => r.user_id === userSession.id);
-                        setReports(filteredReports);
-                    } else if (userSession.role === 'MANAGER_CABANG' && userSession.station_id) {
-                        // MANAGER_CABANG: Show all reports from same station
-                        const filteredReports = allReports.filter((r: Report) => r.station_id === userSession.station_id);
-                        setReports(filteredReports);
-                    } else {
-                        // Other roles: Show all reports (API already filters appropriately)
-                        setReports(allReports);
-                    }
-                } else {
-                    // If no session yet, show all (will be filtered when session loads)
-                    setReports(allReports);
-                }
+                // API now handles all filtering server-side for security
+                // No client-side filtering needed
+                setReports(data || []);
             }
         } catch (error) {
             console.error('Failed to fetch reports:', error);

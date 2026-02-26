@@ -44,14 +44,33 @@ export async function GET() {
         // Normalize role for consistent checking
         const role = String(payload.role).trim().toUpperCase();
 
+        // Get user's station_id from database for role-based filtering
+        const { data: userData } = await supabase
+            .from('users')
+            .select('station_id')
+            .eq('id', payload.id)
+            .single();
+
+        const userStationId = userData?.station_id;
+
         // APPLY STRICT FILTERING BASED ON ROLE
-        console.log(`[REPORTS_API] Filtering for role: ${role}, user_id: ${payload.id}`);
-        
-        if (role === 'CABANG' || role === 'EMPLOYEE') {
+        console.log(`[REPORTS_API] Filtering for role: ${role}, user_id: ${payload.id}, station_id: ${userStationId}`);
+
+        if (role === 'STAFF_CABANG') {
             const originalCount = reports.length;
-            // Employees only see their own reports
+            // Staff sees only own reports
             reports = reports.filter(r => r.user_id === payload.id);
-            console.log(`[REPORTS_API] Filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
+            console.log(`[REPORTS_API] STAFF_CABANG filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
+        } else if (role === 'MANAGER_CABANG' && userStationId) {
+            const originalCount = reports.length;
+            // Manager sees all reports from their station
+            reports = reports.filter(r => r.station_id === userStationId);
+            console.log(`[REPORTS_API] MANAGER_CABANG filtered reports from ${originalCount} to ${reports.length} for station ${userStationId}`);
+        } else if (role === 'CABANG' || role === 'EMPLOYEE') {
+            const originalCount = reports.length;
+            // Legacy role handling - employees only see their own reports
+            reports = reports.filter(r => r.user_id === payload.id);
+            console.log(`[REPORTS_API] ${role} filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
         } else if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
              // Division/Partner users only see reports assigned to their division
              const division = role.split('_')[1]; // OS, OT, OP, UQ, HC, HT, etc.
