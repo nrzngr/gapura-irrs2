@@ -1,29 +1,71 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type Report } from '@/types';
+import { type Report, type UserRole } from '@/types';
 import { ReportMasterDetail } from '@/components/dashboard/ReportMasterDetail';
+import { canExportBranchData } from '@/lib/permissions';
+
+interface UserSession {
+    id: string;
+    role: UserRole;
+    full_name: string;
+    station_id?: string;
+}
 
 export default function EmployeeReportsPage() {
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userSession, setUserSession] = useState<UserSession | null>(null);
+
+    // Fetch current user session with station info
+    useEffect(() => {
+        const fetchSession = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                if (res.ok) {
+                    const userData = await res.json();
+                    if (userData.id) {
+                        setUserSession({
+                            id: userData.id,
+                            role: userData.role,
+                            full_name: userData.full_name,
+                            station_id: userData.station_id,
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch session:', error);
+            }
+        };
+        fetchSession();
+    }, []);
 
     const fetchReports = async () => {
         setLoading(true);
         try {
-            // For employee, we want their own reports. 
-            // Usually /api/reports returns reports for the user if they are basic user?
-            // Or we might need a specific endpoint like /api/reports/me or query param
-            // Let's assume /api/reports filters by user if not admin. 
-            // If /api/reports returns all for admin, we might need to check the API implementation.
-            // But for now, let's try /api/reports.
-            const res = await fetch('/api/reports?filter=mine'); // Adding hint just in case
+            const res = await fetch('/api/reports');
             if (res.ok) {
                 const data = await res.json();
-                // Filter client side if API doesn't support it yet to be safe, 
-                // but ideally API handles it.
-                // For now, let's assume the API returns what the user is allowed to see.
-                setReports(data || []);
+                const allReports = data || [];
+
+                // Client-side filtering based on role
+                if (userSession) {
+                    if (userSession.role === 'STAFF_CABANG') {
+                        // STAFF_CABANG: Only show own reports
+                        const filteredReports = allReports.filter((r: Report) => r.user_id === userSession.id);
+                        setReports(filteredReports);
+                    } else if (userSession.role === 'MANAGER_CABANG' && userSession.station_id) {
+                        // MANAGER_CABANG: Show all reports from same station
+                        const filteredReports = allReports.filter((r: Report) => r.station_id === userSession.station_id);
+                        setReports(filteredReports);
+                    } else {
+                        // Other roles: Show all reports (API already filters appropriately)
+                        setReports(allReports);
+                    }
+                } else {
+                    // If no session yet, show all (will be filtered when session loads)
+                    setReports(allReports);
+                }
             }
         } catch (error) {
             console.error('Failed to fetch reports:', error);
@@ -33,17 +75,23 @@ export default function EmployeeReportsPage() {
     };
 
     useEffect(() => {
-        fetchReports();
-    }, []);
+        if (userSession) {
+            fetchReports();
+        }
+    }, [userSession]);
+
+    // Determine user role for ReportDetailView
+    // ReportDetailView uses simplified role strings, but we pass the actual role
+    // and it will need to handle MANAGER_CABANG and STAFF_CABANG
+    const displayRole = userSession?.role || 'STAFF_CABANG';
 
     return (
-        <ReportMasterDetail 
-            title="Laporan Saya" 
-            reports={reports} 
+        <ReportMasterDetail
+            title="Laporan Saya"
+            reports={reports}
             loading={loading}
-            // Employee usually can't update status directly from here unless permitted
-            // Keeping it undefined implies read-only status in the view
-            userRole="CABANG"
+            // Pass actual role so export buttons can be conditionally shown based on canExportBranchData
+            userRole={displayRole}
         />
     );
 }

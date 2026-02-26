@@ -30,9 +30,10 @@ import {
   type ReportStatus,
 } from "@/lib/constants/report-status";
 import { cn, formatDate } from "@/lib/utils";
-import { type Report } from "@/types";
+import { type Report, type UserRole } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { generatePDF, generateWord } from "@/lib/utils/document-generator";
+import { canExportBranchData } from "@/lib/permissions";
 
 /* ============================================
    DESIGN TOKENS — PRISM v3 Compliant
@@ -442,7 +443,7 @@ export function ReportDetailView({
           </div>
 
           {/* Download Actions */}
-          {userRole === "CABANG" && (
+          {(userRole === "CABANG" || canExportBranchData(userRole as UserRole)) && (
             <div className="hidden sm:flex items-center gap-1 shrink-0">
               <button
                 onClick={() => generatePDF(report)}
