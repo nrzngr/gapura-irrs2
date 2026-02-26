@@ -33,7 +33,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { type Report, type UserRole } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { generatePDF, generateWord } from "@/lib/utils/document-generator";
-import { canExportBranchData } from "@/lib/permissions";
+import { canExportBranchData, canEditReport } from "@/lib/permissions";
 
 /* ============================================
    DESIGN TOKENS — PRISM v3 Compliant
@@ -126,6 +126,7 @@ interface ReportDetailViewProps {
   divisionColor?: string;
   isModal?: boolean;
   currentUserId?: string;
+  currentUserStationId?: string;
   onDispatchOpenChange?: (open: boolean) => void;
 }
 
@@ -140,6 +141,8 @@ export function ReportDetailView({
   userRole = "PARTNER_ADMIN",
   divisionColor = "#10b981",
   onDispatchOpenChange,
+  currentUserId,
+  currentUserStationId,
 }: ReportDetailViewProps) {
   // State
   const [actionLoading, setActionLoading] = useState(false);
@@ -365,7 +368,13 @@ export function ReportDetailView({
   const allEvidence = [...evidenceList, ...(report.partner_evidence_urls || [])];
   const nextActions = getAllowedTransitions(report.status, userRole);
   const primaryAction = nextActions[0] || null;
-  const canEdit = ["SUPER_ADMIN", "DIVISI_OS", "ANALYST"].includes(userRole);
+  const canEdit = canEditReport(
+    userRole as UserRole,
+    currentUserId || '',
+    report.user_id,
+    currentUserStationId,
+    report.station_id
+  );
   const isClosed = report.status === "SELESAI";
 
   let actionLabel = "Update Status";

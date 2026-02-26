@@ -75,6 +75,8 @@ export default function EmployeeReportsPage() {
             loading={loading}
             // Pass actual role so export buttons can be conditionally shown based on canExportBranchData
             userRole={displayRole}
+            currentUserId={userSession?.id}
+            currentUserStationId={userSession?.station_id}
         />
     );
 }

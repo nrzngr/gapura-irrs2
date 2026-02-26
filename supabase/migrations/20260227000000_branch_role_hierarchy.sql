@@ -9,16 +9,23 @@ ALTER TABLE users ADD CONSTRAINT users_role_check
     'STAFF_CABANG'
   ));
 
--- Migrate existing CABANG users to MANAGER_CABANG
+-- Normalize existing branch users based on email domain
 UPDATE users
 SET role = 'MANAGER_CABANG'
-WHERE role = 'CABANG';
+WHERE role IN ('CABANG','STAFF_CABANG','MANAGER_CABANG')
+  AND email ILIKE '%@gapura.id';
+
+UPDATE users
+SET role = 'STAFF_CABANG'
+WHERE role IN ('CABANG','MANAGER_CABANG','STAFF_CABANG')
+  AND email NOT ILIKE '%@gapura.id';
 
 -- Add performance index for station-based role queries
 CREATE INDEX IF NOT EXISTS idx_users_station_role
   ON users(station_id, role)
   WHERE status = 'active';
 
--- Add comment for documentation
-COMMENT ON CONSTRAINT users_role_check ON users IS
-  'Branch roles: MANAGER_CABANG (@gapura.id), STAFF_CABANG (non-@gapura.id)';
+-- Enforce manager email domain policy
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_manager_email_check;
+ALTER TABLE users ADD CONSTRAINT users_manager_email_check
+  CHECK (role <> 'MANAGER_CABANG' OR email ILIKE '%@gapura.id');

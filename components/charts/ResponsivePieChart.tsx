@@ -18,6 +18,7 @@ interface ResponsivePieChartProps {
   donut?: boolean;
   showLegend?: boolean;
   innerRadius?: number;
+  percentageLabels?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function ResponsivePieChart({
   donut = false,
   showLegend = true,
   innerRadius: customInnerRadius,
+  percentageLabels = false,
 }: ResponsivePieChartProps) {
   const { isMobile, isTablet } = useViewport();
   const useMobileCharts = isMobile || isTablet;
@@ -39,6 +41,7 @@ export function ResponsivePieChart({
     if (!donut) return data;
     return [...data].sort((a, b) => b.value - a.value);
   }, [data, donut]);
+  const total = useMemo(() => displayData.reduce((s, v) => s + (v?.value || 0), 0), [displayData]);
 
   // Prepare Chart.js data
   const chartJSData = useMemo(() => {
@@ -113,6 +116,9 @@ export function ResponsivePieChart({
               const radius = Number(outerRadius || 0) + 12;
               const x = Number(cx || 0) + radius * Math.cos(-Number(midAngle || 0) * RADIAN);
               const y = Number(cy || 0) + radius * Math.sin(-Number(midAngle || 0) * RADIAN);
+              const text = percentageLabels && total > 0
+                ? `${Math.round((Number(value || 0) / total) * 1000) / 10}%`
+                : Number(value || 0).toLocaleString('id-ID');
               return (
                 <text
                   x={x}
@@ -123,7 +129,7 @@ export function ResponsivePieChart({
                   fontSize={11}
                   fontWeight={700}
                 >
-                  {Number(value || 0).toLocaleString('id-ID')}
+                  {text}
                 </text>
               );
             } : false}

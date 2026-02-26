@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
         if (isGPS) {
             // GPS users: role can be central roles based on position/division
-            role = 'CABANG'; // Default role, admin can upgrade to ANALYST, DIVISI_*, etc.
+            role = 'ANALYST'; // Default role, admin can upgrade to DIVISI_OS, DIVISI_OT, etc.
             userDivision = body.division || 'GENERAL';
         } else {
             // Branch users: role based on email domain

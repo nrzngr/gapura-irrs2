@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import {
   Brain, Database, AlertTriangle, Clock, RefreshCw, 
   Download, PieChart, FileText, Loader2,
-  X, ChevronRight, Calendar, MapPin, Plane, MessageSquare
+  X, ChevronRight, Calendar, MapPin, Plane, MessageSquare, Activity, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { ResponsiveBarChart } from '@/components/charts/ResponsiveBarChart';
 
 interface BatchAnalysisResult {
   status: string;
@@ -104,16 +105,18 @@ export default function BranchAIReportsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
   const [branchInfo, setBranchInfo] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
-    // Auto-analyze on load
-    analyzeAllReports();
+    analyzeAllReports(1, pageSize);
   }, []);
 
-  const analyzeAllReports = async () => {
+  const analyzeAllReports = async (p?: number, ps?: number) => {
     setLoading(true);
     setProgress(0);
     setError(null);
@@ -126,15 +129,26 @@ export default function BranchAIReportsPage() {
         });
       }, 500);
       
-      const res = await fetch('/api/ai/analyze-all?max_rows_per_sheet=10000');
+      let res = await fetch(`/api/ai/analyze-all?max_rows_per_sheet=10000&exclude_closed=true&source=local`);
+      if (!res.ok) {
+        res = await fetch(`/api/ai/analyze-all?max_rows_per_sheet=10000&exclude_closed=true`);
+      }
       clearInterval(progressInterval);
       setProgress(100);
       
       if (res.ok) {
         const data = await res.json();
         setBatchResults(data);
+        if (data._pagination) {
+          setPage(Number(data._pagination.page || 1));
+          setPageSize(Number(data._pagination.pageSize || data.results?.length || 0));
+          setTotal(Number(data._pagination.total || data.results?.length || 0));
+        } else {
+          setPage(1);
+          setPageSize(data.results?.length || 0);
+          setTotal(data.results?.length || 0);
+        }
         
-        // Extract branch info from proxy metadata
         if (data._proxy?.branch_filter) {
           setBranchInfo(data._proxy.branch_filter);
         }
@@ -173,6 +187,65 @@ export default function BranchAIReportsPage() {
   const highPriorityCount = batchResults?.results.filter((r: any) => 
     r.classification?.severity === 'Critical' || r.classification?.severity === 'High'
   ).length || 0;
+
+  const totalRecordsDerived = (() => {
+    if (!batchResults) return 0;
+    return batchResults.summary?.totalRecords ?? batchResults.results?.length ?? 0;
+  })();
+  const processingTimeSeconds = batchResults?.metadata?.processingTimeSeconds;
+
+  const anomalyCount = batchResults?.results.filter((r: any) => 
+    r?.prediction?.anomalyDetection?.isAnomaly ||
+    ((r?.prediction?.anomalyDetection?.anomalies || []).length > 0)
+  ).length || 0;
+
+  const topIssueTypes = (() => {
+    if (!batchResults) return [];
+    const counts: Record<string, number> = {};
+    for (const r of batchResults.results) {
+      const key = r.originalData?.issueType || r.originalData?.Irregularity_Complain_Category || 'Unknown';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  })();
+
+  const avgSeverityConfidence = (() => {
+    if (!batchResults) return 0;
+    const vals = batchResults.results
+      .map((r: any) => r.classification?.severityConfidence)
+      .filter((x: any) => typeof x === 'number');
+    if (vals.length === 0) return 0;
+    return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+  })();
+
+  const severityChartData = (() => {
+    if (!batchResults) return [];
+    const dist = batchResults.summary.severityDistribution || {};
+    const order = ['Critical', 'High', 'Medium', 'Low'];
+    return order.map((level) => ({
+      name: level,
+      Count: dist[level] || 0,
+    }));
+  })();
+
+  const predictedDaysHistogram = (() => {
+    if (!batchResults) return [];
+    const bins = [
+      { label: '<=2', min: -Infinity, max: 2 },
+      { label: '2–3', min: 2, max: 3 },
+      { label: '3–4', min: 3, max: 4 },
+      { label: '4–5', min: 4, max: 5 },
+      { label: '>5', min: 5, max: Infinity },
+    ];
+    const counts: Record<string, number> = Object.fromEntries(bins.map(b => [b.label, 0]));
+    for (const r of batchResults.results) {
+      const v = r?.prediction?.predictedDays;
+      if (typeof v !== 'number') continue;
+      const bin = bins.find(b => v > b.min && v <= b.max) || bins[bins.length - 1];
+      counts[bin.label] = (counts[bin.label] || 0) + 1;
+    }
+    return bins.map(b => ({ name: b.label, Cases: counts[b.label] || 0 }));
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-12">
@@ -253,12 +326,14 @@ export default function BranchAIReportsPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="p-5 border-l-4 border-emerald-500">
                 <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Total Laporan</p>
-                <p className="text-2xl font-bold text-gray-900">{batchResults.metadata.totalRecords}</p>
+                <p className="text-2xl font-bold text-gray-900">{total || totalRecordsDerived}</p>
               </Card>
               
               <Card className="p-5 border-l-4 border-blue-500">
                 <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Waktu Proses</p>
-                <p className="text-2xl font-bold text-gray-900">{batchResults.metadata.processingTimeSeconds.toFixed(1)}s</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {typeof processingTimeSeconds === 'number' ? `${processingTimeSeconds.toFixed(1)}s` : 'N/A'}
+                </p>
               </Card>
               
               <Card className="p-5 border-l-4 border-purple-500">
@@ -272,27 +347,64 @@ export default function BranchAIReportsPage() {
               </Card>
             </div>
 
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-lg font-bold">Quick Insights</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                  <div className="text-xs text-gray-600 uppercase font-semibold">Prediksi Rata-rata</div>
+                  <div className="text-2xl font-bold text-emerald-700">{batchResults.summary.predictionStats.mean.toFixed(1)} hari</div>
+                </div>
+                <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                  <div className="text-xs text-gray-600 uppercase font-semibold">Anomali Terdeteksi</div>
+                  <div className="text-2xl font-bold text-red-600">{anomalyCount}</div>
+                </div>
+                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                  <div className="text-xs text-gray-600 uppercase font-semibold">Top Kategori</div>
+                  <div className="text-sm font-medium text-blue-700">
+                    {topIssueTypes.map(([k, v], i) => (
+                      <span key={k} className="mr-2">{i === 0 ? `${k} (${v})` : `• ${k} (${v})`}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-100">
+                  <div className="text-xs text-gray-600 uppercase font-semibold">Kepercayaan Klasifikasi</div>
+                  <div className="text-2xl font-bold text-amber-700">{(avgSeverityConfidence * 100).toFixed(0)}%</div>
+                </div>
+              </div>
+            </Card>
+
             {/* Severity Distribution */}
             <Card className="p-6">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <PieChart className="w-5 h-5 text-gray-500" />
                 Distribusi Tingkat Keparahan
               </h3>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(batchResults.summary.severityDistribution).map(([severity, count]) => {
-                  const total = Object.values(batchResults.summary.severityDistribution).reduce((a: any, b: any) => a + b, 0);
-                  return (
-                    <div key={severity} className="text-center p-4 rounded-lg bg-gray-50">
-                      <p className={cn("text-2xl font-bold", getSeverityColor(severity).split(' ')[1])}>
-                        {count as number}
-                      </p>
-                      <p className="text-sm text-gray-500">{translateSeverity(severity)}</p>
-                      <p className="text-xs text-gray-400">{((count as number / total) * 100).toFixed(1)}%</p>
-                    </div>
-                  );
-                })}
-              </div>
+              <ResponsiveBarChart 
+                data={severityChartData}
+                xAxisKey="name"
+                dataKeys={['Count']}
+                layout="vertical"
+                height="h-[260px]"
+                showLegend={false}
+              />
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-gray-500" />
+                Distribusi Prediksi (Hari)
+              </h3>
+              <ResponsiveBarChart 
+                data={predictedDaysHistogram}
+                xAxisKey="name"
+                dataKeys={['Cases']}
+                layout="vertical"
+                height="h-[260px]"
+                showLegend={false}
+              />
             </Card>
 
             {/* High Priority Reports */}
@@ -344,10 +456,12 @@ export default function BranchAIReportsPage() {
                   <FileText className="w-5 h-5 text-gray-500" />
                   Semua Laporan AI
                 </h3>
-                <Button variant="outline" onClick={exportResults}>
-                  <Download size={16} className="mr-2" />
-                  Export
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={exportResults}>
+                    <Download size={16} className="mr-2" />
+                    Export
+                  </Button>
+                </div>
               </div>
               
               <div className="overflow-x-auto">
@@ -362,7 +476,7 @@ export default function BranchAIReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {batchResults.results.slice(0, 50).map((result: any, idx: number) => (
+                    {batchResults.results.map((result: any, idx: number) => (
                       <tr 
                         key={idx} 
                         className="hover:bg-gray-50/50 cursor-pointer transition-colors"
@@ -399,11 +513,7 @@ export default function BranchAIReportsPage() {
                 </table>
               </div>
               
-              {batchResults.results.length > 50 && (
-                <p className="text-sm text-gray-500 mt-4 text-center">
-                  Menampilkan 50 dari {batchResults.results.length} laporan. Export untuk melihat semua data.
-                </p>
-              )}
+              <div className="mt-4 text-sm text-gray-500">Menampilkan {batchResults.results.length} laporan</div>
             </Card>
           </motion.div>
         )}
@@ -529,9 +639,9 @@ export default function BranchAIReportsPage() {
                     )}>
                       {selectedReport.sentiment.sentiment}
                     </Badge>
-                    {selectedReport.sentiment.score && (
+                    {typeof selectedReport.sentiment.urgencyScore === 'number' && (
                       <p className="text-xs text-gray-500 mt-2">
-                        Skor: {(selectedReport.sentiment.score * 100).toFixed(1)}%
+                        Urgency: {(selectedReport.sentiment.urgencyScore * 100).toFixed(0)}%
                       </p>
                     )}
                   </div>
@@ -539,29 +649,75 @@ export default function BranchAIReportsPage() {
               )}
 
               {/* AI Summary */}
-              {selectedReport.summary?.summary && (
+              {(selectedReport.summary?.executiveSummary || selectedReport.summary?.summary) && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Brain className="w-4 h-4" />
                     Ringkasan AI
                   </h3>
                   <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-                    <p className="text-sm text-gray-900">{selectedReport.summary.summary}</p>
+                    <p className="text-sm text-gray-900">
+                      {selectedReport.summary.executiveSummary || selectedReport.summary.summary}
+                    </p>
+                    {Array.isArray(selectedReport.summary.keyPoints) && selectedReport.summary.keyPoints.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-xs font-bold text-emerald-700 uppercase mb-2">Poin Kunci</div>
+                        <ul className="list-disc list-inside text-sm text-emerald-900">
+                          {selectedReport.summary.keyPoints.map((kp: string, i: number) => (
+                            <li key={i}>{kp}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Entities */}
-              {selectedReport.entities && Object.keys(selectedReport.entities).length > 0 && (
+              {Array.isArray(selectedReport.entities?.entities) && selectedReport.entities.entities.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-3">Entitas yang Dikenali</h3>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(selectedReport.entities).map(([key, value]: [string, any]) => (
-                      <span key={key} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                        {key}: {String(value)}
+                    {selectedReport.entities.entities.map((e: any, idx: number) => (
+                      <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                        {e.label}: {e.text}
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {(selectedReport.prediction?.shapExplanation?.topFactors?.length > 0 ||
+                selectedReport.prediction?.anomalyDetection?.anomalies?.length > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedReport.prediction?.shapExplanation?.topFactors?.length > 0 && (
+                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="text-xs font-semibold text-gray-600 uppercase mb-2">Faktor Utama (SHAP)</div>
+                      <ul className="text-sm text-gray-800 space-y-1">
+                        {selectedReport.prediction.shapExplanation.topFactors.slice(0, 5).map((f: any, i: number) => (
+                          <li key={i} className="flex items-center justify-between">
+                            <span>{f.feature}</span>
+                            <span className={cn(
+                              "text-xs font-bold",
+                              f.direction === 'increases' ? 'text-red-600' : 'text-emerald-600'
+                            )}>
+                              {f.direction} • {Math.abs(f.abs_contribution || f.shap_value).toFixed(2)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {selectedReport.prediction?.anomalyDetection?.anomalies?.length > 0 && (
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                      <div className="text-xs font-semibold text-red-700 uppercase mb-2">Anomali</div>
+                      <ul className="text-sm text-red-800 space-y-1">
+                        {selectedReport.prediction.anomalyDetection.anomalies.map((a: any, i: number) => (
+                          <li key={i}>{a.message || a.type}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -15,9 +15,11 @@ interface ReportMasterDetailProps {
     onStatusUpdate?: (id: string, status: string) => Promise<void>;
     onRefresh?: () => void;
     userRole?: string;
+    currentUserId?: string;
+    currentUserStationId?: string;
 }
 
-export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, onRefresh, userRole = 'PARTNER_ADMIN' }: ReportMasterDetailProps) {
+export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, onRefresh, userRole = 'PARTNER_ADMIN', currentUserId, currentUserStationId }: ReportMasterDetailProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedId = searchParams.get('id');
@@ -244,12 +246,14 @@ export function ReportMasterDetail({ title, reports, loading, onStatusUpdate, on
                          </div>
                     </div>
                 )}
-                <ReportDetailView 
-                    report={displayReport} 
+                <ReportDetailView
+                    report={displayReport}
                     onUpdateStatus={onStatusUpdate}
                     onRefresh={handleDetailRefresh}
                     isModal={false}
                     userRole={userRole}
+                    currentUserId={currentUserId}
+                    currentUserStationId={currentUserStationId}
                 />
             </div>
         </div>

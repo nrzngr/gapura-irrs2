@@ -16,20 +16,34 @@ async function canAccessReportComments(reportId: string, userId: string, role: U
         return true;
     }
 
-    // 2. Branch users / Partners can only access their own reports
-    if (role === 'CABANG') {
+    // 2. MANAGER_CABANG can access all station reports
+    if (role === 'MANAGER_CABANG') {
         // Handle Google Sheets ID format (e.g. "NON CARGO!row_2")
-        // Since Supabase UUID check will fail, we must bypass this check for Sheets IDs
-        // and rely on the frontend/service layer to validate ownership via other means
-        // OR we just return true here if it looks like a Sheet ID, 
-        // assuming the detail page itself handles the "Forbidden" if the user doesn't own it?
-        // A better approach: If ID contains '!', skip Supabase check.
         if (reportId.includes('!')) {
-            // It's a Google Sheet report. 
-            // We can't easily check ownership without fetching from Sheets again.
-            // For now, allow access to comments for Sheets reports if role is CABANG.
-            // (Strict ownership check is done at the Page/Report level anyway)
-            return true;
+            return true; // Sheet reports - ownership check done at page level
+        }
+
+        // Fetch both report and user station
+        const { data: report } = await supabaseAdmin
+            .from('reports')
+            .select('station_id')
+            .eq('id', reportId)
+            .single();
+
+        const { data: user } = await supabaseAdmin
+            .from('users')
+            .select('station_id')
+            .eq('id', userId)
+            .single();
+
+        if (!report || !user) return false;
+        return report.station_id === user.station_id;
+    }
+
+    // 3. STAFF_CABANG can only access their own reports
+    if (role === 'STAFF_CABANG') {
+        if (reportId.includes('!')) {
+            return true; // Sheet reports - ownership check done at page level
         }
 
         const { data: report, error } = await supabaseAdmin
@@ -37,7 +51,7 @@ async function canAccessReportComments(reportId: string, userId: string, role: U
             .select('user_id')
             .eq('id', reportId)
             .single();
-        
+
         if (error || !report) return false;
         return report.user_id === userId;
     }

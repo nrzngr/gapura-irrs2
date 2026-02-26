@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { WizardStep } from '@/components/ui/WizardStep';
+import GuestNav from '@/components/GuestNav';
 import { ReportDownloadModal } from '@/components/dashboard/ReportDownloadModal';
 import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-status';
 import { AIRLINES } from '@/lib/constants/airlines';
@@ -300,6 +301,7 @@ export default function PublicReportPage() {
   if (success) {
     return (
       <>
+        <GuestNav />
         <div className="flex items-center justify-center min-h-[80vh]">
           <div className="text-center animate-scale-in p-12 card-glass max-w-lg mx-auto">
             <div className="w-28 h-28 bg-emerald-100/50 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-emerald-50/50 animate-bounce">
@@ -325,6 +327,7 @@ export default function PublicReportPage() {
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-gray-50">
+      <GuestNav />
       <div className="w-full max-w-5xl">
         <div className="mb-6 flex items-center justify-center gap-3">
           <Image src="/logo.png" alt="Gapura" width={140} height={48} />
