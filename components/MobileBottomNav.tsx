@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, PlusCircle } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, Calendar, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 
@@ -16,7 +16,14 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
     // Define navigation items based on role
     const getNavItems = () => {
         switch (role) {
-            case 'CABANG':
+            case 'MANAGER_CABANG':
+                return [
+                    { href: '/dashboard/employee', icon: LayoutDashboard, label: 'Home' },
+                    { href: '/dashboard/employee/ai-reports', icon: Brain, label: 'AI Reports' },
+                    { href: '/dashboard/employee/new', icon: PlusCircle, label: 'Buat', isPrimary: true },
+                    { href: '/dashboard/employee/reports', icon: FileText, label: 'Laporan' },
+                ];
+            case 'STAFF_CABANG':
                 return [
                     { href: '/dashboard/employee', icon: LayoutDashboard, label: 'Home' },
                     { href: '/dashboard/employee/reports', icon: FileText, label: 'Laporan' },
@@ -25,6 +32,8 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
             case 'DIVISI_OT':
             case 'DIVISI_OP':
             case 'DIVISI_UQ':
+            case 'DIVISI_HC':
+            case 'DIVISI_HT':
                 return [
                     { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Home' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
@@ -32,18 +41,23 @@ export function MobileBottomNav({ role }: MobileBottomNavProps) {
             case 'DIVISI_OS':
                 return [
                     { href: '/dashboard/os', icon: LayoutDashboard, label: 'Monitor' },
+                    { href: '/dashboard/os/calendar', icon: Calendar, label: 'Events' },
+                    { href: '/dashboard/os/meeting-calendar', icon: Calendar, label: 'Meeting' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
                 ];
             case 'ANALYST':
                 return [
                     { href: '/dashboard/analyst', icon: LayoutDashboard, label: 'Home' },
+                    { href: '/dashboard/analyst/calendar', icon: Calendar, label: 'Events' },
                     { href: '/dashboard/employee/new', icon: PlusCircle, label: 'Buat', isPrimary: true },
+                    { href: '/dashboard/analyst/meeting-calendar', icon: Calendar, label: 'Meeting' },
                     { href: '/dashboard/analyst/reports', icon: FileText, label: 'Laporan' },
                 ];
             case 'SUPER_ADMIN':
                 return [
                     { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Home' },
                     { href: '/dashboard/admin/reports', icon: FileText, label: 'Laporan' },
+                    { href: '/dashboard/admin/users', icon: FileText, label: 'Users' },
                 ];
             default:
                 return [

@@ -185,6 +185,7 @@ export interface CalendarEvent {
     event_time?: string | null;  // HH:MM format
     notes?: string | null;
     meeting_minutes_link?: string | null;
+    calendar_type: CalendarType;
 
     // Recurring
     is_recurring: boolean;
@@ -200,7 +201,7 @@ export interface CalendarEvent {
     deleted_at?: string | null;
 }
 
-// Calendar types (UI segmentation, not persisted by API)
+// Calendar types
 export type CalendarType = 'event' | 'meeting';
 
 export interface CreateCalendarEventInput {

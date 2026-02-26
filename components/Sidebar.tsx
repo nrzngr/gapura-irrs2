@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, Shield, Brain, Inbox } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, Plane, Menu, X, ClipboardList, Users, ChevronRight, Hash, FolderOpen, Shield, Brain, Inbox, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,6 +48,21 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             ]
         }
     ],
+    'MANAGER': [
+        {
+            title: 'Workspace',
+            items: [
+                { href: '/dashboard/employee', label: 'Laporan Saya', icon: FileText },
+                { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
+            ]
+        },
+        {
+            title: 'Analysis',
+            items: [
+                { href: '/dashboard/employee/ai-reports', label: 'AI Reports', icon: Brain },
+            ]
+        }
+    ],
     'OS': [
         {
             title: 'Monitoring',
@@ -55,6 +70,13 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/os', label: 'Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/os/reports', label: 'Semua Laporan', icon: ClipboardList },
                 { href: '/dashboard/os/dispatched', label: 'Laporan Divisi', icon: Inbox },
+            ]
+        },
+        {
+            title: 'Schedule',
+            items: [
+                { href: '/dashboard/os/calendar', label: 'Event Calendar', icon: Calendar },
+                { href: '/dashboard/os/meeting-calendar', label: 'Meeting Calendar', icon: Calendar },
             ]
         }
     ],
@@ -120,6 +142,13 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/analyst/import', label: 'Import Data', icon: FolderOpen },
                 { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
             ]
+        },
+        {
+            title: 'Schedule',
+            items: [
+                { href: '/dashboard/analyst/calendar', label: 'Event Calendar', icon: Calendar },
+                { href: '/dashboard/analyst/meeting-calendar', label: 'Meeting Calendar', icon: Calendar },
+            ]
         }
     ]
 };
@@ -128,6 +157,7 @@ const GET_LINKS_KEY = (role: string): string => {
     const r = role.toUpperCase();
     if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
     if (r === 'ANALYST') return 'ANALYST';
+    if (r === 'MANAGER_CABANG') return 'MANAGER';
     if (r === 'DIVISI_OS' || r === 'PARTNER_OS') return 'OS';
     if (r === 'DIVISI_OT' || r === 'PARTNER_OT') return 'OT';
     if (r === 'DIVISI_OP' || r === 'PARTNER_OP') return 'OP';

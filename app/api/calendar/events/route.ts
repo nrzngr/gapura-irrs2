@@ -86,6 +86,7 @@ export async function GET(request: Request) {
       event_time: row.event_time,
       notes: row.notes,
       meeting_minutes_link: row.meeting_minutes_link,
+      calendar_type: row.calendar_type || 'event',
       is_recurring: row.is_recurring,
       recurrence_pattern: row.recurrence_pattern,
       recurrence_end_date: row.recurrence_end_date,
