@@ -218,6 +218,7 @@ export default function AdminUsersPage() {
     };
 
     const handleApproveStaff = async (userId: string) => {
+        setActionLoading(userId);
         try {
             const res = await fetch('/api/admin/users/approve-staff', {
                 method: 'POST',
@@ -231,14 +232,14 @@ export default function AdminUsersPage() {
                 throw new Error(data.error || 'Failed to approve staff');
             }
 
-            // Refresh user list
             fetchUsers();
-
-            // Show success message (if you have toast/notification system)
             alert('Staff berhasil disetujui');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Approve staff error:', error);
-            alert(error.message || 'Gagal menyetujui staff');
+            const message = error instanceof Error ? error.message : 'Gagal menyetujui staff';
+            alert(message);
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -403,9 +404,11 @@ export default function AdminUsersPage() {
                                                     {user.role === 'STAFF_CABANG' && user.status === 'pending' && (
                                                         <button
                                                             onClick={() => handleApproveStaff(user.id)}
-                                                            className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                                                            disabled={actionLoading === user.id}
+                                                            className="px-3 py-1 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                                                            title="Setujui staff cabang"
                                                         >
-                                                            Approve Staff
+                                                            Setujui Staff
                                                         </button>
                                                     )}
 
