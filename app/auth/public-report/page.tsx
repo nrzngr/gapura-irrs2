@@ -9,19 +9,83 @@ import GuestNav from '@/components/GuestNav';
 import { ReportDownloadModal } from '@/components/dashboard/ReportDownloadModal';
 import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-status';
 import { AIRLINES } from '@/lib/constants/airlines';
-import { AlertTriangle, Calendar, Plus, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Calendar, Plus, CheckCircle, Ship, Plane, Package, HelpCircle, MessageSquare, Heart, X, ChevronRight, ChevronLeft, ArrowRight, Upload, Loader2, Sparkles, MapPin, QrCode, ClipboardCheck, ExternalLink, BookOpen, Activity, Bot } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { NoiseTexture } from '@/components/ui/NoiseTexture';
+import { PrismButton } from '@/components/ui/PrismButton';
+import { PublicAIChatbot } from '@/components/ai/PublicAIChatbot';
 
-const REPORT_CATEGORIES = [
-  { id: 'Irregularity', label: 'Irregularity' },
-  { id: 'Complaint', label: 'Complaint' },
-  { id: 'Compliment', label: 'Compliment' },
+const CATEGORIES = [
+  {
+    id: 'AIChatbot',
+    title: "I'm in Charge AI Virtual Assistant",
+    description: 'Tanya asisten AI untuk bantuan operasional.',
+    icon: Bot,
+    color: 'oklch(0.60 0.18 260)',
+    span: 'col-span-2 row-span-2 md:col-span-2 md:row-span-2'
+  },
+  {
+    id: 'Irregularity',
+    title: 'Irregularity Report',
+    description: 'Laporkan kendala operasional, kerusakan, atau penyimpangan.',
+    icon: AlertTriangle,
+    color: 'oklch(0.55 0.22 30)',
+    span: 'col-span-1 row-span-1'
+  },
+  {
+    id: 'JOUMPA',
+    title: 'JOUMPA',
+    description: 'Hospitality & VIP Service access.',
+    icon: QrCode,
+    color: 'oklch(0.50 0.15 190)',
+    span: 'col-span-1 row-span-1',
+    barcodes: [
+      { label: 'Customer', url: '/qr-code-customer-joumpa.png' },
+      { label: 'Staff', url: '/qr-code-staff-joumpa.png' }
+    ]
+  },
+  {
+    id: 'SLA',
+    title: 'Pengisian Report SLA',
+    description: 'Akses cepat pengisian laporan SLA.',
+    icon: ClipboardCheck,
+    color: 'oklch(0.45 0.18 240)',
+    span: 'col-span-1 row-span-1',
+    links: [
+      { label: 'Pengisian SLA Landside', sublabel: 'Formulir Google', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' },
+      { label: 'Pengisian SLA Airside', sublabel: 'Formulir Google', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' }
+    ]
+  },
+  {
+    id: 'Survey',
+    title: 'Survey Penumpang',
+    description: 'Bantu kami meningkatkan layanan via survey.',
+    icon: QrCode,
+    color: 'oklch(0.60 0.20 340)',
+    span: 'col-span-1 row-span-1',
+    barcodes: [
+      { label: 'Survey Penumpang', url: '/qr-code-survey-penumpang.png' }
+    ]
+  },
+  {
+    id: 'Handbook',
+    title: 'Handbook SLA',
+    description: 'Panduan standar layanan operasional prima.',
+    icon: BookOpen,
+    color: 'oklch(0.45 0.20 160)',
+    span: 'col-span-2 md:col-span-4 row-span-1',
+    links: [
+      { label: 'Buka Handbook SLA', sublabel: 'SIS Apps Dev', url: 'https://sis.appsdev.my.id/' }
+    ]
+  }
 ];
 
 const AREA_OPTIONS = [
-  { id: 'TERMINAL', label: 'Terminal Area' },
-  { id: 'APRON', label: 'Apron Area' },
-  { id: 'CARGO', label: 'Cargo Area' },
-  { id: 'GENERAL', label: 'General' },
+  { id: 'TERMINAL', label: 'Terminal Area', icon: Plane },
+  { id: 'APRON', label: 'Apron Area', icon: Ship },
+  { id: 'CARGO', label: 'Cargo Area', icon: Package },
+  { id: 'GENERAL', label: 'General', icon: MapPin },
 ];
 
 const AREA_CATEGORIES: Record<string, string[]> = {
@@ -108,7 +172,7 @@ export default function PublicReportPage() {
     flight_number: '',
     station_id: '',
     route: '',
-    main_category: 'Irregularity',
+    main_category: '',
     delay_code: '',
     delay_duration: '',
     area: '',
@@ -222,8 +286,8 @@ export default function PublicReportPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
     try {
@@ -285,20 +349,42 @@ export default function PublicReportPage() {
 
   if (success) {
     return (
-      <>
-        <GuestNav />
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center animate-scale-in p-12 card-glass max-w-lg mx-auto">
-            <div className="w-28 h-28 bg-emerald-100/50 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-emerald-50/50 animate-bounce">
-              <CheckCircle className="w-16 h-16 text-emerald-600" />
+      <div className="min-h-screen relative overflow-hidden bg-[#0A0A0A] selection:bg-emerald-500/30">
+        <NoiseTexture opacity={0.03} />
+        <GuestNav hideSidebar={true} hideMobileNav={true} />
+        <div className="flex items-center justify-center min-h-[90vh] p-6">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center p-12 relative z-10"
+          >
+            <div className="w-32 h-32 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-8 relative">
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+              >
+                <CheckCircle className="w-16 h-16 text-emerald-400" />
+              </motion.div>
+              <div className="absolute inset-0 rounded-full border border-emerald-500/20 animate-ping opacity-20" />
             </div>
-            <h2 className="text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-              Laporan Terkirim!
+            <h2 className="text-4xl md:text-6xl font-display font-black mb-4 text-[oklch(0.15_0.05_200)] tracking-tight">
+              Laporan Terkirim
             </h2>
-            <p className="text-lg mb-8" style={{ color: 'var(--text-secondary)' }}>
-              Terima kasih atas partisipasi Anda.
+            <p className="text-[oklch(0.40_0.02_200)] text-lg mb-8 max-w-sm mx-auto font-bold opacity-80">
+              ID: {createdReport?.id || 'SUBMITTED'}<br/>
+              Terima kasih atas kontribusi Anda dalam menjaga kualitas layanan operasional.
             </p>
-          </div>
+            <PrismButton 
+                onClick={() => {
+                  setSuccess(false);
+                  setFormData({ ...formData, main_category: '' });
+                }}
+                className="bg-emerald-600 text-white px-12 h-16 text-lg shadow-spatial-md"
+              >
+                Back to Dashboard
+              </PrismButton>
+          </motion.div>
         </div>
         <ReportDownloadModal
           isOpen={success}
@@ -306,421 +392,572 @@ export default function PublicReportPage() {
           reportData={createdReport}
           onFinished={() => router.push('/auth/login')}
         />
-      </>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-gray-50">
-      <GuestNav />
-      <div className="w-full max-w-5xl">
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <Image src="/logo.png" alt="Gapura" width={140} height={48} />
+    <div className="min-h-screen relative bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.02_200)] selection:bg-emerald-500/10 overflow-x-hidden p-6 md:p-12 font-body">
+      <NoiseTexture opacity={0.02} />
+      <GuestNav hideSidebar={true} hideMobileNav={true} />
+
+      <section className="mb-20 pt-10 text-center relative">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10"
+        >
+          <div className="mb-10 flex justify-center">
+            <Image src="/logo.png" alt="Gapura" width={140} height={48} className="opacity-90" />
+          </div>
+          <h1 className="text-5xl md:text-8xl font-display font-black tracking-tight mb-6 text-[oklch(0.15_0.05_200)] leading-[0.9]">
+            One Click<br/>
+            <span className="text-emerald-600">Irregularity</span> Report
+          </h1>
+          <p className="text-lg md:text-2xl text-[oklch(0.40_0.02_200)] max-w-xl mx-auto font-medium leading-relaxed">
+            Platform pelaporan operasional terpadu.<br/>
+            Cepat, akurat, dan transparan.
+          </p>
+        </motion.div>
+
+        {/* Soft background illumination */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-emerald-500/5 to-transparent blur-[120px] rounded-full pointer-events-none" />
+      </section>
+
+      {/* Bento Grid */}
+      <main className="max-w-7xl mx-auto mb-32 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 auto-rows-[140px] md:auto-rows-[220px] px-4 md:px-0">
+          {CATEGORIES.map((cat, idx) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1, type: 'spring', damping: 20 }}
+              className={`${cat.span} group relative cursor-pointer`}
+              onClick={() => {
+                setFormData(prev => ({ ...prev, main_category: cat.id }));
+                setStep(1);
+                // Open modal logic
+              }}
+            >
+              <GlassCard 
+                variant="frosted"
+                className="h-full border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 transition-all duration-500 shadow-spatial-sm hover:shadow-spatial-lg"
+              >
+                <div className="p-4 md:p-8 h-full flex flex-col justify-between relative z-10 overflow-hidden">
+                  <div className="space-y-1.5 md:space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-[oklch(1_0_0_/_0.4)] border border-white/40 shadow-inner-rim">
+                        <cat.icon className="w-4 h-4 md:w-6 md:h-6" style={{ color: cat.color }} />
+                      </div>
+                      
+                    </div>
+                    <div className="space-y-0.5 md:space-y-2">
+                      <h3 className="text-base md:text-2xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)] group-hover:translate-x-1 transition-transform leading-tight">
+                        {cat.id === 'AIChatbot' ? (
+                          <>
+                            <span className="italic font-black">&ldquo;I&apos;m in Charge&rdquo;</span> AI Virtual Assistant
+                          </>
+                        ) : cat.title}
+                      </h3>
+                      <p className="hidden md:block text-sm text-[oklch(0.45_0.02_200)] leading-relaxed font-medium line-clamp-2">{cat.description}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-[oklch(0.15_0.02_200_/_0.2)] group-hover:text-emerald-600 transition-colors mt-auto">
+                    <span className="text-[9px] md:text-xs font-bold tracking-wide uppercase">{cat.barcodes ? 'Quick Access' : 'Luncurkan'}</span>
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 -translate-x-2 group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
+                </div>
+
+                {/* Silk highlight effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              </GlassCard>
+            </motion.div>
+          ))}
         </div>
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
-          <div className="text-center space-y-2 animate-fade-in-up px-4">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Buat Laporan Irregularity (Quick Access)</h1>
-            <p className="text-base md:text-lg" style={{ color: 'var(--text-secondary)' }}>
-              Langkah {step} dari 5
-            </p>
-          </div>
+      </main>
 
-          <div className="px-4 mt-4">
-            <div className="flex items-center gap-2 max-w-md mx-auto">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <div key={s} className="flex-1 flex items-center">
-                  <div className={`h-2 flex-1 rounded-full transition-all ${s <= step ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between max-w-md mx-auto mt-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              <span>Detail</span>
-              <span>Area</span>
-              <span>Kategori</span>
-              <span>Isi</span>
-              <span>Bukti</span>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mx-auto max-w-2xl p-4 rounded-xl flex items-center gap-3 animate-fade-in-up" style={{ background: 'oklch(0.60 0.22 25 / 0.1)', color: 'oklch(0.55 0.18 25)' }}>
-              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              <p>{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="min-h-[400px]">
-            <WizardStep isActive={step === 1}>
-              <div className="max-w-3xl mx-auto space-y-8">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">Detail Report</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>Lengkapi informasi dasar penerbangan</p>
-                </div>
-
-                <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                  <div className="space-y-2">
-                    <label className="label flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      1. Date of Event <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      max={new Date().toISOString().split('T')[0]}
-                      className="input-field"
-                      value={formData.incident_date}
-                      onChange={(e) => setFormData({ ...formData, incident_date: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">2. Airlines <span className="text-red-500">*</span></label>
-                    <select
-                      required
-                      className="input-field"
-                      value={formData.airline}
-                      onChange={(e) => setFormData({ ...formData, airline: e.target.value })}
-                    >
-                      <option value="">Select Airline...</option>
-                      {AIRLINES.map((airline) => (
-                        <option key={airline.code} value={airline.name}>
-                          {airline.name} ({airline.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">3. Flight Number <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      className="input-field uppercase"
-                      placeholder="e.g. CZ-123"
-                      value={formData.flight_number}
-                      onChange={(e) => setFormData({ ...formData, flight_number: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">4. Branch (cth: CGK, UPG, DPS) <span className="text-red-500">*</span></label>
-                    <select
-                      required
-                      className="input-field"
-                      value={formData.station_id}
-                      onChange={(e) => setFormData({ ...formData, station_id: e.target.value })}
-                    >
-                      <option value="">Select Branch...</option>
-                      {stations.map((station) => (
-                        <option key={station.id} value={station.id}>
-                          {station.code}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">5. Route <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      className="input-field uppercase"
-                      placeholder="e.g. NRT-CGK"
-                      value={formData.route}
-                      onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="label">Delay Code (Optional)</label>
-                      <input
-                        type="text"
-                        className="input-field uppercase"
-                        placeholder="e.g. 93"
-                        value={formData.delay_code}
-                        onChange={(e) => setFormData({ ...formData, delay_code: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="label">Delay Duration (Optional)</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. 15 mins"
-                        value={formData.delay_duration}
-                        onChange={(e) => setFormData({ ...formData, delay_duration: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">6. Report Category <span className="text-red-500">*</span></label>
-                    <div className="flex flex-col gap-3">
-                      {REPORT_CATEGORIES.map((cat) => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, main_category: cat.id })}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-black/5 transition-colors text-left"
-                        >
-                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.main_category === cat.id ? 'border-emerald-500' : 'border-gray-400'}`}>
-                            {formData.main_category === cat.id && <div className="w-3 h-3 rounded-full bg-emerald-500" />}
-                          </div>
-                          <span>{cat.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+      {/* Portal Dialog */}
+      <AnimatePresence mode="wait">
+        {formData.main_category && (
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[oklch(0.15_0.02_200_/_0.2)] backdrop-blur-sm"
+              onClick={() => setFormData(prev => ({ ...prev, main_category: '' }))}
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-4xl bg-[oklch(1_0_0_/_0.95)] border-t md:border border-[oklch(0.15_0.02_200_/_0.05)] rounded-t-[32px] md:rounded-[32px] overflow-hidden shadow-spatial-lg h-[90vh] md:h-auto max-h-[95vh] flex flex-col backdrop-blur-2xl"
+            >
+              <NoiseTexture opacity={0.015} />
+              
+              {/* Mobile Drawer Handle */}
+              <div className="md:hidden flex justify-center py-3">
+                <div className="w-12 h-1.5 rounded-full bg-[oklch(0.15_0.02_200_/_0.1)]" />
               </div>
-            </WizardStep>
 
-            <WizardStep isActive={step === 2}>
-              <div className="max-w-3xl mx-auto space-y-8">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">Section</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>Choose the area of the incident</p>
+              {/* Modal Header */}
+              <div className="p-6 md:p-8 pb-4 flex items-center justify-between relative z-10 border-b border-[oklch(0.15_0.02_200_/_0.05)]">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
+                    {formData.main_category === 'AIChatbot' ? (
+                      <>
+                        <span className="italic font-black">&ldquo;I&apos;m in Charge&rdquo;</span> AI Virtual Assistant
+                      </>
+                    ) : (CATEGORIES.find(c => c.id === formData.main_category)?.title ?? formData.main_category)}
+                  </h2>
                 </div>
+                <button 
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, main_category: '' }));
+                    setStep(1);
+                  }}
+                  className="p-3 rounded-full bg-[oklch(0.15_0.02_200_/_0.03)] hover:bg-[oklch(0.15_0.02_200_/_0.08)] transition-colors"
+                >
+                  <X className="w-6 h-6 text-[oklch(0.15_0.02_200_/_0.4)]" />
+                </button>
+              </div>
 
-                <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                  <div className="space-y-4">
-                    <label className="label">7. Area <span className="text-red-500">*</span></label>
-                    <div className="flex flex-col gap-3">
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-8 relative z-10 custom-scrollbar">
+                {CATEGORIES.find(c => c.id === formData.main_category)?.barcodes ? (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
+                    <div className="text-center space-y-3">
+                      <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
+                        {CATEGORIES.find(c => c.id === formData.main_category)?.title} Access
+                      </h3>
+                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Scan code QR di bawah untuk mengakses layanan ini.</p>
+                    </div>
+                    
+                    <div className={`grid gap-12 w-full max-w-2xl px-4 ${
+                      (CATEGORIES.find(c => c.id === formData.main_category)?.barcodes?.length ?? 0) > 1 
+                        ? 'grid-cols-1 md:grid-cols-2' 
+                        : 'grid-cols-1'
+                    }`}>
+                      {CATEGORIES.find(c => c.id === formData.main_category)?.barcodes?.map((bc, bIdx) => (
+                        <div key={bIdx} className="group relative space-y-6">
+                          <div className="relative aspect-square rounded-[40px] overflow-hidden bg-white border border-[oklch(0.15_0.02_200_/_0.05)] p-8 group-hover:border-emerald-500/50 transition-all duration-700 shadow-spatial-md group-hover:shadow-spatial-lg">
+                            <div className="relative h-full w-full">
+                              <Image 
+                                src={bc.url} 
+                                alt={bc.label} 
+                                fill 
+                                className="object-contain p-2 transition-all duration-700 group-hover:scale-105"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <h4 className="text-2xl font-display font-black text-[oklch(0.15_0.05_200)] group-hover:text-emerald-600 transition-colors uppercase tracking-widest">{bc.label}</h4>
+                            <p className="text-sm text-[oklch(0.45_0.02_200)] font-bold mt-1">Layanan {bc.label}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : formData.main_category === 'AIChatbot' ? (
+                  <div className="py-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-500 w-full h-full">
+                    <PublicAIChatbot />
+                  </div>
+                ) : CATEGORIES.find(c => c.id === formData.main_category)?.links ? (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
+                    <div className="text-center space-y-3">
+                      <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
+                        {CATEGORIES.find(c => c.id === formData.main_category)?.title} Access
+                      </h3>
+                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Klik link di bawah untuk mengisi formulir report.</p>
+                    </div>
+                    
+                    <div className="flex flex-col gap-4 w-full max-w-xl px-4">
+                      {CATEGORIES.find(c => c.id === formData.main_category)?.links?.map((link, lIdx) => (
+                        <a 
+                          key={lIdx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group relative flex items-center gap-6 p-6 rounded-[32px] bg-white border border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 transition-all duration-500 shadow-spatial-sm hover:shadow-spatial-md overflow-hidden"
+                        >
+                          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-500 shadow-inner-rim">
+                            <ClipboardCheck className="w-8 h-8 text-emerald-600" />
+                          </div>
+                          
+                          <div className="flex-1">
+                            <h4 className="text-xl font-display font-black text-[oklch(0.15_0.05_200)] group-hover:text-emerald-700 transition-colors">{link.label}</h4>
+                            <p className="text-sm text-[oklch(0.40_0.02_200)] font-bold">{link.sublabel}</p>
+                          </div>
+                          
+                          <ExternalLink className="w-6 h-6 text-[oklch(0.15_0.02_200_/_0.1)] group-hover:text-emerald-600 transition-colors" />
+                          
+                          {/* Inner silk effect */}
+                          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mb-8 p-4 rounded-2xl bg-red-400/10 border border-red-400/20 text-red-400 flex items-start gap-3 text-sm"
+                  >
+                    <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                    {error}
+                  </motion.div>
+                )}
+
+                <WizardStep isActive={step === 1}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Date of Event</label>
+                        <div className="relative group">
+                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[oklch(0.15_0.02_200_/_0.2)] group-focus-within:text-emerald-600 transition-colors" />
+                          <input
+                            type="date"
+                            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm"
+                            value={formData.incident_date}
+                            onChange={(e) => setFormData({ ...formData, incident_date: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Airlines</label>
+                        <select
+                          className="w-full px-5 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 appearance-none outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm"
+                          value={formData.airline}
+                          onChange={(e) => setFormData({ ...formData, airline: e.target.value })}
+                        >
+                          <option value="">Select Airline...</option>
+                          {AIRLINES.map((airline) => (
+                            <option key={airline.code} value={airline.name}>
+                              {airline.name} ({airline.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Flight Number</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. GA-101"
+                          className="w-full px-5 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all uppercase text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                          value={formData.flight_number}
+                          onChange={(e) => setFormData({ ...formData, flight_number: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Branch Location</label>
+                        <select
+                          className="w-full px-5 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 appearance-none outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm"
+                          value={formData.station_id}
+                          onChange={(e) => setFormData({ ...formData, station_id: e.target.value })}
+                        >
+                          <option value="">Select Branch...</option>
+                          {stations.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.code} - {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Route (Sector)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. CGK-SUB"
+                          className="w-full px-5 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all uppercase text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                          value={formData.route}
+                          onChange={(e) => setFormData({ ...formData, route: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest text-[10px]">Delay Code</label>
+                          <input
+                            type="text"
+                            placeholder="Code"
+                            className="w-full px-5 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                            value={formData.delay_code}
+                            onChange={(e) => setFormData({ ...formData, delay_code: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest text-[10px]">Duration (min)</label>
+                          <input
+                            type="text"
+                            placeholder="Mins"
+                            className="w-full px-5 py-4 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                            value={formData.delay_duration}
+                            onChange={(e) => setFormData({ ...formData, delay_duration: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </WizardStep>
+
+                <WizardStep isActive={step === 2}>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="text-center space-y-2 mb-10">
+                      <h3 className="text-3xl font-display font-black text-[oklch(0.15_0.05_200)]">Select Area</h3>
+                      <p className="text-[oklch(0.40_0.02_200)] font-bold">Specify where the incident occurred</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {AREA_OPTIONS.map((area) => (
                         <button
                           key={area.id}
-                          type="button"
                           onClick={() => setFormData({ ...formData, area: area.id, area_category: '' })}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-black/5 transition-colors text-left"
+                          className={`group p-8 rounded-[24px] border transition-all duration-300 flex items-center justify-between text-left
+                            ${formData.area === area.id 
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-spatial-md' 
+                              : 'bg-white border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 hover:bg-white/50 text-[oklch(0.15_0.05_200)]'}`}
                         >
-                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.area === area.id ? 'border-emerald-500' : 'border-gray-400'}`}>
-                            {formData.area === area.id && <div className="w-3 h-3 rounded-full bg-emerald-500" />}
+                          <div className="flex items-center gap-6">
+                            <div className={`p-4 rounded-2xl transition-colors ${formData.area === area.id ? 'bg-white/20 text-white' : 'bg-[oklch(0.15_0.02_200_/_0.05)] text-[oklch(0.15_0.02_200_/_0.4)] group-hover:text-emerald-600'}`}>
+                              <area.icon className="w-6 h-6" />
+                            </div>
+                            <span className="text-xl font-display font-black tracking-tight">{area.label}</span>
                           </div>
-                          <span>{area.label}</span>
+                          {formData.area === area.id && (
+                            <motion.div layoutId="area-check" className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                              <CheckCircle className="w-5 h-5 text-white" />
+                            </motion.div>
+                          )}
                         </button>
                       ))}
                     </div>
                   </div>
-                </div>
-              </div>
-            </WizardStep>
+                </WizardStep>
 
-            <WizardStep isActive={step === 3}>
-              <div className="max-w-3xl mx-auto space-y-8">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">{AREA_OPTIONS.find((a) => a.id === formData.area)?.label}</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>
-                    Specify the category for {AREA_OPTIONS.find((a) => a.id === formData.area)?.label}
-                  </p>
-                </div>
-
-                <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                  <div className="space-y-4">
-                    <label className="label">
-                      8. {AREA_OPTIONS.find((a) => a.id === formData.area)?.label} Category <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex flex-col gap-3">
+                <WizardStep isActive={step === 3}>
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="text-center space-y-2 mb-8">
+                      <h3 className="text-3xl font-display font-black text-[oklch(0.15_0.05_200)]">Refine Category</h3>
+                      <p className="text-[oklch(0.40_0.02_200)] font-bold">Select specific type for {formData.area}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {AREA_CATEGORIES[formData.area]?.map((cat, idx) => (
                         <button
                           key={idx}
-                          type="button"
                           onClick={() => setFormData({ ...formData, area_category: cat })}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-black/5 transition-colors text-left"
+                          className={`flex items-center gap-4 p-5 rounded-2xl border transition-all
+                            ${formData.area_category === cat 
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-spatial-sm' 
+                              : 'bg-white border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 text-[oklch(0.15_0.05_200)]/60 hover:text-[oklch(0.15_0.05_200)]'}`}
                         >
-                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.area_category === cat ? 'border-emerald-500' : 'border-gray-400'}`}>
-                            {formData.area_category === cat && <div className="w-3 h-3 rounded-full bg-emerald-500" />}
-                          </div>
-                          <span>{cat}</span>
+                          <div className={`w-3 h-3 rounded-full border-2 transition-all ${formData.area_category === cat ? 'bg-white border-white' : 'border-[oklch(0.15_0.02_200_/_0.1)]'}`} />
+                          <span className="text-sm font-bold">{cat}</span>
                         </button>
                       ))}
                     </div>
                   </div>
-                </div>
-              </div>
-            </WizardStep>
+                </WizardStep>
 
-            <WizardStep isActive={step === 4}>
-              <div className="max-w-3xl mx-auto space-y-8">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">Irregularity / Complaint</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>Fill in the details</p>
-                </div>
-
-                <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                  <div className="space-y-2">
-                    <label className="label">9. Report <span className="text-red-500">*</span></label>
-                    <textarea
-                      required
-                      className="input-field min-h-[100px] resize-y"
-                      placeholder="Enter your answer"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">10. Root Cause <span className="text-red-500">*</span></label>
-                    <textarea
-                      required
-                      className="input-field min-h-[100px] resize-y"
-                      placeholder="Enter your answer"
-                      value={formData.root_cause}
-                      onChange={(e) => setFormData({ ...formData, root_cause: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label">11. Action Taken <span className="text-red-500">*</span></label>
-                    <textarea
-                      required
-                      className="input-field min-h-[100px] resize-y"
-                      placeholder="Enter your answer"
-                      value={formData.action_taken}
-                      onChange={(e) => setFormData({ ...formData, action_taken: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="label flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4" />
-                      Severity
-                    </label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {(Object.entries(PRIORITY_CONFIG) as [ReportPriority, (typeof PRIORITY_CONFIG)[ReportPriority]][]).map(([key, config]) => {
-                        const isSelected = formData.severity === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, severity: key })}
-                            className={`p-3 rounded-xl border-2 transition-all text-center ${isSelected ? 'border-current' : 'border-transparent'}`}
-                            style={{
-                              background: isSelected ? config.bgColor : 'var(--surface-3)',
-                              color: isSelected ? config.color : 'var(--text-primary)',
-                              borderColor: isSelected ? config.color : 'transparent',
-                            }}
-                          >
-                            <span className="font-bold text-sm block">{config.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </WizardStep>
-
-            <WizardStep isActive={step === 5}>
-              <div className="max-w-3xl mx-auto space-y-8">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">Evidence</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>Unggah foto bukti (akan dikompres otomatis sebelum disimpan)</p>
-                </div>
-
-                <div className="card-solid p-6 md:p-8 space-y-6" style={{ background: 'var(--surface-2)' }}>
-                  <div className="space-y-2">
-                    <label className="label">12. Report By <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      className="input-field"
-                      placeholder="Nama pelapor"
-                      value={formData.reporter_name}
-                      onChange={(e) => setFormData({ ...formData, reporter_name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="label">13. Email Pelapor <span className="text-red-500">*</span></label>
-                    <input
-                      type="email"
-                      required
-                      className="input-field"
-                      placeholder="email@domain.com"
-                      value={formData.reporter_email}
-                      onChange={(e) => setFormData({ ...formData, reporter_email: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="label">14. Foto Evidence (min 1) <span className="text-red-500">*</span></label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="input-field"
-                      onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
-                    />
-                    <div className="flex">
-                      <button
-                        type="button"
-                        onClick={handleFilesSelected}
-                        className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
-                        disabled={selectedFiles.length === 0}
-                      >
-                        <Plus className="w-4 h-4" />
-                        Upload Foto
-                      </button>
-                    </div>
-                    {formData.evidence_urls.length > 0 && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {formData.evidence_urls.map((url, idx) => (
-                          <div key={idx} className="relative rounded-xl overflow-hidden border bg-white">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={url} alt={`evidence-${idx}`} className="w-full h-32 object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => removeEvidenceAt(idx)}
-                              className="absolute top-2 right-2 px-2 py-1 bg-white/90 rounded-lg text-xs font-semibold"
-                            >
-                              Hapus
-                            </button>
-                          </div>
-                        ))}
+                <WizardStep isActive={step === 4}>
+                  <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="grid grid-cols-1 gap-8">
+                      <div className="space-y-4">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-emerald-600" /> Comprehensive Report
+                        </label>
+                        <textarea
+                          placeholder="Describe exactly what happened..."
+                          className="w-full px-6 py-6 rounded-3xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all min-h-[160px] resize-none leading-relaxed text-[oklch(0.15_0.05_200)] font-medium shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        />
                       </div>
-                    )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest text-emerald-800">Root Cause</label>
+                          <textarea
+                            placeholder="What caused this?"
+                            className="w-full px-6 py-6 rounded-3xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all min-h-[120px] resize-none text-[oklch(0.15_0.05_200)] font-medium shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                            value={formData.root_cause}
+                            onChange={(e) => setFormData({ ...formData, root_cause: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-4">
+                          <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest text-emerald-800">Corrective Action</label>
+                          <textarea
+                            placeholder="What resolve was taken?"
+                            className="w-full px-6 py-6 rounded-3xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all min-h-[120px] resize-none text-[oklch(0.15_0.05_200)] font-medium shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                            value={formData.action_taken}
+                            onChange={(e) => setFormData({ ...formData, action_taken: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-6 p-8 rounded-3xl bg-white border border-[oklch(0.15_0.02_200_/_0.05)] shadow-spatial-sm">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest block mb-4">Severity Assessment</label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {(Object.entries(PRIORITY_CONFIG) as [ReportPriority, (typeof PRIORITY_CONFIG)[ReportPriority]][]).map(([key, config]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, severity: key })}
+                              className={`relative group p-4 rounded-2xl border-2 transition-all transition-all duration-300 overflow-hidden ${formData.severity === key ? 'scale-[1.05] shadow-spatial-md' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'}`}
+                              style={{ 
+                                borderColor: formData.severity === key ? config.color : 'transparent',
+                                background: formData.severity === key ? `${config.color}20` : 'transparent'
+                              }}
+                            >
+                              <div className="relative z-10">
+                                <span className="text-xs font-black uppercase" style={{ color: config.color }}>{config.label}</span>
+                              </div>
+                              {formData.severity === key && (
+                                <motion.div layoutId="severity-active" className="absolute inset-0 bg-white/10 pointer-events-none" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </WizardStep>
+
+                <WizardStep isActive={step === 5}>
+                  <div className="space-y-12 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Reporter Name</label>
+                          <div className="relative group">
+                            <input
+                              type="text"
+                              placeholder="Full Name"
+                              className="w-full px-6 py-5 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                              value={formData.reporter_name}
+                              onChange={(e) => setFormData({ ...formData, reporter_name: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest">Email Contact</label>
+                          <input
+                            type="email"
+                            placeholder="email@gapura.id"
+                            className="w-full px-6 py-5 rounded-2xl bg-white border border-[oklch(0.15_0.02_200_/_0.1)] focus:border-emerald-500/50 outline-none transition-all text-[oklch(0.15_0.05_200)] font-bold shadow-spatial-sm placeholder-[oklch(0.15_0.02_200_/_0.3)]"
+                            value={formData.reporter_email}
+                            onChange={(e) => setFormData({ ...formData, reporter_email: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <label className="text-xs font-bold text-[oklch(0.15_0.02_200_/_0.6)] uppercase tracking-widest block">Upload Evidence (Min. 1 Image)</label>
+                        <div className="relative group h-40">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
+                          />
+                          <div className="h-full border-2 border-dashed border-[oklch(0.15_0.02_200_/_0.1)] rounded-3xl flex flex-col items-center justify-center gap-3 group-hover:bg-emerald-500/[0.02] group-hover:border-emerald-500/50 transition-all bg-white shadow-inner-rim">
+                            <Upload className="w-8 h-8 text-[oklch(0.15_0.02_200_/_0.2)] group-hover:text-emerald-600" />
+                            <p className="text-sm text-[oklch(0.40_0.02_200)] font-bold">Drop files or <span className="text-emerald-600 underline">Browse</span></p>
+                          </div>
+                        </div>
+                        
+                        <PrismButton 
+                          onClick={handleFilesSelected}
+                          disabled={selectedFiles.length === 0}
+                          className="w-full bg-emerald-600 text-white h-14"
+                        >
+                          <Upload className="w-4 h-4 mr-2" /> Upload {selectedFiles.length} Selected Files
+                        </PrismButton>
+
+                        <div className="grid grid-cols-4 gap-3 mt-4">
+                          {formData.evidence_urls.map((url, idx) => (
+                            <motion.div 
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              key={idx} 
+                              className="group relative rounded-2xl overflow-hidden border border-[oklch(0.15_0.02_200_/_0.1)] aspect-square shadow-spatial-sm"
+                            >
+                              <img src={url} alt="evidence" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                              <button
+                                onClick={() => removeEvidenceAt(idx)}
+                                className="absolute top-2 right-2 p-1.5 bg-black/80 backdrop-blur-md rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </WizardStep>
+                  </>
+                )}
               </div>
-            </WizardStep>
 
-            <div className="max-w-3xl mx-auto mt-6 flex items-center justify-between px-2">
-              <button
-                type="button"
-                onClick={prevStep}
-                className="px-5 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 font-semibold"
-                disabled={step === 1}
-              >
-                Kembali
-              </button>
-              {step < 5 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="px-5 py-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-60"
-                  disabled={!isStepValid()}
-                >
-                  Lanjut
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!isStepValid() || loading}
-                  className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-60"
-                >
-                  {loading ? 'Mengirim...' : 'Kirim Laporan'}
-                </button>
+              {formData.main_category === 'Irregularity' && (
+                <div className="p-6 md:p-8 pt-4 border-t border-[oklch(0.15_0.02_200_/_0.05)] relative z-10 bg-white/50 backdrop-blur-md flex items-center justify-between">
+                  <button
+                    onClick={prevStep}
+                    disabled={step === 1}
+                    className="px-8 py-4 rounded-2xl border border-[oklch(0.15_0.02_200_/_0.1)] text-[oklch(0.15_0.02_200_/_0.4)] hover:text-emerald-700 hover:border-emerald-500/30 transition-all font-bold disabled:opacity-0"
+                  >
+                    Back
+                  </button>
+                  
+                  {step < 5 ? (
+                    <PrismButton
+                      onClick={nextStep}
+                      disabled={!isStepValid()}
+                      className="px-10 h-14 bg-emerald-600 text-white font-black flex items-center gap-3 overflow-hidden shadow-spatial-md"
+                    >
+                      Continue
+                      <ChevronRight className="w-5 h-5" />
+                    </PrismButton>
+                  ) : (
+                    <PrismButton
+                      onClick={handleSubmit}
+                      isLoading={loading}
+                      disabled={!isStepValid()}
+                      className="px-12 h-14 bg-emerald-600 text-white font-black flex items-center gap-3 overflow-hidden shadow-[0_20px_40px_-12px_rgba(5,150,105,0.4)]"
+                    >
+                      Submit Report
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </PrismButton>
+                  )}
+                </div>
               )}
-            </div>
-          </form>
-
-          <div className="mt-6 text-center">
-            <Link href="/auth/login" className="text-sm text-emerald-700 font-semibold">
-              Kembali ke Login
-            </Link>
+            </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Footer Details */}
+      <footer className="max-w-7xl mx-auto py-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 opacity-30 italic font-light text-sm">
+        <p>© 2025 Gapura Angkasa. Automated Irregularity System V4.0.</p>
+        <div className="flex items-center gap-8">
+          <Link href="/auth/login" className="hover:text-emerald-400 transition-colors">Internal Dashboard</Link>
+          <span className="cursor-help underline underline-offset-4">Privacy Policy</span>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

@@ -41,6 +41,7 @@ export default async function proxy(request: NextRequest) {
                              path.startsWith('/api/dashboards/insights') ||
                              path.startsWith('/api/admin/reports') ||
                              path.startsWith('/api/admin/analytics') ||
+                             path.startsWith('/api/master-data') ||
                              (path === '/api/dashboards' && request.method === 'GET');
     const isPublicPath = isAuthPath || isPublicEmbedPath || path === '/';
 

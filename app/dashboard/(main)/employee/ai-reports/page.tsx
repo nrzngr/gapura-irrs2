@@ -46,37 +46,50 @@ interface BatchAnalysisResult {
   }>;
 }
 
-const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn("bg-white rounded-xl border border-gray-200 shadow-sm", className)}>
-    {children}
-  </div>
-);
+const Card = ({ children, className, variant = 'default', onClick }: { children: React.ReactNode; className?: string; variant?: 'default' | 'frosted' | 'glass'; onClick?: () => void }) => {
+  const variants = {
+    default: "bg-white border-[oklch(0.15_0.02_200_/_0.05)] shadow-spatial-sm",
+    frosted: "bg-white/50 backdrop-blur-xl border-white/40 shadow-spatial-md",
+    glass: "bg-white/30 backdrop-blur-md border border-white/20 shadow-inner-rim"
+  };
+  return (
+    <motion.div 
+      whileHover={{ y: -2 }}
+      onClick={onClick}
+      className={cn("rounded-3xl transition-all duration-300", variants[variant], className)}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700", className)}>
+  <span className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.02_200)] border border-[oklch(0.15_0.02_200_/_0.1)] shadow-sm", className)}>
     {children}
   </span>
 );
 
 const Button = ({ children, onClick, disabled, variant = 'primary', className, type = 'button' }: any) => {
   const variants = {
-    primary: 'bg-emerald-600 text-white hover:bg-emerald-700',
-    secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-    outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50',
+    primary: 'bg-[oklch(0.40_0.15_160)] text-white hover:bg-[oklch(0.35_0.15_160)] shadow-spatial-sm',
+    secondary: 'bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.02_200)] hover:bg-[oklch(0.95_0.01_200)] border border-[oklch(0.15_0.02_200_/_0.1)]',
+    outline: 'bg-transparent border border-[oklch(0.15_0.02_200_/_0.2)] text-[oklch(0.15_0.02_200)] hover:bg-[oklch(0.15_0.02_200_/_0.05)]',
   };
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       type={type}
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+        "px-5 py-2.5 rounded-2xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm tracking-tight",
         variants[variant as keyof typeof variants],
         className
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 };
 
@@ -92,12 +105,12 @@ const translateSeverity = (severity: string): string => {
 
 const getSeverityColor = (severity: string): string => {
   const map: Record<string, string> = {
-    'Critical': 'bg-red-100 text-red-700',
-    'High': 'bg-orange-100 text-orange-700',
-    'Medium': 'bg-amber-100 text-amber-700',
-    'Low': 'bg-green-100 text-green-700',
+    'Critical': 'bg-red-50 text-red-600 border-red-100',
+    'High': 'bg-orange-50 text-orange-600 border-orange-100',
+    'Medium': 'bg-amber-50 text-amber-600 border-amber-100',
+    'Low': 'bg-emerald-50 text-emerald-600 border-emerald-100',
   };
-  return map[severity] || 'bg-gray-100 text-gray-700';
+  return map[severity] || 'bg-stone-50 text-stone-600 border-stone-100';
 };
 
 export default function BranchAIReportsPage() {
@@ -105,18 +118,17 @@ export default function BranchAIReportsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
   const [branchInfo, setBranchInfo] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCriticalModal, setShowCriticalModal] = useState(false);
 
   useEffect(() => {
-    analyzeAllReports(1, pageSize);
+    analyzeAllReports();
   }, []);
 
-  const analyzeAllReports = async (p?: number, ps?: number) => {
+  const analyzeAllReports = async () => {
     setLoading(true);
     setProgress(0);
     setError(null);
@@ -140,12 +152,8 @@ export default function BranchAIReportsPage() {
         const data = await res.json();
         setBatchResults(data);
         if (data._pagination) {
-          setPage(Number(data._pagination.page || 1));
-          setPageSize(Number(data._pagination.pageSize || data.results?.length || 0));
           setTotal(Number(data._pagination.total || data.results?.length || 0));
         } else {
-          setPage(1);
-          setPageSize(data.results?.length || 0);
           setTotal(data.results?.length || 0);
         }
         
@@ -184,9 +192,11 @@ export default function BranchAIReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const highPriorityCount = batchResults?.results.filter((r: any) => 
+  const criticalAndHighReports = batchResults?.results.filter((r: any) => 
     r.classification?.severity === 'Critical' || r.classification?.severity === 'High'
-  ).length || 0;
+  ) || [];
+
+  const highPriorityCount = criticalAndHighReports.length;
 
   const totalRecordsDerived = (() => {
     if (!batchResults) return 0;
@@ -198,16 +208,6 @@ export default function BranchAIReportsPage() {
     r?.prediction?.anomalyDetection?.isAnomaly ||
     ((r?.prediction?.anomalyDetection?.anomalies || []).length > 0)
   ).length || 0;
-
-  const topIssueTypes = (() => {
-    if (!batchResults) return [];
-    const counts: Record<string, number> = {};
-    for (const r of batchResults.results) {
-      const key = r.originalData?.issueType || r.originalData?.Irregularity_Complain_Category || 'Unknown';
-      counts[key] = (counts[key] || 0) + 1;
-    }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  })();
 
   const avgSeverityConfidence = (() => {
     if (!batchResults) return 0;
@@ -228,39 +228,29 @@ export default function BranchAIReportsPage() {
     }));
   })();
 
-  const predictedDaysHistogram = (() => {
-    if (!batchResults) return [];
-    const bins = [
-      { label: '<=2', min: -Infinity, max: 2 },
-      { label: '2–3', min: 2, max: 3 },
-      { label: '3–4', min: 3, max: 4 },
-      { label: '4–5', min: 4, max: 5 },
-      { label: '>5', min: 5, max: Infinity },
-    ];
-    const counts: Record<string, number> = Object.fromEntries(bins.map(b => [b.label, 0]));
-    for (const r of batchResults.results) {
-      const v = r?.prediction?.predictedDays;
-      if (typeof v !== 'number') continue;
-      const bin = bins.find(b => v > b.min && v <= b.max) || bins[bins.length - 1];
-      counts[bin.label] = (counts[bin.label] || 0) + 1;
-    }
-    return bins.map(b => ({ name: b.label, Cases: counts[b.label] || 0 }));
-  })();
-
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-12">
+    <div className="min-h-screen bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.02_200)] selection:bg-emerald-500/10 font-body">
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-50 mix-blend-overlay">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+          <filter id="noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#noise)" />
+        </svg>
+      </div>
+
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="bg-white/70 backdrop-blur-xl border-b border-[oklch(0.15_0.02_200_/_0.05)] sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
-                <Brain className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-6">
+              <div className="p-3 bg-white border border-[oklch(0.15_0.02_200_/_0.1)] rounded-2xl shadow-spatial-sm">
+                <Brain className="w-6 h-6 text-emerald-600" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">AI Reports</h1>
-                <p className="text-sm text-gray-500">
-                  Analisis laporan {branchInfo ? `untuk stasiun ${branchInfo}` : 'stasiun Anda'}
+              <div className="space-y-0.5">
+                <h1 className="text-3xl font-display font-black tracking-tight leading-none">AI Analytics</h1>
+                <p className="text-sm font-medium text-[oklch(0.40_0.02_200)] opacity-80">
+                  {branchInfo ? `Stasiun ${branchInfo}` : 'Inteligensi Operasional'}
                 </p>
               </div>
             </div>
@@ -268,11 +258,12 @@ export default function BranchAIReportsPage() {
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
-                onClick={analyzeAllReports}
+                onClick={() => analyzeAllReports()}
                 disabled={loading}
+                className="h-12 px-6"
               >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                <span className="ml-2 hidden sm:inline">Refresh</span>
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                <span className="hidden sm:inline italic font-black">Re-sync Engine</span>
               </Button>
             </div>
           </div>
@@ -302,16 +293,16 @@ export default function BranchAIReportsPage() {
               <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
               <div>
                 <p className="font-medium">Menganalisis laporan...</p>
-                <p className="text-sm text-gray-500">Mengambil data dari Google Sheets</p>
+                <p className="text-sm text-stone-500">Mengambil data dari Engine Analitik</p>
               </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-stone-100 rounded-full h-2">
               <div 
                 className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-sm text-gray-500 mt-2">{Math.round(progress)}% selesai</p>
+            <p className="text-sm text-stone-500 mt-2">{Math.round(progress)}% selesai</p>
           </Card>
         )}
 
@@ -322,415 +313,468 @@ export default function BranchAIReportsPage() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="p-5 border-l-4 border-emerald-500">
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Total Laporan</p>
-                <p className="text-2xl font-bold text-gray-900">{total || totalRecordsDerived}</p>
+            {/* Summary Stats Bento Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { 
+                  label: 'TOTAL ANALISIS', 
+                  value: total || totalRecordsDerived, 
+                  color: 'emerald', 
+                  icon: Database,
+                  desc: 'Total data laporan yang berhasil dianalisis oleh AI'
+                },
+                { 
+                  label: 'ESTIMASI SELESAI', 
+                  value: `${batchResults.summary.predictionStats.mean.toFixed(1)}d`, 
+                  color: 'amber', 
+                  icon: Sparkles,
+                  desc: 'Prediksi rata-rata waktu penyelesaian laporan'
+                },
+                { 
+                  id: 'critical',
+                  label: 'JALUR KRITIS', 
+                  value: highPriorityCount, 
+                  color: 'red', 
+                  icon: AlertTriangle,
+                  desc: 'Laporan prioritas tinggi yang butuh atensi segera',
+                  action: () => setShowCriticalModal(true)
+                },
+              ].map((stat, i) => (
+                <Card 
+                  key={i} 
+                  className={cn(
+                    "p-6 relative overflow-hidden group",
+                    stat.id === 'critical' && "cursor-pointer hover:ring-2 hover:ring-red-100 transition-all border-red-50"
+                  )}
+                  onClick={stat.action}
+                >
+                  <div className={`absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity`}>
+                    <stat.icon className="w-full h-full rotate-12" />
+                  </div>
+                  <div className="relative z-10 space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[oklch(0.40_0.02_200)] opacity-60">{stat.label}</p>
+                    <div className="flex items-end justify-between">
+                      <div className="space-y-1">
+                        <p className={cn("text-4xl font-display font-black tracking-tighter", 
+                          stat.color === 'red' ? 'text-red-600' : 'text-[oklch(0.15_0.05_200)]'
+                        )}>
+                          {stat.value}
+                        </p>
+                        <p className="text-[10px] font-medium text-[oklch(0.40_0.02_200)] opacity-70 leading-tight max-w-[180px]">
+                          {stat.desc}
+                        </p>
+                      </div>
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner-rim shrink-0", 
+                        stat.color === 'emerald' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' :
+                        stat.color === 'blue' ? 'bg-blue-50 border-blue-100 text-blue-600' :
+                        stat.color === 'amber' ? 'bg-amber-50 border-amber-100 text-amber-600' :
+                        'bg-red-50 border-red-100 text-red-600'
+                      )}>
+                        <stat.icon size={18} />
+                      </div>
+                    </div>
+                  </div>
+                  {stat.id === 'critical' && (
+                    <div className="absolute bottom-4 right-4 text-[8px] font-black uppercase tracking-widest text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      Click to View <ChevronRight size={8} />
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-8 group">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="p-2 bg-emerald-50 rounded-xl">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h3 className="text-xl font-display font-black tracking-tight">Quick Insights</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'Avg Pred', value: `${batchResults.summary.predictionStats.mean.toFixed(1)}d`, icon: Clock, bg: 'bg-emerald-50', text: 'text-emerald-700' },
+                    { label: 'Anomalies', value: anomalyCount, icon: AlertTriangle, bg: 'bg-red-50', text: 'text-red-700' },
+                    { label: 'Confidence', value: `${(avgSeverityConfidence * 100).toFixed(0)}%`, icon: Activity, bg: 'bg-blue-50', text: 'text-blue-700' },
+                    { label: 'Complexity', value: 'High', icon: Brain, bg: 'bg-amber-50', text: 'text-amber-700' },
+                  ].map((item, i) => (
+                    <div key={i} className={cn("p-4 rounded-2xl border border-transparent hover:border-white/50 transition-all", item.bg)}>
+                      <p className="text-[10px] font-black uppercase tracking-wider opacity-40 mb-1">{item.label}</p>
+                      <p className={cn("text-xl font-display font-black", item.text)}>{item.value}</p>
+                    </div>
+                  ))}
+                </div>
               </Card>
-              
-              <Card className="p-5 border-l-4 border-blue-500">
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Waktu Proses</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {typeof processingTimeSeconds === 'number' ? `${processingTimeSeconds.toFixed(1)}s` : 'N/A'}
-                </p>
-              </Card>
-              
-              <Card className="p-5 border-l-4 border-purple-500">
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Rata-rata Prediksi</p>
-                <p className="text-2xl font-bold text-gray-900">{batchResults.summary.predictionStats.mean.toFixed(1)} hari</p>
-              </Card>
-              
-              <Card className="p-5 border-l-4 border-red-500">
-                <p className="text-xs font-semibold uppercase text-gray-500 mb-1">Prioritas Tinggi</p>
-                <p className="text-2xl font-bold text-red-600">{highPriorityCount}</p>
+
+              <Card className="p-8">
+                 <div className="flex items-center gap-3 mb-8">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                    <PieChart className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-display font-black tracking-tight">Severity Map</h3>
+                </div>
+                <div className="h-[180px]">
+                  <ResponsiveBarChart 
+                    data={severityChartData}
+                    xAxisKey="name"
+                    dataKeys={['Count']}
+                    layout="vertical"
+                    height="h-full"
+                    showLegend={false}
+                  />
+                </div>
               </Card>
             </div>
 
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-lg font-bold">Quick Insights</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-                  <div className="text-xs text-gray-600 uppercase font-semibold">Prediksi Rata-rata</div>
-                  <div className="text-2xl font-bold text-emerald-700">{batchResults.summary.predictionStats.mean.toFixed(1)} hari</div>
-                </div>
-                <div className="p-4 rounded-xl bg-red-50 border border-red-100">
-                  <div className="text-xs text-gray-600 uppercase font-semibold">Anomali Terdeteksi</div>
-                  <div className="text-2xl font-bold text-red-600">{anomalyCount}</div>
-                </div>
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                  <div className="text-xs text-gray-600 uppercase font-semibold">Top Kategori</div>
-                  <div className="text-sm font-medium text-blue-700">
-                    {topIssueTypes.map(([k, v], i) => (
-                      <span key={k} className="mr-2">{i === 0 ? `${k} (${v})` : `• ${k} (${v})`}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-100">
-                  <div className="text-xs text-gray-600 uppercase font-semibold">Kepercayaan Klasifikasi</div>
-                  <div className="text-2xl font-bold text-amber-700">{(avgSeverityConfidence * 100).toFixed(0)}%</div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Severity Distribution */}
-            <Card className="p-6">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-gray-500" />
-                Distribusi Tingkat Keparahan
+            {/* List Header */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-display font-black tracking-tight flex items-center gap-3">
+                <FileText className="text-stone-400" size={20} />
+                Analytical Records
               </h3>
-              <ResponsiveBarChart 
-                data={severityChartData}
-                xAxisKey="name"
-                dataKeys={['Count']}
-                layout="vertical"
-                height="h-[260px]"
-                showLegend={false}
-              />
-            </Card>
+              <Button variant="outline" onClick={exportResults}>
+                <Download size={16} />
+                <span className="italic font-black">Export Analysis</span>
+              </Button>
+            </div>
 
-            <Card className="p-6">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-gray-500" />
-                Distribusi Prediksi (Hari)
-              </h3>
-              <ResponsiveBarChart 
-                data={predictedDaysHistogram}
-                xAxisKey="name"
-                dataKeys={['Cases']}
-                layout="vertical"
-                height="h-[260px]"
-                showLegend={false}
-              />
-            </Card>
-
-            {/* High Priority Reports */}
-            {highPriorityCount > 0 && (
-              <Card className="p-6 border-red-200">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-red-600">
-                  <AlertTriangle className="w-5 h-5" />
-                  Laporan Prioritas Tinggi ({highPriorityCount})
-                </h3>
-                
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {batchResults.results
-                    .filter((r: any) => r.classification?.severity === 'Critical' || r.classification?.severity === 'High')
-                    .slice(0, 20)
-                    .map((result: any, idx: number) => (
-                      <div key={idx} className="p-4 bg-red-50 rounded-lg border border-red-100">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">
-                              {result.originalData.airline || result.originalData.Airlines || 'Unknown'}
-                            </p>
-                            <p className="text-sm text-gray-600 truncate">
-                              {result.originalData.issueType || result.originalData.Irregularity_Complain_Category || '-'}
-                            </p>
-                          </div>
-                          <Badge className={getSeverityColor(result.classification?.severity)}>
-                            {translateSeverity(result.classification?.severity)}
-                          </Badge>
-                        </div>
-                        <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Prediksi: {result.prediction?.predictedDays?.toFixed(1)} hari
-                          </span>
-                          {result.originalData.route && (
-                            <span className="truncate">Rute: {result.originalData.route}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </Card>
-            )}
-
-            {/* Recent Reports Table */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-gray-500" />
-                  Semua Laporan AI
-                </h3>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={exportResults}>
-                    <Download size={16} className="mr-2" />
-                    Export
-                  </Button>
-                </div>
-              </div>
-              
+            {/* Data Table Section */}
+            <Card className="overflow-hidden border-stone-200/60 shadow-spatial-md">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 font-medium border-b">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Maskapai</th>
-                      <th className="px-4 py-3 text-left">Kategori</th>
-                      <th className="px-4 py-3 text-left">Rute</th>
-                      <th className="px-4 py-3 text-left">Prediksi</th>
-                      <th className="px-4 py-3 text-left">Keparahan</th>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-stone-50/50">
+                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">Identity / Route</th>
+                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">Severity</th>
+                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">ETA</th>
+                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {batchResults.results.map((result: any, idx: number) => (
-                      <tr 
-                        key={idx} 
-                        className="hover:bg-gray-50/50 cursor-pointer transition-colors"
+                  <tbody className="divide-y divide-stone-50">
+                    {batchResults.results.map((report, idx) => (
+                      <motion.tr 
+                        key={report.rowId || idx}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.03 }}
                         onClick={() => {
-                          setSelectedReport(result);
+                          setSelectedReport(report);
                           setShowDetailModal(true);
                         }}
+                        className="group hover:bg-[oklch(0.98_0.01_200)] cursor-pointer transition-colors"
                       >
-                        <td className="px-4 py-3 font-medium">
-                          {result.originalData.airline || result.originalData.Airlines || '-'}
+                        <td className="px-8 py-5">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-black text-stone-800 tracking-tight group-hover:text-emerald-700 transition-colors">
+                              {report.originalData.airline || report.originalData.Airlines || 'Unknown Carrier'}
+                            </span>
+                            <span className="text-[10px] font-bold text-stone-400 italic">
+                              {report.originalData.route || 'No route defined'}
+                            </span>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {result.originalData.issueType || result.originalData.Irregularity_Complain_Category || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {result.originalData.route || '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            "font-medium",
-                            result.prediction?.predictedDays > 3 ? "text-red-600" : "text-emerald-600"
-                          )}>
-                            {result.prediction?.predictedDays?.toFixed(1)} hari
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge className={getSeverityColor(result.classification?.severity)}>
-                            {translateSeverity(result.classification?.severity)}
+                        <td className="px-8 py-5">
+                          <Badge className={cn(getSeverityColor(report.classification?.severity), "px-3 py-1")}>
+                            {translateSeverity(report.classification?.severity)}
                           </Badge>
                         </td>
-                      </tr>
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-2">
+                             <Clock size={12} className="text-stone-300" />
+                             <span className={cn("text-xs font-black italic", 
+                               report.prediction?.predictedDays > 3 ? "text-red-500" : "text-emerald-600"
+                             )}>
+                               {report.prediction?.predictedDays?.toFixed(1)}d
+                             </span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex justify-end">
+                            <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all transform group-hover:rotate-90">
+                              <ChevronRight size={14} />
+                            </div>
+                          </div>
+                        </td>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               
-              <div className="mt-4 text-sm text-gray-500">Menampilkan {batchResults.results.length} laporan</div>
+              <div className="p-4 bg-stone-50/50 border-t border-stone-100 text-[10px] font-black uppercase tracking-widest text-stone-400 text-center">
+                Reflecting {batchResults.results.length} total analytical units
+              </div>
             </Card>
           </motion.div>
         )}
 
         {/* Empty State */}
         {!batchResults && !loading && !error && (
-          <Card className="p-12 text-center">
-            <Database size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500">Belum ada data. Klik refresh untuk menganalisis.</p>
+          <Card className="p-20 text-center border-dashed border-2 border-stone-200">
+            <Database size={48} className="mx-auto mb-6 text-stone-200" />
+            <h3 className="text-xl font-display font-black mb-2">No Active Packets</h3>
+            <p className="text-stone-400 italic text-sm mb-8">Synchronize with the analysis engine to begin.</p>
+            <Button onClick={() => analyzeAllReports()} className="mx-auto">
+              Initialize Engine
+            </Button>
           </Card>
         )}
       </div>
 
-      {/* Detail Modal */}
-      {showDetailModal && selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowDetailModal(false)}
-          />
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl"
-          >
-            {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Detail Laporan AI</h2>
-                <p className="text-sm text-gray-500">Analisis otomatis menggunakan kecerdasan buatan</p>
-              </div>
-              <button 
-                onClick={() => setShowDetailModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-6">
-              {/* Severity & Prediction */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Tingkat Keparahan</p>
-                  <Badge className={cn(getSeverityColor(selectedReport.classification?.severity), "text-sm px-3 py-1")}>
-                    {translateSeverity(selectedReport.classification?.severity)}
-                  </Badge>
-                </div>
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Prediksi Waktu Penyelesaian</p>
-                  <p className={cn(
-                    "text-2xl font-bold",
-                    selectedReport.prediction?.predictedDays > 3 ? "text-red-600" : "text-emerald-600"
-                  )}>
-                    {selectedReport.prediction?.predictedDays?.toFixed(1)} hari
-                  </p>
-                </div>
-              </div>
-
-              {/* Original Data */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Data Laporan
-                </h3>
-                <div className="bg-gray-50 rounded-xl border border-gray-100 divide-y divide-gray-100">
-                  {selectedReport.originalData.airline && (
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-sm text-gray-500 flex items-center gap-2">
-                        <Plane className="w-4 h-4" /> Maskapai
-                      </span>
-                      <span className="text-sm font-medium">{selectedReport.originalData.airline}</span>
-                    </div>
-                  )}
-                  {selectedReport.originalData.route && (
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-sm text-gray-500 flex items-center gap-2">
-                        <MapPin className="w-4 h-4" /> Rute
-                      </span>
-                      <span className="text-sm font-medium">{selectedReport.originalData.route}</span>
-                    </div>
-                  )}
-                  {selectedReport.originalData.date && (
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-sm text-gray-500 flex items-center gap-2">
-                        <Calendar className="w-4 h-4" /> Tanggal
-                      </span>
-                      <span className="text-sm font-medium">
-                        {new Date(selectedReport.originalData.date).toLocaleDateString('id-ID')}
-                      </span>
-                    </div>
-                  )}
-                  {selectedReport.originalData.issueType && (
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-sm text-gray-500">Kategori</span>
-                      <span className="text-sm font-medium">{selectedReport.originalData.issueType}</span>
-                    </div>
-                  )}
-                  {selectedReport.originalData.report && (
-                    <div className="p-3">
-                      <span className="text-sm text-gray-500 block mb-2">Deskripsi</span>
-                      <p className="text-sm text-gray-900 bg-white p-3 rounded-lg border border-gray-100">
-                        {selectedReport.originalData.report}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sentiment Analysis */}
-              {selectedReport.sentiment?.sentiment && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4" />
-                    Analisis Sentimen
-                  </h3>
-                  <div className="bg-gray-50 rounded-xl border border-gray-100 p-4">
-                    <Badge className={cn(
-                      selectedReport.sentiment.sentiment.includes('Positive') ? "bg-green-100 text-green-700" :
-                      selectedReport.sentiment.sentiment.includes('Negative') ? "bg-red-100 text-red-700" :
-                      "bg-gray-100 text-gray-700"
-                    )}>
-                      {selectedReport.sentiment.sentiment}
-                    </Badge>
-                    {typeof selectedReport.sentiment.urgencyScore === 'number' && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        Urgency: {(selectedReport.sentiment.urgencyScore * 100).toFixed(0)}%
-                      </p>
-                    )}
+      {/* Critical Reports Modal */}
+      <AnimatePresence>
+        {showCriticalModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[oklch(0.15_0.02_200_/_0.3)] backdrop-blur-md"
+              onClick={() => setShowCriticalModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-10 w-full max-w-xl max-h-[80vh] overflow-hidden bg-white rounded-[2.5rem] shadow-spatial-lg border border-red-50 flex flex-col"
+            >
+              <div className="p-6 border-b border-red-50 flex items-center justify-between bg-red-50/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-50 rounded-xl border border-red-100">
+                    <AlertTriangle size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-display font-black tracking-tight">Laporan Jalur Kritis</h2>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Ditemukan {highPriorityCount} Isu Prioritas</p>
                   </div>
                 </div>
-              )}
+                <button onClick={() => setShowCriticalModal(false)} className="p-2 hover:bg-white rounded-full transition-colors">
+                  <X size={20} className="text-stone-400" />
+                </button>
+              </div>
 
-              {/* AI Summary */}
-              {(selectedReport.summary?.executiveSummary || selectedReport.summary?.summary) && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Brain className="w-4 h-4" />
-                    Ringkasan AI
-                  </h3>
-                  <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-                    <p className="text-sm text-gray-900">
-                      {selectedReport.summary.executiveSummary || selectedReport.summary.summary}
-                    </p>
-                    {Array.isArray(selectedReport.summary.keyPoints) && selectedReport.summary.keyPoints.length > 0 && (
-                      <div className="mt-3">
-                        <div className="text-xs font-bold text-emerald-700 uppercase mb-2">Poin Kunci</div>
-                        <ul className="list-disc list-inside text-sm text-emerald-900">
-                          {selectedReport.summary.keyPoints.map((kp: string, i: number) => (
-                            <li key={i}>{kp}</li>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                {criticalAndHighReports.map((report: any, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    onClick={() => {
+                      setSelectedReport(report);
+                      setShowDetailModal(true);
+                      setShowCriticalModal(false);
+                    }}
+                    className="p-4 rounded-2xl bg-[oklch(0.98_0.01_200)] border border-[oklch(0.15_0.02_200_/_0.05)] hover:border-red-200 hover:bg-red-50/30 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn(getSeverityColor(report.classification?.severity), "px-2 py-0.5")}>
+                            {translateSeverity(report.classification?.severity)}
+                          </Badge>
+                          <span className="text-[10px] font-black italic text-stone-400">
+                            {report.originalData.airline || report.originalData.Airlines}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-stone-800 line-clamp-1 group-hover:text-red-700 transition-colors">
+                          {report.originalData.route || report.originalData.issueType || 'Detail Operasional'}
+                        </p>
+                        <p className="text-[10px] text-stone-500 italic opacity-60">
+                          ETA: {report.prediction?.predictedDays?.toFixed(1)} hari
+                        </p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-white border border-stone-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                        <ChevronRight size={14} className="text-red-600" />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {showDetailModal && selectedReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[oklch(0.15_0.02_200_/_0.4)] backdrop-blur-md"
+              onClick={() => setShowDetailModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-[2.5rem] shadow-spatial-lg border border-white flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-8 border-b border-[oklch(0.15_0.02_200_/_0.05)] flex items-center justify-between bg-stone-50/30">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white rounded-2xl shadow-spatial-sm border border-stone-100">
+                    <Database size={20} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-display font-black tracking-tight">Data Sheet View</h2>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">UUID: {selectedReport.rowId?.slice(0, 8)}</p>
+                  </div>
+                </div>
+                <motion.button 
+                  whileHover={{ rotate: 90 }}
+                  onClick={() => setShowDetailModal(false)}
+                  className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-stone-100"
+                >
+                  <X className="w-6 h-6 text-stone-400" />
+                </motion.button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
+                  <div className="space-y-8">
+                    {/* ID & Origin */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Database className="w-4 h-4 text-emerald-600" />
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Source Identity</span>
+                      </div>
+                      <div className="p-6 bg-[oklch(0.98_0.01_200)] rounded-3xl border border-[oklch(0.15_0.02_200_/_0.05)] space-y-4">
+                        {[
+                          { label: 'Airline', value: selectedReport.originalData.airline || selectedReport.originalData.Airlines, icon: Plane },
+                          { label: 'Route', value: selectedReport.originalData.route, icon: MapPin },
+                          { label: 'Timestamp', value: selectedReport.originalData.date ? new Date(selectedReport.originalData.date).toLocaleDateString('id-ID') : '-', icon: Calendar },
+                          { label: 'Category', value: selectedReport.originalData.issueType || selectedReport.originalData.Irregularity_Complain_Category, icon: FileText }
+                        ].map((item, i) => item.value && (
+                          <div key={i} className="flex items-center justify-between group/item">
+                            <span className="text-xs font-bold text-[oklch(0.40_0.02_200)] flex items-center gap-2">
+                              <item.icon className="w-3.5 h-3.5 opacity-40 group-hover/item:opacity-100 transition-opacity" /> {item.label}
+                            </span>
+                            <span className="text-xs font-black italic">{item.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Report Description */}
+                    {selectedReport.originalData.report && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText className="w-4 h-4 text-stone-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Observation Details</span>
+                        </div>
+                        <div className="p-6 bg-white rounded-3xl border border-stone-100 shadow-inner-rim">
+                          <p className="text-xs leading-relaxed text-stone-600 font-medium">
+                            {selectedReport.originalData.report}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sentiment Analysis */}
+                    {selectedReport.sentiment?.sentiment && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <MessageSquare className="w-4 h-4 text-blue-600" />
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Affective Computing</span>
+                        </div>
+                        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100/50">
+                          <div className="flex items-center justify-between mb-4">
+                            <Badge className={cn(
+                              selectedReport.sentiment.sentiment.includes('Positive') ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                              selectedReport.sentiment.sentiment.includes('Negative') ? "bg-red-100 text-red-700 border-red-200" :
+                              "bg-blue-100 text-blue-700 border-blue-200"
+                            )}>
+                              {selectedReport.sentiment.sentiment}
+                            </Badge>
+                            <span className="text-[10px] font-black italic text-blue-600">Urgency: {(selectedReport.sentiment.urgencyScore * 100).toFixed(0)}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-blue-100/50 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(selectedReport.sentiment.urgencyScore * 100) || 0}%` }}
+                              className="h-full bg-blue-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Metrics Overlay */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-6 bg-white rounded-3xl border border-[oklch(0.15_0.02_200_/_0.05)] shadow-spatial-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">Resolution</p>
+                        <p className={cn("text-3xl font-display font-black tracking-tighter", 
+                          selectedReport.prediction?.predictedDays > 3 ? "text-red-600" : "text-emerald-600"
+                        )}>
+                          {selectedReport.prediction?.predictedDays?.toFixed(1)}<span className="text-sm italic ml-1 opacity-40">days</span>
+                        </p>
+                      </div>
+                      <div className="p-6 bg-white rounded-3xl border border-[oklch(0.15_0.02_200_/_0.05)] shadow-spatial-sm">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">Severity</p>
+                        <Badge className={cn(getSeverityColor(selectedReport.classification?.severity), "px-4 py-1.5 text-[11px]")}>
+                          {translateSeverity(selectedReport.classification?.severity)}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Entities */}
+                    {Array.isArray(selectedReport.entities?.entities) && selectedReport.entities.entities.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Activity className="w-4 h-4 text-emerald-600" />
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Core Entities</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedReport.entities.entities.map((e: any, idx: number) => (
+                            <span key={idx} className="px-3 py-1.5 bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.05_200)] text-[10px] font-black italic rounded-xl border border-[oklch(0.15_0.02_200_/_0.1)] shadow-sm">
+                              {e.label}: {e.text}
+                            </span>
                           ))}
-                        </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Executive Summary */}
+                    {(selectedReport.summary?.executiveSummary || selectedReport.summary?.summary) && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-amber-600" />
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">AI Generation</span>
+                        </div>
+                        <div className="p-8 bg-emerald-50 rounded-[2rem] border border-emerald-100/50 relative overflow-hidden group">
+                          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform">
+                            <Brain size={48} />
+                          </div>
+                          <p className="text-sm leading-relaxed text-[oklch(0.15_0.05_160)] font-medium relative z-10 italic">
+                            &ldquo;{selectedReport.summary.executiveSummary || selectedReport.summary.summary}&rdquo;
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Entities */}
-              {Array.isArray(selectedReport.entities?.entities) && selectedReport.entities.entities.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Entitas yang Dikenali</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedReport.entities.entities.map((e: any, idx: number) => (
-                      <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                        {e.label}: {e.text}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(selectedReport.prediction?.shapExplanation?.topFactors?.length > 0 ||
-                selectedReport.prediction?.anomalyDetection?.anomalies?.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedReport.prediction?.shapExplanation?.topFactors?.length > 0 && (
-                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                      <div className="text-xs font-semibold text-gray-600 uppercase mb-2">Faktor Utama (SHAP)</div>
-                      <ul className="text-sm text-gray-800 space-y-1">
-                        {selectedReport.prediction.shapExplanation.topFactors.slice(0, 5).map((f: any, i: number) => (
-                          <li key={i} className="flex items-center justify-between">
-                            <span>{f.feature}</span>
-                            <span className={cn(
-                              "text-xs font-bold",
-                              f.direction === 'increases' ? 'text-red-600' : 'text-emerald-600'
-                            )}>
-                              {f.direction} • {Math.abs(f.abs_contribution || f.shap_value).toFixed(2)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {selectedReport.prediction?.anomalyDetection?.anomalies?.length > 0 && (
-                    <div className="p-4 rounded-xl bg-red-50 border border-red-100">
-                      <div className="text-xs font-semibold text-red-700 uppercase mb-2">Anomali</div>
-                      <ul className="text-sm text-red-800 space-y-1">
-                        {selectedReport.prediction.anomalyDetection.anomalies.map((a: any, i: number) => (
-                          <li key={i}>{a.message || a.type}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 flex justify-end">
-              <Button onClick={() => setShowDetailModal(false)}>
-                Tutup
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              {/* Modal Footer */}
+              <div className="p-8 bg-stone-50/50 border-t border-stone-100 flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setShowDetailModal(false)}>
+                  Close Sheet
+                </Button>
+                <Button onClick={() => window.print()} className="bg-stone-800 hover:bg-black">
+                   Print PDF
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

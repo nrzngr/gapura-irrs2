@@ -1,5 +1,9 @@
-export const NoiseTexture = () => (
-    <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none mix-blend-overlay" xmlns='http://www.w3.org/2000/svg'>
+interface NoiseTextureProps {
+  opacity?: number;
+}
+
+export const NoiseTexture = ({ opacity = 0.1 }: NoiseTextureProps) => (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none mix-blend-overlay" style={{ opacity }} xmlns='http://www.w3.org/2000/svg'>
         <filter id='noiseFilter'>
             <feTurbulence 
                 type='fractalNoise' 

@@ -19,6 +19,30 @@ const DIVISION_OPTIONS: { value: DivisionType; label: string }[] = [
     { value: 'GENERAL', label: 'Umum / Lainnya' },
 ];
 
+const DEFAULT_UNITS: Unit[] = [
+    { id: '00000000-0000-0000-0000-000000000101', name: 'Ramp' },
+    { id: '00000000-0000-0000-0000-000000000102', name: 'Passenger Service' },
+    { id: '00000000-0000-0000-0000-000000000103', name: 'Cargo' },
+    { id: '00000000-0000-0000-0000-000000000104', name: 'GSE' },
+    { id: '00000000-0000-0000-0000-000000000105', name: 'Security' },
+    { id: '00000000-0000-0000-0000-000000000106', name: 'Administrasi' },
+];
+
+const DEFAULT_POSITIONS: Array<Position & { level?: number }> = [
+    { id: '00000000-0000-0000-0000-000000000201', name: 'Super Admin', level: 1 },
+    { id: '00000000-0000-0000-0000-000000000202', name: 'Analyst', level: 2 },
+    { id: '00000000-0000-0000-0000-000000000203', name: 'DIVISI OT', level: 3 },
+    { id: '00000000-0000-0000-0000-000000000204', name: 'DIVISI OP', level: 3 },
+    { id: '00000000-0000-0000-0000-000000000205', name: 'DIVISI UQ', level: 3 },
+    { id: '00000000-0000-0000-0000-000000000206', name: 'OS', level: 3 },
+    { id: '00000000-0000-0000-0000-000000000207', name: 'OSF', level: 3 },
+    { id: '00000000-0000-0000-0000-000000000208', name: 'OSL', level: 3 },
+    { id: '00000000-0000-0000-0000-000000000209', name: 'Staff', level: 10 },
+    { id: '00000000-0000-0000-0000-00000000020A', name: 'Officer', level: 9 },
+    { id: '00000000-0000-0000-0000-00000000020B', name: 'Supervisor', level: 8 },
+    { id: '00000000-0000-0000-0000-00000000020C', name: 'Manager', level: 7 },
+];
+
 export default function RegisterPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
@@ -77,7 +101,7 @@ export default function RegisterPage() {
             const fallbackCodes = ['GPS', 'CGK', 'DPS', 'SUB', 'UPG', 'KNO', 'BPN', 'MDC', 'PDG', 'PKU', 'BTH', 'PLM'];
             const fallbackStations = fallbackCodes.map(code => ({ id: code, code, name: code }));
             setStations(stationsData.length ? stationsData : fallbackStations);
-            setUnits(unitsData);
+            setUnits(unitsData.length ? unitsData : DEFAULT_UNITS);
             setPositions(positionsData);
         };
         fetchMasterData();
@@ -85,11 +109,20 @@ export default function RegisterPage() {
 
     // Filter positions based on station selection
     const filteredPositions = useMemo(() => {
+        const pool = positions.length ? positions : DEFAULT_POSITIONS;
         const centralRoles = ['Super Admin', 'Analyst', 'OS', 'OSF', 'OSL', 'DIVISI OT', 'DIVISI OP', 'DIVISI UQ'];
-        return positions.filter(p => {
+        let result = pool.filter(p => {
             const isCentralRole = centralRoles.some(r => p.name.toUpperCase().includes(r.toUpperCase()));
             return isGPS ? isCentralRole : !isCentralRole;
         });
+        if (result.length === 0) {
+            const fallbackPool = DEFAULT_POSITIONS;
+            result = fallbackPool.filter(p => {
+                const isCentralRole = centralRoles.some(r => p.name.toUpperCase().includes(r.toUpperCase()));
+                return isGPS ? isCentralRole : !isCentralRole;
+            });
+        }
+        return result;
     }, [positions, isGPS]);
 
     // Filter stations to exclude GPS for branch registration
