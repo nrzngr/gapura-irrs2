@@ -234,7 +234,7 @@ export function CustomerFeedbackView({
                           height={viewport.isMobile ? 250 : 250} 
                         />
                       ) : (
-                      <div className="w-full h-full max-h-[250px] overflow-hidden">
+                      <div className="w-full h-full max-h-[400px] overflow-hidden">
                         <FeedbackBarChart
                           title=""
                           data={toChartData(chart.id)}

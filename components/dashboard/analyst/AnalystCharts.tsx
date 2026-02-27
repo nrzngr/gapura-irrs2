@@ -236,6 +236,44 @@ const WrappedXAxisTick = (props: any) => {
     );
 };
 
+const WrappedYAxisTick = (props: any) => {
+  const { x, y, payload } = props;
+  const words = String(payload.value).split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+  const maxLineLength = 20;
+
+  words.forEach((word: string) => {
+    if ((currentLine + word).length > maxLineLength) {
+      if (currentLine) lines.push(currentLine.trim());
+      currentLine = word + ' ';
+    } else {
+      currentLine += word + ' ';
+    }
+  });
+  if (currentLine) lines.push(currentLine.trim());
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, i) => (
+        <text
+          key={i}
+          x={-12}
+          y={i * 11}
+          dy={-((lines.length - 1) * 5.5)}
+          textAnchor="end"
+          fill="var(--text-primary)"
+          fontSize={10}
+          fontWeight={700}
+          className="tracking-tighter"
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  );
+};
+
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     if (!active || !payload?.length) return null;
 
@@ -298,7 +336,7 @@ function CategoryBarList({ data, color = '#4ade80', title }: { data: readonly { 
             <div className="space-y-2">
                 {pageItems.map((item) => (
                     <div key={item.name} className="flex items-center gap-2">
-                        <span className="text-[11px] font-medium text-slate-600 w-[140px] shrink-0 truncate" title={item.name}>
+                        <span className="text-[11px] font-medium text-slate-600 w-[140px] shrink-0 whitespace-normal break-words leading-tight" title={item.name}>
                             {item.name}
                         </span>
                         <div className="flex-1 flex items-center gap-1.5">
@@ -659,11 +697,19 @@ export default function AnalystCharts({
         // Get all categories and branches
         const categoryBranchCounts: Record<string, Record<string, number>> = {};
         const branchTotals: Record<string, number> = {};
-        
+        const areaGuard = (report: any) => {
+            const area = String(report.area || '').toLowerCase();
+            if (categoryField === 'terminal_area_category') return area.includes('terminal') || !!(report as any).terminal_area_category;
+            if (categoryField === 'apron_area_category') return area.includes('apron') || !!(report as any).apron_area_category;
+            if (categoryField === 'general_category') return area.includes('general') || !!(report as any).general_category;
+            return true;
+        };
         filteredReports.forEach(report => {
-            const category = (report as any)[categoryField] || 'Other';
-            const branch = report.branch || report.station_code || 'Unknown';
-            
+            if (!areaGuard(report)) return;
+            const raw = (report as any)[categoryField];
+            if (!raw || String(raw).trim() === '') return;
+            const category = String(raw).trim();
+            const branch = report.stations?.code || report.branch || report.station_code || 'Unknown';
             if (!categoryBranchCounts[category]) {
                 categoryBranchCounts[category] = {};
             }
@@ -671,22 +717,21 @@ export default function AnalystCharts({
                 categoryBranchCounts[category][branch] = 0;
             }
             categoryBranchCounts[category][branch]++;
-            
             branchTotals[branch] = (branchTotals[branch] || 0) + 1;
         });
         
-        // Get top 3 branches by total volume
+        // Get top 10 branches by total volume
         const topBranches = Object.entries(branchTotals)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
+            .slice(0, 10)
             .map(([branch]) => branch);
         
-        // Get top 15 categories by total count (more for scrolling)
+        // Get top 30 categories by total count (more for scrolling)
         const categoryTotals = Object.entries(categoryBranchCounts).map(([category, branches]) => ({
             category,
             total: Object.values(branches).reduce((sum, count) => sum + count, 0),
             branches
-        })).sort((a, b) => b.total - a.total).slice(0, 15);
+        })).sort((a, b) => b.total - a.total).slice(0, 30);
         
         // Compute grand totals
         const grandTotal: Record<string, number> = { total: 0 };
@@ -735,11 +780,19 @@ export default function AnalystCharts({
         // Get all categories and airlines
         const categoryAirlineCounts: Record<string, Record<string, number>> = {};
         const airlineTotals: Record<string, number> = {};
-        
+        const areaGuard = (report: any) => {
+            const area = String(report.area || '').toLowerCase();
+            if (categoryField === 'terminal_area_category') return area.includes('terminal') || !!(report as any).terminal_area_category;
+            if (categoryField === 'apron_area_category') return area.includes('apron') || !!(report as any).apron_area_category;
+            if (categoryField === 'general_category') return area.includes('general') || !!(report as any).general_category;
+            return true;
+        };
         filteredReports.forEach(report => {
-            const category = (report as any)[categoryField] || 'Other';
-            const airline = report.airline || report.airlines || 'Unknown';
-            
+            if (!areaGuard(report)) return;
+            const raw = (report as any)[categoryField];
+            if (!raw || String(raw).trim() === '') return;
+            const category = String(raw).trim();
+            const airline = (report.airline || report.airlines || 'Unknown').toString().trim() || 'Unknown';
             if (!categoryAirlineCounts[category]) {
                 categoryAirlineCounts[category] = {};
             }
@@ -747,14 +800,13 @@ export default function AnalystCharts({
                 categoryAirlineCounts[category][airline] = 0;
             }
             categoryAirlineCounts[category][airline]++;
-            
             airlineTotals[airline] = (airlineTotals[airline] || 0) + 1;
         });
         
-        // Get top 5 airlines sorted by total volume (descending)
+        // Get top 15 airlines sorted by total volume (descending)
         const allAirlines = Object.entries(airlineTotals)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
+            .slice(0, 15)
             .map(([airline]) => airline);
         
         // Get all categories sorted by total count (descending)
@@ -2087,94 +2139,134 @@ export default function AnalystCharts({
                         {/* Row 1: 4 horizontal bar charts */}
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
-                            {/* Report by Case Category */}
-                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                             <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl flex flex-col">
                                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Report by Case Category</h3>
-                                <div className="h-[200px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={cgoCaseCategoryData}
-                                            layout="vertical"
-                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
-                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={80} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
-                                                {cgoCaseCategoryData.map((entry, idx) => (
-                                                    <Cell key={`cgo-cat-${idx}`} fill={entry.color} />
-                                                ))}
-                                                <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+                                    <div style={{ height: Math.max(200, cgoCaseCategoryData.length * 50) }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={cgoCaseCategoryData}
+                                                layout="vertical"
+                                                margin={{ top: 4, right: 40, left: 40, bottom: 4 }}
+                                                barCategoryGap="30%"
+                                            >
+                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                <YAxis 
+                                                    type="category" 
+                                                    dataKey="name" 
+                                                    tick={<WrappedYAxisTick />} 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    width={110} 
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                    {cgoCaseCategoryData.map((entry, idx) => (
+                                                        <Cell key={`cgo-cat-${idx}`} fill={entry.color} />
+                                                    ))}
+                                                    <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Branch Reporting */}
-                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                             <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl flex flex-col">
                                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Branch Reporting</h3>
-                                <div className="h-[200px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={cgoBranchData}
-                                            layout="vertical"
-                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
-                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="branch" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={40} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="count" name="Laporan" fill={REFERENCE_COLORS.irregularity} radius={[0, 4, 4, 0]} maxBarSize={20}>
-                                                <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+                                    <div style={{ height: Math.max(200, cgoBranchData.length * 50) }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={cgoBranchData}
+                                                layout="vertical"
+                                                margin={{ top: 4, right: 40, left: 20, bottom: 4 }}
+                                                barCategoryGap="30%"
+                                            >
+                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                <YAxis 
+                                                    type="category" 
+                                                    dataKey="branch" 
+                                                    tick={<WrappedYAxisTick />} 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    width={100} 
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="count" name="Laporan" fill={REFERENCE_COLORS.irregularity} radius={[0, 4, 4, 0]} maxBarSize={20}>
+                                                    <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Airlines Report */}
-                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                             <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl flex flex-col">
                                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Airlines Report</h3>
-                                <div className="h-[200px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={cgoAirlinesData}
-                                            layout="vertical"
-                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
-                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="airline" tick={{ fill: 'var(--text-primary)', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} width={90} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="count" name="Laporan" fill={REFERENCE_COLORS.complaint} radius={[0, 4, 4, 0]} maxBarSize={16}>
-                                                <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+                                    <div style={{ height: Math.max(200, cgoAirlinesData.length * 50) }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={cgoAirlinesData}
+                                                layout="vertical"
+                                                margin={{ top: 4, right: 40, left: 20, bottom: 4 }}
+                                                barCategoryGap="30%"
+                                            >
+                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                <YAxis 
+                                                    type="category" 
+                                                    dataKey="airline" 
+                                                    tick={<WrappedYAxisTick />} 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    width={100} 
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="count" name="Laporan" fill={REFERENCE_COLORS.complaint} radius={[0, 4, 4, 0]} maxBarSize={16}>
+                                                    <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Monthly Report */}
-                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                             <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl flex flex-col">
                                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-6 opacity-70">Monthly Report</h3>
-                                <div className="h-[200px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={cgoMonthlyData}
-                                            layout="vertical"
-                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
-                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="month" tick={{ fill: 'var(--text-primary)', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} width={65} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="count" name="Laporan" fill={CHART_PALETTE[2]} radius={[0, 4, 4, 0]} maxBarSize={16}>
-                                                <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+                                    <div style={{ height: Math.max(200, cgoMonthlyData.length * 50) }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={cgoMonthlyData}
+                                                layout="vertical"
+                                                margin={{ top: 4, right: 40, left: 20, bottom: 4 }}
+                                                barCategoryGap="30%"
+                                            >
+                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                <YAxis 
+                                                    type="category" 
+                                                    dataKey="month" 
+                                                    tick={<WrappedYAxisTick />} 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    width={100} 
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="count" name="Laporan" fill={CHART_PALETTE[2]} radius={[0, 4, 4, 0]} maxBarSize={16}>
+                                                    <LabelList dataKey="count" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2182,28 +2274,38 @@ export default function AnalystCharts({
                         {/* Row 2: Category by Area + 2 pivot tables */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-                            {/* Category by Area */}
-                            <div className="bg-white rounded-xl border border-slate-200/70 shadow-sm p-5">
+                             <div className="bg-white rounded-xl border border-slate-200/70 shadow-sm p-5 flex flex-col">
                                 <h3 className="font-semibold text-[13px] tracking-tight text-slate-900 mb-3">Category by Area</h3>
-                                <div className="h-[220px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={cgoCategoryByAreaData}
-                                            layout="vertical"
-                                            margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
-                                            <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={90} />
-                                            <Tooltip content={<CustomTooltip />} />
-                                            <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
-                                                {cgoCategoryByAreaData.map((entry, idx) => (
-                                                    <Cell key={`cgo-area-${idx}`} fill={entry.color} />
-                                                ))}
-                                                <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+                                    <div style={{ height: Math.max(220, cgoCategoryByAreaData.length * 50) }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={cgoCategoryByAreaData}
+                                                layout="vertical"
+                                                margin={{ top: 4, right: 40, left: 40, bottom: 4 }}
+                                                barCategoryGap="30%"
+                                            >
+                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                <YAxis 
+                                                    type="category" 
+                                                    dataKey="name" 
+                                                    tick={<WrappedYAxisTick />} 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    width={110} 
+                                                    interval={0}
+                                                />
+                                                <Tooltip content={<CustomTooltip />} />
+                                                <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                    {cgoCategoryByAreaData.map((entry, idx) => (
+                                                        <Cell key={`cgo-area-${idx}`} fill={entry.color} />
+                                                    ))}
+                                                    <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2487,29 +2589,39 @@ export default function AnalystCharts({
                         {/* Row 2: HUB Report + Detail Report table */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                            {/* HUB Report */}
-                            <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl">
+                             <div className="card-glass p-6 group transition-all duration-500 hover:shadow-2xl flex flex-col">
                                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1 opacity-70">HUB Report</h3>
                                 <p className="text-[10px] font-medium text-[var(--text-muted)] mb-6">Distribusi laporan berdasarkan HUB</p>
                                 {cgoHubData.length === 0 ? (
                                     <p className="text-xs text-gray-400 text-center py-6">Tidak ada data HUB</p>
                                 ) : (
-                                    <div className="h-[220px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart
-                                                data={cgoHubData}
-                                                layout="vertical"
-                                                margin={{ top: 4, right: 40, left: 4, bottom: 4 }}
-                                            >
-                                                <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
-                                                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} width={80} />
-                                                <Tooltip content={<CustomTooltip />} />
-                                                <Bar dataKey="value" name="Count" fill="oklch(0.6 0.2 280)" radius={[0, 4, 4, 0]} maxBarSize={28}>
-                                                    <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
+                                    <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+                                        <div style={{ height: Math.max(220, cgoHubData.length * 50) }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart
+                                                    data={cgoHubData}
+                                                    layout="vertical"
+                                                    margin={{ top: 4, right: 40, left: 40, bottom: 4 }}
+                                                    barCategoryGap="30%"
+                                                >
+                                                    <CartesianGrid strokeDasharray="2 6" horizontal={false} stroke="oklch(0 0 0 / 0.05)" />
+                                                    <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                                    <YAxis 
+                                                        type="category" 
+                                                        dataKey="name" 
+                                                        tick={<WrappedYAxisTick />} 
+                                                        axisLine={false} 
+                                                        tickLine={false} 
+                                                        width={110} 
+                                                        interval={0}
+                                                    />
+                                                    <Tooltip content={<CustomTooltip />} />
+                                                    <Bar dataKey="value" name="Count" fill="oklch(0.6 0.2 280)" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                                                        <LabelList dataKey="value" position="right" style={{ fill: 'var(--text-primary)', fontSize: 11, fontWeight: 700 }} />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
                                     </div>
                                 )}
                             </div>

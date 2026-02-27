@@ -15,6 +15,44 @@ interface FeedbackBarChartProps {
   sortByValue?: boolean;
 }
 
+const WrappedTick = (props: any) => {
+  const { x, y, payload } = props;
+  const words = payload.value.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+  const maxLineLength = 20;
+
+  words.forEach((word: string) => {
+    if ((currentLine + word).length > maxLineLength) {
+      if (currentLine) lines.push(currentLine.trim());
+      currentLine = word + ' ';
+    } else {
+      currentLine += word + ' ';
+    }
+  });
+  if (currentLine) lines.push(currentLine.trim());
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, i) => (
+        <text
+          key={i}
+          x={-12}
+          y={i * 11}
+          dy={-((lines.length - 1) * 5.5)}
+          textAnchor="end"
+          fill="#475569"
+          fontSize={9}
+          fontWeight={700}
+          className="tracking-tighter"
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  );
+};
+
 /**
  * Dedicated Horizontal Bar Chart for Customer Feedback dashboard.
  * Focuses on clean axes and specific branding colors.
@@ -33,22 +71,25 @@ export function FeedbackBarChart({ title, data, limit = 6, sortByValue = true }:
   }, [data, limit, sortByValue]);
 
   const barColor = title.toLowerCase().includes('complaint') || title.toLowerCase().includes('irregularity') ? '#ef5350' : '#7cb342';
+  
+  // Dynamic height to prevent overlapping labels (65px per bar)
+  const chartHeight = Math.max(250, displayData.length * 65);
+
   // Complexity: Time O(n) | Space O(1)
   return (
-    <div className="w-full h-full">
-      <div className="w-full h-full min-h-[250px]">
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <div style={{ height: chartHeight, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             layout="vertical"
             data={displayData}
-            margin={{ top: 10, right: 60, left: 10, bottom: 0 }}
-            barCategoryGap="35%"
+            margin={{ top: 20, right: 60, left: 10, bottom: 20 }}
+            barCategoryGap="40%"
           >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
             <XAxis 
               type="number" 
               fontSize={10} 
-              fontWeight={700}
               stroke="#94a3b8" 
               axisLine={false}
               tickLine={false}
@@ -57,34 +98,34 @@ export function FeedbackBarChart({ title, data, limit = 6, sortByValue = true }:
             <YAxis 
               dataKey="name" 
               type="category" 
-              width={90} 
+              width={125} 
               fontSize={10} 
-              fontWeight={700}
               stroke="#64748b" 
               axisLine={false}
               tickLine={false}
               interval={0}
+              tick={<WrappedTick />}
             />
             <Tooltip 
-              cursor={{ fill: '#f8fafc' }}
+              cursor={{ fill: '#f8fafc', opacity: 0.4 }}
               contentStyle={{ 
                 borderRadius: '12px', 
                 border: 'none', 
                 boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-                fontSize: '12px'
+                fontSize: '11px'
               }}
             />
             <Bar 
               dataKey="value" 
               fill={barColor} 
               radius={[0, 6, 6, 0]} 
-              barSize={16}
-              animationDuration={1000}
+              barSize={18}
+              animationDuration={800}
             >
               <LabelList 
                 dataKey="value" 
                 position="right" 
-                style={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} 
+                style={{ fontSize: 10, fontWeight: 800, fill: '#475569' }} 
               />
             </Bar>
           </BarChart>

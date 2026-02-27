@@ -116,7 +116,7 @@ export function FeedbackDonutChart({ title, data, colors = DEFAULT_COLORS, heigh
               className="w-1.5 h-1.5 rounded-full shrink-0" 
               style={{ backgroundColor: entry.fill }} 
             />
-            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide line-clamp-1 leading-tight max-w-[100px]">
+            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide whitespace-normal leading-tight max-w-[120px] break-words">
               {entry.name}
             </span>
           </div>

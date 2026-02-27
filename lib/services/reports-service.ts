@@ -278,9 +278,28 @@ export class ReportsService {
     // Fast mapping using pre-calculated indices
     Object.entries(columnMapping).forEach(([prop, colIdx]) => {
         if (row[colIdx] !== undefined) {
-            report[prop] = row[colIdx];
+            let val = row[colIdx];
+            
             // Clean up text if any
-            if (typeof report[prop] === 'string') report[prop] = report[prop].trim();
+            if (typeof val === 'string') {
+                val = val.trim();
+                
+                // Specific validation for area category fields to filter out garbage data
+                const areaProps = ['terminal_area_category', 'apron_area_category', 'general_category'];
+                if (areaProps.includes(prop)) {
+                    const lowVal = val.toLowerCase();
+                    // Filter out URLs or obviously non-category data
+                    if (lowVal.startsWith('http') || 
+                        lowVal.includes('www.') || 
+                        val.length > 100 ||
+                        lowVal === 'null' ||
+                        lowVal === 'undefined') {
+                        val = ''; // Clear garbage data
+                    }
+                }
+            }
+            
+            report[prop] = val;
         }
     });
 
@@ -411,6 +430,15 @@ export class ReportsService {
         report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
     }
 
+    // Normalize Target Division to match application constants (DIVISIONS)
+    if (report.target_division) {
+        const div = String(report.target_division).trim();
+        if (div === 'Operational Services') report.target_division = 'Monitoring';
+        else if (div === 'Teknik (GSE)') report.target_division = 'Teknik (GSE)';
+        else if (div === 'Quality (Safety)') report.target_division = 'Quality (Safety)';
+        // Others already match or are close enough
+    }
+
     return report as Report;
   }
 
@@ -434,7 +462,7 @@ export class ReportsService {
     if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:AT1`,
+      range: `${sheetName}!1:1`,
     });
     const headers = (response.data.values?.[0] || []).map((h: any) => String(h).trim());
     setCache(cacheKey, headers);
@@ -448,7 +476,7 @@ export class ReportsService {
           try {
               const response = await sheets.spreadsheets.values.get({
                   spreadsheetId: SPREADSHEET_ID,
-                  range: `${sheetName}!A1:AT`, // Combined A1 (Headers) + Data
+                  range: sheetName,
               });
               return response.data.values || [];
           } catch (error) {
@@ -646,7 +674,7 @@ export class ReportsService {
     const sheets = await this.getSheets();
     
     // Batch fetch for performance consolidation (O(1) HTTP requests)
-    const ranges = REPORT_SHEETS.map(name => `${name}!A1:AT`);
+    const ranges = REPORT_SHEETS.map(name => `${name}`);
     const batchRes = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: SPREADSHEET_ID,
       ranges,

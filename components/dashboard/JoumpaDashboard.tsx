@@ -62,6 +62,45 @@ function parseDateDMY(raw: string): Date | null {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+const WrappedYAxisTick = (props: any) => {
+  const { x, y, payload } = props;
+  const label = String(payload.value);
+  const words = label.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+  const maxLineLength = 20;
+
+  words.forEach((word: string) => {
+    if ((currentLine + word).length > maxLineLength) {
+      if (currentLine) lines.push(currentLine.trim());
+      currentLine = word + ' ';
+    } else {
+      currentLine += word + ' ';
+    }
+  });
+  if (currentLine) lines.push(currentLine.trim());
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, i) => (
+        <text
+          key={i}
+          x={-12}
+          y={i * 11}
+          dy={-((lines.length - 1) * 5.5)}
+          textAnchor="end"
+          fill="#475569"
+          fontSize={10}
+          fontWeight={700}
+          className="tracking-tighter"
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  );
+};
+
 // ─── Component ─────────────────────────────────────────────────────────────
 export function JoumpaDashboard() {
   const router = useRouter();
@@ -421,21 +460,36 @@ export function JoumpaDashboard() {
           </div>
 
           {/* Monthly Report (Bar) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col">
             <h3 className="text-base font-bold text-gray-800 mb-4">Monthly Report</h3>
-            <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyReportData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  {allCategories.map((cat, i) => (
-                    <Bar key={cat} dataKey={cat} fill={CATEGORY_COLORS[cat] || BAR_FILLS[i % BAR_FILLS.length]} radius={[4, 4, 0, 0]} />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+              <div style={{ height: Math.max(220, monthlyReportData.length * 60) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={monthlyReportData}
+                    layout="vertical"
+                    margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
+                    barCategoryGap="40%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis 
+                      type="category"
+                      dataKey="month" 
+                      tick={<WrappedYAxisTick />}
+                      width={110} 
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                    />
+                    <Tooltip />
+                    <Legend />
+                    {allCategories.map((cat, i) => (
+                      <Bar key={cat} dataKey={cat} fill={CATEGORY_COLORS[cat] || BAR_FILLS[i % BAR_FILLS.length]} radius={[0, 4, 4, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
@@ -490,40 +544,70 @@ export function JoumpaDashboard() {
           </div>
 
           {/* Branch Report (Bar) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col">
             <h3 className="text-base font-bold text-gray-800 mb-4">Branch Report</h3>
-            <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={branchReportData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="branch" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  {allCategories.map((cat, i) => (
-                    <Bar key={cat} dataKey={cat} fill={CATEGORY_COLORS[cat] || BAR_FILLS[i % BAR_FILLS.length]} radius={[4, 4, 0, 0]} />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+              <div style={{ height: Math.max(220, branchReportData.length * 60) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={branchReportData}
+                    layout="vertical"
+                    margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
+                    barCategoryGap="40%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis 
+                      type="category"
+                      dataKey="branch" 
+                      tick={<WrappedYAxisTick />}
+                      width={110}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                    />
+                    <Tooltip />
+                    <Legend />
+                    {allCategories.map((cat, i) => (
+                      <Bar key={cat} dataKey={cat} fill={CATEGORY_COLORS[cat] || BAR_FILLS[i % BAR_FILLS.length]} radius={[0, 4, 4, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
           {/* Category by Airlines (Bar) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col">
             <h3 className="text-base font-bold text-gray-800 mb-4">Category by Airlines</h3>
-            <div style={{ height: 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryByAirlinesData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="airline" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  {allCategories.map((cat, i) => (
-                    <Bar key={cat} dataKey={cat} fill={CATEGORY_COLORS[cat] || BAR_FILLS[i % BAR_FILLS.length]} radius={[4, 4, 0, 0]} />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[250px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
+              <div style={{ height: Math.max(220, categoryByAirlinesData.length * 60) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={categoryByAirlinesData}
+                    layout="vertical"
+                    margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
+                    barCategoryGap="40%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis 
+                      type="category"
+                      dataKey="airline" 
+                      tick={<WrappedYAxisTick />}
+                      width={110}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                    />
+                    <Tooltip />
+                    <Legend />
+                    {allCategories.map((cat, i) => (
+                      <Bar key={cat} dataKey={cat} fill={CATEGORY_COLORS[cat] || BAR_FILLS[i % BAR_FILLS.length]} radius={[0, 4, 4, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>

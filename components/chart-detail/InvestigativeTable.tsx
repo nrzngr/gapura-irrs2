@@ -108,6 +108,7 @@ export function InvestigativeTable({
   const reportCol = allColumns.find(c => ['report', 'laporan', 'description', 'remark', 'remarks', 'short_report'].includes(c.toLowerCase()));
   const rootCauseCol = allColumns.find(c => ['root_cause', 'root cause', 'root caused', 'akar_masalah', 'penyebab'].includes(c.toLowerCase()));
   const actionTakenCol = allColumns.find(c => ['action_taken', 'action taken', 'tindakan', 'action', 'corrective_action'].includes(c.toLowerCase()));
+  const preventiveActionCol = allColumns.find(c => ['preventive_action', 'preventive action', 'pencegahan', 'preventif'].includes(c.toLowerCase()));
   const evidenceCol = allColumns.find(c => {
     const l = c.toLowerCase();
     return l.includes('evidence') || l === 'link' || l === 'url' || l.includes('evidence_link');
@@ -366,21 +367,28 @@ export function InvestigativeTable({
                   </div>
                 </th>
               )}
-              {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => (
-                <th key={col} onClick={() => handleSort(col)} className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors group select-none text-left bg-transparent">
-                  <div className="flex items-center gap-2">
-                    {col.replace(/_/g, ' ')}
-                    {sortCol === col ? (
-                      <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '▲' : '▼'}</span>
-                    ) : (
-                      <span className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] transition-opacity">▼</span>
-                    )}
-                  </div>
-                </th>
-              ))}
+              {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => {
+                const isWide = col === rootCauseCol || col === actionTakenCol || col === preventiveActionCol;
+                return (
+                  <th 
+                    key={col} 
+                    onClick={() => handleSort(col)} 
+                    className={`px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors group select-none text-left bg-transparent ${isWide ? 'min-w-[300px]' : ''}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {col.replace(/_/g, ' ')}
+                      {sortCol === col ? (
+                        <span className="text-[var(--brand-primary)]">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                      ) : (
+                        <span className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] transition-opacity">▼</span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
               {reportCol && (
-                <th className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] text-left bg-transparent">
-                  PREVIEW
+                <th className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-[0.2em] text-left bg-transparent min-w-[300px]">
+                  {reportCol.replace(/_/g, ' ')}
                 </th>
               )}
             </tr>
@@ -449,12 +457,13 @@ export function InvestigativeTable({
                         )}
 
                         {primaryColumns.filter(c => c !== categoryCol && c !== dateCol && c !== reportCol).map(col => {
+                          const isWide = col === rootCauseCol || col === actionTakenCol || col === preventiveActionCol;
                           const isEvidence = evidenceCol === col || col.toLowerCase().includes('evidence') || col.toLowerCase() === 'link';
                           
                           if (isEvidence) {
                             const urls = parseEvidenceLinks(row[col]);
                             return (
-                              <td key={col} className="px-6 py-4 text-[11px] font-medium text-[var(--text-secondary)] border-b border-transparent">
+                              <td key={col} className={`px-6 py-4 text-[11px] font-medium text-[var(--text-secondary)] border-b border-transparent ${isWide ? 'min-w-[300px]' : ''}`}>
                                 {urls.length > 0 ? (
                                   <div className="flex flex-wrap gap-2">
                                     {urls.map((url, i) => (
@@ -476,17 +485,17 @@ export function InvestigativeTable({
                               </td>
                             );
                           }
-
+                          
                           return (
-                            <td key={col} className="px-6 py-4 text-[11px] font-medium text-[var(--text-secondary)] border-b border-transparent">
+                            <td key={col} className={`px-6 py-4 text-[11px] font-medium text-[var(--text-secondary)] border-b border-transparent ${isWide ? 'min-w-[300px]' : ''}`}>
                               <span dangerouslySetInnerHTML={{ __html: formatDisplayValue(row[col], col) }} />
                             </td>
                           );
                         })}
 
                         {reportCol && (
-                          <td className="px-6 py-4 text-[11px] text-[var(--text-tertiary)] max-w-xs border-b border-transparent">
-                            <div className="truncate font-medium italic opacity-80">
+                          <td className="px-6 py-4 text-[11px] text-[var(--text-secondary)] border-b border-transparent min-w-[300px]">
+                            <div className="font-medium italic opacity-90 whitespace-normal leading-relaxed">
                               {String(row[reportCol])}
                             </div>
                           </td>
