@@ -728,6 +728,105 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
               </button>
             </div>
           )}
+          {division.code === 'OT' && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push('/dashboard/ot/complaint-by-category')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+                Complaint per Category
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/ot/risk-severity')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21 18-8-14-8 14Z"/></svg>
+                Risk & Severity
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/ot/case-status')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                Status Case
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/ot/gse-top-cases')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                Case GSE Tertinggi
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/ot/gse-performance')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v10"/><path d="M12 3c-4.2 0-8 3.8-8 8 0 4 2.6 7.4 6.2 8.7.6.2 1.3-.2 1.3-.9v-3.1c0-.4-.2-.7-.5-.9-1.5-.8-2.5-2.4-2.5-4.2 0-2.6 2.1-4.8 4.8-4.8s4.8 2.1 4.8 4.8c0 1.8-1 3.4-2.5 4.2-.3.2-.5.5-.5.9v3.1c0 .7.7 1.1 1.3.9C17.4 18.4 20 15 20 11c0-4.2-3.8-8-8-8Z"/></svg>
+                Performa GSE
+              </button>
+            </div>
+          )}
+          {division.code === 'OP' && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push('/dashboard/op/complaint-by-category')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+                Complaint per Category
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/risk-severity')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21 18-8-14-8 14Z"/></svg>
+                Risk & Severity
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/irregularity-complaint-top-cases')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                Top Irregularity & Complaint
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/root-cause-dominant')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                Root Cause Dominan
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/case-status')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                Status Case
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/sla-compliance')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+                SLA Compliance
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/cargo-irregularity')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-600 to-yellow-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><path d="M14 3h7v5h-7z"/><path d="M14 12h7v9h-7z"/></svg>
+                Logistik Irregularity
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/joumpa')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                Joumpa Handling
+              </button>
+            </div>
+          )}
         </PresentationSlide>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">

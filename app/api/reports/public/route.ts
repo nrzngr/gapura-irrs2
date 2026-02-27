@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { reportsService } from '@/lib/services/reports-service';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -73,6 +74,42 @@ export async function POST(request: Request) {
     };
 
     const newReport = await reportsService.createReport(reportData);
+
+    // Best-effort metadata persistence to Supabase for mapping & audit
+    // Uses Admin client to avoid unauthorized issues on public route
+    try {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.warn('[Public Report] SUPABASE_SERVICE_ROLE_KEY not set, skipping metadata insert');
+      } else {
+        const sheetId = (newReport as any).original_id || newReport.id;
+        const { error: insertErr } = await supabaseAdmin
+          .from('reports')
+          .insert({
+            // Do not set id explicitly to keep DB defaults unless required
+            sheet_id: sheetId,
+            title: newReport.title,
+            description: newReport.description,
+            reporter_name: newReport.reporter_name || body.reporter_name || null,
+            reporter_email: newReport.reporter_email || body.reporter_email || null,
+            status: newReport.status || 'MENUNGGU_FEEDBACK',
+            severity: newReport.severity || 'low',
+            date_of_event: newReport.date_of_event || null,
+            created_at: newReport.created_at || new Date().toISOString(),
+            updated_at: newReport.updated_at || new Date().toISOString(),
+            // Helpful context
+            station_id: newReport.station_code || newReport.station_id || null,
+            airlines: newReport.airlines || newReport.airline || null,
+            flight_number: newReport.flight_number || null,
+            category: newReport.category || newReport.main_category || null,
+          });
+        if (insertErr) {
+          console.warn('[Public Report] Supabase metadata insert failed (non-blocking):', insertErr.message);
+        }
+      }
+    } catch (e) {
+      console.warn('[Public Report] Supabase metadata insert error (non-blocking):', e);
+    }
+
     return NextResponse.json({ success: true, message: 'Laporan berhasil dikirim', data: newReport }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: 'Gagal mengirim laporan' }, { status: 500 });

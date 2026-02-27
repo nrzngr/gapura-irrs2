@@ -5,6 +5,12 @@ import { verifySession } from '@/lib/auth-utils';
 import { validateStatusTransition, getTimestampFieldForStatus, getUserFieldForStatus } from '@/lib/utils/validate-transition';
 import { reportsService } from '@/lib/services/reports-service';
 
+// Ensure Turbopack doesn't expect static manifests for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+export const fetchCache = 'force-no-store';
+
 // Reference data cache — stations/users change infrequently
 // Complexity: Time O(1) per lookup | Space O(stations + users)
 interface RefCache<T> { data: T; ts: number }

@@ -79,6 +79,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             ]
         },
         {
+            title: 'Analysis',
+            items: [
+                { href: '/dashboard/os/ai-reports', label: 'AI Reports', icon: Brain },
+            ]
+        },
+        {
             title: 'Schedule',
             items: [
                 { href: '/dashboard/os/calendar', label: 'Event Calendar', icon: Calendar },
@@ -94,6 +100,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/ot/reports', label: 'Semua Laporan', icon: ClipboardList },
                 { href: '/dashboard/ot/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
+        },
+        {
+            title: 'Analysis',
+            items: [
+                { href: '/dashboard/ot/ai-reports', label: 'AI Reports', icon: Brain },
+            ]
         }
     ],
     'OP': [
@@ -104,6 +116,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/op/reports', label: 'Semua Laporan', icon: ClipboardList },
                 { href: '/dashboard/op/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
+        },
+        {
+            title: 'Analysis',
+            items: [
+                { href: '/dashboard/op/ai-reports', label: 'AI Reports', icon: Brain },
+            ]
         }
     ],
     'UQ': [
@@ -113,6 +131,12 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
                 { href: '/dashboard/uq', label: 'Dashboard UQ', icon: LayoutDashboard },
                 { href: '/dashboard/uq/reports', label: 'Semua Laporan', icon: ClipboardList },
                 { href: '/dashboard/uq/dispatched', label: 'Laporan Divisi', icon: Inbox },
+            ]
+        },
+        {
+            title: 'Analysis',
+            items: [
+                { href: '/dashboard/uq/ai-reports', label: 'AI Reports', icon: Brain },
             ]
         }
     ],
