@@ -10,6 +10,61 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ResponsiveBarChart } from '@/components/charts/ResponsiveBarChart';
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isNumericString = (v: unknown): v is string => typeof v === 'string' && /^\d+(\.\d+)?$/.test(v.trim());
+
+const excelSerialToDate = (serial: number): Date => {
+  const base = Date.UTC(1899, 11, 30);
+  const ms = serial * 24 * 60 * 60 * 1000;
+  return new Date(base + ms);
+};
+
+const parseDateFlexible = (input: unknown): string => {
+  if (input == null) return '-';
+  if (isFiniteNumber(input)) {
+    const d = excelSerialToDate(input);
+    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID');
+    }
+  if (isNumericString(input)) {
+    const n = Number(input);
+    if (n > 10000 && n < 100000) {
+      const d = excelSerialToDate(n);
+      return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID');
+    }
+    if (n > 1e9) {
+      const d = new Date(n > 1e12 ? n : n * 1000);
+      return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID');
+    }
+  }
+  const d = new Date(String(input));
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID');
+};
+
+const pickFlightNumber = (o: Record<string, unknown>): string | undefined => {
+  const candidates = [
+    'flightNumber','FlightNumber','flight_number','Flight_Number','FLIGHT_NUMBER',
+    'flightNo','flight_no','Flight No','Flight Number','flight','Flight'
+  ];
+  for (const k of candidates) {
+    if (o[k] && String(o[k]).trim()) return String(o[k]).trim();
+  }
+  return undefined;
+};
+
+type OriginalData = Record<string, unknown>;
+type Prediction = {
+  predictedDays?: number;
+  anomalyDetection?: { isAnomaly?: boolean; anomalies?: unknown[] };
+};
+type Classification = {
+  severity?: string;
+  severityConfidence?: number;
+};
+type Sentiment = { sentiment?: string; urgencyScore: number };
+type SummaryBlock = { executiveSummary?: string; summary?: string };
+type EntityItem = { label?: string; text?: unknown };
+type EntitiesBlock = { entities: EntityItem[] };
+
 interface BatchAnalysisResult {
   status: string;
   metadata: {
@@ -37,12 +92,12 @@ interface BatchAnalysisResult {
   results: Array<{
     rowId: string;
     sourceSheet: string;
-    originalData: any;
-    prediction: any;
-    classification: any;
-    sentiment?: any;
-    summary?: any;
-    entities?: any;
+    originalData: OriginalData;
+    prediction: Prediction;
+    classification: Classification;
+    sentiment?: Sentiment;
+    summary?: SummaryBlock;
+    entities?: EntitiesBlock;
   }>;
 }
 
@@ -69,7 +124,16 @@ const Badge = ({ children, className }: { children: React.ReactNode; className?:
   </span>
 );
 
-const Button = ({ children, onClick, disabled, variant = 'primary', className, type = 'button' }: any) => {
+type ButtonVariant = 'primary' | 'secondary' | 'outline';
+interface ButtonProps {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  variant?: ButtonVariant;
+  className?: string;
+  type?: 'button' | 'submit' | 'reset';
+}
+const Button = ({ children, onClick, disabled, variant = 'primary', className, type = 'button' }: ButtonProps) => {
   const variants = {
     primary: 'bg-[oklch(0.40_0.15_160)] text-white hover:bg-[oklch(0.35_0.15_160)] shadow-spatial-sm',
     secondary: 'bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.02_200)] hover:bg-[oklch(0.95_0.01_200)] border border-[oklch(0.15_0.02_200_/_0.1)]',
@@ -120,9 +184,10 @@ export default function BranchAIReportsPage() {
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
   const [branchInfo, setBranchInfo] = useState<string | null>(null);
-  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<BatchAnalysisResult['results'][number] | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCriticalModal, setShowCriticalModal] = useState(false);
+  const [aiExpanded, setAiExpanded] = useState(false);
 
   useEffect(() => {
     analyzeAllReports();
@@ -164,35 +229,66 @@ export default function BranchAIReportsPage() {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
         setError(errorData.error || `Error ${res.status}: AI service tidak tersedia`);
       }
-    } catch (err) {
+    } catch {
       setError('Gagal menganalisis laporan. Pastikan AI service berjalan.');
     } finally {
       setLoading(false);
     }
   };
 
-  const exportResults = () => {
+  const exportResults = async () => {
     if (!batchResults) return;
-    
-    const data = {
-      summary: batchResults.summary,
-      results: batchResults.results,
-      branch: branchInfo,
-      exportedAt: new Date().toISOString()
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const XLSX = await import('xlsx-js-style');
+    const wb = XLSX.utils.book_new();
+    const rows = batchResults.results.map(r => {
+      const od = r.originalData as Record<string, unknown>;
+      const tsKeys = ['date','Date','timestamp','Timestamp','created_at','form_submitted_at','form_completed_at','date_of_event'] as const;
+      const tsVal = tsKeys.map(k => od[k]).find(v => v != null);
+      const ts = parseDateFlexible(tsVal as unknown);
+      const airline = String(od.airline ?? od['Airlines'] ?? '');
+      const route = String(od.route ?? '');
+      const flight = String(pickFlightNumber(od) ?? '');
+      const issue = String(od['issueType'] ?? od['Irregularity_Complain_Category'] ?? '');
+      const severity = r.classification?.severity ?? '';
+      const predDays = typeof r.prediction?.predictedDays === 'number' ? r.prediction.predictedDays : '';
+      const urgencyPct = typeof r.sentiment?.urgencyScore === 'number' ? Math.round(r.sentiment.urgencyScore * 100) : '';
+      const summaryText = String(r.summary?.executiveSummary ?? r.summary?.summary ?? '');
+      return {
+        RowID: r.rowId,
+        Sheet: r.sourceSheet,
+        Airline: airline,
+        Route: route,
+        Flight: flight,
+        IssueType: issue,
+        Severity: severity,
+        PredDays: predDays,
+        UrgencyPct: urgencyPct,
+        Timestamp: ts,
+        Summary: summaryText,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: ['RowID','Sheet','Airline','Route','Flight','IssueType','Severity','PredDays','UrgencyPct','Timestamp','Summary'],
+      skipHeader: false,
+    });
+    ws['!cols'] = [
+      { wch: 18 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 14 },
+      { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 60 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'AI Analysis');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ai-analysis-branch-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `ai-analysis-branch-${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  const criticalAndHighReports = batchResults?.results.filter((r: any) => 
+  const criticalAndHighReports = batchResults?.results.filter((r) => 
     r.classification?.severity === 'Critical' || r.classification?.severity === 'High'
   ) || [];
 
@@ -202,9 +298,9 @@ export default function BranchAIReportsPage() {
     if (!batchResults) return 0;
     return batchResults.summary?.totalRecords ?? batchResults.results?.length ?? 0;
   })();
-  const processingTimeSeconds = batchResults?.metadata?.processingTimeSeconds;
+  // const processingTimeSeconds = batchResults?.metadata?.processingTimeSeconds;
 
-  const anomalyCount = batchResults?.results.filter((r: any) => 
+  const anomalyCount = batchResults?.results.filter((r) => 
     r?.prediction?.anomalyDetection?.isAnomaly ||
     ((r?.prediction?.anomalyDetection?.anomalies || []).length > 0)
   ).length || 0;
@@ -212,8 +308,8 @@ export default function BranchAIReportsPage() {
   const avgSeverityConfidence = (() => {
     if (!batchResults) return 0;
     const vals = batchResults.results
-      .map((r: any) => r.classification?.severityConfidence)
-      .filter((x: any) => typeof x === 'number');
+      .map((r) => r.classification?.severityConfidence)
+      .filter((x): x is number => typeof x === 'number');
     if (vals.length === 0) return 0;
     return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
   })();
@@ -321,7 +417,7 @@ export default function BranchAIReportsPage() {
                   value: total || totalRecordsDerived, 
                   color: 'emerald', 
                   icon: Database,
-                  desc: 'Total data laporan yang berhasil dianalisis oleh AI'
+                  desc: 'Total laporan berstatus bukan CLOSED yang berhasil dianalisis AI'
                 },
                 { 
                   label: 'ESTIMASI SELESAI', 
@@ -393,14 +489,43 @@ export default function BranchAIReportsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { label: 'Avg Pred', value: `${batchResults.summary.predictionStats.mean.toFixed(1)}d`, icon: Clock, bg: 'bg-emerald-50', text: 'text-emerald-700' },
-                    { label: 'Anomalies', value: anomalyCount, icon: AlertTriangle, bg: 'bg-red-50', text: 'text-red-700' },
-                    { label: 'Confidence', value: `${(avgSeverityConfidence * 100).toFixed(0)}%`, icon: Activity, bg: 'bg-blue-50', text: 'text-blue-700' },
-                    { label: 'Complexity', value: 'High', icon: Brain, bg: 'bg-amber-50', text: 'text-amber-700' },
+                    { 
+                      label: 'Avg Pred', 
+                      value: `${batchResults.summary.predictionStats.mean.toFixed(1)}d`, 
+                      icon: Clock, 
+                      bg: 'bg-emerald-50', 
+                      text: 'text-emerald-700',
+                      desc: 'Rata-rata prediksi waktu penyelesaian dari semua laporan'
+                    },
+                    { 
+                      label: 'Anomalies', 
+                      value: anomalyCount, 
+                      icon: AlertTriangle, 
+                      bg: 'bg-red-50', 
+                      text: 'text-red-700',
+                      desc: 'Jumlah laporan yang terdeteksi menyimpang oleh detektor anomali'
+                    },
+                    { 
+                      label: 'Confidence', 
+                      value: `${(avgSeverityConfidence * 100).toFixed(0)}%`, 
+                      icon: Activity, 
+                      bg: 'bg-blue-50', 
+                      text: 'text-blue-700',
+                      desc: 'Rata-rata keyakinan model pada label severity'
+                    },
+                    { 
+                      label: 'Complexity', 
+                      value: 'High', 
+                      icon: Brain, 
+                      bg: 'bg-amber-50', 
+                      text: 'text-amber-700',
+                      desc: 'Perkiraan tingkat kerumitan penanganan berdasarkan pola data'
+                    },
                   ].map((item, i) => (
                     <div key={i} className={cn("p-4 rounded-2xl border border-transparent hover:border-white/50 transition-all", item.bg)}>
                       <p className="text-[10px] font-black uppercase tracking-wider opacity-40 mb-1">{item.label}</p>
                       <p className={cn("text-xl font-display font-black", item.text)}>{item.value}</p>
+                      <p className="text-[10px] text-stone-600 opacity-80 mt-1 leading-snug">{item.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -445,6 +570,7 @@ export default function BranchAIReportsPage() {
                   <thead>
                     <tr className="bg-stone-50/50">
                       <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">Identity / Route</th>
+                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">Flight</th>
                       <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">Severity</th>
                       <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100">ETA</th>
                       <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 border-b border-stone-100 text-right">Action</th>
@@ -466,12 +592,17 @@ export default function BranchAIReportsPage() {
                         <td className="px-8 py-5">
                           <div className="flex flex-col">
                             <span className="text-sm font-black text-stone-800 tracking-tight group-hover:text-emerald-700 transition-colors">
-                              {report.originalData.airline || report.originalData.Airlines || 'Unknown Carrier'}
+                              {String((report.originalData as Record<string, unknown>).airline ?? (report.originalData as Record<string, unknown>)['Airlines'] ?? 'Unknown Carrier')}
                             </span>
                             <span className="text-[10px] font-bold text-stone-400 italic">
-                              {report.originalData.route || 'No route defined'}
+                              {String((report.originalData as Record<string, unknown>).route ?? 'No route defined')}
                             </span>
                           </div>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className="px-2 py-1 rounded-lg bg-stone-100 text-stone-700 text-[10px] font-black italic">
+                            {String(pickFlightNumber(report.originalData) ?? '-')}
+                          </span>
                         </td>
                         <td className="px-8 py-5">
                           <Badge className={cn(getSeverityColor(report.classification?.severity), "px-3 py-1")}>
@@ -554,7 +685,7 @@ export default function BranchAIReportsPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                {criticalAndHighReports.map((report: any, idx) => (
+                {criticalAndHighReports.map((report: BatchAnalysisResult['results'][number], idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, x: -10 }}
@@ -574,11 +705,11 @@ export default function BranchAIReportsPage() {
                             {translateSeverity(report.classification?.severity)}
                           </Badge>
                           <span className="text-[10px] font-black italic text-stone-400">
-                            {report.originalData.airline || report.originalData.Airlines}
+                            {String((report.originalData as Record<string, unknown>).airline ?? (report.originalData as Record<string, unknown>)['Airlines'] ?? '')}
                           </span>
                         </div>
                         <p className="text-sm font-bold text-stone-800 line-clamp-1 group-hover:text-red-700 transition-colors">
-                          {report.originalData.route || report.originalData.issueType || 'Detail Operasional'}
+                          {String((report.originalData as Record<string, unknown>).route ?? (report.originalData as Record<string, unknown>)['issueType'] ?? 'Detail Operasional')}
                         </p>
                         <p className="text-[10px] text-stone-500 italic opacity-60">
                           ETA: {report.prediction?.predictedDays?.toFixed(1)} hari
@@ -643,18 +774,25 @@ export default function BranchAIReportsPage() {
                         <Database className="w-4 h-4 text-emerald-600" />
                         <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Source Identity</span>
                       </div>
+                      <p className="text-[10px] text-stone-500 -mt-2">Identitas sumber: maskapai, rute, nomor penerbangan, dan waktu</p>
                       <div className="p-6 bg-[oklch(0.98_0.01_200)] rounded-3xl border border-[oklch(0.15_0.02_200_/_0.05)] space-y-4">
                         {[
-                          { label: 'Airline', value: selectedReport.originalData.airline || selectedReport.originalData.Airlines, icon: Plane },
-                          { label: 'Route', value: selectedReport.originalData.route, icon: MapPin },
-                          { label: 'Timestamp', value: selectedReport.originalData.date ? new Date(selectedReport.originalData.date).toLocaleDateString('id-ID') : '-', icon: Calendar },
-                          { label: 'Category', value: selectedReport.originalData.issueType || selectedReport.originalData.Irregularity_Complain_Category, icon: FileText }
+                          { label: 'Airline', value: selectedReport.originalData?.airline || selectedReport.originalData?.Airlines, icon: Plane },
+                          { label: 'Route', value: selectedReport.originalData?.route, icon: MapPin },
+                          { label: 'Flight Number', value: pickFlightNumber(selectedReport.originalData || {}), icon: Plane },
+                          { label: 'Timestamp', value: (() => {
+                              const od = selectedReport.originalData as Record<string, unknown>;
+                              const keys = ['date','Date','timestamp','Timestamp','created_at','form_submitted_at','form_completed_at','date_of_event'] as const;
+                              const first = keys.map(k => od[k]).find(v => v != null);
+                              return parseDateFlexible(first as unknown);
+                            })(), icon: Calendar },
+                          { label: 'Category', value: selectedReport.originalData?.issueType || selectedReport.originalData?.Irregularity_Complain_Category, icon: FileText }
                         ].map((item, i) => item.value && (
                           <div key={i} className="flex items-center justify-between group/item">
                             <span className="text-xs font-bold text-[oklch(0.40_0.02_200)] flex items-center gap-2">
                               <item.icon className="w-3.5 h-3.5 opacity-40 group-hover/item:opacity-100 transition-opacity" /> {item.label}
                             </span>
-                            <span className="text-xs font-black italic">{item.value}</span>
+                            <span className="text-xs font-black italic">{String(item.value)}</span>
                           </div>
                         ))}
                       </div>
@@ -669,29 +807,26 @@ export default function BranchAIReportsPage() {
                         </div>
                         <div className="p-6 bg-white rounded-3xl border border-stone-100 shadow-inner-rim">
                           <p className="text-xs leading-relaxed text-stone-600 font-medium">
-                            {selectedReport.originalData.report}
+                            {String((selectedReport.originalData as Record<string, unknown>)['report'] ?? '')}
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Sentiment Analysis */}
-                    {selectedReport.sentiment?.sentiment && (
+                    {/* Urgency */}
+                    {typeof selectedReport.sentiment?.urgencyScore === 'number' && (
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                           <MessageSquare className="w-4 h-4 text-blue-600" />
-                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Affective Computing</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Urgency</span>
                         </div>
                         <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100/50">
-                          <div className="flex items-center justify-between mb-4">
-                            <Badge className={cn(
-                              selectedReport.sentiment.sentiment.includes('Positive') ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                              selectedReport.sentiment.sentiment.includes('Negative') ? "bg-red-100 text-red-700 border-red-200" :
-                              "bg-blue-100 text-blue-700 border-blue-200"
-                            )}>
-                              {selectedReport.sentiment.sentiment}
-                            </Badge>
-                            <span className="text-[10px] font-black italic text-blue-600">Urgency: {(selectedReport.sentiment.urgencyScore * 100).toFixed(0)}%</span>
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-3xl font-display font-black tracking-tighter text-blue-700">
+                              {(selectedReport.sentiment.urgencyScore * 100).toFixed(0)}
+                              <span className="text-sm ml-1 opacity-50">%</span>
+                            </p>
+                            <span className="text-[10px] font-black italic text-blue-600">Tingkat urgensi</span>
                           </div>
                           <div className="h-1.5 w-full bg-blue-100/50 rounded-full overflow-hidden">
                             <motion.div 
@@ -715,31 +850,18 @@ export default function BranchAIReportsPage() {
                         )}>
                           {selectedReport.prediction?.predictedDays?.toFixed(1)}<span className="text-sm italic ml-1 opacity-40">days</span>
                         </p>
+                        <p className="mt-1 text-[10px] text-stone-500">Perkiraan waktu penyelesaian berdasarkan model AI</p>
                       </div>
                       <div className="p-6 bg-white rounded-3xl border border-[oklch(0.15_0.02_200_/_0.05)] shadow-spatial-sm">
                         <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">Severity</p>
                         <Badge className={cn(getSeverityColor(selectedReport.classification?.severity), "px-4 py-1.5 text-[11px]")}>
                           {translateSeverity(selectedReport.classification?.severity)}
                         </Badge>
+                        <p className="mt-1 text-[10px] text-stone-500">Tingkat keparahan hasil klasifikasi AI</p>
                       </div>
                     </div>
 
-                    {/* Entities */}
-                    {Array.isArray(selectedReport.entities?.entities) && selectedReport.entities.entities.length > 0 && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Activity className="w-4 h-4 text-emerald-600" />
-                          <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Core Entities</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedReport.entities.entities.map((e: any, idx: number) => (
-                            <span key={idx} className="px-3 py-1.5 bg-[oklch(0.98_0.01_200)] text-[oklch(0.15_0.05_200)] text-[10px] font-black italic rounded-xl border border-[oklch(0.15_0.02_200_/_0.1)] shadow-sm">
-                              {e.label}: {e.text}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    
 
                     {/* AI Executive Summary */}
                     {(selectedReport.summary?.executiveSummary || selectedReport.summary?.summary) && (
@@ -748,13 +870,31 @@ export default function BranchAIReportsPage() {
                           <Sparkles className="w-4 h-4 text-amber-600" />
                           <span className="text-[10px] font-black uppercase tracking-widest opacity-40">AI Generation</span>
                         </div>
-                        <div className="p-8 bg-emerald-50 rounded-[2rem] border border-emerald-100/50 relative overflow-hidden group">
+                        <div className={cn(
+                          "p-8 bg-emerald-50 rounded-[2rem] border border-emerald-100/50 relative group",
+                          aiExpanded ? "overflow-visible" : "overflow-hidden"
+                        )}>
                           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform">
                             <Brain size={48} />
                           </div>
-                          <p className="text-sm leading-relaxed text-[oklch(0.15_0.05_160)] font-medium relative z-10 italic">
+                          <p className={cn(
+                            "text-sm leading-relaxed text-[oklch(0.15_0.05_160)] font-medium relative z-10 italic transition-all whitespace-pre-wrap break-words",
+                            aiExpanded ? "max-h-none" : "max-h-28 overflow-hidden"
+                          )}>
                             &ldquo;{selectedReport.summary.executiveSummary || selectedReport.summary.summary}&rdquo;
                           </p>
+                          {!aiExpanded && (
+                            <div className="absolute bottom-8 left-8 right-8 h-10 bg-gradient-to-t from-emerald-50 to-transparent pointer-events-none" />
+                          )}
+                          <div className="relative z-10 mt-4">
+                            <button
+                              type="button"
+                              onClick={() => setAiExpanded(v => !v)}
+                              className="text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-800"
+                            >
+                              {aiExpanded ? 'Sembunyikan Ringkasan' : 'Lihat Ringkasan Lengkap'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}

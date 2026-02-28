@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
     Users, Search, RefreshCw, Check, X, Shield, User,
     Filter, ChevronDown, Mail, Building2,
-    Eye, Wrench, Star, Edit2, Save
+    Eye, Wrench, Star, Edit2, Save, Plus
 } from 'lucide-react';
 import type { UserRole, DivisionType } from '@/types';
 
@@ -123,6 +123,144 @@ function EditUserModal({ user, onClose, onSave, isLoading }: {
     );
 }
 
+// --- Add Staff Modal (Manager & Super Admin) ---
+function AddStaffModal({
+    onClose,
+    onCreated,
+    isManager,
+}: {
+    onClose: () => void;
+    onCreated: (pwd: string) => void;
+    isManager: boolean;
+}) {
+    const [email, setEmail] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [nik, setNik] = useState('');
+    const [phone, setPhone] = useState('');
+    const [positionId, setPositionId] = useState('');
+    const [unitId, setUnitId] = useState<string | null>(null);
+    const [positions, setPositions] = useState<{ id: string; name: string }[]>([]);
+    const [units, setUnits] = useState<{ id: string; name: string }[]>([]);
+    const [activate, setActivate] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const [pos, un] = await Promise.all([
+                    fetch('/api/master-data?type=positions').then(r => r.json()).catch(() => []),
+                    fetch('/api/master-data?type=units').then(r => r.json()).catch(() => []),
+                ]);
+                setPositions(Array.isArray(pos) ? pos : []);
+                setUnits(Array.isArray(un) ? un : []);
+            } catch {
+                // ignore
+            }
+        };
+        load();
+    }, []);
+
+    const handleCreate = async () => {
+        setError(null);
+        if (!email || !fullName || !nik || !phone || !positionId) {
+            setError('Lengkapi semua field wajib');
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    full_name: fullName,
+                    nik,
+                    phone,
+                    position_id: positionId,
+                    unit_id: unitId,
+                    activate,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.error || 'Gagal membuat staff');
+            } else {
+                onCreated(data.temporaryPassword || '-');
+            }
+        } catch {
+            setError('Kesalahan jaringan');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-gray-900">{isManager ? 'Tambah Staff Cabang' : 'Tambah User'}</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+                        <X size={18} />
+                    </button>
+                </div>
+                {error && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm">{error}</div>
+                )}
+                <div className="grid grid-cols-1 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Nama Lengkap</label>
+                        <input className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500/20 outline-none" value={fullName} onChange={e => setFullName(e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+                        <input className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500/20 outline-none" value={email} onChange={e => setEmail(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">NIK</label>
+                            <input className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500/20 outline-none" value={nik} onChange={e => setNik(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">HP</label>
+                            <input className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500/20 outline-none" value={phone} onChange={e => setPhone(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Posisi</label>
+                            <select className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500/20 outline-none" value={positionId} onChange={e => setPositionId(e.target.value)}>
+                                <option value="">Pilih posisi</option>
+                                {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Unit (opsional)</label>
+                            <select className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:ring-2 focus:ring-blue-500/20 outline-none" value={unitId || ''} onChange={e => setUnitId(e.target.value || null)}>
+                                <option value="">-</option>
+                                {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <label className="inline-flex items-center gap-2 mt-1 select-none">
+                        <input type="checkbox" checked={activate} onChange={e => setActivate(e.target.checked)} />
+                        <span className="text-sm">Aktifkan langsung</span>
+                    </label>
+                </div>
+                <div className="flex gap-3 mt-6">
+                    <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50">
+                        Batal
+                    </button>
+                    <button onClick={handleCreate} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 flex items-center justify-center gap-2">
+                        {loading ? <RefreshCw className="animate-spin" size={18} /> : <Plus size={18} />}
+                        Buat
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 export default function AdminUsersPage() {
     const router = useRouter();
@@ -133,6 +271,9 @@ export default function AdminUsersPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
     const [authorized, setAuthorized] = useState<boolean | null>(null);
+    const [userRole, setUserRole] = useState<UserRole | null>(null);
+    const [showAdd, setShowAdd] = useState(false);
+    const [lastTempPwd, setLastTempPwd] = useState<string | null>(null);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -144,11 +285,14 @@ export default function AdminUsersPage() {
                     return;
                 }
                 const data = await res.json();
-                if (data?.user?.role !== 'SUPER_ADMIN') {
+                const role = data?.user?.role as UserRole | undefined;
+                setUserRole(role || null);
+                // Allow SUPER_ADMIN and MANAGER_CABANG
+                if (role === 'SUPER_ADMIN' || role === 'MANAGER_CABANG') {
+                    setAuthorized(true);
+                } else {
                     setAuthorized(false);
                     router.replace('/dashboard');
-                } else {
-                    setAuthorized(true);
                 }
             } catch {
                 setAuthorized(false);
@@ -253,6 +397,7 @@ export default function AdminUsersPage() {
         return null;
     }
     return (
+        <>
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
@@ -260,13 +405,24 @@ export default function AdminUsersPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Kelola User</h1>
                     <p className="text-slate-500 mt-1 text-sm sm:text-base">Kelola semua pengguna dalam sistem</p>
                 </div>
-                <button
-                    onClick={fetchUsers}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors text-sm font-medium flex-shrink-0"
-                >
-                    <RefreshCw className="w-4 h-4" />
-                    <span className="hidden sm:inline">Refresh</span>
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={fetchUsers}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors text-sm font-medium flex-shrink-0"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        <span className="hidden sm:inline">Refresh</span>
+                    </button>
+                    {userRole === 'MANAGER_CABANG' && (
+                        <button
+                            onClick={() => { setShowAdd(true); setLastTempPwd(null); }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors text-sm font-medium flex-shrink-0"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Tambah Staff
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -391,14 +547,16 @@ export default function AdminUsersPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-2">
-                                                    {/* Edit Button for Active Users */}
-                                                    <button
-                                                        onClick={() => setEditingUser(user)}
-                                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                        title="Edit User"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
+                                                    {/* Edit Button for Active Users (SUPER_ADMIN only) */}
+                                                    {userRole === 'SUPER_ADMIN' && (
+                                                        <button
+                                                            onClick={() => setEditingUser(user)}
+                                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                            title="Edit User"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                    )}
 
                                                     {/* Approve Staff Button for STAFF_CABANG */}
                                                     {user.role === 'STAFF_CABANG' && user.status === 'pending' && (
@@ -463,8 +621,7 @@ export default function AdminUsersPage() {
                 )}
             </div>
 
-            {/* Render Edit Modal */}
-            {editingUser && (
+            {editingUser && userRole === 'SUPER_ADMIN' && (
                 <EditUserModal 
                     user={editingUser} 
                     onClose={() => setEditingUser(null)} 
@@ -473,5 +630,28 @@ export default function AdminUsersPage() {
                 />
             )}
         </div>
+        {showAdd && (
+            <AddStaffModal
+                onClose={() => setShowAdd(false)}
+                onCreated={(pwd) => {
+                    setShowAdd(false);
+                    setLastTempPwd(pwd);
+                    fetchUsers();
+                }}
+                isManager={userRole === 'MANAGER_CABANG'}
+            />
+        )}
+        {lastTempPwd && (
+            <div className="fixed bottom-4 right-4 z-40 max-w-md bg-white border border-emerald-200 shadow-lg rounded-2xl p-4">
+                <p className="text-sm font-semibold text-emerald-700">User berhasil dibuat.</p>
+                <p className="text-xs mt-1">Password sementara:</p>
+                <p className="font-mono text-sm mt-1 bg-emerald-50 rounded px-2 py-1 inline-block">{lastTempPwd}</p>
+                <p className="text-xs text-slate-500 mt-2">Mohon sampaikan ke user dan sarankan untuk mengganti password setelah login.</p>
+                <div className="flex justify-end mt-2">
+                    <button onClick={() => setLastTempPwd(null)} className="text-xs px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50">Tutup</button>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

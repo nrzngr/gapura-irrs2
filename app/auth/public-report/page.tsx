@@ -11,6 +11,7 @@ import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-sta
 import { AIRLINES } from '@/lib/constants/airlines';
 import { AlertTriangle, Calendar, Plus, CheckCircle, Ship, Plane, Package, HelpCircle, MessageSquare, Heart, X, ChevronRight, ChevronLeft, ArrowRight, Upload, Loader2, Sparkles, MapPin, QrCode, ClipboardCheck, ExternalLink, BookOpen, Activity, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { NoiseTexture } from '@/components/ui/NoiseTexture';
 import { PrismButton } from '@/components/ui/PrismButton';
@@ -69,12 +70,24 @@ const CATEGORIES = [
     ]
   },
   {
+    id: 'WSN',
+    title: 'WSN Dashboard',
+    description: 'Monitoring WSN & Weekly Service Notice.',
+    icon: QrCode,
+    color: 'oklch(0.55 0.18 180)',
+    span: 'col-span-2 md:col-span-2 row-span-1',
+    qrLinks: [
+      { label: 'Monitoring WSN Dashboard', url: 'https://lookerstudio.google.com/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_ufv08vzhsd' },
+      { label: 'Weekly Service Notice Dashboard', url: 'https://lookerstudio.google.com/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_1swzqz7usd' }
+    ]
+  },
+  {
     id: 'Handbook',
     title: 'Handbook SLA',
     description: 'Panduan standar layanan operasional prima.',
     icon: BookOpen,
     color: 'oklch(0.45 0.20 160)',
-    span: 'col-span-2 md:col-span-4 row-span-1',
+    span: 'col-span-2 md:col-span-2 row-span-1',
     links: [
       { label: 'Buka Handbook SLA', sublabel: 'SIS Apps Dev', url: 'https://sis.appsdev.my.id/' }
     ]
@@ -162,6 +175,7 @@ export default function PublicReportPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState<string | null>(null);
   const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [createdReport, setCreatedReport] = useState<any>(null);
@@ -347,6 +361,14 @@ export default function PublicReportPage() {
     }
   };
 
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1200);
+    } catch {}
+  };
+
   if (success) {
     return (
       <div className="min-h-screen relative overflow-hidden bg-[#0A0A0A] selection:bg-emerald-500/30">
@@ -528,7 +550,49 @@ export default function PublicReportPage() {
 
               {/* Modal Content */}
               <div className="flex-1 overflow-y-auto p-8 relative z-10 custom-scrollbar">
-                {CATEGORIES.find(c => c.id === formData.main_category)?.barcodes ? (
+                {CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks ? (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
+                    <div className="text-center space-y-3">
+                      <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
+                        WSN Access
+                      </h3>
+                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Scan QR atau gunakan tombol untuk salin/buka link.</p>
+                    </div>
+                    <div className="grid gap-12 w-full max-w-3xl px-4 grid-cols-1 md:grid-cols-2">
+                      {CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks?.map((item: any, idx: number) => (
+                        <div key={idx} className="space-y-4">
+                          <div className="aspect-square rounded-[40px] overflow-hidden bg-white border border-[oklch(0.15_0.02_200_/_0.06)] p-6 shadow-spatial-md flex items-center justify-center">
+                            <QRCodeSVG value={item.url} size={256} fgColor="#0ea5a6" />
+                          </div>
+                          <div className="text-center">
+                            <h4 className="text-xl font-display font-black text-[oklch(0.15_0.05_200)]">{item.label}</h4>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              readOnly
+                              value={item.url}
+                              className="flex-1 px-3 py-2 rounded-lg border border-[oklch(0.15_0.02_200_/_0.08)] bg-[oklch(1_0_0_/_0.9)] text-sm"
+                            />
+                            <button
+                              onClick={() => copyToClipboard(item.url, item.label)}
+                              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold active:scale-95"
+                            >
+                              {copied === item.label ? 'Tersalin' : 'Copy'}
+                            </button>
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 rounded-lg bg-[oklch(1_0_0_/_0.9)] text-[oklch(0.15_0.02_200)] text-sm font-bold border border-[oklch(0.15_0.02_200_/_0.08)] active:scale-95"
+                            >
+                              Buka
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : CATEGORIES.find(c => c.id === formData.main_category)?.barcodes ? (
                   <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
                     <div className="text-center space-y-3">
                       <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">

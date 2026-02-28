@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
     const targetUrl = `${AI_SERVICE_URL}/api/ai/root-cause/categories`;
 
     const response = await fetch(targetUrl, {

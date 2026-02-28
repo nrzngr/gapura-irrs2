@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, Search, Filter, ChevronDown, AlertTriangle } from 'lucide-react';
 
 import { ResponsiveHeader } from '@/components/dashboard/analyst/ResponsiveHeader';
 import { ResponsiveStatsGrid } from '@/components/dashboard/analyst/ResponsiveStatsGrid';
 import { ReportsTableSection } from '@/components/dashboard/analyst/ReportsTableSection';
+import { ReportsList } from '@/components/dashboard/analyst/ReportsList';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
 import { CustomerFeedbackFilterModal } from '@/components/dashboard/analyst/CustomerFeedbackFilterModal';
@@ -57,6 +58,7 @@ interface DivisionAnalystDashboardProps {
 
 export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [reports, setReports] = useState<Report[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -73,6 +75,11 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
   const [savedDashboards, setSavedDashboards] = useState<any[]>([]);
+  const [listFilter, setListFilter] = useState('all');
+  const [listSeverity, setListSeverity] = useState('all');
+  const [listSearch, setListSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(100);
+  const view = searchParams.get('view') === 'reports' ? 'reports' : 'dashboard';
 
   const fetchData = useCallback(
     async (isRefresh = false) => {
@@ -127,6 +134,35 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
     const cutoffDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
     return reports.filter((r) => new Date(r.created_at) >= cutoffDate);
   }, [reports, dateRange]);
+  const listReports = useMemo(() => {
+    const s = listSearch.toLowerCase();
+    return reports.filter(r => {
+      if (listFilter !== 'all' && r.status !== listFilter) return false;
+      if (listSeverity !== 'all' && r.severity !== listSeverity) return false;
+      if (!s) return true;
+      return (r.title || '').toLowerCase().includes(s) ||
+        (r.report || '').toLowerCase().includes(s) ||
+        (r.location || '').toLowerCase().includes(s) ||
+        (r.users?.full_name || r.reporter_name || '').toLowerCase().includes(s) ||
+        (r.stations?.name || '').toLowerCase().includes(s) ||
+        r.id.toLowerCase().includes(s) ||
+        (r.reference_number || '').toLowerCase().includes(s) ||
+        (r.flight_number || '').toLowerCase().includes(s);
+    });
+  }, [reports, listFilter, listSeverity, listSearch]);
+  const setView = (v: 'dashboard' | 'reports') => {
+    const basePath = `/dashboard/${division.code.toLowerCase()}`;
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set('view', v);
+    router.replace(`${basePath}?${sp.toString()}`);
+  };
+
+  // Reset visible count when filter/search/view changes
+  useEffect(() => {
+    if (view === 'reports') {
+      setVisibleCount(100);
+    }
+  }, [view, listFilter, listSeverity, listSearch]);
 
   const filteredStats = useMemo(() => {
     const total = filteredReports.length;
@@ -696,7 +732,21 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             onExportPDF={exportToPDF}
             exporting={exporting}
           />
-          {division.code === 'OS' && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => setView('dashboard')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold tracking-tight transition-all ${view === 'dashboard' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setView('reports')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+              Semua Laporan
+            </button>
+          </div>
+          {view === 'dashboard' && division.code === 'OS' && (
             <div className="mt-3 flex flex-wrap gap-3">
               <button
                 onClick={() => router.push('/dashboard/os/joumpa')}
@@ -717,18 +767,25 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-                Dashboard SLA
+                SLA Dashboard
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/wsn')}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><path d="M14 3h7v5h-7z"/><path d="M14 12h7v9h-7z"/></svg>
-                Dashboard WSN
+                WSN Dashboard
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/os/handbook')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M20 22H6.5A2.5 2.5 0 0 1 4 19.5V6"/><path d="M20 15V2H6.5A2.5 2.5 0 0 0 4 4.5V6"/><path d="M8 6h8"/></svg>
+                SLA Handbook
               </button>
             </div>
           )}
-          {division.code === 'OT' && (
+          {view === 'dashboard' && division.code === 'OT' && (
             <div className="mt-3 flex flex-wrap gap-3">
               <button
                 onClick={() => router.push('/dashboard/ot/complaint-by-category')}
@@ -767,7 +824,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
               </button>
             </div>
           )}
-          {division.code === 'OP' && (
+          {view === 'dashboard' && division.code === 'OP' && (
             <div className="mt-3 flex flex-wrap gap-3">
               <button
                 onClick={() => router.push('/dashboard/op/complaint-by-category')}
@@ -827,54 +884,189 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
               </button>
             </div>
           )}
+          {division.code === 'UQ' && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                onClick={() =>
+                  router.push('/dashboard/charts/report-by-case-category/detail?hideFilters=true&sourcePage=uq')
+                }
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+                Complaint per Category
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/risk-severity')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21 18-8-14-8 14Z"/></svg>
+                Risk & Severity
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/op/case-status')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                Risk of Case
+              </button>
+              <button
+                onClick={() =>
+                  router.push('/dashboard/charts/monthly-report/detail?hideFilters=true&sourcePage=uq')
+                }
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                Monitoring Efektivitas
+              </button>
+              <button
+                onClick={() =>
+                  router.push('/dashboard/charts/category-by-area/detail?hideFilters=true&sourcePage=uq')
+                }
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                Monitoring Kesesuaian Standar
+              </button>
+            </div>
+          )}
+          {view === 'reports' && (
+            <div className="mt-6">
+              <div className="bg-white p-4 rounded-[24px] border border-gray-100 shadow-sm space-y-3">
+                <div className="flex flex-col lg:flex-row gap-4 items-center">
+                  <div className="relative flex-1 w-full group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari laporan..."
+                      value={listSearch}
+                      onChange={(e) => setListSearch(e.target.value)}
+                      className="w-full h-12 pl-12 pr-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-slate-700 outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-3 w-full lg:w-auto">
+                    <div className="relative min-w-[160px]">
+                      <select
+                        value={listFilter}
+                        onChange={(e) => setListFilter(e.target.value)}
+                        className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                      >
+                        <option value="all">Semua Status</option>
+                        <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
+                        <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
+                        <option value="SELESAI">Selesai</option>
+                        <option value="OPEN">Open</option>
+                        <option value="Closed">Closed</option>
+                      </select>
+                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="relative min-w-[160px]">
+                      <select
+                        value={listSeverity}
+                        onChange={(e) => setListSeverity(e.target.value)}
+                        className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                      >
+                        <option value="all">Semua Severity</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                      <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                    <button
+                      onClick={() => fetchData(true)}
+                      disabled={refreshing}
+                      className="h-12 w-12 flex items-center justify-center rounded-xl bg-gray-50 hover:bg-gray-100 text-slate-500 transition-all active:scale-95"
+                    >
+                      <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </PresentationSlide>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-          <div className="lg:col-span-2">
-            <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
-              <ResponsiveStatsGrid
-                stats={filteredStats}
-                onStatClick={handleStatClick}
-                compact
+        {view === 'dashboard' && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+            <div className="lg:col-span-2">
+              <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
+                <ResponsiveStatsGrid
+                  stats={filteredStats}
+                  onStatClick={handleStatClick}
+                  compact
+                />
+              </PresentationSlide>
+            </div>
+            <div className="lg:col-span-3">
+              <ReportsTableSection
+                reports={filteredReports}
+                dateRange={dateRange}
+                onViewReport={setSelectedReport}
+                onTriageReport={(report) => {
+                  setTriageReport(report);
+                  setIsTriageOpen(true);
+                }}
+                drilldownUrl={drilldownUrl}
               />
-            </PresentationSlide>
+            </div>
           </div>
-          <div className="lg:col-span-3">
-            <ReportsTableSection
-              reports={filteredReports}
-              dateRange={dateRange}
-              onViewReport={setSelectedReport}
-              onTriageReport={(report) => {
-                setTriageReport(report);
-                setIsTriageOpen(true);
-              }}
-              drilldownUrl={drilldownUrl}
+        )}
+        {view === 'reports' && (
+          <div className="max-w-[1700px] mx-auto w-full">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full animate-pulse bg-emerald-500" />
+                <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Daftar Laporan</h2>
+              </div>
+              <p className="text-xs font-bold text-[var(--text-muted)] bg-[var(--surface-3)] px-3 py-1 rounded-full uppercase tracking-tighter">
+                {listReports.length} laporan
+              </p>
+            </div>
+            <ReportsList
+              reports={listReports.slice(0, visibleCount)}
+              onReportClick={setSelectedReport}
+              loading={loading || refreshing}
+              disableAnimation={visibleCount > 150 || listReports.length > 150}
             />
+            {listReports.length > visibleCount && (
+              <div className="flex justify-center mt-6">
+                <button
+                  onClick={() => setVisibleCount((c) => Math.min(c + 300, listReports.length))}
+                  className="px-6 py-3 rounded-2xl text-sm font-bold bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-primary)] border border-[var(--surface-4)] active:scale-95 transition-all"
+                >
+                  Tampilkan 300 lagi ({visibleCount}/{listReports.length})
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
-        <AnalystCharts
-          analytics={analytics}
-          caseCategoryData={caseCategoryData}
-          branchReportData={branchReportData}
-          monthlyReportData={monthlyReportData}
-          categoryByAreaData={categoryByAreaData}
-          categoryByBranchData={categoryByBranchData}
-          areaSubCategoryData={areaSubCategoryData}
-          categoryByAirlinesData={categoryByAirlinesData}
-          topReportersData={topReportersData}
-          monthlyComparisonData={monthlyComparisonData}
-          hubDistributionData={hubDistributionData}
-          resolutionByBranchData={resolutionByBranchData}
-          filteredReports={filteredReports}
-          caseReportByAreaData={caseReportByAreaData}
-          terminalAreaCategoryData={terminalAreaCategoryData}
-          apronAreaCategoryData={apronAreaCategoryData}
-          generalCategoryData={generalCategoryData}
-          caseClassificationData={caseClassificationData}
-          onDrilldown={(url) => router.push(url)}
-          drilldownUrl={drilldownUrl}
-        />
+        {view === 'dashboard' && (
+          <AnalystCharts
+            analytics={analytics}
+            caseCategoryData={caseCategoryData}
+            branchReportData={branchReportData}
+            monthlyReportData={monthlyReportData}
+            categoryByAreaData={categoryByAreaData}
+            categoryByBranchData={categoryByBranchData}
+            areaSubCategoryData={areaSubCategoryData}
+            categoryByAirlinesData={categoryByAirlinesData}
+            topReportersData={topReportersData}
+            monthlyComparisonData={monthlyComparisonData}
+            hubDistributionData={hubDistributionData}
+            resolutionByBranchData={resolutionByBranchData}
+            filteredReports={filteredReports}
+            caseReportByAreaData={caseReportByAreaData}
+            terminalAreaCategoryData={terminalAreaCategoryData}
+            apronAreaCategoryData={apronAreaCategoryData}
+            generalCategoryData={generalCategoryData}
+            caseClassificationData={caseClassificationData}
+            onDrilldown={(url) => router.push(url)}
+            drilldownUrl={drilldownUrl}
+          />
+        )}
 
         <ReportDetailModal
           isOpen={!!selectedReport}

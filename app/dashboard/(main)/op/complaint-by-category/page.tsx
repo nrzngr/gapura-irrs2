@@ -1,311 +1,236 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, RefreshCw } from 'lucide-react';
+import { ClipboardList, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
-type Report = {
+type ReportRow = {
   id: string;
-  created_at?: string;
-  main_category?: string;
+  reporter_name?: string;
+  reporter_email?: string;
   category?: string;
+  main_category?: string;
   irregularity_complain_category?: string;
-  airlines?: string;
-  airline?: string;
-  branch?: string;
-  reporting_branch?: string;
-  station_code?: string;
+  case_classification?: string;
+  report?: string;
   description?: string;
+  created_at?: string;
   date_of_event?: string;
+  source_sheet?: string;
+  status?: string;
+  severity?: string;
+  branch?: string;
+  title?: string;
 };
 
-function getCategory(r: Report): string {
-  const raw = (r.category || r.main_category || '').toString().toLowerCase();
-  if (raw.includes('accident') || raw.includes('incident')) return 'Accidents / Incidents';
-  if (raw.includes('irregular')) return 'Irregularity Report';
-  if (raw.includes('complaint')) return 'Complaint';
-  if (raw.includes('compliment')) return 'Compliment';
-  return (r.category || r.main_category) ? String(r.category || r.main_category) : 'Unknown';
+function normalizeCategory(report: ReportRow): 'Accidents / Incidents' | 'Irregularity Report' | 'Complaint' | 'Compliment' | 'Other' {
+  const fields = [
+    report.case_classification,
+    report.main_category,
+    report.category,
+    report.irregularity_complain_category,
+    report.description,
+    report.report,
+  ]
+    .filter(Boolean)
+    .map((s) => String(s).toLowerCase())
+    .join(' | ');
+
+  if (/accident|incident|insiden|kecelakaan/.test(fields)) return 'Accidents / Incidents';
+  if (/irregular/i.test(fields)) return 'Irregularity Report';
+  if (/compliment|apresiasi|appreciation/.test(fields)) return 'Compliment';
+  if (/complain|keluhan|komplain/.test(fields)) return 'Complaint';
+  return 'Other';
 }
 
-function getSource(r: Report): 'Customer' | 'Internal' | 'Unknown' {
-  const cat = getCategory(r);
-  if (cat === 'Complaint' || cat === 'Compliment') return 'Customer';
-  if (cat === 'Irregularity Report' || cat === 'Accidents / Incidents') return 'Internal';
-  return 'Unknown';
+function classifySource(report: ReportRow): 'Customer' | 'Internal' {
+  const cat = normalizeCategory(report);
+  if (cat === 'Irregularity Report' || cat === 'Accidents / Incidents') {
+    return 'Internal';
+  }
+  if (cat === 'Complaint' || cat === 'Compliment') {
+    return 'Customer';
+  }
+  const email = (report.reporter_email || '').toLowerCase();
+  const name = (report.reporter_name || '').toLowerCase();
+  if (email.includes('@gapura') || email.includes('@appsdev') || email.includes('@sis') || name.includes('gapura')) {
+    return 'Internal';
+  }
+  return 'Customer';
 }
 
 export default function OPComplaintByCategory() {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [range, setRange] = useState<'all' | 'week' | 'month'>('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [reports, setReports] = useState<ReportRow[]>([]);
 
-  const fetchData = async (hard = false) => {
+  const CATEGORIES = ['Accidents / Incidents', 'Irregularity Report', 'Complaint', 'Compliment', 'Other'] as const;
+  const [selectedCategory, setSelectedCategory] = useState<typeof CATEGORIES[number]>('Complaint');
+
+  const fetchReports = async () => {
+    setLoading(true);
+    setError('');
     try {
-      if (hard) setRefreshing(true);
-      else setLoading(true);
-      if (hard) await fetch('/api/reports/refresh', { method: 'POST' });
-      let res = await fetch('/api/admin/reports');
-      if (!res.ok) {
-        const fields = [
-          'id','original_id','created_at','main_category','category','irregularity_complain_category',
-          'airlines','airline','branch','reporting_branch','station_code',
-          'description','date_of_event'
-        ].join(',');
-        res = await fetch(`/api/reports/analytics?fields=${encodeURIComponent(fields)}&refresh=${hard ? 'true' : 'false'}`);
-        if (res.ok) {
-          const data = await res.json();
-          setReports(Array.isArray(data?.reports) ? data.reports : []);
-        } else {
-          setReports([]);
-        }
-      } else {
-        const data = await res.json();
-        setReports(Array.isArray(data) ? data : []);
-      }
+      const res = await fetch('/api/reports?unfiltered=1');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || `Gagal memuat data (${res.status})`);
+      setReports(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memuat data');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchReports();
   }, []);
 
-  const filtered = useMemo(() => {
-    let list = reports;
-    if (range !== 'all') {
-      const now = new Date();
-      const days = range === 'week' ? 7 : 30;
-      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      list = list.filter((r) => {
-        const d = r.date_of_event || r.created_at;
-        const t = d ? new Date(d) : null;
-        return t && t >= cutoff;
-      });
+  const sourceStats = useMemo(() => {
+    const base = { Customer: 0, Internal: 0 } as Record<'Customer' | 'Internal', number>;
+    for (const r of reports) {
+      base[classifySource(r)]++;
     }
-    return list;
-  }, [reports, range]);
+    return base;
+  }, [reports]);
 
-  const bySource = useMemo(() => {
-    const result = {
-      Customer: 0,
-      Internal: 0,
-      Unknown: 0,
+  const categoryStats = useMemo(() => {
+    const cats = ['Accidents / Incidents', 'Irregularity Report', 'Complaint', 'Compliment', 'Other'] as const;
+    const base: Record<typeof cats[number], number> = {
+      'Accidents / Incidents': 0,
+      'Irregularity Report': 0,
+      Complaint: 0,
+      Compliment: 0,
+      Other: 0,
     };
-    for (const r of filtered) {
-      const s = getSource(r);
-      // @ts-ignore
-      result[s] = (result[s] || 0) + 1;
+    for (const r of reports) {
+      base[normalizeCategory(r)]++;
     }
-    return result;
-  }, [filtered]);
+    return { cats, base };
+  }, [reports]);
 
-  const customerCats = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of filtered) {
-      const src = getSource(r);
-      if (src !== 'Customer') continue;
-      const cat = getCategory(r);
-      map.set(cat, (map.get(cat) || 0) + 1);
+  const byCategory = useMemo(() => {
+    const map: Record<typeof CATEGORIES[number], ReportRow[]> = {
+      'Accidents / Incidents': [],
+      'Irregularity Report': [],
+      'Complaint': [],
+      'Compliment': [],
+      'Other': [],
+    };
+    for (const r of reports) {
+      const cat = normalizeCategory(r);
+      map[cat].push(r);
     }
-    const arr = Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a,b) => b.count - a.count);
-    const max = arr[0]?.count || 1;
-    return { arr, max };
-  }, [filtered]);
-
-  const internalCats = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of filtered) {
-      const src = getSource(r);
-      if (src !== 'Internal') continue;
-      const cat = getCategory(r);
-      map.set(cat, (map.get(cat) || 0) + 1);
-    }
-    const arr = Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a,b) => b.count - a.count);
-    const max = arr[0]?.count || 1;
-    return { arr, max };
-  }, [filtered]);
-
-  const latest = useMemo(() => {
-    const sorted = [...filtered].sort((a, b) => {
-      const da = new Date(a.date_of_event || a.created_at || 0).getTime();
-      const db = new Date(b.date_of_event || b.created_at || 0).getTime();
-      return db - da;
-    });
-    const seen = new Set<string>();
-    const out: Report[] = [];
-    for (const r of sorted) {
-      const dateKey = new Date(r.date_of_event || r.created_at || 0).toISOString().slice(0, 10);
-      const branchKey = String(r.branch || r.reporting_branch || r.station_code || '').toUpperCase();
-      const airlineKey = String(r.airlines || r.airline || '').toUpperCase();
-      const catKey = getCategory(r).toUpperCase();
-      const descKey = String(r.description || '').toLowerCase().slice(0, 64);
-      // @ts-ignore
-      const orig = (r as any).original_id ? String((r as any).original_id) : '';
-      const idKey = r.id || orig || `${dateKey}|${branchKey}|${airlineKey}|${catKey}|${descKey}`;
-      if (!seen.has(idKey)) {
-        seen.add(idKey);
-        out.push(r);
-      }
-      if (out.length >= 50) break;
-    }
-    return out;
-  }, [filtered]);
+    return map;
+  }, [reports]);
 
   return (
     <div className="min-h-screen px-4 md:px-6 py-6">
       <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-emerald-600" />
-            <h1 className="text-lg font-bold text-gray-800">Complaint by Category</h1>
+            <h1 className="text-lg font-bold text-gray-800">Complaint per Category · Divisi OP</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-xl bg-gray-100 p-1">
-              {(['all', 'week', 'month'] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg ${
-                    range === r
-                      ? 'bg-white shadow border border-gray-200 text-gray-800'
-                      : 'text-gray-500'
-                  }`}
-                >
-                  {r === 'all' ? 'Semua' : r === 'week' ? '7 Hari' : '30 Hari'}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => fetchData(true)}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-white border border-gray-200 hover:bg-gray-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+          <button
+            onClick={fetchReports}
+            disabled={loading}
+            className={cn('inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border', 'border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50')}
+            aria-label="Muat ulang data"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Muat Ulang
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">Lihat ringkasan “Sumber Laporan” dan “Kategori Laporan”.</p>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="p-4 rounded-2xl border border-gray-200 bg-white mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-sm font-bold text-gray-800">Sumber Laporan</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(['Customer', 'Internal'] as const).map((s) => (
+              <div key={s} className="p-4 rounded-xl border border-gray-200 bg-[var(--surface-1)]">
+                <p className="text-xs text-gray-600">{s}</p>
+                <p className="text-2xl font-extrabold text-gray-800">{sourceStats[s]}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {loading ? (
-          <div className="h-[30vh] flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-4 animate-spin" style={{ borderColor: 'var(--surface-4)', borderTopColor: 'var(--brand-primary)' }} />
+        <div className="p-4 rounded-2xl border border-gray-200 bg-white">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-sm font-bold text-gray-800">Kategori Laporan</h2>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 rounded-2xl border border-[var(--surface-2)] bg-[var(--surface-1)]">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Total</p>
-                <p className="text-2xl font-extrabold text-gray-900">{filtered.length}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {categoryStats.cats.map((c) => (
+              <div key={c} className="p-4 rounded-xl border border-gray-200 bg-[var(--surface-1)]">
+                <p className="text-xs text-gray-600">{c}</p>
+                <p className="text-2xl font-extrabold text-gray-800">{categoryStats.base[c]}</p>
               </div>
-              <div className="p-4 rounded-2xl border border-[var(--surface-2)] bg-[var(--surface-1)]">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Sumber: Customer</p>
-                <p className="text-2xl font-extrabold text-gray-900">{bySource.Customer}</p>
-              </div>
-              <div className="p-4 rounded-2xl border border-[var(--surface-2)] bg-[var(--surface-1)]">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Sumber: Internal</p>
-                <p className="text-2xl font-extrabold text-gray-900">{bySource.Internal}</p>
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl border border-[var(--surface-2)] bg-[var(--surface-1)]">
-                <h2 className="text-sm font-bold text-gray-800 tracking-wide uppercase mb-3">Kategori — Sumber Customer</h2>
-                <div className="space-y-2">
-                  {customerCats.arr.length === 0 ? (
-                    <div className="text-sm text-gray-500 italic">Tidak ada data</div>
-                  ) : (
-                    customerCats.arr.map((row) => (
-                      <div key={row.name}>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-gray-800">{row.name}</span>
-                          <span className="text-gray-600 font-semibold">{row.count}</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mt-1">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-rose-500 to-red-600"
-                            style={{ width: `${Math.round((row.count / customerCats.max) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-              <div className="p-4 rounded-2xl border border-[var(--surface-2)] bg-[var(--surface-1)]">
-                <h2 className="text-sm font-bold text-gray-800 tracking-wide uppercase mb-3">Kategori — Sumber Internal</h2>
-                <div className="space-y-2">
-                  {internalCats.arr.length === 0 ? (
-                    <div className="text-sm text-gray-500 italic">Tidak ada data</div>
-                  ) : (
-                    internalCats.arr.map((row) => (
-                      <div key={row.name}>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-gray-800">{row.name}</span>
-                          <span className="text-gray-600 font-semibold">{row.count}</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mt-1">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-sky-600"
-                            style={{ width: `${Math.round((row.count / internalCats.max) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Latest List */}
-            <div className="p-4 rounded-2xl border border-[var(--surface-2)] bg-[var(--surface-1)]">
-              <h2 className="text-sm font-bold text-gray-800 tracking-wide uppercase mb-3">Daftar Laporan Terbaru</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500">
-                      <th className="py-2 pr-4">Tanggal</th>
-                      <th className="py-2 pr-4">Sumber</th>
-                      <th className="py-2 pr-4">Kategori</th>
-                      <th className="py-2 pr-4">Cabang</th>
-                      <th className="py-2 pr-4">Airlines</th>
-                      <th className="py-2 pr-4">Deskripsi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {latest.map((r) => {
-                      const tanggal = r.date_of_event || r.created_at || '';
-                      const cabang = r.branch || r.reporting_branch || r.station_code || '-';
-                      const airline = r.airlines || r.airline || '-';
-                      const cat = getCategory(r);
-                      const src = getSource(r);
-                      return (
-                        <tr key={r.id}>
-                          <td className="py-2 pr-4 whitespace-nowrap">{tanggal ? new Date(tanggal).toLocaleDateString('id-ID') : '-'}</td>
-                          <td className="py-2 pr-4 whitespace-nowrap">{src}</td>
-                          <td className="py-2 pr-4 whitespace-nowrap">{cat}</td>
-                          <td className="py-2 pr-4 whitespace-nowrap">{cabang}</td>
-                          <td className="py-2 pr-4 whitespace-nowrap">{airline}</td>
-                          <td className="py-2 pr-4">
-                            <span className="line-clamp-2 text-gray-700">{r.description || '-'}</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+        <div className="p-4 mt-6 rounded-2xl border border-gray-200 bg-white">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-sm font-bold text-gray-800">Daftar Laporan per Kategori</h2>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setSelectedCategory(c)}
+                className={cn(
+                  'text-xs px-3 py-1.5 rounded-full border',
+                  selectedCategory === c
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                )}
+                aria-pressed={selectedCategory === c}
+              >
+                {c} <span className="ml-1 text-[10px] opacity-80">({byCategory[c]?.length || 0})</span>
+              </button>
+            ))}
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-[var(--surface-1)] p-2">
+            <div className="max-h-96 overflow-auto divide-y divide-gray-200">
+              {byCategory[selectedCategory]?.slice(0, 100).map((r) => {
+                const title = r.title || r.report || r.description || '(Tanpa Judul)';
+                const dateStr = r.date_of_event ? new Date(r.date_of_event).toLocaleDateString() : '';
+                return (
+                  <div key={r.id} className="flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{title}</p>
+                      <p className="text-xs text-gray-500">
+                        {selectedCategory} • {r.source_sheet || '-'} {dateStr ? `• ${dateStr}` : ''}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/dashboard/op/reports/${r.id}`}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+                    >
+                      Lihat Detail
+                    </Link>
+                  </div>
+                );
+              })}
+              {byCategory[selectedCategory]?.length === 0 && (
+                <div className="p-6 text-center text-sm text-gray-500">Tidak ada laporan pada kategori ini</div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </section>
     </div>
   );

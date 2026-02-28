@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Panggil AI service (Python FastAPI)
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
     
     // DEBUG: Log payload sent to AI service
     console.log('[AI Analyze Route] Sending payload to AI service:', JSON.stringify({
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       // Return error - no fallback/mock data
       return NextResponse.json(
         { 
-          error: 'AI service tidak tersedia. Pastikan service AI berjalan di localhost:8000',
+          error: 'AI service tidak tersedia',
           details: aiError instanceof Error ? aiError.message : 'Unknown error'
         },
         { status: 503 }
@@ -142,5 +142,4 @@ function translateToIndonesian(result: any) {
     }
   };
 }
-
 

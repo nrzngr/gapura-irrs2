@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Prepare External Request
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
     const targetUrl = `${AI_SERVICE_URL}/api/ai/root-cause/stats`;
 
     console.log(`[Proxy] Fetching root cause stats from: ${targetUrl}`);

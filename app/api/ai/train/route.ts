@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const force = searchParams.get('force') || 'false';
 
     // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
     
     try {
       const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/train?force=${force}`, {

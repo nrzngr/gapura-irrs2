@@ -2,12 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Clock, RefreshCw } from 'lucide-react';
+import { DataTableWithPagination } from '@/components/chart-detail/DataTableWithPagination';
+import type { QueryResult } from '@/types/builder';
 
 type Report = {
   id: string;
   created_at?: string;
   status?: string;
   category?: string;
+  [key: string]: unknown;
 };
 
 function normalizeStatus(s?: string): 'OPEN' | 'PROGRESS' | 'CLOSED' {
@@ -31,32 +34,27 @@ export default function OPCaseStatus() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<'all' | 'week' | 'month'>('all');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'PROGRESS' | 'CLOSED'>('ALL');
 
   const fetchData = async (hard = false) => {
     try {
       if (hard) setRefreshing(true);
       else setLoading(true);
       if (hard) await fetch('/api/reports/refresh', { method: 'POST' });
-      // Primary endpoint
-      let res = await fetch('/api/admin/reports');
-      if (!res.ok) {
-        // Fallback to analytics endpoint (no division filter)
-        const fields = [
-          'id',
-          'created_at',
-          'status',
-          'category',
-        ].join(',');
-        res = await fetch(`/api/reports/analytics?fields=${encodeURIComponent(fields)}&refresh=${hard ? 'true' : 'false'}`);
-        if (res.ok) {
-          const data = await res.json();
-          setReports(Array.isArray(data?.reports) ? data.reports : []);
+      // Primary: Google Sheets enriched data with full columns
+      const res = await fetch('/api/reports?unfiltered=1');
+      if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
+        const data = await res.json();
+        setReports(Array.isArray(data) ? data : []);
+      } else {
+        // Fallback to analytics
+        const res2 = await fetch(`/api/reports/analytics?refresh=${hard ? 'true' : 'false'}`);
+        if (res2.ok && (res2.headers.get('content-type') || '').includes('application/json')) {
+          const data2 = await res2.json();
+          setReports(Array.isArray(data2?.reports) ? data2.reports : []);
         } else {
           setReports([]);
         }
-      } else {
-        const data = await res.json();
-        setReports(Array.isArray(data) ? data : []);
       }
     } finally {
       setLoading(false);
@@ -83,10 +81,13 @@ export default function OPCaseStatus() {
   }, [reports, range]);
 
   const statusAgg = useMemo(() => {
+    const base = statusFilter === 'ALL'
+      ? filtered
+      : filtered.filter(r => normalizeStatus(r.status) === statusFilter);
     let open = 0;
     let progress = 0;
     let closed = 0;
-    for (const r of filtered) {
+    for (const r of base) {
       const n = normalizeStatus(r.status);
       if (n === 'OPEN') open++;
       else if (n === 'PROGRESS') progress++;
@@ -95,7 +96,68 @@ export default function OPCaseStatus() {
     const total = open + progress + closed;
     const closedRate = total > 0 ? Math.round((closed / total) * 100) : 0;
     return { open, progress, closed, total, closedRate };
-  }, [filtered]);
+  }, [filtered, statusFilter]);
+
+  const tableRows = useMemo(() => {
+    let list = filtered;
+    if (statusFilter !== 'ALL') {
+      list = list.filter(r => normalizeStatus(r.status) === statusFilter);
+    }
+    return list
+      .slice() // copy
+      .sort((a, b) => {
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return db - da;
+      });
+  }, [filtered, statusFilter]);
+
+  const tableData: QueryResult = useMemo(() => {
+    const union = new Set<string>();
+    for (const r of reports) {
+      const obj = r as Record<string, unknown>;
+      for (const k of Object.keys(obj || {})) {
+        const v = obj[k];
+        const t = typeof v;
+        if (v === null || t === 'string' || t === 'number' || t === 'boolean') {
+          union.add(k);
+        }
+      }
+    }
+    // Helper: pick first available column name
+    const pick = (...keys: string[]) => keys.find(k => union.has(k));
+    // Curated minimal columns for list view
+    const selected = [
+      pick('created_at', 'form_completed_at', 'form_submitted_at', 'date_of_event'),
+      pick('status'),
+      pick('severity'),
+      pick('report', 'title'),
+      pick('airlines', 'airline', 'jenis_maskapai'),
+      pick('station_code', 'branch'),
+      pick('hub'),
+      pick('category', 'irregularity_complain_category'),
+      pick('reporter_name'),
+      pick('flight_number'),
+      // Prefer evidence_urls; fall back to evidence_url
+      pick('evidence_urls') || (!union.has('evidence_urls') && pick('evidence_url')) || null,
+    ].filter(Boolean) as string[];
+    // Safety: ensure columns are present and exclude sensitive/internal keys
+    const columns = selected.filter(k => !['sheet_id', 'user_id', 'original_id', 'id'].includes(k));
+    return {
+      columns,
+      rows: tableRows.map(r => {
+        const obj = r as Record<string, unknown>;
+        const row: Record<string, unknown> = { id: r.id };
+        for (const col of columns) {
+          if (col === 'status') row[col] = normalizeStatus(r.status);
+          else row[col] = obj[col] ?? '';
+        }
+        return row;
+      }),
+      rowCount: tableRows.length,
+      executionTimeMs: 0,
+    };
+  }, [tableRows, reports]);
 
   return (
     <div className="min-h-screen px-4 md:px-6 py-6">
@@ -118,6 +180,21 @@ export default function OPCaseStatus() {
                   }`}
                 >
                   {r === 'all' ? 'Semua' : r === 'week' ? '7 Hari' : '30 Hari'}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+              {(['ALL', 'OPEN', 'PROGRESS', 'CLOSED'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg ${
+                    statusFilter === s
+                      ? 'bg-white shadow border border-gray-200 text-gray-800'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {s === 'ALL' ? 'Semua' : s}
                 </button>
               ))}
             </div>
@@ -188,6 +265,30 @@ export default function OPCaseStatus() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Table with Pagination & Status Filter */}
+      <section className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-gray-800 tracking-wide uppercase">Daftar Kasus</h2>
+        </div>
+        <DataTableWithPagination
+          data={tableData}
+          title="Case Status Table"
+          isLoading={loading}
+          rowsPerPage={10}
+          columnClasses={{ 
+            created_at: 'whitespace-nowrap w-48',
+            report: 'min-w-[36rem] w-[44rem] leading-relaxed',
+            title: 'min-w-[36rem] w-[44rem] leading-relaxed'
+          }}
+          onRowClick={(row) => {
+            const id = typeof row.id === 'string' ? row.id : undefined;
+            if (id) {
+              window.open(`/dashboard/op/reports/${id}`, '_blank');
+            }
+          }}
+        />
       </section>
     </div>
   );

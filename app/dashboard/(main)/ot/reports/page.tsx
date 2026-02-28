@@ -1,21 +1,11 @@
 'use client';
-
-import { Wrench } from 'lucide-react';
-import { DivisionReportsPage } from '@/components/dashboard/DivisionReportsPage';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function OTReportsPage() {
-    return (
-        <DivisionReportsPage
-            config={{
-                code: 'OT',
-                name: 'Laporan Teknik',
-                color: '#f59e0b',
-                subtitle: 'Kelola laporan teknik dan GSE',
-                icon: Wrench,
-                userRole: 'DIVISI_OT',
-                basePath: '/dashboard/ot/reports',
-                enforceDivisionScope: false,
-            }}
-        />
-    );
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/dashboard/ot?view=reports');
+    }, [router]);
+    return null;
 }

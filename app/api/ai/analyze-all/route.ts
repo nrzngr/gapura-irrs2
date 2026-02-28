@@ -32,14 +32,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only allow analysts, admins, and branch managers
+    // Allow all authenticated roles to access AI analysis
     const role = String(payload.role).trim().toUpperCase();
-    if (role !== 'ANALYST' && role !== 'SUPER_ADMIN' && role !== 'ADMIN' && role !== 'MANAGER_CABANG') {
-      return NextResponse.json(
-        { error: 'Forbidden: Analyst or Admin access required' },
-        { status: 403 }
-      );
-    }
 
     // Get branch filter for MANAGER_CABANG
     const branchFilter: string | null = null;
@@ -129,7 +123,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
     
     console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}`);
     
@@ -179,7 +173,7 @@ export async function GET(request: NextRequest) {
           _proxy: {
             timestamp: new Date().toISOString(),
             source: 'local-file-fallback',
-            ai_service_url: process.env.AI_SERVICE_URL || 'http://localhost:8000',
+            ai_service_url: process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space',
             branch_filter: branchCode || branchFilter
           },
           _pagination: null

@@ -14,6 +14,7 @@ interface NavItem {
     label: string;
     icon: React.ComponentType<{ className?: string; size?: number }>;
     count?: number;
+    external?: boolean;
 }
 
 interface NavGroup {
@@ -74,8 +75,8 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
             title: 'Monitoring',
             items: [
                 { href: '/dashboard/os', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/os/reports', label: 'Semua Laporan', icon: ClipboardList },
                 { href: '/dashboard/os/dispatched', label: 'Laporan Divisi', icon: Inbox },
+                { href: 'https://lookerstudio.google.com/u/6/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_uyfwmq7usd', label: 'Tentang Kami', icon: FolderOpen, external: true },
             ]
         },
         {
@@ -96,8 +97,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
         {
             title: 'Divisi Teknik',
             items: [
-                { href: '/dashboard/ot', label: 'Dashboard OT', icon: LayoutDashboard },
-                { href: '/dashboard/ot/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/ot', label: 'OT Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/ot/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         },
@@ -112,8 +112,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
         {
             title: 'Divisi Operasi',
             items: [
-                { href: '/dashboard/op', label: 'Dashboard OP', icon: LayoutDashboard },
-                { href: '/dashboard/op/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/op', label: 'OP Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/op/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         },
@@ -128,8 +127,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
         {
             title: 'Divisi Quality',
             items: [
-                { href: '/dashboard/uq', label: 'Dashboard UQ', icon: LayoutDashboard },
-                { href: '/dashboard/uq/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/uq', label: 'UQ Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/uq/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         },
@@ -144,8 +142,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
         {
             title: 'Human Capital',
             items: [
-                { href: '/dashboard/hc', label: 'Dashboard HC', icon: LayoutDashboard },
-                { href: '/dashboard/hc/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/hc', label: 'HC Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/hc/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
@@ -154,8 +151,7 @@ const LINKS_CONFIG: Record<string, NavGroup[]> = {
         {
             title: 'Human Training',
             items: [
-                { href: '/dashboard/ht', label: 'Dashboard HT', icon: LayoutDashboard },
-                { href: '/dashboard/ht/reports', label: 'Semua Laporan', icon: ClipboardList },
+                { href: '/dashboard/ht', label: 'HT Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/ht/dispatched', label: 'Laporan Divisi', icon: Inbox },
             ]
         }
@@ -243,9 +239,32 @@ const NavContent = ({
                         {/* Tree Line Container */}
                         <div className="relative pl-2.5 ml-1 border-l border-dashed border-gray-200 space-y-1">
                             {group.items.map((link) => {
-                                const isActive = pathname === link.href;
+                                const isExternal = link.external || /^https?:\/\//.test(link.href);
+                                const isActive = !isExternal && pathname === link.href;
                                 const Icon = link.icon;
-                                return (
+                                return isExternal ? (
+                                    <a
+                                        key={link.href}
+                                        href={link.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() => setMobileOpen(false)}
+                                        className="block relative group pl-4"
+                                    >
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-px bg-gray-200 group-hover:bg-gray-400 transition-colors" />
+                                        <motion.div
+                                            className={cn(
+                                                "relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                                                "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+                                            )}
+                                            whileHover={{ x: 4 }}
+                                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                        >
+                                            <Icon size={16} className="shrink-0 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
+                                            <span className="flex-1">{link.label}</span>
+                                        </motion.div>
+                                    </a>
+                                ) : (
                                     <Link
                                         key={link.href}
                                         href={link.href}

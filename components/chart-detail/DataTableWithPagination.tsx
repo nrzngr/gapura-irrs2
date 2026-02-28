@@ -11,9 +11,11 @@ interface DataTableWithPaginationProps {
   title: string;
   isLoading?: boolean;
   rowsPerPage?: number;
+  columnClasses?: Record<string, string>;
+  onRowClick?: (row: Record<string, unknown>, index: number) => void;
 }
 
-export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 50 }: DataTableWithPaginationProps) {
+export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 50, columnClasses, onRowClick }: DataTableWithPaginationProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -178,7 +180,7 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
-                  className="px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none group/th text-left bg-transparent"
+                  className={`px-6 py-5 border-b border-[var(--surface-border)] text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] cursor-pointer hover:text-[var(--brand-primary)] transition-colors select-none group/th text-left bg-transparent ${columnClasses?.[col] || ''}`}
                 >
                   <div className="flex items-center gap-2">
                     <span>{col.replace(/_/g, ' ')}</span>
@@ -230,7 +232,9 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                       className={`
                         group/tr transition-colors duration-300
                         ${isGrandTotal ? 'bg-[var(--brand-primary)]/5 font-black text-[var(--text-primary)] sticky bottom-0 z-10 border-t border-[var(--brand-primary)]/20 shadow-[0_-8px_24px_rgba(0,0,0,0.05)] backdrop-blur-2xl' : 'hover:bg-[var(--surface-2)]/40'}
+                        ${onRowClick ? 'cursor-pointer' : ''}
                       `}
+                      onClick={() => onRowClick?.(row, (safeCurrentPage - 1) * pageSize + idx)}
                     >
                       <td className={`px-6 py-4 text-[10px] font-bold text-center border-b border-transparent ${isRepeated && !isGrandTotal ? 'text-transparent' : 'text-[var(--text-tertiary)]'}`}>
                         {isGrandTotal ? '∑' : (safeCurrentPage - 1) * pageSize + idx + 1}
@@ -248,22 +252,64 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
                               ${cIdx === 0 && !isGrandTotal ? 'font-black text-[var(--text-primary)] whitespace-nowrap' : 'text-[var(--text-secondary)] font-medium'}
                               ${isNumber ? 'tabular-nums tracking-tight font-mono text-[10px]' : ''}
                               ${cIdx === 0 ? 'relative' : ''}
+                              ${columnClasses?.[col] || ''}
                             `}
                           >
-                            {(col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link')) && typeof row[col] === 'string' && (row[col] as string).includes('<a href') ? (
-                               <span dangerouslySetInnerHTML={{ __html: row[col] as string }} />
-                            ) : (col.toLowerCase().includes('evidence') || col.toLowerCase().includes('link')) && typeof row[col] === 'string' && (row[col] as string).startsWith('http') ? (
-                              <a 
-                                href={row[col] as string} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-full text-[10px] font-black uppercase hover:bg-[var(--brand-primary)] hover:text-white transition-all duration-300"
-                              >
-                                Evidence
-                              </a>
-                            ) : (
-                               showValue ? formatValue(val, col) : ''
-                            )}
+                            {(() => {
+                              const low = col.toLowerCase();
+                              const isEvidence = low.includes('evidence') || low.includes('link');
+                              if (!isEvidence) {
+                                return showValue ? formatValue(val, col) : '';
+                              }
+                              if (typeof val === 'string' && val.includes('<a href')) {
+                                return <span dangerouslySetInnerHTML={{ __html: val }} />;
+                              }
+                              const looksUrl = (s: string) => /^https?:\/\//i.test(s);
+                              let urls: string[] = [];
+                              if (Array.isArray(val)) {
+                                urls = (val as unknown[]).map(String).filter(looksUrl);
+                              } else if (typeof val === 'string') {
+                                const s = val.trim();
+                                if (s.startsWith('[') && s.endsWith(']')) {
+                                  try {
+                                    const arr = JSON.parse(s);
+                                    if (Array.isArray(arr)) urls = arr.map(String).filter(looksUrl);
+                                  } catch {}
+                                }
+                                if (urls.length === 0) {
+                                  urls = s.split(/[\s,;|\n]+/).filter(Boolean).filter(looksUrl);
+                                }
+                                if (urls.length === 0 && looksUrl(s)) urls = [s];
+                              } else if (val && typeof val === 'object') {
+                                const anyVal = val as Record<string, unknown>;
+                                const maybe = anyVal['urls'] || anyVal['url'];
+                                if (Array.isArray(maybe)) urls = maybe.map(String).filter(looksUrl);
+                                else if (typeof maybe === 'string' && looksUrl(maybe)) urls = [maybe];
+                              }
+                              if (urls.length === 0 && low.includes('urls')) {
+                                const alt = row['evidence_url'];
+                                if (typeof alt === 'string' && looksUrl(alt)) urls = [alt];
+                              }
+                              urls = Array.from(new Set(urls));
+                              if (urls.length === 0) {
+                                return showValue ? formatValue(val, col) : '';
+                              }
+                              return (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {urls.map((u, i) => (
+                                    <a
+                                      key={`${u}-${i}`}
+                                      href={u}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] rounded-full text-[10px] font-black uppercase hover:bg-[var(--brand-primary)] hover:text-white transition-all duration-300"
+                                    >
+                                      {urls.length > 1 ? `Evidence ${i + 1}` : 'Evidence'}
+                                    </a>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </td>
                         );
                       })}
@@ -327,4 +373,3 @@ export function DataTableWithPagination({ data, title, isLoading, rowsPerPage = 
     </motion.div>
   );
 }
-

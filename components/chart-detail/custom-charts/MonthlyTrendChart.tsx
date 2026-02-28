@@ -102,7 +102,7 @@ export function MonthlyTrendChart({
         <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
       </div>
       
-      <div className="p-4 pt-10 flex-1 flex flex-col">
+      <div className="p-4 pt-10 flex flex-col">
         {/* Trend Summary */}
         <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
@@ -124,9 +124,9 @@ export function MonthlyTrendChart({
         </div>
 
         {/* Line/Bar Chart Area */}
-        <div className="flex-1 flex flex-col min-h-[150px]">
+        <div className="flex flex-col h-48 md:h-56">
           {/* Peak indicator */}
-          <div className="relative flex-1 flex items-end gap-1">
+          <div className="relative h-full flex items-end gap-1">
         {sortedData.map((item, idx) => {
           const height = (item.count / maxCount) * 100;
           const monthKey = String(item.month ?? '00').padStart(2, '0');
@@ -135,7 +135,7 @@ export function MonthlyTrendChart({
           const isLow = item.count === minCount;
               
               return (
-                <div key={idx} className="flex-1 flex flex-col items-center">
+                <div key={idx} className="flex-1 flex flex-col items-center h-full">
                   {/* Change indicator */}
                   {item.change !== undefined && (
                     <div className={`text-[8px] mb-1 ${
@@ -146,28 +146,33 @@ export function MonthlyTrendChart({
                     </div>
                   )}
                   
-                  {/* Bar */}
-                  <div 
-                    className={`w-full rounded-t-md transition-all duration-500 relative group cursor-pointer ${
-                      isPeak ? 'bg-gradient-to-t from-red-500 to-red-400' :
-                      isLow ? 'bg-gradient-to-t from-green-500 to-green-400' :
-                      'bg-gradient-to-t from-[#6b8e3d] to-[#8bc34a]'
-                    }`}
-                    style={{ height: `${Math.max(height, 5)}%` }}
-                  >
-                    {/* Tooltip on hover */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-10">
-                      {item.count} kasus
-                    </div>
-                    
-                    {/* Value label for significant bars */}
-                    {height > 40 && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[9px] font-bold text-white">
-                          {item.count}
-                        </span>
+                  {/* Bar wrapper to ensure percentage height has a definite parent height */}
+                  <div className="flex-1 flex items-end w-full">
+                    <div 
+                      className={`w-full min-h-[6px] rounded-t-md transition-all duration-500 relative group cursor-pointer ${
+                        isPeak 
+                          ? 'bg-red-500 bg-gradient-to-t from-red-500 to-red-400 border border-red-600/60' 
+                          : isLow 
+                          ? 'bg-green-500 bg-gradient-to-t from-green-500 to-green-400 border border-green-600/60' 
+                          : 'bg-emerald-500 bg-gradient-to-t from-emerald-600 to-emerald-400 border border-emerald-700/50'
+                      }`}
+                      style={{ height: `${Math.max(height, 5)}%` }}
+                      aria-label={`${monthName}: ${item.count} kasus`}
+                    >
+                      {/* Tooltip on hover */}
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-10">
+                        {item.count} kasus
                       </div>
-                    )}
+                      
+                      {/* Value label for significant bars */}
+                      {height > 40 && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-[9px] font-bold text-white">
+                            {item.count}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Month label */}

@@ -1,21 +1,11 @@
 'use client';
-
-import { Shield } from 'lucide-react';
-import { DivisionReportsPage } from '@/components/dashboard/DivisionReportsPage';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function UQReportsPage() {
-    return (
-        <DivisionReportsPage
-            config={{
-                code: 'UQ',
-                name: 'Laporan Quality',
-                color: '#ec4899',
-                subtitle: 'Kelola laporan kualitas dan keselamatan',
-                icon: Shield,
-                userRole: 'DIVISI_UQ',
-                basePath: '/dashboard/uq/reports',
-                enforceDivisionScope: false,
-            }}
-        />
-    );
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/dashboard/uq?view=reports');
+    }, [router]);
+    return null;
 }

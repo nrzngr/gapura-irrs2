@@ -1,0 +1,1030 @@
+{
+    "status": "success",
+    "records_processed": 1020,
+    "risk_summary": {
+        "last_updated": "2026-02-27T21:40:12.999478",
+        "airline_risks": {
+            "Critical": 5,
+            "High": 3,
+            "Medium": 15,
+            "Low": 21
+        },
+        "branch_risks": {
+            "Critical": 1,
+            "High": 1,
+            "Medium": 4,
+            "Low": 21
+        },
+        "hub_risks": {
+            "Critical": 1,
+            "High": 0,
+            "Medium": 1,
+            "Low": 3
+        },
+        "top_risky_airlines": [
+            "China Southern",
+            "Thai Airways",
+            "Garuda Indonesia",
+            "China Airlines",
+            "Air China"
+        ],
+        "top_risky_branches": [
+            "CGK",
+            "DPS",
+            "BDJ",
+            "BPN",
+            "SUB"
+        ],
+        "airline_details": [
+            {
+                "name": "China Southern",
+                "risk_score": 81.97,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "Medium": 13,
+                    "Low": 26,
+                    "High": 69
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Cargo Problems",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Thai Airways",
+                "risk_score": 81.89,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "High": 61,
+                    "Low": 62,
+                    "Medium": 6
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Garuda Indonesia",
+                "risk_score": 76.12,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "Low": 116,
+                    "Medium": 57,
+                    "High": 11,
+                    "Critical": 5
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "China Airlines",
+                "risk_score": 75.21,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "Medium": 8,
+                    "Low": 42,
+                    "High": 49
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Air China",
+                "risk_score": 71.49,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "Low": 36,
+                    "Medium": 3,
+                    "High": 48
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Shandong Airlines",
+                "risk_score": 54.39,
+                "risk_level": "High",
+                "severity_distribution": {
+                    "High": 25,
+                    "Low": 8
+                },
+                "issue_categories": [
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Xiamen Airlines",
+                "risk_score": 51.28,
+                "risk_level": "High",
+                "severity_distribution": {
+                    "Low": 13,
+                    "Medium": 1,
+                    "High": 23
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Citilink",
+                "risk_score": 50.02,
+                "risk_level": "High",
+                "severity_distribution": {
+                    "Low": 34,
+                    "Medium": 13,
+                    "High": 8
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "thai Airways",
+                "risk_score": 45.43,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "KLM",
+                "risk_score": 45.09,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Medium": 5,
+                    "Low": 19,
+                    "High": 12
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "VietJet Air",
+                "risk_score": 44.47,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 16,
+                    "Medium": 5,
+                    "High": 12
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Vietnam Airlines",
+                "risk_score": 44.28,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 14,
+                    "High": 13
+                },
+                "issue_categories": [
+                    "Cargo Problems",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Pelita Air",
+                "risk_score": 43.69,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 27,
+                    "Medium": 10,
+                    "High": 5
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Cargo Problems",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Korean Air",
+                "risk_score": 40.13,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 12,
+                    "Medium": 3,
+                    "High": 2,
+                    "Critical": 3
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Cargo Problems",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Vietjet Air",
+                "risk_score": 39.63,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 2,
+                    "Low": 1
+                },
+                "issue_categories": [
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Scoot",
+                "risk_score": 38.97,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 21,
+                    "Medium": 6,
+                    "Critical": 1,
+                    "High": 2
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Air Macau",
+                "risk_score": 37.16,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 3,
+                    "Low": 2
+                },
+                "issue_categories": [
+                    "Cargo Problems",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Srilankan Airlines",
+                "risk_score": 34.66,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 3,
+                    "High": 2
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Royal Brunei",
+                "risk_score": 34.39,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 2,
+                    "High": 2
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Ethiopian Airlines",
+                "risk_score": 31.88,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Medium": 1,
+                    "High": 2,
+                    "Low": 6
+                },
+                "issue_categories": [
+                    "Cargo Problems",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Airasia",
+                "risk_score": 31.29,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 1,
+                    "Low": 2
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Japan Airlines",
+                "risk_score": 30.68,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 8,
+                    "Medium": 2,
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Ethiopian Airline",
+                "risk_score": 30.43,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Express Cargo Airlines (ECA)",
+                "risk_score": 28.91,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 4,
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "IndiGo",
+                "risk_score": 28.25,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 4,
+                    "Medium": 1,
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Pax Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Aero Dili",
+                "risk_score": 25.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": [
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "Jeju Air",
+                "risk_score": 25.36,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1,
+                    "Medium": 1
+                },
+                "issue_categories": [
+                    "Operation"
+                ]
+            },
+            {
+                "name": "Air Busan",
+                "risk_score": 24.48,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 3,
+                    "Medium": 1
+                },
+                "issue_categories": [
+                    "Pax Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "Hong Kong Airlines",
+                "risk_score": 22.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": [
+                    "Operation"
+                ]
+            },
+            {
+                "name": "IndiGO",
+                "risk_score": 22.23,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 4
+                },
+                "issue_categories": [
+                    "Pax Handling",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Qatar Airways",
+                "risk_score": 21.86,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 2
+                },
+                "issue_categories": [
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "Non Airline Case",
+                "risk_score": 18.18,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 11,
+                    "Medium": 2,
+                    "High": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Sriwijaya Air",
+                "risk_score": 15.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Batik Air",
+                "risk_score": 13.36,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 1,
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Lion Air",
+                "risk_score": 10.86,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 2
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "CBL",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Wings Air",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Batik Air Malaysia",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Flyadeal",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Gulfstream G500 (Private Jet)",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Lucky Air",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Hongkong Airlines",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Boeing Aero Nusantara Cargo",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "Super Air Jet",
+                "risk_score": 10.43,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            }
+        ],
+        "branch_details": [
+            {
+                "name": "CGK",
+                "risk_score": 81.75,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "High": 344,
+                    "Medium": 75,
+                    "Low": 357,
+                    "Critical": 4
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "DPS",
+                "risk_score": 51.01,
+                "risk_level": "High",
+                "severity_distribution": {
+                    "Low": 55,
+                    "Medium": 30,
+                    "High": 5,
+                    "Critical": 3
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "BDJ",
+                "risk_score": 43.26,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 1
+                },
+                "issue_categories": [
+                    "GSE"
+                ]
+            },
+            {
+                "name": "BPN",
+                "risk_score": 37.79,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 2,
+                    "Critical": 1
+                },
+                "issue_categories": [
+                    "Operation"
+                ]
+            },
+            {
+                "name": "SUB",
+                "risk_score": 37.54,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Medium": 10,
+                    "Low": 38,
+                    "High": 2
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Cargo Problems",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "LBJ",
+                "risk_score": 30.26,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "High": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "BKS",
+                "risk_score": 29.37,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 6,
+                    "High": 1,
+                    "Low": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "MDC",
+                "risk_score": 28.85,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 3,
+                    "Low": 3,
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "KNO",
+                "risk_score": 27.89,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 13,
+                    "Medium": 1,
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Pax Handling",
+                    "Cargo Problems",
+                    "Baggage Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "UPG",
+                "risk_score": 27.49,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 4,
+                    "Medium": 5
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "PNK",
+                "risk_score": 27.31,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 2,
+                    "Critical": 1,
+                    "High": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "TKG",
+                "risk_score": 26.59,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 2,
+                    "Low": 4
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Cargo Problems",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "PLM",
+                "risk_score": 25.79,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 3
+                },
+                "issue_categories": [
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "YIA",
+                "risk_score": 25.57,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 10,
+                    "Medium": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "PKU",
+                "risk_score": 24.09,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 5,
+                    "Medium": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "GSE"
+                ]
+            },
+            {
+                "name": "PDG",
+                "risk_score": 24.03,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1,
+                    "Medium": 1
+                },
+                "issue_categories": [
+                    "Baggage Handling"
+                ]
+            },
+            {
+                "name": "HLP",
+                "risk_score": 23.26,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": [
+                    "GSE"
+                ]
+            },
+            {
+                "name": "LOP",
+                "risk_score": 20.53,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 2
+                },
+                "issue_categories": [
+                    "Pax Handling"
+                ]
+            },
+            {
+                "name": "PGK",
+                "risk_score": 20.26,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": [
+                    "Pax Handling"
+                ]
+            },
+            {
+                "name": "SRG",
+                "risk_score": 16.32,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 1,
+                    "Low": 3,
+                    "High": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "MKQ",
+                "risk_score": 15.26,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "AMQ",
+                "risk_score": 13.03,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 1,
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "BTH",
+                "risk_score": 12.46,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 1,
+                    "Low": 2
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "BTJ",
+                "risk_score": 12.46,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 2,
+                    "Medium": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "SOC",
+                "risk_score": 10.26,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "DJJ",
+                "risk_score": 10.26,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            },
+            {
+                "name": "TJQ",
+                "risk_score": 10.26,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 1
+                },
+                "issue_categories": []
+            }
+        ],
+        "hub_details": [
+            {
+                "name": "HUB 1",
+                "risk_score": 70.02,
+                "risk_level": "Critical",
+                "severity_distribution": {
+                    "High": 344,
+                    "Medium": 75,
+                    "Low": 358,
+                    "Critical": 4
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "HUB 3",
+                "risk_score": 32.49,
+                "risk_level": "Medium",
+                "severity_distribution": {
+                    "Low": 61,
+                    "Medium": 30,
+                    "High": 8,
+                    "Critical": 5
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "HUB 2",
+                "risk_score": 27.28,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 52,
+                    "Medium": 12,
+                    "High": 3
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "HUB 5",
+                "risk_score": 26.74,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Low": 33,
+                    "Medium": 13,
+                    "High": 2
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            },
+            {
+                "name": "HUB 4",
+                "risk_score": 26.68,
+                "risk_level": "Low",
+                "severity_distribution": {
+                    "Medium": 10,
+                    "Low": 9,
+                    "High": 1
+                },
+                "issue_categories": [
+                    "Operation",
+                    "Pax Handling",
+                    "Baggage Handling",
+                    "GSE",
+                    "Cargo Problems"
+                ]
+            }
+        ],
+        "total_airlines": 44,
+        "total_branches": 27,
+        "total_hubs": 5
+    }
+}

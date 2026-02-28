@@ -6,7 +6,7 @@ import { REPORT_STATUS } from '@/lib/constants/report-status';
 import { reportsService } from '@/lib/services/reports-service';
 
 // GET reports for an employee
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('session')?.value;
@@ -43,6 +43,8 @@ export async function GET() {
 
         // Normalize role for consistent checking
         const role = String(payload.role).trim().toUpperCase();
+        const url = new URL(request.url);
+        const unfiltered = url.searchParams.get('unfiltered') === '1';
 
         // Get user's station_id from database for role-based filtering
         const { data: userData } = await supabase
@@ -53,30 +55,34 @@ export async function GET() {
 
         const userStationId = userData?.station_id;
 
-        // APPLY STRICT FILTERING BASED ON ROLE
-        console.log(`[REPORTS_API] Filtering for role: ${role}, user_id: ${payload.id}, station_id: ${userStationId}`);
+        const isDivisionOrPartner = role.startsWith('DIVISI_') || role.startsWith('PARTNER_');
+        const adminBypass = role === 'SUPER_ADMIN' || role === 'ANALYST';
+        const bypassFiltering = unfiltered && (isDivisionOrPartner || adminBypass);
 
-        if (role === 'STAFF_CABANG') {
-            const originalCount = reports.length;
-            // Staff sees only own reports
-            reports = reports.filter(r => r.user_id === payload.id);
-            console.log(`[REPORTS_API] STAFF_CABANG filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
-        } else if (role === 'MANAGER_CABANG' && userStationId) {
-            const originalCount = reports.length;
-            // Manager sees all reports from their station
-            reports = reports.filter(r => r.station_id === userStationId);
-            console.log(`[REPORTS_API] MANAGER_CABANG filtered reports from ${originalCount} to ${reports.length} for station ${userStationId}`);
-        } else if (role === 'CABANG' || role === 'EMPLOYEE') {
-            const originalCount = reports.length;
-            // Legacy role handling - employees only see their own reports
-            reports = reports.filter(r => r.user_id === payload.id);
-            console.log(`[REPORTS_API] ${role} filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
-        } else if (role.startsWith('DIVISI_') || role.startsWith('PARTNER_')) {
-             // Division/Partner users only see reports assigned to their division
-             const division = role.split('_')[1]; // OS, OT, OP, UQ, HC, HT, etc.
-             reports = reports.filter(r => r.target_division === division);
+        if (bypassFiltering) {
+            console.log(`[REPORTS_API] Unfiltered mode active for role: ${role}`);
+        } else {
+            // APPLY STRICT FILTERING BASED ON ROLE
+            console.log(`[REPORTS_API] Filtering for role: ${role}, user_id: ${payload.id}, station_id: ${userStationId}`);
+
+            if (role === 'STAFF_CABANG') {
+                const originalCount = reports.length;
+                reports = reports.filter(r => r.user_id === payload.id);
+                console.log(`[REPORTS_API] STAFF_CABANG filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
+            } else if (role === 'MANAGER_CABANG' && userStationId) {
+                const originalCount = reports.length;
+                reports = reports.filter(r => r.station_id === userStationId);
+                console.log(`[REPORTS_API] MANAGER_CABANG filtered reports from ${originalCount} to ${reports.length} for station ${userStationId}`);
+            } else if (role === 'CABANG' || role === 'EMPLOYEE') {
+                const originalCount = reports.length;
+                reports = reports.filter(r => r.user_id === payload.id);
+                console.log(`[REPORTS_API] ${role} filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
+            } else if (isDivisionOrPartner) {
+                const division = role.split('_')[1];
+                reports = reports.filter(r => r.target_division === division);
+            }
+            // ANALYST and SUPER_ADMIN retain full access for now
         }
-        // ANALYST and SUPER_ADMIN retain full access for now (if they hit this endpoint)
 
         // ReportsService already handles basic enrichment (stations, categories) from Sheet data
         const enrichedReports = (reports || []).map(report => {

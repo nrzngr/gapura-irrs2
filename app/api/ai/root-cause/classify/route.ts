@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Root cause text is required' }, { status: 400 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
     
     const targetUrl = new URL(`${AI_SERVICE_URL}/api/ai/root-cause/classify`);
     targetUrl.searchParams.set('root_cause', rootCause);

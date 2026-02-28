@@ -161,17 +161,18 @@ export async function POST(request: Request, { params }: RouteParams) {
         }
 
         const GLOBAL_ACCESS_ROLES: UserRole[] = ['SUPER_ADMIN', 'DIVISI_OS', 'ANALYST', 'DIVISI_OT', 'DIVISI_OP', 'DIVISI_UQ'];
+        
         let hasAccess = false;
-
-        // Permission check: Global access roles always have permission to comment
+        // 1) Global roles can always comment
         if (GLOBAL_ACCESS_ROLES.includes(payload.role as UserRole)) {
             hasAccess = true;
         } else {
-            // Check ownership for CABANG role
-            // Since we use stable UUIDs, we can check basic permissions or fetch the report metadata
-            // For now, if role is CABANG, we allow if the user is authenticated (simplified for sheets reports)
-            if (payload.role === 'CABANG') {
-                hasAccess = true;
+            // 2) Branch roles: reuse the same access logic as GET
+            if (reportId.includes('!')) {
+                // Sheet-sourced report: allow for authenticated branch roles
+                hasAccess = (payload.role === 'MANAGER_CABANG' || payload.role === 'STAFF_CABANG');
+            } else {
+                hasAccess = await canAccessReportComments(reportId, payload.id as string, payload.role as UserRole);
             }
         }
 
