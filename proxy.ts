@@ -34,7 +34,9 @@ export default async function proxy(request: NextRequest) {
     const isDemo = demoEnabled && (request.nextUrl.searchParams.get('demo') === '1' || request.headers.get('x-demo') === 'true');
 
     // Paths that don't require auth
-    const isAuthPath = path.startsWith('/auth') || path.startsWith('/api/auth');
+    const isAuthPagePath = path.startsWith('/auth');
+    const isAuthApiPath = path.startsWith('/api/auth');
+    const isAuthPath = isAuthPagePath || isAuthApiPath;
     const isPublicEmbedPath = path.startsWith('/embed') || 
                              path.startsWith('/api/embed') ||
                              path.startsWith('/api/dashboards/query') ||
@@ -78,9 +80,14 @@ export default async function proxy(request: NextRequest) {
 
         // 2. If logged in and trying to access AUTH pages (login/register), redirect to dashboard
         // CRITICAL BUGFIX: We must NOT redirect if the path is the logout endpoint!
-        if (isAuthPath && path !== '/api/auth/logout') {
+        if (isAuthPagePath && path !== '/api/auth/logout') {
             const dashboardUrl = ROLE_DASHBOARDS[role] || '/dashboard/employee';
             return NextResponse.redirect(new URL(dashboardUrl, request.url));
+        }
+
+        // Ensure API auth endpoints are never redirected
+        if (isAuthApiPath) {
+            return NextResponse.next();
         }
 
         // 3. Role based access control for dashboards

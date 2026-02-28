@@ -57,7 +57,14 @@ export default function LoginPage() {
                 body: JSON.stringify(formData),
             });
 
-            const data = await res.json();
+            let data: any = null;
+            const ct = res.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                data = { error: text?.slice(0, 200) || 'Kesalahan tak diketahui' };
+            }
 
             if (!res.ok) {
                 throw new Error(data.error || 'Login gagal');
