@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
 import { Bricolage_Grotesque, JetBrains_Mono } from 'next/font/google';
+import PWAInit from '@/components/PWAInit';
 
 const bricolage = Bricolage_Grotesque({
     subsets: ['latin'],
@@ -27,6 +28,8 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
     title: 'Gapura Service Analytics',
     description: 'Gapura Service Analytics - Sistem Pelaporan & Monitoring Operasional Bandara',
+    manifest: '/manifest.webmanifest',
+    themeColor: '#10b981',
     icons: {
         icon: '/logo.png',
         shortcut: '/logo.png',
@@ -45,7 +48,10 @@ export default function RootLayout({
 }) {
     return (
         <html lang="id" className={`${bricolage.variable} ${jetbrainsMono.variable}`}>
-            <body className={bricolage.className}>{children}</body>
+            <body className={bricolage.className}>
+                <PWAInit />
+                {children}
+            </body>
         </html>
     );
 }
