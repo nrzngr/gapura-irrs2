@@ -103,7 +103,7 @@ export function ResponsiveHeader({
       </div>
 
       {/* Controls Section - Responsive Layout */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center sm:justify-between flex-wrap">
         {/* Date Range Selector */}
         <div className="flex items-center gap-2">
           {/* Desktop: Segmented Control */}
@@ -125,7 +125,7 @@ export function ResponsiveHeader({
           </div>
 
           {/* Mobile: Dropdown */}
-          <div className="sm:hidden flex-1">
+          <div className="sm:hidden w-full">
             <DropdownMenu open={isDateOpen} onOpenChange={setIsDateOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -139,7 +139,7 @@ export function ResponsiveHeader({
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[200px]">
+              <DropdownMenuContent className="w-[200px] bg-[var(--surface-1)] border border-[var(--surface-3)] shadow-xl rounded-xl p-1 backdrop-blur-0">
                 {dateRangeOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
@@ -148,7 +148,7 @@ export function ResponsiveHeader({
                       setIsDateOpen(false);
                     }}
                     className={cn(
-                      'min-h-[44px] cursor-pointer',
+                      'min-h-[44px] cursor-pointer focus:bg-gray-50',
                       dateRange === option.value && 'bg-blue-50 text-blue-600'
                     )}
                   >
@@ -161,7 +161,7 @@ export function ResponsiveHeader({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Desktop: Full buttons */}
           <Button
             onClick={onCustomerFeedback}
@@ -234,7 +234,7 @@ export function ResponsiveHeader({
           </Button>
 
           {/* Mobile: Action menu for hidden buttons */}
-          <div className="xl:hidden">
+          <div className="xl:hidden w-full sm:w-auto">
             <MobileActionMenu
               actions={mobileMenuActions}
               triggerLabel="Menu"
@@ -246,7 +246,7 @@ export function ResponsiveHeader({
           <Button
             onClick={() => router.push('/dashboard/employee/new')}
             className={cn(
-              'min-h-[48px] px-6 rounded-2xl font-display font-bold tracking-tight transition-all duration-300',
+              'min-h-[48px] px-6 rounded-2xl font-display font-bold tracking-tight transition-all duration-300 w-full sm:w-auto',
               'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)]',
               'hover:shadow-xl hover:-translate-y-0.5 active:scale-95'
             )}
@@ -264,7 +264,7 @@ export function ResponsiveHeader({
             disabled={refreshing}
             variant="outline"
             className={cn(
-              'min-h-[44px] min-w-[44px] sm:min-w-fit',
+              'min-h-[44px] min-w-[44px] sm:min-w-fit w-full sm:w-auto',
               'inline-flex items-center gap-2',
               refreshing && 'opacity-50'
             )}

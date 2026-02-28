@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes
 
 /**
  * Proxy for AI Root Cause Statistics
@@ -34,7 +35,6 @@ export async function GET(req: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      signal: AbortSignal.timeout(30000), // 30s timeout
     });
 
     if (!response.ok) {

@@ -719,7 +719,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       }}
     >
       <div className="space-y-8 pb-24 pt-0 px-4 md:px-6 w-full max-w-none">
-        <PresentationSlide className="!p-0 !min-h-0 !bg-transparent !shadow-none !border-0">
+        <PresentationSlide className="!p-4 md:!p-5 !min-h-0 !bg-[var(--surface-1)] !shadow-sm !border !border-[var(--surface-3)] rounded-[24px] !overflow-visible">
           <ResponsiveHeader
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
@@ -735,197 +735,197 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               onClick={() => setView('dashboard')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold tracking-tight transition-all ${view === 'dashboard' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold tracking-tight transition-all ${view === 'dashboard' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             >
-              Dashboard
+              <span className="truncate max-w-[140px] sm:max-w-none">Dashboard</span>
             </button>
             <button
               onClick={() => setView('reports')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             >
-              Semua Laporan
+              <span className="truncate max-w-[140px] sm:max-w-none">Semua Laporan</span>
             </button>
           </div>
           {view === 'dashboard' && division.code === 'OS' && (
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => router.push('/dashboard/os/joumpa')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-                JOUMPA Dashboard
+                <span className="truncate max-w-[150px] sm:max-w-none">JOUMPA Dashboard</span>
               </button>
               <button
                 onClick={() => window.open('https://lookerstudio.google.com/u/0/reporting/42384b46-8f39-4ffd-86ba-ca0e26ab56f4/page/p_8umvft5qyd', '_blank')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                Customer Survey Dashboard
+                <span className="truncate max-w-[150px] sm:max-w-none">Customer Survey Dashboard</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/sla')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-                SLA Dashboard
+                <span className="truncate max-w-[150px] sm:max-w-none">SLA Dashboard</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/wsn')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><path d="M14 3h7v5h-7z"/><path d="M14 12h7v9h-7z"/></svg>
-                WSN Dashboard
+                <span className="truncate max-w-[150px] sm:max-w-none">WSN Dashboard</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/handbook')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M20 22H6.5A2.5 2.5 0 0 1 4 19.5V6"/><path d="M20 15V2H6.5A2.5 2.5 0 0 0 4 4.5V6"/><path d="M8 6h8"/></svg>
-                SLA Handbook
+                <span className="truncate max-w-[150px] sm:max-w-none">SLA Handbook</span>
               </button>
             </div>
           )}
           {view === 'dashboard' && division.code === 'OT' && (
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => router.push('/dashboard/ot/complaint-by-category')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
-                Complaint per Category
+                <span className="truncate max-w-[150px] sm:max-w-none">Complaint per Category</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/ot/risk-severity')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21 18-8-14-8 14Z"/></svg>
-                Risk & Severity
+                <span className="truncate max-w-[150px] sm:max-w-none">Risk & Severity</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/ot/case-status')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                Status Case
+                <span className="truncate max-w-[150px] sm:max-w-none">Status Case</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/ot/gse-top-cases')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                Case GSE Tertinggi
+                <span className="truncate max-w-[150px] sm:max-w-none">Case GSE Tertinggi</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/ot/gse-performance')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v10"/><path d="M12 3c-4.2 0-8 3.8-8 8 0 4 2.6 7.4 6.2 8.7.6.2 1.3-.2 1.3-.9v-3.1c0-.4-.2-.7-.5-.9-1.5-.8-2.5-2.4-2.5-4.2 0-2.6 2.1-4.8 4.8-4.8s4.8 2.1 4.8 4.8c0 1.8-1 3.4-2.5 4.2-.3.2-.5.5-.5.9v3.1c0 .7.7 1.1 1.3.9C17.4 18.4 20 15 20 11c0-4.2-3.8-8-8-8Z"/></svg>
-                Performa GSE
+                <span className="truncate max-w-[150px] sm:max-w-none">Performa GSE</span>
               </button>
             </div>
           )}
           {view === 'dashboard' && division.code === 'OP' && (
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => router.push('/dashboard/op/complaint-by-category')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
-                Complaint per Category
+                <span className="truncate max-w-[150px] sm:max-w-none">Complaint per Category</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/risk-severity')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21 18-8-14-8 14Z"/></svg>
-                Risk & Severity
+                <span className="truncate max-w-[150px] sm:max-w-none">Risk & Severity</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/irregularity-complaint-top-cases')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                Top Irregularity & Complaint
+                <span className="truncate max-w-[150px] sm:max-w-none">Top Irregularity & Complaint</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/root-cause-dominant')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                Root Cause Dominan
+                <span className="truncate max-w-[150px] sm:max-w-none">Root Cause Dominan</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/case-status')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                Status Case
+                <span className="truncate max-w-[150px] sm:max-w-none">Status Case</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/sla-compliance')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-                SLA Compliance
+                <span className="truncate max-w-[150px] sm:max-w-none">SLA Compliance</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/cargo-irregularity')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-600 to-yellow-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-600 to-yellow-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><path d="M14 3h7v5h-7z"/><path d="M14 12h7v9h-7z"/></svg>
-                Logistik Irregularity
+                <span className="truncate max-w-[150px] sm:max-w-none">Logistik Irregularity</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/joumpa')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-                Joumpa Handling
+                <span className="truncate max-w-[150px] sm:max-w-none">Joumpa Handling</span>
               </button>
             </div>
           )}
           {division.code === 'UQ' && (
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() =>
                   router.push('/dashboard/charts/report-by-case-category/detail?hideFilters=true&sourcePage=uq')
                 }
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
-                Complaint per Category
+                <span className="truncate max-w-[150px] sm:max-w-none">Complaint per Category</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/risk-severity')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/20 hover:shadow-xl hover:shadow-rose-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21 18-8-14-8 14Z"/></svg>
-                Risk & Severity
+                <span className="truncate max-w-[150px] sm:max-w-none">Risk & Severity</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/op/case-status')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                Risk of Case
+                <span className="truncate max-w-[150px] sm:max-w-none">Risk of Case</span>
               </button>
               <button
                 onClick={() =>
                   router.push('/dashboard/charts/monthly-report/detail?hideFilters=true&sourcePage=uq')
                 }
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                Monitoring Efektivitas
+                <span className="truncate max-w-[150px] sm:max-w-none">Monitoring Efektivitas</span>
               </button>
               <button
                 onClick={() =>
                   router.push('/dashboard/charts/category-by-area/detail?hideFilters=true&sourcePage=uq')
                 }
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-                Monitoring Kesesuaian Standar
+                <span className="truncate max-w-[150px] sm:max-w-none">Monitoring Kesesuaian Standar</span>
               </button>
             </div>
           )}
@@ -944,11 +944,11 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
                     />
                   </div>
                   <div className="flex gap-3 w-full lg:w-auto">
-                    <div className="relative min-w-[160px]">
+                    <div className="relative min-w-[150px]">
                       <select
                         value={listFilter}
                         onChange={(e) => setListFilter(e.target.value)}
-                        className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                        className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-[11px] uppercase tracking-wide text-slate-600"
                       >
                         <option value="all">Semua Status</option>
                         <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
@@ -957,21 +957,21 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
                         <option value="OPEN">Open</option>
                         <option value="Closed">Closed</option>
                       </select>
-                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-teal-500" />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     </div>
-                    <div className="relative min-w-[160px]">
+                    <div className="relative min-w-[150px]">
                       <select
                         value={listSeverity}
                         onChange={(e) => setListSeverity(e.target.value)}
-                        className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                        className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-[11px] uppercase tracking-wide text-slate-600"
                       >
                         <option value="all">Semua Severity</option>
                         <option value="high">High</option>
                         <option value="medium">Medium</option>
                         <option value="low">Low</option>
                       </select>
-                      <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+                      <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500" />
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     </div>
                     <button

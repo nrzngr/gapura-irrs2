@@ -8,190 +8,7 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- Type Definitions ---
-interface NavItem {
-    href: string;
-    label: string;
-    icon: React.ComponentType<{ className?: string; size?: number }>;
-    count?: number;
-    external?: boolean;
-}
-
-interface NavGroup {
-    title: string;
-    items: NavItem[];
-}
-
-// --- Configuration ---
-const LINKS_CONFIG: Record<string, NavGroup[]> = {
-    'ADMIN': [
-        {
-            title: 'Overview',
-            items: [
-                { href: '/dashboard/admin', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/admin/security', label: 'Security', icon: Shield },
-            ]
-        },
-        {
-            title: 'Management',
-            items: [
-                { href: '/dashboard/admin/reports', label: 'Reports', icon: ClipboardList },
-                { href: '/dashboard/admin/users', label: 'Users', icon: Users },
-            ]
-        }
-    ],
-    'EMPLOYEE': [
-        {
-            title: 'Workspace',
-            items: [
-                { href: '/dashboard/employee', label: 'Laporan Saya', icon: FileText },
-                { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
-            ]
-        }
-    ],
-    'MANAGER': [
-        {
-            title: 'Workspace',
-            items: [
-                { href: '/dashboard/employee', label: 'Laporan Saya', icon: FileText },
-                { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
-            ]
-        },
-        {
-            title: 'Analysis',
-            items: [
-                { href: '/dashboard/employee/ai-reports', label: 'AI Reports', icon: Brain },
-            ]
-        },
-        {
-            title: 'Management',
-            items: [
-                { href: '/dashboard/admin/users', label: 'Kelola Staff', icon: Users },
-            ]
-        }
-    ],
-    'OS': [
-        {
-            title: 'Monitoring',
-            items: [
-                { href: '/dashboard/os', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/os/dispatched', label: 'Laporan Divisi', icon: Inbox },
-                { href: 'https://lookerstudio.google.com/u/6/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_uyfwmq7usd', label: 'Tentang Kami', icon: FolderOpen, external: true },
-            ]
-        },
-        {
-            title: 'Analysis',
-            items: [
-                { href: '/dashboard/os/ai-reports', label: 'AI Reports', icon: Brain },
-            ]
-        },
-        {
-            title: 'Schedule',
-            items: [
-                { href: '/dashboard/os/calendar', label: 'Event Calendar', icon: Calendar },
-                { href: '/dashboard/os/meeting-calendar', label: 'Meeting Calendar', icon: Calendar },
-            ]
-        }
-    ],
-    'OT': [
-        {
-            title: 'Divisi Teknik',
-            items: [
-                { href: '/dashboard/ot', label: 'OT Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/ot/dispatched', label: 'Laporan Divisi', icon: Inbox },
-            ]
-        },
-        {
-            title: 'Analysis',
-            items: [
-                { href: '/dashboard/ot/ai-reports', label: 'AI Reports', icon: Brain },
-            ]
-        }
-    ],
-    'OP': [
-        {
-            title: 'Divisi Operasi',
-            items: [
-                { href: '/dashboard/op', label: 'OP Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/op/dispatched', label: 'Laporan Divisi', icon: Inbox },
-            ]
-        },
-        {
-            title: 'Analysis',
-            items: [
-                { href: '/dashboard/op/ai-reports', label: 'AI Reports', icon: Brain },
-            ]
-        }
-    ],
-    'UQ': [
-        {
-            title: 'Divisi Quality',
-            items: [
-                { href: '/dashboard/uq', label: 'UQ Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/uq/dispatched', label: 'Laporan Divisi', icon: Inbox },
-            ]
-        },
-        {
-            title: 'Analysis',
-            items: [
-                { href: '/dashboard/uq/ai-reports', label: 'AI Reports', icon: Brain },
-            ]
-        }
-    ],
-    'HC': [
-        {
-            title: 'Human Capital',
-            items: [
-                { href: '/dashboard/hc', label: 'HC Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/hc/dispatched', label: 'Laporan Divisi', icon: Inbox },
-            ]
-        }
-    ],
-    'HT': [
-        {
-            title: 'Human Training',
-            items: [
-                { href: '/dashboard/ht', label: 'HT Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/ht/dispatched', label: 'Laporan Divisi', icon: Inbox },
-            ]
-        }
-    ],
-    'ANALYST': [
-        {
-            title: 'Command Center',
-            items: [
-                { href: '/dashboard/analyst', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/analyst/reports', label: 'Laporan', icon: ClipboardList },
-                { href: '/dashboard/analyst/ai-reports', label: 'AI Reports', icon: Brain },
-                { href: '/dashboard/analyst/builder', label: 'Explore & Build', icon: Hash },
-                { href: '/dashboard/analyst/dashboards', label: 'Custom Dashboards', icon: FolderOpen },
-                { href: '/dashboard/analyst/import', label: 'Import Data', icon: FolderOpen },
-                { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
-            ]
-        },
-        {
-            title: 'Schedule',
-            items: [
-                { href: '/dashboard/analyst/calendar', label: 'Event Calendar', icon: Calendar },
-                { href: '/dashboard/analyst/meeting-calendar', label: 'Meeting Calendar', icon: Calendar },
-            ]
-        }
-    ]
-};
-
-const GET_LINKS_KEY = (role: string): string => {
-    const r = role.toUpperCase();
-    if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
-    if (r === 'ANALYST') return 'ANALYST';
-    if (r === 'MANAGER_CABANG') return 'MANAGER';
-    if (r === 'DIVISI_OS' || r === 'PARTNER_OS') return 'OS';
-    if (r === 'DIVISI_OT' || r === 'PARTNER_OT') return 'OT';
-    if (r === 'DIVISI_OP' || r === 'PARTNER_OP') return 'OP';
-    if (r === 'DIVISI_UQ' || r === 'PARTNER_UQ') return 'UQ';
-    if (r === 'DIVISI_HC' || r === 'PARTNER_HC') return 'HC';
-    if (r === 'DIVISI_HT' || r === 'PARTNER_HT') return 'HT';
-    return 'EMPLOYEE';
-};
+import { LINKS_CONFIG, GET_LINKS_KEY, type NavGroupConfig as NavGroup, type NavItemConfig as NavItem } from '@/lib/nav-config';
 
 interface NavContentProps {
     groups: NavGroup[];
@@ -368,10 +185,17 @@ export default function Sidebar({ role }: { role: string }) {
         setMobileOpen
     };
 
+    // Expose toggle to window for easy access from Bottom Nav on mobile
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            (window as any).toggleMobileSidebar = () => setMobileOpen(prev => !prev);
+        }
+    }, []);
+
     return (
         <>
-            {/* Mobile Header Button */}
-            <div className="md:hidden fixed top-4 left-4 z-50">
+            {/* Mobile Header Button - Hidden because Bottom Nav handles it now */}
+            <div className="md:hidden fixed top-4 left-4 z-50 pointer-events-none opacity-0">
                 <button
                     onClick={() => setMobileOpen(true)}
                     className="p-2.5 bg-white rounded-xl shadow-md border border-gray-200 text-[var(--text-primary)] active:scale-95 transition-transform"

@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { readFile } from 'fs/promises';
 import path from 'path';
 
+export const maxDuration = 300; // 5 minutes
+
 /**
  * GET /api/ai/analyze-all
  * 

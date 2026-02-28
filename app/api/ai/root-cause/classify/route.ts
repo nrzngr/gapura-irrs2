@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
 
+export const maxDuration = 300; // 5 minutes
+
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -33,7 +35,6 @@ export async function POST(req: NextRequest) {
     const aiResponse = await fetch(targetUrl.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(10000),
     });
 
     if (!aiResponse.ok) {

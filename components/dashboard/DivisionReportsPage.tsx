@@ -177,12 +177,11 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {/* Status Filter */}
-              <div className="relative flex-1 min-w-[160px]">
+              <div className="relative flex-1 min-w-[150px]">
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="w-full h-14 pl-12 pr-10 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                  className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-[11px] uppercase tracking-wide text-slate-600"
                 >
                   <option value="all">Semua Status</option>
                   <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
@@ -191,24 +190,24 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
                   <option value="OPEN">Open</option>
                   <option value="Closed">Closed</option>
                 </select>
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-teal-500" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
 
               {/* Severity Filter */}
-              <div className="relative flex-1 min-w-[160px]">
+              <div className="relative flex-1 min-w-[150px]">
                 <select
                   value={severityFilter}
                   onChange={(e) => setSeverityFilter(e.target.value)}
-                  className="w-full h-14 pl-12 pr-10 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
+                  className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-[11px] uppercase tracking-wide text-slate-600"
                 >
                   <option value="all">Semua Severity</option>
                   <option value="high">🔴 High</option>
                   <option value="medium">🟡 Medium</option>
                   <option value="low">🟢 Low</option>
                 </select>
-                <AlertTriangle className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <AlertTriangle className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
 
               {/* Refresh */}

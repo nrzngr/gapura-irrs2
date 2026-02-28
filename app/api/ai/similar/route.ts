@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,7 +34,6 @@ export async function POST(req: NextRequest) {
     const aiResponse = await fetch(targetUrl.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(10000),
     });
 
     if (!aiResponse.ok) {

@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes
 
 /**
  * API endpoint untuk analisis AI
@@ -79,7 +80,6 @@ export async function POST(req: NextRequest) {
           data: convertedData,
           options: analysisOptions,
         }),
-        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
 
       if (!aiResponse.ok) {

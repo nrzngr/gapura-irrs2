@@ -63,14 +63,17 @@ export function MobileActionMenu({
           </Button>
         </DropdownMenuTrigger>
         
-        <DropdownMenuContent align={align} className="w-56">
+        <DropdownMenuContent
+          align={align}
+          className="w-56 bg-[var(--surface-1)] border border-[var(--surface-3)] shadow-xl rounded-xl p-1 backdrop-blur-0"
+        >
           {visibleActions.map((action, index) => (
             <DropdownMenuItem
               key={index}
               onClick={action.onClick}
               disabled={action.variant === 'disabled'}
               className={cn(
-                'min-h-[44px] cursor-pointer',
+                'min-h-[44px] cursor-pointer focus:bg-gray-50',
                 action.variant === 'danger' && 'text-red-600 focus:text-red-600 focus:bg-red-50'
               )}
             >

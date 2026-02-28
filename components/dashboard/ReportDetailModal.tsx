@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { type Report } from '@/types';
 import { ReportDetailView } from './ReportDetailView';
 
@@ -67,29 +68,37 @@ export function ReportDetailModal({
     const displayReport = fullReport || initialReport;
 
     return createPortal(
-        <div className="fixed top-0 left-0 w-screen h-[100dvh] z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex md:items-center justify-center p-0 md:p-4 overflow-hidden">
             {/* Backdrop */}
             <div 
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300 animate-fade-in"
                 onClick={onClose}
             />
 
-            {/* Modal Content */}
+            {/* Modal Content - Bottom Sheet on Mobile, Centered on Desktop */}
             <div 
-                className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-scale-in relative z-10 flex flex-col"
-                style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}
+                className={cn(
+                    "relative z-10 bg-white shadow-2xl flex flex-col w-full",
+                    "max-h-[95vh] md:max-h-[90vh] md:max-w-4xl md:rounded-2xl",
+                    "bottom-0 fixed md:relative",
+                    "rounded-t-[2.5rem] md:rounded-2xl",
+                    "transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                    "animate-in slide-in-from-bottom md:zoom-in-95"
+                )}
             >
+                {/* Mobile Drag Indicator */}
+                <div className="md:hidden w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 shrink-0" />
                 <div className="relative flex-1 overflow-hidden flex flex-col">
                      <button 
                         onClick={onClose} 
-                        className="absolute top-4 right-4 z-50 p-2.5 bg-black/5 hover:bg-black/10 rounded-full transition-all duration-200"
+                        className="absolute top-4 right-6 md:top-4 md:right-4 z-50 p-2 md:p-2.5 bg-slate-100 hover:bg-slate-200 rounded-full transition-all duration-200"
                     >
-                        <X size={20} className="text-gray-600" />
+                        <X size={20} className="text-slate-600" />
                     </button>
                     
-                    <div className="flex-1 overflow-auto bg-gray-50/50 relative">
+                    <div className="flex-1 overflow-y-auto bg-slate-50/20 relative scrollbar-hide">
                         {loadingDetail && (
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gray-100 overflow-hidden z-50">
+                            <div className="sticky top-0 left-0 w-full h-1 bg-white/50 overflow-hidden z-[60]">
                                 <div className="h-full bg-emerald-500 animate-progress-indeterminate origin-left" />
                             </div>
                         )}
@@ -97,6 +106,7 @@ export function ReportDetailModal({
                             report={displayReport} 
                             onUpdateStatus={onUpdateStatus}
                             userRole={userRole}
+                            isModal={true}
                              onRefresh={(updatedReport?: Report) => {
                                  if (updatedReport) {
                                      // Force update immediately after dispatch

@@ -3,27 +3,29 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  User,
-  CheckCircle2,
-  Loader2,
-  X,
   AlertCircle,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  ChevronLeft,
   Edit3,
-  Save,
-  RotateCcw,
+  ExternalLink,
   FileText,
   FileType,
-  ChevronLeft,
-  Plane,
-  MapPin,
-  Calendar,
-  Building2,
-  Tag,
-  MessageSquare,
   Link,
+  Loader2,
+  MapPin,
+  MessageSquare,
+  Plane,
   Plus,
-  ExternalLink,
+  RotateCcw,
+  Save,
+  Tag,
+  User,
+  X,
 } from "lucide-react";
+
+// Cache bust: 2026-03-01T06:58:00
 import {
   STATUS_CONFIG,
   getAllowedTransitions,
@@ -74,7 +76,7 @@ function DataField({
         {label}
       </dt>
       <dd className={cn(
-        "text-[15px] leading-snug break-words",
+        "text-[14px] md:text-[15px] leading-snug break-words",
         isEmpty ? "text-gray-300 italic" : "text-[var(--text-primary)] font-medium"
       )}>
         {isEmpty ? "Tidak ditentukan" : value}
@@ -104,12 +106,12 @@ function SectionCard({
       className
     )}>
       {title && (
-        <header className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
-          <h3 className="text-[13px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{title}</h3>
+        <header className="flex items-center justify-between px-4 md:px-5 py-3 md:py-3.5 border-b border-gray-100">
+          <h3 className="text-[12px] md:text-[13px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{title}</h3>
           {headerAction}
         </header>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-4 md:p-5">{children}</div>
     </section>
   );
 }
@@ -385,7 +387,7 @@ export function ReportDetailView({
   else if (primaryAction === "MENUNGGU_FEEDBACK") actionLabel = "Buka Kembali";
 
   return (
-    <div className="h-full flex flex-col bg-[var(--surface-1)] p-4 gap-4 overflow-hidden">
+    <div className="min-h-full flex flex-col bg-[var(--surface-1)] md:p-4 gap-4 overflow-x-hidden">
       {/* =============================================
           HEADER CARD
           ============================================= */}
@@ -393,112 +395,123 @@ export function ReportDetailView({
         {/* Progress Indicator */}
         <div className="h-1 w-full bg-gradient-to-r from-[var(--brand-primary)] via-emerald-400 to-teal-500" />
         
-        <div className="px-5 py-3 flex items-center gap-4">
-          {/* Back Button */}
-          {onClose && (
-            <button 
-              onClick={onClose} 
-              className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
-              aria-label="Kembali"
-            >
-              <ChevronLeft size={20} />
-            </button>
-          )}
-
-          {/* Title */}
-          <div className="flex-1 min-w-0">
-            {isEditing ? (
-              <input
-                value={editForm.title}
-                onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
-                className="w-full text-base font-semibold text-gray-900 border-b-2 border-[var(--brand-primary)] focus:outline-none bg-transparent"
-                placeholder="Judul laporan..."
-              />
-            ) : (
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                   {report.primary_tag === 'CGO' ? (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">CGO</span>
-                   ) : (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">LANDSIDE & AIRSIDE</span>
-                   )}
-                   <span className="text-[10px] text-[var(--text-muted)] font-mono">{report.id}</span>
-                </div>
-                <h1 className="text-base font-semibold text-gray-900 truncate">
-                  {report.report || report.title || `${report.airlines || ""} ${report.flight_number || ""}`.trim() || "Laporan"}
-                </h1>
-              </div>
-            )}
-            <p className="text-xs text-gray-400 truncate">
-              {report.category || "Irregularity"} • #{report?.id?.slice(0, 8).toUpperCase() ?? 'N/A'}
-            </p>
-          </div>
-
-          {/* Badges */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className={cn(
-              "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide",
-              severityBadge.classes
-            )}>
-              {severityBadge.label}
-            </span>
-            <span className={cn(
-              "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide",
-              statusConfig?.bgClass || "bg-gray-100",
-              statusConfig?.textClass || "text-gray-600"
-            )}>
-              {statusConfig?.label || report.status}
-            </span>
-          </div>
-
-          {/* Download Actions */}
-          {(userRole === "CABANG" || canExportBranchData(userRole as UserRole)) && (
-            <div className="hidden sm:flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => generatePDF(report)}
-                className="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors"
-                title="Download PDF"
-                aria-label="Download PDF"
-              >
-                <FileType size={16} />
-              </button>
-              <button
-                onClick={() => generateWord(report)}
-                className="w-9 h-9 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors"
-                title="Download DOCX"
-                aria-label="Download DOCX"
-              >
-                <FileText size={16} />
-              </button>
-            </div>
-          )}
-
-          {/* Edit Actions */}
-          {canEdit && !isClosed && (
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)} 
-                className={cn(
-                  "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
-                  isEditing 
-                    ? "bg-[var(--brand-primary)] text-white" 
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-500"
+        <div className="px-4 md:px-5 pb-5 pt-10 md:pt-3">
+          <div className="flex flex-col gap-4">
+            {/* Row 1: Badges & ID */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {report.primary_tag === 'CGO' ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">CGO</span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 whitespace-nowrap">LANDSIDE & AIRSIDE</span>
                 )}
-                aria-label={isEditing ? "Simpan" : "Edit"}
-              >
-                {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
-              </button>
-              {isEditing && (
+                <span className="text-[11px] text-slate-400 font-mono bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                  #{report?.id?.slice(0, 8).toUpperCase() ?? 'N/A'}
+                </span>
+              </div>
+
+              {/* Status Badges Group (Desktop keeps them right, Mobile stacks below if needed) */}
+              <div className="hidden md:flex items-center gap-2">
+                <span className={cn(
+                  "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm",
+                  severityBadge.classes
+                )}>
+                  {severityBadge.label}
+                </span>
+                <span className={cn(
+                  "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm",
+                  statusConfig?.bgClass || "bg-gray-100",
+                  statusConfig?.textClass || "text-gray-600"
+                )}>
+                  {statusConfig?.label || report.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Row 2: Title & Category */}
+            <div className="space-y-1">
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight tracking-tight">
+                {report.report || report.title || `${report.airlines || ""} ${report.flight_number || ""}`.trim() || "Laporan Tanpa Judul"}
+              </h1>
+              <div className="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
+                <Tag size={14} className="text-slate-400" />
+                <span>{report.category || "Irregularity"}</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                <span>{formatDate(report.date_of_event || report.event_date || report.created_at)}</span>
+              </div>
+            </div>
+
+            {/* Row 3: Mobile Status Badges & Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 md:hidden border-t border-slate-100 pt-4">
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm",
+                  severityBadge.classes
+                )}>
+                  {severityBadge.label}
+                </span>
+                <span className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm transition-colors",
+                  statusConfig?.bgClass || "bg-gray-100",
+                  statusConfig?.textClass || "text-gray-600"
+                )}>
+                  {statusConfig?.label || report.status}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 ml-auto">
+                {/* PDF/Word */}
+                {(userRole === "CABANG" || canExportBranchData(userRole as UserRole)) && (
+                   <div className="flex items-center gap-1 mr-1 pr-1 border-r border-slate-100">
+                    <button onClick={() => generatePDF(report)} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center transition-colors">
+                      <FileType size={14} strokeWidth={2.5} />
+                    </button>
+                    <button onClick={() => generateWord(report)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center transition-colors">
+                      <FileText size={14} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                )}
+                {/* Edit */}
+                {canEdit && !isClosed && (
+                  <button 
+                    onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)} 
+                    className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm",
+                      isEditing ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
+                    )}
+                  >
+                    {isEditing ? <Save size={14} /> : <Edit3 size={14} />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Row 4: Desktop Actions Only */}
+            <div className="hidden md:flex items-center justify-end gap-2 border-t border-slate-50 pt-3 mt-1">
+               {(userRole === "CABANG" || canExportBranchData(userRole as UserRole)) && (
+                <div className="flex items-center gap-2 mr-2 pr-2 border-r border-slate-100">
+                  <button onClick={() => generatePDF(report)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[12px] font-bold hover:bg-red-100 transition-colors">
+                    <FileType size={14} strokeWidth={2.5} /> PDF
+                  </button>
+                  <button onClick={() => generateWord(report)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-[12px] font-bold hover:bg-blue-100 transition-colors">
+                    <FileText size={14} strokeWidth={2.5} /> DOCX
+                  </button>
+                </div>
+              )}
+              {canEdit && !isClosed && (
                 <button 
-                  onClick={() => setIsEditing(false)} 
-                  className="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-colors"
-                  aria-label="Batal"
+                  onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)} 
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all shadow-sm",
+                    isEditing ? "bg-slate-900 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  )}
                 >
-                  <X size={16} />
+                  {isEditing ? <Save size={14} /> : <Edit3 size={14} />}
+                  {isEditing ? "Simpan Perubahan" : "Edit Laporan"}
                 </button>
               )}
             </div>
-          )}
+          </div>
         </div>
       </header>
 
@@ -535,15 +548,15 @@ export function ReportDetailView({
 
               {/* RINGKASAN — Summary Grid */}
               <SectionCard title="Ringkasan">
-                <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-6 gap-y-6 md:gap-y-5">
                   <DataField label="Flight" value={`${report.flight_number || ""}${report.aircraft_reg ? ` (${report.aircraft_reg})` : ""}`} icon={Plane} />
                   <DataField label="Route" value={report.route} icon={MapPin} />
                   <DataField label="Airline" value={report.airlines} icon={Building2} />
                   <DataField label="Area" value={AREA_LABELS[report.area || ""] || report.area} icon={Tag} />
                   <DataField label="Target Divisi" value={report.target_division} />
                   <DataField label="Station" value={`${report.stations?.code || report.branch || ""}${report.stations?.name ? ` - ${report.stations.name}` : ""}`} icon={Building2} />
-                  <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} />
-                  <DataField label="Tanggal Kejadian" value={formatDate(report.date_of_event || report.event_date || report.created_at)} icon={Calendar} />
+                  <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} span={2} />
+                  <DataField label="Tanggal" value={formatDate(report.date_of_event || report.event_date || report.created_at)} icon={Calendar} />
                 </dl>
               </SectionCard>
 
