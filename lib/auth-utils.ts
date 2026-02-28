@@ -1,3 +1,4 @@
+import 'server-only';
 import { SessionPayload } from '@/types';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';

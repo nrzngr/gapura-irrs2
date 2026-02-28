@@ -24,11 +24,20 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [demoMode, setDemoMode] = useState(false);
+    const [active, setActive] = useState(0);
+    const carouselImages = ['/front-image-2.svg', '/front-image-3.svg', '/front-page-image2.jpg'];
 
     // Persist demo mode state
     useEffect(() => {
         const savedDemoMode = localStorage.getItem('demo_mode') === 'true';
         setDemoMode(savedDemoMode);
+    }, []);
+
+    useEffect(() => {
+        const id = setInterval(() => {
+            setActive((i) => (i + 1) % carouselImages.length);
+        }, 4000);
+        return () => clearInterval(id);
     }, []);
 
     const toggleDemoMode = () => {
@@ -113,11 +122,40 @@ export default function LoginPage() {
                     <Image
                         src="/logo.png"
                         alt="Gapura"
-                        width={180}
-                        height={70}
+                        width={240}
+                        height={90}
                         className="object-contain brightness-0 invert"
                         priority
                     />
+                </div>
+
+                <div className="relative z-10 mt-6">
+                    <div className="relative w-full h-64 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20">
+                        {carouselImages.map((src, idx) => (
+                            <div
+                                key={src}
+                                className={`absolute inset-0 transition-opacity duration-700 ${idx === active ? 'opacity-100' : 'opacity-0'}`}
+                            >
+                                <Image
+                                    src={src}
+                                    alt="Gapura"
+                                    fill
+                                    sizes="(max-width: 1024px) 100vw, 50vw"
+                                    className="object-cover"
+                                    priority={idx === 0}
+                                />
+                            </div>
+                        ))}
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                            {carouselImages.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setActive(idx)}
+                                    className={`h-1.5 rounded-full transition-all ${idx === active ? 'w-6 bg-white' : 'w-3 bg-white/60'}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="relative z-10 space-y-6">
@@ -142,8 +180,8 @@ export default function LoginPage() {
                         <Image
                             src="/logo.png"
                             alt="Gapura"
-                            width={160}
-                            height={60}
+                            width={200}
+                            height={75}
                             className="mx-auto object-contain"
                             priority
                         />

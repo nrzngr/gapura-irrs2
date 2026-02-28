@@ -1,8 +1,14 @@
-import Groq from "groq-sdk";
+import "server-only";
+let groqClient: any = null;
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+async function getGroqClient() {
+  if (groqClient) return groqClient;
+  const { default: Groq } = await import("groq-sdk");
+  groqClient = new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+  });
+  return groqClient;
+}
 
 export type GroqMessage = {
   role: "system" | "user" | "assistant";
@@ -18,7 +24,7 @@ export async function callGroqAI(
 ): Promise<string> {
   try {
     console.log(`[Groq] Calling model: ${model}`);
-    
+    const groq = await getGroqClient();
     const completion = await groq.chat.completions.create({
       model: model,
       messages: messages as any,

@@ -96,7 +96,12 @@ export async function GET(request: Request) {
         }).filter(Boolean);
 
         console.log(`[REPORTS_API] Returning ${enrichedReports.length} enriched reports`);
-        return NextResponse.json(enrichedReports);
+        return NextResponse.json(enrichedReports, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+                'Vary': 'Cookie'
+            }
+        });
     } catch (error) {
         console.error('Error fetching reports:', error);
         return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });

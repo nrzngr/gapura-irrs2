@@ -1,3 +1,4 @@
+import "server-only";
 import { reportsService } from '@/lib/services/reports-service';
 import type { QueryDefinition } from '@/types/builder';
 import type { Report } from '@/types';

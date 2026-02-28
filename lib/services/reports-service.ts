@@ -1,8 +1,12 @@
+import 'server-only';
 import { getGoogleSheets } from '@/lib/google-sheets';
 import { supabase } from '@/lib/supabase';
 import type { Report, ReportStatus, UserRole, Station, Unit, Position, IncidentType } from '@/types';
 import { calculateSlaDeadline } from '@/lib/constants/report-status';
 import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
+import { promises as fs } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 // Deterministic Namespace for Google Sheets ID Mapping (Fixed UUID)
 const IRRS_NAMESPACE_UUID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // Shared namespace for consistently mapping string IDs
@@ -47,6 +51,35 @@ export function getCacheStats() {
     keys: ttlCache.size,
     hitRatio: total > 0 ? cacheHits / total : 0,
   };
+}
+
+const FS_CACHE_DIR = '/tmp/gapura-irrs-cache';
+function fsCachePath(key: string) {
+  const hash = crypto.createHash('sha1').update(key).digest('hex');
+  return path.join(FS_CACHE_DIR, `${hash}.json`);
+}
+
+async function readFsCache<T>(key: string, ttlMs: number): Promise<T | null> {
+  try {
+    const p = fsCachePath(key);
+    const stat = await fs.stat(p).catch(() => null as any);
+    if (!stat) return null;
+    if (Date.now() - stat.mtimeMs > ttlMs) return null;
+    const text = await fs.readFile(p, 'utf-8');
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function writeFsCache(key: string, data: unknown): Promise<void> {
+  try {
+    await fs.mkdir(FS_CACHE_DIR, { recursive: true });
+    const p = fsCachePath(key);
+    await fs.writeFile(p, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
 }
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID || '1TFPZOAWAKubPl7iaUk8BXt2BabY1N-AcLgi-_zBQGzk';
@@ -524,6 +557,11 @@ export class ReportsService {
     if (!refresh) {
       const cached = getCache<Report[]>(cacheKey, CACHE_TTL);
       if (cached) return cached;
+      const fsCached = await readFsCache<Report[]>(cacheKey, CACHE_TTL);
+      if (fsCached) {
+        setCache(cacheKey, fsCached);
+        return fsCached;
+      }
     }
 
     // --- PARALLEL FETCHING: Google Sheets & Supabase ---
@@ -665,6 +703,7 @@ export class ReportsService {
       : filteredReports;
 
     setCache(cacheKey, finalReports);
+    writeFsCache(cacheKey, finalReports).catch(() => {});
     return finalReports;
   }
 
