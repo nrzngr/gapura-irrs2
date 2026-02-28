@@ -23,13 +23,13 @@ export const viewport: Viewport = {
     maximumScale: 1,
     userScalable: false,
     viewportFit: 'cover',
+    themeColor: '#10b981',
 };
 
 export const metadata: Metadata = {
     title: 'Gapura Service Analytics',
     description: 'Gapura Service Analytics - Sistem Pelaporan & Monitoring Operasional Bandara',
     manifest: '/manifest.webmanifest',
-    themeColor: '#10b981',
     icons: {
         icon: '/logo.png',
         shortcut: '/logo.png',
