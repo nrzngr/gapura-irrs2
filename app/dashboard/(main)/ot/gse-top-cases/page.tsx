@@ -16,11 +16,38 @@ interface GseTopResponse {
   top: [string, GseSubcategoryStat][];
 }
 
-function toDonutData(top: [string, GseSubcategoryStat][], fallback: Record<string, GseSubcategoryStat>) {
-  const arr = (top && top.length > 0 ? top : Object.entries(fallback)).map(([name, d]) => ({
-    name,
-    value: d.count,
-  }));
+function toDonutData(top: unknown, fallback: Record<string, GseSubcategoryStat>) {
+  let pairs: [string, GseSubcategoryStat][] = [];
+  if (Array.isArray(top) && top.length > 0) {
+    // Case 1: tuples [name, stat]
+    if (Array.isArray(top[0]) && (top[0] as unknown[]).length >= 2) {
+      pairs = top as [string, GseSubcategoryStat][];
+    } else if (typeof top[0] === 'object' && top[0] !== null) {
+      // Case 2: objects like { subcategory, count, percentage }
+      const arr = (top as unknown[]).map((it) => {
+        if (typeof it !== 'object' || it === null) return null;
+        const obj = it as Record<string, unknown>;
+        const name = String((obj.subcategory ?? obj.name ?? obj.key) || '').trim();
+        const count = Number((obj.count ?? obj.value) || 0);
+        const percentage = Number((obj.percentage ?? 0) as number);
+        if (!name || !Number.isFinite(count)) return null;
+        return [name, { count, percentage } as GseSubcategoryStat] as [string, GseSubcategoryStat];
+      }).filter(Boolean) as [string, GseSubcategoryStat][];
+      pairs = arr.length > 0 ? arr : Object.entries(fallback);
+    } else {
+      pairs = Object.entries(fallback);
+    }
+  } else {
+    pairs = Object.entries(fallback);
+  }
+
+  const arr = pairs
+    .map(([name, d]) => ({
+      name,
+      value: typeof d?.count === 'number' ? d.count : 0,
+    }))
+    .filter((x) => Number.isFinite(x.value));
+
   return arr.sort((a, b) => b.value - a.value).slice(0, 10);
 }
 

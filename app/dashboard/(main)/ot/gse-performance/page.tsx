@@ -34,11 +34,27 @@ interface GseTopResponse {
   top: [string, GseDetail][];
 }
 
-function toDonutData(top: [string, GseDetail][], fallback: Record<string, GseDetail>) {
-  const arr = (top && top.length > 0 ? top : Object.entries(fallback)).map(([name, d]) => ({
-    name,
-    value: d.count,
-  }));
+function toDonutData(top: unknown, fallback: Record<string, GseDetail>) {
+  let pairs: [string, GseDetail][] = [];
+  if (Array.isArray(top) && top.length > 0) {
+    // Accept only if items are [key, value] tuples
+    if (Array.isArray(top[0]) && (top[0] as unknown[]).length >= 2) {
+      pairs = top as [string, GseDetail][];
+    } else {
+      // If not tuples, ignore and fall back to object entries
+      pairs = Object.entries(fallback);
+    }
+  } else {
+    pairs = Object.entries(fallback);
+  }
+
+  const arr = pairs
+    .map(([name, d]) => ({
+      name,
+      value: typeof d?.count === 'number' ? d.count : 0,
+    }))
+    .filter((x) => Number.isFinite(x.value));
+
   return arr.sort((a, b) => b.value - a.value).slice(0, 10);
 }
 
@@ -97,10 +113,11 @@ export default function OTGsePerformance() {
     }
   }, [data, activeSubcat]);
 
-  const donutTop = useMemo(
-    () => toDonutData(data?.top || [], data?.by_subcategory || {}),
-    [data]
-  );
+  // Kept for potential future use; currently not used to avoid duplication with cases donut
+  // const donutTop = useMemo(
+  //   () => toDonutData(data?.top || [], data?.by_subcategory || {}),
+  //   [data]
+  // );
 
   const subcats = useMemo(() => {
     const entries = Object.entries(data?.by_subcategory || {}).map(([k, v]) => ({
@@ -116,7 +133,184 @@ export default function OTGsePerformance() {
     return data?.by_subcategory?.[activeSubcat] || null;
   }, [data, activeSubcat]);
 
-  const monthlyTrend = useMemo(() => toMonthlyTrend(detail?.timeline_monthly || {}), [detail]);
+  // Helpers for date normalization (Excel serial/Unix)
+  function toYearMonthFromExcelLike(n: unknown): string | null {
+    if (typeof n !== 'number' || !Number.isFinite(n)) return null;
+    let d: Date;
+    if (n > 1000000000000) {
+      d = new Date(n); // ms
+    } else if (n > 1000000000) {
+      d = new Date(n * 1000); // seconds
+    } else {
+      const epoch = Date.UTC(1899, 11, 30); // Excel epoch
+      d = new Date(epoch + n * 86400000);
+    }
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    if (!Number.isFinite(yyyy) || yyyy < 1900) return null;
+    return `${yyyy}-${mm}`;
+  }
+
+  // monthlyTrend will be computed after cases state is declared (below)
+
+  // Serviceability (Operational Performance)
+  interface GseServiceabilityUnitDetail {
+    count: number;
+    percentage: number;
+    statuses?: Record<string, number>;
+    top_areas?: Record<string, number>;
+    top_branches?: Record<string, number>;
+    top_airlines?: Record<string, number>;
+    top_keywords?: Record<string, number>;
+    examples?: Array<{ row_id: string; report?: string }>;
+    timeline_monthly?: Record<string, number>;
+  }
+  interface GseServiceabilityResponse {
+    total_records: number;
+    gse_records: number;
+    overall_status: Record<string, number>;
+    by_unit: Record<string, GseServiceabilityUnitDetail>;
+    top_units?: [string, number][];
+  }
+  const [srv, setSrv] = useState<GseServiceabilityResponse | null>(null);
+  const [loadingSrv, setLoadingSrv] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const fetchSrv = async () => {
+      try {
+        setLoadingSrv(true);
+        const res = await fetch('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/gse/serviceability', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        const ct = res.headers.get('content-type') || '';
+        if (!res.ok || !ct.includes('application/json')) throw new Error(String(res.status));
+        const json = (await res.json()) as GseServiceabilityResponse;
+        if (mounted) setSrv(json);
+      } catch {
+        try {
+          const mod = await import('@/gse-serviceability.json');
+          const local = (mod as { default: unknown }).default as GseServiceabilityResponse;
+          if (mounted) setSrv(local);
+        } catch {
+          // ignore
+        }
+      } finally {
+        if (mounted) setLoadingSrv(false);
+      }
+    };
+    fetchSrv();
+    return () => { mounted = false; };
+  }, []);
+
+  const srvStatusDonut = useMemo(() => {
+    const status = srv?.overall_status || {};
+    return Object.entries(status).map(([k, v]) => ({ name: k, value: Number(v || 0) }))
+      .filter(d => Number.isFinite(d.value))
+      .sort((a, b) => b.value - a.value);
+  }, [srv]);
+
+  const srvTopUnits = useMemo(() => {
+    let pairs: [string, number][] = [];
+    if (Array.isArray(srv?.top_units) && srv!.top_units!.length > 0) {
+      pairs = srv!.top_units!;
+    } else if (srv?.by_unit) {
+      pairs = Object.entries(srv.by_unit).map(([k, v]) => [k, Number(v?.count || 0)]);
+    }
+    return pairs
+      .map(([name, count]) => ({ name, value: Number(count || 0) }))
+      .filter(d => Number.isFinite(d.value))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+  }, [srv]);
+
+  // Cases (Irregularity & Complaint)
+  interface GseCaseItem {
+    row_id: string;
+    date?: number;
+    airlines?: string;
+    branch?: string;
+    area?: string;
+    unit_type?: string;
+    status?: string;
+    bucket?: string;
+    report?: string;
+    severity?: 'Low' | 'Medium' | 'High';
+  }
+  interface GseCasesResponse {
+    total_records: number;
+    gse_records: number;
+    filtered_count: number;
+    items: GseCaseItem[];
+  }
+  const [cases, setCases] = useState<GseCasesResponse | null>(null);
+  const [loadingCases, setLoadingCases] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const fetchCases = async () => {
+      try {
+        setLoadingCases(true);
+        const res = await fetch('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/gse/cases', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        const ct = res.headers.get('content-type') || '';
+        if (!res.ok || !ct.includes('application/json')) throw new Error(String(res.status));
+        const json = (await res.json()) as GseCasesResponse;
+        if (mounted) setCases(json);
+      } catch {
+        try {
+          const mod = await import('@/gse-cases.json');
+          const local = (mod as { default: unknown }).default as GseCasesResponse;
+          if (mounted) setCases(local);
+        } catch {
+          // ignore
+        }
+      } finally {
+        if (mounted) setLoadingCases(false);
+      }
+    };
+    fetchCases();
+    return () => { mounted = false; };
+  }, []);
+
+  const casesCategoryDonut = useMemo(() => {
+    const agg = new Map<string, number>();
+    for (const it of cases?.items || []) {
+      const key = (it.bucket || 'Other').trim();
+      agg.set(key, (agg.get(key) || 0) + 1);
+    }
+    return Array.from(agg.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [cases]);
+
+  const sampleCases = useMemo(() => {
+    const rank: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+    return [...(cases?.items || [])]
+      .sort((a, b) => (rank[b.severity || 'Low'] - rank[a.severity || 'Low']))
+      .slice(0, 6);
+  }, [cases]);
+
+  // Monthly trend with fallback: use timeline_monthly if available, otherwise build from cases by bucket
+  const monthlyTrend = useMemo(() => {
+    const tl = detail?.timeline_monthly || {};
+    if (Object.keys(tl).length > 0) {
+      return toMonthlyTrend(tl);
+    }
+    const agg: Record<string, number> = {};
+    if (activeSubcat && Array.isArray(cases?.items)) {
+      for (const it of cases.items) {
+        if ((it?.bucket || '').trim() === activeSubcat) {
+          const ym = toYearMonthFromExcelLike(it?.date);
+          if (ym) agg[ym] = (agg[ym] || 0) + 1;
+        }
+      }
+    }
+    return toMonthlyTrend(agg);
+  }, [detail, cases, activeSubcat]);
 
   return (
     <div className="min-h-screen px-4 md:px-6 py-6 space-y-6">
@@ -168,16 +362,37 @@ export default function OTGsePerformance() {
         )}
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
-          <ResponsivePieChart
-            title="Top GSE Subcategories"
-            data={donutTop}
-            donut
-            showLegend
-            height="h-[45vh] min-h-[220px] lg:h-[360px]"
-          />
-        </div>
+      {(srvStatusDonut.length > 0 || srvTopUnits.length > 0) && (
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
+            <ResponsivePieChart
+              title="Status GSE Serviceability"
+              data={srvStatusDonut}
+              donut
+              showLegend
+              height="h-[40vh] min-h-[220px] lg:h-[320px]"
+            />
+          </div>
+          <div className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
+            <div className="text-xs font-bold text-gray-700 mb-3">Top Unit GSE</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {srvTopUnits.map((u) => (
+                <div key={u.name} className="rounded-xl border border-gray-200 bg-white p-3 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-800">{u.name}</div>
+                  <div className="text-xs font-bold text-emerald-700">{u.value}</div>
+                </div>
+              ))}
+              {(loadingSrv && srvTopUnits.length === 0) && Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="animate-pulse h-5 bg-gray-100 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="grid grid-cols-1 gap-4">
         <div className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
           <div className="text-xs font-bold text-gray-700 mb-3">Subkategori</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -211,6 +426,42 @@ export default function OTGsePerformance() {
           </div>
         </div>
       </section>
+
+      {casesCategoryDonut.length > 0 && (
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
+            <ResponsivePieChart
+              title="Kategori Kasus Tertinggi (SDM / SDA / Maintenance)"
+              data={casesCategoryDonut}
+              donut
+              showLegend
+              height="h-[40vh] min-h-[220px] lg:h-[320px]"
+            />
+          </div>
+          <div className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
+            <div className="text-xs font-bold text-gray-700 mb-3">Contoh Kasus Terkait GSE</div>
+            <div className="divide-y rounded-xl border border-gray-200 bg-white">
+              {(loadingCases ? [] : sampleCases).map((ex, idx) => (
+                <div key={ex.row_id || idx} className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="text-[11px] font-semibold text-gray-800 pr-4">{ex.report || '—'}</div>
+                    <span className="text-[10px] font-bold text-emerald-700">{ex.bucket || '—'}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-500">
+                    {[ex.area, ex.branch, ex.airlines].filter(Boolean).join(' • ') || '—'}
+                  </div>
+                </div>
+              ))}
+              {(loadingCases && sampleCases.length === 0) && Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-3">
+                  <div className="animate-pulse h-4 bg-gray-100 rounded mb-1" />
+                  <div className="animate-pulse h-3 bg-gray-100 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="bg-[var(--surface-1)] rounded-2xl p-4 border border-[var(--surface-2)] shadow-spatial-sm">
         <div className="flex items-center justify-between mb-3">

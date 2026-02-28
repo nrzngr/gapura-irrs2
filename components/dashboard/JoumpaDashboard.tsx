@@ -62,7 +62,8 @@ function parseDateDMY(raw: string): Date | null {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-const WrappedYAxisTick = (props: any) => {
+type YTickProps = { x: number; y: number; payload: { value: string | number } };
+const WrappedYAxisTick = (props: YTickProps) => {
   const { x, y, payload } = props;
   const label = String(payload.value);
   const words = label.split(/\s+/);
@@ -102,7 +103,8 @@ const WrappedYAxisTick = (props: any) => {
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────
-export function JoumpaDashboard() {
+export function JoumpaDashboard(props?: { initialCategory?: string; readOnlyCategory?: boolean; backPath?: string }) {
+  const { initialCategory, readOnlyCategory = false, backPath = '/dashboard/os' } = props || {};
   const router = useRouter();
   const [records, setRecords] = useState<JoumpaRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,7 @@ export function JoumpaDashboard() {
   const [filters, setFilters] = useState<FilterState>({
     serviceType: '',
     airlines: '',
-    category: '',
+    category: initialCategory || '',
     branch: '',
   });
 
@@ -313,13 +315,15 @@ export function JoumpaDashboard() {
     );
   }
 
+  const headerTitle = (readOnlyCategory && initialCategory) ? `${initialCategory} Report` : 'Irregularity, Complain & Compliment Report';
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ─── Header ───────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
         <div className="flex items-center gap-4 mb-4">
           <button
-            onClick={() => router.push('/dashboard/os')}
+            onClick={() => router.push(backPath)}
             className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft size={20} />
@@ -331,7 +335,7 @@ export function JoumpaDashboard() {
               className="px-6 py-2 rounded-lg text-white font-bold text-sm md:text-base"
               style={{ backgroundColor: HEADER_BG }}
             >
-              Irregularity, Complain &amp; Compliment Report
+              {headerTitle}
             </div>
           </div>
           <button
@@ -358,12 +362,14 @@ export function JoumpaDashboard() {
             options={filterOptions.airlines}
             onChange={v => { setFilters(f => ({ ...f, airlines: v })); setDetailPage(0); }}
           />
-          <FilterDropdown
-            label="Category Report"
-            value={filters.category}
-            options={filterOptions.categories}
-            onChange={v => { setFilters(f => ({ ...f, category: v })); setDetailPage(0); }}
-          />
+          {!readOnlyCategory && (
+            <FilterDropdown
+              label="Category Report"
+              value={filters.category}
+              options={filterOptions.categories}
+              onChange={v => { setFilters(f => ({ ...f, category: v })); setDetailPage(0); }}
+            />
+          )}
           <FilterDropdown
             label="Branch"
             value={filters.branch}
@@ -397,7 +403,7 @@ export function JoumpaDashboard() {
                     innerRadius={50}
                     outerRadius={85}
                     dataKey="value"
-                    label={({ name, value }) => `${value}`}
+                    label={({ value }: { value: number }) => `${value}`}
                     labelLine={false}
                   >
                     {caseCategoryData.map((entry, i) => (
@@ -476,7 +482,7 @@ export function JoumpaDashboard() {
                     <YAxis 
                       type="category"
                       dataKey="month" 
-                      tick={<WrappedYAxisTick />}
+                      tick={(p: unknown) => <WrappedYAxisTick {...(p as YTickProps)} />}
                       width={110} 
                       axisLine={false}
                       tickLine={false}
@@ -560,7 +566,7 @@ export function JoumpaDashboard() {
                     <YAxis 
                       type="category"
                       dataKey="branch" 
-                      tick={<WrappedYAxisTick />}
+                      tick={(p: unknown) => <WrappedYAxisTick {...(p as YTickProps)} />}
                       width={110}
                       axisLine={false}
                       tickLine={false}
@@ -594,7 +600,7 @@ export function JoumpaDashboard() {
                     <YAxis 
                       type="category"
                       dataKey="airline" 
-                      tick={<WrappedYAxisTick />}
+                      tick={(p: unknown) => <WrappedYAxisTick {...(p as YTickProps)} />}
                       width={110}
                       axisLine={false}
                       tickLine={false}
