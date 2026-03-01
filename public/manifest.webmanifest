@@ -1,6 +1,6 @@
 {
-  "name": "Gapura One Click",
-  "short_name": "Gapura",
+  "name": "One-click",
+  "short_name": "One-click",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

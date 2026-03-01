@@ -9,6 +9,13 @@ import { defaultMobileChartOptions, chartColors } from './chartConfig';
 import { cn } from '@/lib/utils';
 const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
 const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
+type PieLabelPayload = {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  outerRadius?: number;
+  value?: number | string;
+};
 
 interface ResponsivePieChartProps {
   data: { name: string; value: number }[];
@@ -19,6 +26,7 @@ interface ResponsivePieChartProps {
   showLegend?: boolean;
   innerRadius?: number;
   percentageLabels?: boolean;
+  showDataLabels?: boolean;
 }
 
 /**
@@ -34,9 +42,10 @@ export function ResponsivePieChart({
   showLegend = true,
   innerRadius: customInnerRadius,
   percentageLabels = false,
+  showDataLabels = true,
 }: ResponsivePieChartProps) {
   const { isMobile, isTablet } = useViewport();
-  const useMobileCharts = isMobile || isTablet;
+  const useMobileCharts = donut ? false : (isMobile || isTablet);
   const displayData = useMemo(() => {
     if (!donut) return data;
     return [...data].sort((a, b) => b.value - a.value);
@@ -85,21 +94,31 @@ export function ResponsivePieChart({
     };
   }, [showLegend, title]);
 
+  if (!displayData || displayData.length === 0 || total === 0) {
+    return (
+      <div className={cn('w-full rounded-lg border border-gray-100 bg-white/60 p-4 flex items-center justify-center', className)} style={{ minHeight: 180 }}>
+        <div className="text-xs font-medium text-gray-400">Tidak ada data</div>
+      </div>
+    );
+  }
+
   if (useMobileCharts) {
-    const ChartComponent = donut ? Doughnut : Pie;
     return (
       <div className={cn('w-full', height, className)}>
-        <ChartComponent
-          data={chartJSData as any}
-          options={chartJSOptions as any}
-        />
+        {donut ? (
+          <Doughnut data={chartJSData as unknown} options={chartJSOptions as unknown} />
+        ) : (
+          <Pie data={chartJSData as unknown} options={chartJSOptions as unknown} />
+        )}
       </div>
     );
   }
 
   // Desktop: Use Recharts
   return (
-    <div className={cn('w-full', height, className)}>
+    <div className={cn('w-full', className)}>
+      {title ? <div className="text-[10px] font-bold text-gray-600 mb-2">{title}</div> : null}
+      <div className={cn(height)}>
       <RechartsContainer width="100%" height="100%">
         <PieChart>
           <RechartsPie
@@ -111,7 +130,7 @@ export function ResponsivePieChart({
             paddingAngle={2}
             dataKey="value"
             labelLine={false}
-            label={donut ? ({ cx, cy, midAngle, outerRadius, value }: any) => {
+            label={donut && showDataLabels ? ({ cx, cy, midAngle, outerRadius, value }: PieLabelPayload) => {
               const RADIAN = Math.PI / 180;
               const radius = Number(outerRadius || 0) + 12;
               const x = Number(cx || 0) + radius * Math.cos(-Number(midAngle || 0) * RADIAN);
@@ -147,6 +166,7 @@ export function ResponsivePieChart({
           <Tooltip />
         </PieChart>
       </RechartsContainer>
+      </div>
     </div>
   );
 }

@@ -94,7 +94,7 @@ export function MonthlyTrendChart({
   const trendColor = overallTrend > 0 ? 'text-red-600' : overallTrend < 0 ? 'text-green-600' : 'text-gray-500';
 
   return (
-    <div className="bg-white rounded-xl border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30 h-full">
+    <div className="bg-white rounded-xl border border-[#e0e0e0] flex flex-col overflow-hidden transition-all hover:shadow-[0_4px_15px_-4px_rgba(0,0,0,0.1)] hover:border-[#6b8e3d]/30">
       <div className="px-4 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
         <h4 className="text-[11px] font-bold text-[#333] uppercase tracking-tight">
           {title}
@@ -102,9 +102,9 @@ export function MonthlyTrendChart({
         <div className="w-1.5 h-1.5 rounded-full bg-[#6b8e3d]" />
       </div>
       
-      <div className="p-4 pt-10 flex flex-col">
+      <div className="p-4 flex flex-col gap-4">
         {/* Trend Summary */}
-        <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+        <div className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-gray-600" />
@@ -124,9 +124,9 @@ export function MonthlyTrendChart({
         </div>
 
         {/* Line/Bar Chart Area */}
-        <div className="flex flex-col h-48 md:h-56">
+        <div className="flex flex-col">
           {/* Peak indicator */}
-          <div className="relative h-full flex items-end gap-1">
+          <div className="relative flex h-40 md:h-48 items-end gap-1">
         {sortedData.map((item, idx) => {
           const height = (item.count / maxCount) * 100;
           const monthKey = String(item.month ?? '00').padStart(2, '0');
@@ -185,7 +185,7 @@ export function MonthlyTrendChart({
           </div>
           
           {/* Peak and Low markers */}
-          <div className="flex justify-between mt-2 text-[9px]">
+          <div className="mt-2 flex justify-between text-[9px]">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-red-500 rounded-full" />
               <span className="text-gray-500">Puncak: {maxCount}</span>
@@ -198,16 +198,16 @@ export function MonthlyTrendChart({
         </div>
 
         {/* Monthly breakdown table */}
-        <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="border-t border-gray-100 pt-3">
           <div className="text-[9px] font-bold text-gray-500 uppercase mb-2">3 Bulan Terakhir</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {sortedData.slice(-3).map((item, idx) => {
               const monthKey = String(item.month ?? '00').padStart(2, '0');
               const monthName = MONTH_NAMES[monthKey] ?? monthKey;
               const changePercent = item.changePercent || 0;
               
               return (
-                <div key={idx} className="bg-gray-50 rounded-lg p-2 text-center">
+                <div key={idx} className="min-h-[74px] rounded-lg bg-gray-50 p-2 text-center">
                   <div className="text-[9px] text-gray-500 uppercase">{monthName}</div>
                   <div className="text-lg font-bold text-gray-800">{item.count}</div>
                   {item.change !== undefined && (
@@ -225,7 +225,7 @@ export function MonthlyTrendChart({
         </div>
 
         {/* Total */}
-        <div className="mt-3 flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <span className="text-[10px] text-gray-500">Total Periode</span>
           <span className="text-sm font-bold text-gray-800">{total.toLocaleString('id-ID')}</span>
         </div>

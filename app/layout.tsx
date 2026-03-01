@@ -27,8 +27,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-    title: 'Gapura One-Click',
-    description: 'Gapura One-Click - Sistem Pelaporan & Monitoring Operasional Bandara',
+    title: 'One-click Gapura',
+    applicationName: 'One-click',
+    description: 'Gapura One-click - Sistem Pelaporan & Monitoring Operasional Bandara',
     manifest: '/manifest.webmanifest',
     icons: {
         icon: '/logo.png',
@@ -38,6 +39,7 @@ export const metadata: Metadata = {
     appleWebApp: {
         capable: true,
         statusBarStyle: 'black-translucent',
+        title: 'One-click',
     },
 };
 
