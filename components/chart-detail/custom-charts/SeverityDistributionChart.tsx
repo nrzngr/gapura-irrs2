@@ -116,7 +116,7 @@ export function SeverityDistributionChart({
         </div>
 
         {/* Bar Chart */}
-        <div className="flex-1 flex items-end gap-2 min-h-[140px]">
+        <div className="flex-1 flex items-end gap-2 h-[160px]">
           {sortedData.map((item) => {
             const config = SEVERITY_CONFIG[item.severity] || SEVERITY_CONFIG['MEDIUM'];
             const height = total > 0 ? (item.count / total) * 100 : 0;
