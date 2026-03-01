@@ -89,13 +89,7 @@ export default function OTGsePerformance() {
         const json = (await res.json()) as GseTopResponse;
         if (mounted) setData(json);
       } catch {
-        try {
-          const mod = await import('@/gse-top.json');
-          const local = (mod as { default: unknown }).default as GseTopResponse;
-          if (mounted) setData(local);
-        } catch {
-          if (mounted) setError('Gagal memuat data GSE Performance');
-        }
+        if (mounted) setError('Gagal memuat data GSE Performance');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -189,13 +183,7 @@ export default function OTGsePerformance() {
         const json = (await res.json()) as GseServiceabilityResponse;
         if (mounted) setSrv(json);
       } catch {
-        try {
-          const mod = await import('@/gse-serviceability.json');
-          const local = (mod as { default: unknown }).default as GseServiceabilityResponse;
-          if (mounted) setSrv(local);
-        } catch {
-          // ignore
-        }
+        // ignore
       } finally {
         if (mounted) setLoadingSrv(false);
       }
@@ -261,13 +249,7 @@ export default function OTGsePerformance() {
         const json = (await res.json()) as GseCasesResponse;
         if (mounted) setCases(json);
       } catch {
-        try {
-          const mod = await import('@/gse-cases.json');
-          const local = (mod as { default: unknown }).default as GseCasesResponse;
-          if (mounted) setCases(local);
-        } catch {
-          // ignore
-        }
+        // ignore
       } finally {
         if (mounted) setLoadingCases(false);
       }

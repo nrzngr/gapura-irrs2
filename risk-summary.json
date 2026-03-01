@@ -1,0 +1,67 @@
+{
+  "last_updated": "2026-03-02T00:00:00.000Z",
+  "airline_risks": {
+    "Critical": 5,
+    "High": 12,
+    "Medium": 20,
+    "Low": 9
+  },
+  "branch_risks": {
+    "Critical": 3,
+    "High": 9,
+    "Medium": 18,
+    "Low": 14
+  },
+  "hub_risks": {
+    "Critical": 2,
+    "High": 7,
+    "Medium": 15,
+    "Low": 10
+  },
+  "top_risky_airlines": ["GA", "SJ", "QG", "ID", "JT"],
+  "top_risky_branches": ["CGK", "DPS", "SUB", "UPG", "KNO"],
+  "total_airlines": 25,
+  "total_branches": 35,
+  "total_hubs": 7,
+  "airline_details": [
+    {
+      "name": "GA",
+      "risk_score": 87.5,
+      "risk_level": "High",
+      "severity_distribution": { "Critical": 2, "High": 6, "Medium": 8, "Low": 3 },
+      "issue_categories": ["Delay", "Ramp", "Ground Handling"]
+    },
+    {
+      "name": "SJ",
+      "risk_score": 74.2,
+      "risk_level": "Medium",
+      "severity_distribution": { "Critical": 1, "High": 3, "Medium": 7, "Low": 2 },
+      "issue_categories": ["Baggage", "Curbside", "Gate Ops"]
+    }
+  ],
+  "branch_details": [
+    {
+      "name": "CGK",
+      "risk_score": 81.2,
+      "risk_level": "High",
+      "severity_distribution": { "Critical": 1, "High": 5, "Medium": 6, "Low": 4 },
+      "issue_categories": ["Peak Hour", "Staffing", "Equipment"]
+    },
+    {
+      "name": "DPS",
+      "risk_score": 68.4,
+      "risk_level": "Medium",
+      "severity_distribution": { "Critical": 0, "High": 3, "Medium": 6, "Low": 5 },
+      "issue_categories": ["Boarding", "Counter", "Belt"]
+    }
+  ],
+  "hub_details": [
+    {
+      "name": "CGK Hub",
+      "risk_score": 72.1,
+      "risk_level": "Medium",
+      "severity_distribution": { "Critical": 0, "High": 2, "Medium": 7, "Low": 3 },
+      "issue_categories": ["Gate Ops", "Tarmac"]
+    }
+  ]
+}

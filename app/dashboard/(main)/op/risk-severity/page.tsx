@@ -80,12 +80,7 @@ export default function OPRiskSeverity() {
         const json = await res.json();
         if (mounted) setData(json as unknown as RiskSummary);
       } catch (e: any) {
-        try {
-          const mod = await import('@/risk-summary.json');
-          if (mounted) setData((mod as any).default as unknown as RiskSummary);
-        } catch {
-          if (mounted) setError('Gagal memuat risk summary');
-        }
+        if (mounted) setError('Gagal memuat risk summary');
       } finally {
         if (mounted) setLoading(false);
       }

@@ -47,14 +47,7 @@ export default function OPRootCauseDominant() {
         const json = await res.json();
         if (active) setStats(json as unknown as RootCauseStats);
       } catch (e: any) {
-        console.warn('[OP Root Cause] Remote fetch failed, trying local JSON fallback:', e?.message || e);
-        // Fallback ke file lokal yang sudah diberikan
-        try {
-          const mod = await import('@/root-cause-stats.json');
-          if (active) setStats((mod as any).default as unknown as RootCauseStats);
-        } catch (e2: any) {
-          if (active) setStatsError('Gagal memuat root cause stats');
-        }
+        if (active) setStatsError('Gagal memuat root cause stats');
       } finally {
         if (active) setStatsLoading(false);
       }

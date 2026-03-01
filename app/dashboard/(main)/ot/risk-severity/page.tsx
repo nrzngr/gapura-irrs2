@@ -110,14 +110,7 @@ export default function OTRiskSeverity() {
           if (calculateRes.status === 'fulfilled') setCalc(calculateRes.value as RiskCalculateResponse);
         }
       } catch {
-        try {
-          const modRC = await import('@/root-cause-stats.json');
-          if (mounted) setData((modRC as { default: unknown }).default as RootCauseStats);
-          const modCalc = await import('@/risk-calculate.json');
-          if (mounted) setCalc((modCalc as { default: unknown }).default as RiskCalculateResponse);
-        } catch {
-          if (mounted) setError('Gagal memuat root-cause stats');
-        }
+        if (mounted) setError('Gagal memuat root-cause stats');
       } finally {
         if (mounted) setLoading(false);
       }
