@@ -28,33 +28,29 @@ const NavContent = ({
     setMobileOpen 
 }: NavContentProps) => (
     <div className="flex flex-col h-full bg-[var(--surface-1)] text-[var(--text-primary)]">
-        {/* 1. Header with Dashed Separator */}
-        <div className="p-6 pb-6 border-b border-dashed border-gray-200 flex justify-center">
+        <div className="p-4 border-b border-dashed border-gray-200 flex justify-center md:p-6 md:pb-6">
              <Image
                 src="/logo.png"
                 alt="Gapura Logo"
                 width={180}
                 height={60}
-                className="object-contain w-[140px] h-auto"
+                className="object-contain w-[120px] md:w-[140px] h-auto"
                 priority
             />
         </div>
 
-        {/* 2. Scrollable Nav Area */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
-            <div className="space-y-8">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 md:px-4 md:py-6 touch-scroll hide-scrollbar">
+            <div className="space-y-6 md:space-y-8">
                 {groups.map((group) => (
                     <div key={group.title} className="relative">
-                        {/* Group Title with Tree Line */}
                         <div className="flex items-center gap-2 px-2 mb-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] opacity-50" />
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                            <h3 className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                                 {group.title}
                             </h3>
                         </div>
 
-                        {/* Tree Line Container */}
-                        <div className="relative pl-2.5 ml-1 border-l border-dashed border-gray-200 space-y-1">
+                        <div className="relative pl-2.5 ml-1 border-l border-dashed border-gray-200 space-y-0.5 md:space-y-1">
                             {group.items.map((link) => {
                                 const isExternal = link.external || /^https?:\/\//.test(link.href);
                                 const isActive = !isExternal && pathname === link.href;
@@ -71,13 +67,13 @@ const NavContent = ({
                                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-px bg-gray-200 group-hover:bg-gray-400 transition-colors" />
                                         <motion.div
                                             className={cn(
-                                                "relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                                                "relative flex items-center gap-2 md:gap-3 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200",
                                                 "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
                                             )}
                                             whileHover={{ x: 4 }}
                                             transition={{ type: "spring", stiffness: 400, damping: 25 }}
                                         >
-                                            <Icon size={16} className="shrink-0 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
+                                            <Icon size={14} className="shrink-0 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] md:size-4" />
                                             <span className="flex-1">{link.label}</span>
                                         </motion.div>
                                     </a>
@@ -88,12 +84,11 @@ const NavContent = ({
                                         onClick={() => setMobileOpen(false)}
                                         className="block relative group pl-4"
                                     >
-                                        {/* Connector "L" shape (CSS pseudo-element simulated) */}
                                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-px bg-gray-200 group-hover:bg-gray-400 transition-colors" />
 
                                         <motion.div
                                             className={cn(
-                                                "relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                                                "relative flex items-center gap-2 md:gap-3 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200",
                                                 isActive 
                                                     ? "bg-[var(--surface-2)] text-[var(--text-primary)] shadow-sm ring-1 ring-gray-200"
                                                     : "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
@@ -101,15 +96,15 @@ const NavContent = ({
                                             whileHover={{ x: 4 }}
                                             transition={{ type: "spring", stiffness: 400, damping: 25 }}
                                         >
-                                            <Icon size={16} className={cn(
-                                                "shrink-0",
+                                            <Icon size={14} className={cn(
+                                                "shrink-0 md:size-4",
                                                 isActive ? "text-[var(--brand-primary)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]"
                                             )} />
                                             
                                             <span className="flex-1">{link.label}</span>
                                             
                                             {link.count && (
-                                                <span className="px-1.5 py-0.5 rounded-md bg-[var(--surface-3)] text-[10px] font-bold text-[var(--text-secondary)]">
+                                                <span className="px-1.5 py-0.5 rounded-md bg-[var(--surface-3)] text-[9px] md:text-[10px] font-bold text-[var(--text-secondary)]">
                                                     {link.count}
                                                 </span>
                                             )}
@@ -130,26 +125,24 @@ const NavContent = ({
             </div>
         </nav>
 
-        {/* 3. User Footer */}
-        <div className="p-4 border-t border-dashed border-gray-200 bg-[var(--surface-1)]">
-             <div className="bg-[var(--surface-2)] rounded-xl p-3 border border-gray-100 shadow-sm relative">
-                {/* Active Account Info */}
-                <div className="flex items-center gap-3 mb-3 group/user">
-                     <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-white border border-emerald-400">
+        <div className="p-3 border-t border-dashed border-gray-200 bg-[var(--surface-1)] md:p-4">
+             <div className="bg-[var(--surface-2)] rounded-xl p-2.5 md:p-3 border border-gray-100 shadow-sm relative">
+                <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3 group/user">
+                     <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] md:text-xs font-bold text-white border border-emerald-400">
                          {role.charAt(0)}
                      </div>
                      <div className="min-w-0 flex-1">
-                         <p className="text-xs font-bold text-[var(--text-primary)] truncate group-hover/user:text-[var(--brand-primary)] italic transition-colors uppercase">
+                         <p className="text-[10px] md:text-xs font-bold text-[var(--text-primary)] truncate group-hover/user:text-[var(--brand-primary)] italic transition-colors uppercase">
                             {role.replace('_', ' ')}
                         </p>
-                         <p className="text-[10px] text-[var(--text-muted)] truncate">Active Account</p>
+                         <p className="text-[9px] md:text-[10px] text-[var(--text-muted)] truncate">Active Account</p>
                      </div>
                 </div>
 
                 <button
                     onClick={onLogout}
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 hover:bg-red-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 md:gap-2 py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wide text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors"
                 >
                     <LogOut size={12} />
                     {loading ? '...' : 'Sign Out'}
@@ -170,9 +163,6 @@ export default function Sidebar({ role }: { role: string }) {
 
     const handleLogout = async () => {
         setLoading(true);
-        // Force the browser itself to navigate to the logout route. 
-        // This ensures the browser natively processes the Set-Cookie (maxAge: 0)
-        // headers returned by the server, completely bypassing fetch/CORS/cache issues.
         window.location.href = '/api/auth/logout';
     };
 
@@ -185,7 +175,6 @@ export default function Sidebar({ role }: { role: string }) {
         setMobileOpen
     };
 
-    // Expose toggle to window for easy access from Bottom Nav on mobile
     useEffect(() => {
         if (typeof window !== 'undefined') {
             (window as any).toggleMobileSidebar = () => setMobileOpen(prev => !prev);
@@ -194,7 +183,6 @@ export default function Sidebar({ role }: { role: string }) {
 
     return (
         <>
-            {/* Mobile Header Button - Hidden because Bottom Nav handles it now */}
             <div className="md:hidden fixed top-4 left-4 z-50 pointer-events-none opacity-0">
                 <button
                     onClick={() => setMobileOpen(true)}
@@ -204,7 +192,6 @@ export default function Sidebar({ role }: { role: string }) {
                 </button>
             </div>
 
-            {/* Mobile Sidebar Overlay */}
             <AnimatePresence>
                 {mobileOpen && (
                     <>
@@ -220,12 +207,12 @@ export default function Sidebar({ role }: { role: string }) {
                             animate={{ x: 0 }}
                             exit={{ x: "-100%" }}
                             transition={{ type: "spring", stiffness: 350, damping: 35 }}
-                            className="fixed inset-y-0 left-0 w-[280px] z-50 shadow-2xl md:hidden"
+                            className="fixed inset-y-0 left-0 w-[280px] max-w-[85vw] z-50 shadow-2xl md:hidden"
                         >
                              <NavContent {...navContentProps} />
                               <button 
                                 onClick={() => setMobileOpen(false)}
-                                className="absolute top-4 right-4 p-1.5 bg-[var(--surface-2)] rounded-lg text-[var(--text-muted)]"
+                                className="absolute top-3 right-3 p-1.5 bg-[var(--surface-2)] rounded-lg text-[var(--text-muted)] active:bg-[var(--surface-3)]"
                             >
                                 <X size={16} />
                             </button>
@@ -234,8 +221,7 @@ export default function Sidebar({ role }: { role: string }) {
                 )}
             </AnimatePresence>
 
-            {/* Desktop Fixed Sidebar */}
-            <div className="hidden md:block fixed top-0 left-0 h-screen w-[260px] z-40 border-r border-dashed border-gray-200 shadow-[2px_0_24px_rgba(0,0,0,0.02)]">
+            <div className="hidden md:block fixed top-0 left-0 h-screen w-[240px] lg:w-[260px] z-40 border-r border-dashed border-gray-200 shadow-[2px_0_24px_rgba(0,0,0,0.02)]">
                 <NavContent {...navContentProps} />
             </div>
         </>

@@ -257,16 +257,15 @@ export default function RegisterPage() {
         }
     };
 
-    const inputStyle = "w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white";
-    const inputErrorStyle = "w-full pl-12 pr-4 py-3.5 rounded-xl border border-red-300 bg-red-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white";
-    const selectStyle = "w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white appearance-none cursor-pointer";
-    const labelStyle = "block text-sm font-medium text-gray-700 mb-2";
+    const inputStyle = "w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white";
+    const inputErrorStyle = "w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl border border-red-300 bg-red-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white";
+    const selectStyle = "w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white appearance-none cursor-pointer";
+    const labelStyle = "block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2";
 
     return (
-        <div className="min-h-[100dvh] flex relative overflow-hidden" style={{ background: '#f8fafc' }}>
-            {/* Left Side - Branding */}
+        <div className="min-h-[100dvh] flex flex-col lg:flex-row relative overflow-hidden bg-slate-50">
             <div 
-                className="hidden lg:flex lg:w-5/12 flex-col justify-between p-12 relative"
+                className="hidden lg:flex lg:w-5/12 flex-col justify-between p-8 xl:p-12 relative"
                 style={{ background: 'linear-gradient(145deg, #059669, #10b981, #34d399)' }}
             >
                 <div className="absolute inset-0 opacity-10">
@@ -290,11 +289,11 @@ export default function RegisterPage() {
                     />
                 </div>
 
-                <div className="relative z-10 space-y-6">
-                    <h1 className="text-4xl font-bold text-white leading-tight">
+                <div className="relative z-10 space-y-4 xl:space-y-6">
+                    <h1 className="text-2xl xl:text-4xl font-bold text-white leading-tight">
                         Bergabung dengan<br />Tim Operasional<br />Terbaik
                     </h1>
-                    <p className="text-white/80 text-lg max-w-md">
+                    <p className="text-white/80 text-base xl:text-lg max-w-md">
                         Daftarkan diri Anda untuk mengakses sistem pelaporan irregularity yang terintegrasi.
                     </p>
                     
@@ -306,59 +305,52 @@ export default function RegisterPage() {
                     </div>
                 </div>
 
-                <div className="relative z-10 text-white/60 text-sm">
+                <div className="relative z-10 text-white/60 text-xs xl:text-sm">
                     © 2025 PT Gapura Angkasa. All rights reserved.
                 </div>
             </div>
 
-            {/* Right Side - Register Form */}
-            <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-                <div className="w-full max-w-xl py-8">
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden text-center mb-6">
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+                <div className="w-full max-w-xl py-4 sm:py-8">
+                    <div className="lg:hidden text-center mb-4 sm:mb-6">
                         <Image
                             src="/logo.png"
                             alt="Gapura"
                             width={140}
                             height={50}
-                            className="mx-auto object-contain"
+                            className="mx-auto object-contain w-[100px] sm:w-[140px] h-auto"
                             priority
                         />
                     </div>
 
-                    {/* Header */}
-                    <div className="mb-6">
-                        <h1 className="text-2xl font-bold text-gray-900">Registrasi Akun</h1>
-                        <p className="text-gray-500 mt-1">Lengkapi data untuk bergabung dengan Gapura Integrated Service Analytics</p>
+                    <div className="mb-4 sm:mb-6">
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Registrasi Akun</h1>
+                        <p className="text-gray-500 mt-1 text-xs sm:text-sm">Lengkapi data untuk bergabung dengan Gapura Integrated Service Analytics</p>
                     </div>
 
-                    {/* Register Card */}
-                    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-6">
-                        {/* Error Alert */}
+                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-4 sm:p-6">
                         {error && (
-                            <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3">
+                            <div className="mb-4 sm:mb-5 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-red-50 border border-red-100 flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                                <p className="text-sm font-medium text-red-600">{error}</p>
+                                <p className="text-xs sm:text-sm font-medium text-red-600">{error}</p>
                             </div>
                         )}
 
-                        {/* Success Alert */}
                         {success && (
-                            <div className="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
-                                <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                                <p className="text-sm font-medium text-emerald-700">{success}</p>
+                            <div className="mb-4 sm:mb-5 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
+                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
+                                <p className="text-xs sm:text-sm font-medium text-emerald-700">{success}</p>
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            {/* Section: Personal Info */}
-                            <div className="pb-4 border-b border-gray-100">
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Informasi Pribadi</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                            <div className="pb-3 sm:pb-4 border-b border-gray-100">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 sm:mb-4">Informasi Pribadi</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     <div>
                                         <label className={labelStyle}>Nama Lengkap</label>
                                         <div className="relative">
-                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <input
                                                 type="text"
                                                 required
@@ -372,7 +364,7 @@ export default function RegisterPage() {
                                     <div>
                                         <label className={labelStyle}>NIK (Nomor Induk Karyawan)</label>
                                         <div className="relative">
-                                            <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <CreditCard className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <input
                                                 type="text"
                                                 required
@@ -383,19 +375,18 @@ export default function RegisterPage() {
                                                 onChange={(e) => handleChange('nik', e.target.value)}
                                             />
                                         </div>
-                                        {fieldErrors.nik && <p className="text-xs text-red-500 mt-1">{fieldErrors.nik}</p>}
+                                        {fieldErrors.nik && <p className="text-[10px] sm:text-xs text-red-500 mt-1">{fieldErrors.nik}</p>}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Section: Contact */}
-                            <div className="pb-4 border-b border-gray-100">
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Kontak</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="pb-3 sm:pb-4 border-b border-gray-100">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 sm:mb-4">Kontak</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     <div>
                                         <label className={labelStyle}>Email</label>
                                         <div className="relative">
-                                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <input
                                                 type="email"
                                                 required
@@ -405,10 +396,10 @@ export default function RegisterPage() {
                                                 onChange={(e) => handleChange('email', e.target.value)}
                                             />
                                         </div>
-                                        {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
+                                        {fieldErrors.email && <p className="text-[10px] sm:text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
                                         {!fieldErrors.email && emailHint && !isGPS && (
                                             <p
-                                                className={`text-xs mt-1 ${emailHint.startsWith('✓') ? 'text-emerald-600' : 'text-blue-600'}`}
+                                                className={`text-[10px] sm:text-xs mt-1 ${emailHint.startsWith('✓') ? 'text-emerald-600' : 'text-blue-600'}`}
                                                 role="status"
                                                 aria-live="polite"
                                             >
@@ -419,7 +410,7 @@ export default function RegisterPage() {
                                     <div>
                                         <label className={labelStyle}>No. WhatsApp</label>
                                         <div className="relative">
-                                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Phone className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <input
                                                 type="tel"
                                                 required
@@ -430,19 +421,18 @@ export default function RegisterPage() {
                                                 onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, ''))}
                                             />
                                         </div>
-                                        {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+                                        {fieldErrors.phone && <p className="text-[10px] sm:text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Section: Organization */}
-                            <div className="pb-4 border-b border-gray-100">
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Organisasi</p>
-                                <div className="space-y-4">
+                            <div className="pb-3 sm:pb-4 border-b border-gray-100">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 sm:mb-4">Organisasi</p>
+                                <div className="space-y-3 sm:space-y-4">
                                     <div>
                                         <label className={labelStyle}>Station / Bandara</label>
                                         <div className="relative">
-                                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Building2 className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <select
                                                 required
                                                 className={selectStyle}
@@ -458,19 +448,18 @@ export default function RegisterPage() {
                                             </select>
                                         </div>
                                         {isGPS && (
-                                            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                            <p className="text-[10px] sm:text-xs text-blue-600 mt-1 flex items-center gap-1">
                                                 <Info size={12} />
                                                 Kantor Pusat - Pilih divisi di bawah
                                             </p>
                                         )}
                                     </div>
 
-                                    {/* Division - Only shown for GPS (Gapura Pusat) */}
                                     {isGPS && (
                                         <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                                             <label className={labelStyle}>Divisi</label>
                                             <div className="relative">
-                                                <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                <Layers className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                                 <select
                                                     required
                                                     className={selectStyle}
@@ -485,12 +474,12 @@ export default function RegisterPage() {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                         {!isGPS && (
                                             <div>
                                                 <label className={labelStyle}>Unit Kerja</label>
                                                 <div className="relative">
-                                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                    <Users className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                                     <select
                                                         required={!isGPS}
                                                         className={selectStyle}
@@ -508,7 +497,7 @@ export default function RegisterPage() {
                                         <div className={isGPS ? "col-span-2" : ""}>
                                             <label className={labelStyle}>Jabatan</label>
                                             <div className="relative">
-                                                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                                <Briefcase className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                                 <select
                                                     required
                                                     className={selectStyle}
@@ -523,21 +512,20 @@ export default function RegisterPage() {
                                                 </select>
                                             </div>
                                             {!formData.station_id && (
-                                                <p className="text-xs text-gray-400 mt-1">Pilih station terlebih dahulu</p>
+                                                <p className="text-[10px] sm:text-xs text-gray-400 mt-1">Pilih station terlebih dahulu</p>
                                             )}
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Section: Security */}
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Keamanan</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 sm:mb-4">Keamanan</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     <div>
                                         <label className={labelStyle}>Password</label>
                                         <div className="relative">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 required
@@ -549,17 +537,18 @@ export default function RegisterPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                             >
-                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                {showPassword ? <EyeOff size={16} className="sm:hidden" /> : <Eye size={16} className="sm:hidden" />}
+                                                {showPassword ? <EyeOff size={18} className="hidden sm:block" /> : <Eye size={18} className="hidden sm:block" />}
                                             </button>
                                         </div>
-                                        {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
+                                        {fieldErrors.password && <p className="text-[10px] sm:text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
                                     </div>
                                     <div>
                                         <label className={labelStyle}>Konfirmasi Password</label>
                                         <div className="relative">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                            <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 required
@@ -569,16 +558,15 @@ export default function RegisterPage() {
                                                 onChange={(e) => handleChange('confirmPassword', e.target.value)}
                                             />
                                         </div>
-                                        {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>}
+                                        {fieldErrors.confirmPassword && <p className="text-[10px] sm:text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Submit Button */}
                             <button
                                 type="submit"
                                 disabled={loading || !!success}
-                                className="w-full py-4 rounded-xl font-semibold text-white text-sm transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+                                className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-white text-sm transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
                                 style={{
                                     background: (loading || success) ? '#9ca3af' : 'linear-gradient(135deg, #059669, #10b981)',
                                     boxShadow: (loading || success) ? 'none' : '0 4px 14px -2px rgba(16, 185, 129, 0.4)',
@@ -586,39 +574,36 @@ export default function RegisterPage() {
                             >
                                 {loading ? (
                                     <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                                         Memproses...
                                     </>
                                 ) : (
                                     <>
-                                        <UserPlus className="w-5 h-5" />
+                                        <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
                                         Daftar Sekarang
                                     </>
                                 )}
                             </button>
                         </form>
 
-                        {/* Info Box */}
-                        <div className="mt-5 p-4 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-3">
-                            <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                            <p className="text-blue-700 text-sm">
+                        <div className="mt-4 sm:mt-5 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-3">
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-blue-700 text-xs sm:text-sm">
                                 Setelah mendaftar, akun perlu disetujui admin sebelum dapat login ke sistem.
                             </p>
                         </div>
 
-                        {/* Login Link */}
-                        <div className="mt-5 pt-5 border-t border-gray-100 text-center">
-                            <p className="text-gray-500 text-sm">
+                        <div className="mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-gray-100 text-center">
+                            <p className="text-gray-500 text-xs sm:text-sm">
                                 Sudah punya akun?{' '}
-                                <Link href="/auth/login" className="font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+                                <Link href="/auth/login" className="font-semibold text-emerald-600 hover:text-emerald-700 active:text-emerald-800 transition-colors">
                                     Masuk disini
                                 </Link>
                             </p>
                         </div>
                     </div>
 
-                    {/* Mobile Footer */}
-                    <p className="lg:hidden text-center text-xs text-gray-400 mt-6">
+                    <p className="lg:hidden text-center text-[10px] sm:text-xs text-gray-400 mt-4 sm:mt-6">
                         © 2025 PT Gapura Angkasa. All rights reserved.
                     </p>
                 </div>

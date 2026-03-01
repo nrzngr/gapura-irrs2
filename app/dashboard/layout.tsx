@@ -1,4 +1,3 @@
-// Sidebar moved to (main)/layout.tsx
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
@@ -16,11 +15,8 @@ export default async function DashboardLayout({
         redirect('/auth/login');
     }
 
-    // Parent layout is now just a container/auth guard.
-    // Child layouts (like (main)/layout.tsx) handle Sidebars and specific frames.
-    // This allows pages like chart-detail to be full-width easily.
     return (
-        <div className="min-h-screen bg-slate-50 w-full overflow-x-hidden">
+        <div className="min-h-screen min-h-[100dvh] bg-slate-50 w-full overflow-x-hidden">
             {children}
         </div>
     );

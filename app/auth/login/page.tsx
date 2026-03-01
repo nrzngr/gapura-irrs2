@@ -6,9 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
- 
-
-
 export default function LoginPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({ email: '', password: '' });
@@ -40,7 +37,6 @@ export default function LoginPage() {
                 throw new Error(data.error || 'Login gagal');
             }
 
-            // Redirect based on role
             const roleRedirects: Record<string, string> = {
                 SUPER_ADMIN: '/dashboard/admin',
                 DIVISI_OS: '/dashboard/os',
@@ -69,13 +65,11 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-[100dvh] flex relative overflow-hidden" style={{ background: '#f8fafc' }}>
-            {/* Left Side - Branding */}
+        <div className="min-h-[100dvh] flex flex-col lg:flex-row relative overflow-hidden bg-slate-50">
             <div 
-                className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative"
+                className="hidden lg:flex lg:w-1/2 flex-col justify-between p-8 xl:p-12 relative"
                 style={{ background: 'linear-gradient(145deg, #059669, #10b981, #34d399)' }}
             >
-                {/* Decorative Pattern */}
                 <div className="absolute inset-0 opacity-10">
                     <div 
                         className="absolute inset-0"
@@ -98,7 +92,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="relative z-10 mt-6">
-                    <div className="grid grid-cols-2 grid-rows-2 gap-3 w-full h-72">
+                    <div className="grid grid-cols-2 grid-rows-2 gap-3 w-full h-56 xl:h-72">
                         <div className="relative col-span-1 row-span-2 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20">
                             <Image
                                 src="/front-page-image2.jpg"
@@ -130,59 +124,55 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                <div className="relative z-10 space-y-6">
-                    <h1 className="text-4xl font-bold text-white leading-tight">
+                <div className="relative z-10 space-y-4 xl:space-y-6">
+                    <h1 className="text-2xl xl:text-4xl font-bold text-white leading-tight">
                         <em>&quot;One Click&quot;</em> Irregularity Report
                     </h1>
-                    <p className="text-white/80 text-lg max-w-md">
+                    <p className="text-white/80 text-base xl:text-lg max-w-md">
                         Sistem Pelaporan Terintegrasi adalah Platform digital untuk pelaporan, pelacakan, dan penyelesaian masalah operasional penerbangan.
                     </p>
                 </div>
 
-                <div className="relative z-10 text-white/60 text-sm">
+                <div className="relative z-10 text-white/60 text-xs xl:text-sm">
                     © 2025 Gapura Angkasa. All rights reserved.
                 </div>
             </div>
 
-            {/* Right Side - Login Form */}
-            <div className="flex-1 flex items-center justify-center p-8">
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
                 <div className="w-full max-w-md">
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden text-center mb-8">
+                    <div className="lg:hidden text-center mb-6 sm:mb-8">
                         <Image
                             src="/logo.png"
                             alt="Gapura"
                             width={200}
                             height={75}
-                            className="mx-auto object-contain"
+                            className="mx-auto object-contain w-[140px] sm:w-[180px] md:w-[200px] h-auto"
                             priority
                         />
                     </div>
 
-                    {/* Header */}
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900">Selamat Datang</h1>
-                        <p className="text-gray-500 mt-2">Masuk ke dashboard operasional Anda</p>
+                    <div className="mb-6 sm:mb-8">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Selamat Datang</h1>
+                        <p className="text-gray-500 mt-1.5 sm:mt-2 text-sm sm:text-base">Masuk ke dashboard operasional Anda</p>
                     </div>
 
-                    {/* Login Card */}
-                    <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8">
+                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-5 sm:p-6 md:p-8">
                         {error && (
-                            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3">
+                            <div className="mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-red-50 border border-red-100 flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                                <p className="text-sm font-medium text-red-600">{error}</p>
+                                <p className="text-xs sm:text-sm font-medium text-red-600">{error}</p>
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                     <input
                                         type="email"
                                         required
-                                        className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white"
+                                        className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white"
                                         placeholder="email@perusahaan.com"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -191,13 +181,13 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Password</label>
                                 <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                                     <input
                                         type="password"
                                         required
-                                        className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white"
+                                        className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 text-sm transition-all focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white"
                                         placeholder="••••••••"
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -208,7 +198,7 @@ export default function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 rounded-xl font-semibold text-white text-sm transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
+                                className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-white text-sm transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
                                 style={{
                                     background: loading ? '#9ca3af' : 'linear-gradient(135deg, #059669, #10b981)',
                                     boxShadow: loading ? 'none' : '0 4px 14px -2px rgba(16, 185, 129, 0.4)',
@@ -216,39 +206,38 @@ export default function LoginPage() {
                             >
                                 {loading ? (
                                     <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                                         Memproses...
                                     </>
                                 ) : (
                                     <>
                                         Masuk
-                                        <ArrowRight className="w-5 h-5" />
+                                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </>
                                 )}
                             </button>
                         </form>
 
-                        <div className="mt-4">
+                        <div className="mt-3 sm:mt-4">
                             <Link
                                 href="/auth/public-report"
-                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-emerald-200 text-emerald-700 font-semibold hover:bg-emerald-50 transition-colors"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-emerald-200 text-emerald-700 text-xs sm:text-sm font-semibold hover:bg-emerald-50 active:bg-emerald-100 transition-colors"
                             >
                                 Quick Access: Laporkan Irregularity
                             </Link>
                         </div>
 
-                        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-                            <p className="text-sm text-gray-500">
+                        <div className="mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-gray-100 text-center">
+                            <p className="text-xs sm:text-sm text-gray-500">
                                 Belum punya akun?{' '}
-                                <Link href="/auth/register" className="font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+                                <Link href="/auth/register" className="font-semibold text-emerald-600 hover:text-emerald-700 active:text-emerald-800 transition-colors">
                                     Daftar Sekarang
                                 </Link>
                             </p>
                         </div>
                     </div>
 
-                    {/* Mobile Footer */}
-                    <p className="lg:hidden text-center text-xs text-gray-400 mt-8">
+                    <p className="lg:hidden text-center text-[10px] sm:text-xs text-gray-400 mt-6 sm:mt-8">
                         © 2025 Gapura Angkasa. All rights reserved.
                     </p>
                 </div>

@@ -16,7 +16,7 @@ export function StatsCard({ icon: Icon, value, label, onClick, className }: Stat
     <div
       onClick={onClick}
       className={cn(
-        'group relative rounded-2xl p-6 transition-all duration-400 cursor-pointer',
+        'group relative rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 transition-all duration-400 cursor-pointer active:scale-[0.98]',
         'bg-surface-2 border border-transparent',
         'hover:-translate-y-1',
         onClick && 'cursor-pointer',
@@ -47,18 +47,15 @@ export function StatsCard({ icon: Icon, value, label, onClick, className }: Stat
         e.currentTarget.style.boxShadow = '0 2px 8px oklch(0.45 0.06 160 / 0.04)';
       }}
     >
-      {/* Icon */}
-      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-[oklch(0.65_0.18_160_/_0.1)] mb-4">
-        <Icon className="w-6 h-6 text-brand-emerald-600" />
+      <div className="flex items-center justify-center w-8 h-8 sm:w-10 md:w-12 sm:h-10 md:h-12 rounded-lg sm:rounded-xl bg-[oklch(0.65_0.18_160_/_0.1)] mb-2 sm:mb-3 md:mb-4">
+        <Icon className="w-4 h-4 sm:w-5 md:w-6 sm:h-5 md:h-6 text-brand-emerald-600" />
       </div>
 
-      {/* Value */}
-      <div className="font-mono font-semibold text-3xl sm:text-4xl text-brand-emerald-600 tracking-tight mb-1">
+      <div className="font-mono font-semibold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-brand-emerald-600 tracking-tight mb-0.5 sm:mb-1">
         {typeof value === 'number' ? value.toLocaleString() : value}
       </div>
 
-      {/* Label */}
-      <div className="font-display font-semibold text-xs uppercase tracking-widest text-text-secondary">
+      <div className="font-display font-semibold text-[9px] sm:text-[10px] md:text-xs uppercase tracking-wider sm:tracking-widest text-text-secondary">
         {label}
       </div>
     </div>

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth-utils';
 import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -30,8 +32,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
+    const cookieStore = await cookies();
+    const token = cookieStore.get('session')?.value || null;
+    const payload = token ? await verifySession(token) : null;
+    const role = String(payload?.role || '').trim().toUpperCase();
+    const allowCF = role === 'ANALYST' || role === 'SUPER_ADMIN' || role === 'DIVISI_OS';
 
     if (slug) {
+      if (slug.toLowerCase().includes('customer-feedback') && !allowCF) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       // Fetch specific dashboard with its charts
       const { data: dashboard, error } = await supabase
         .from('custom_dashboards')
@@ -74,6 +84,17 @@ export async function GET(request: NextRequest) {
 
     const tileId = searchParams.get('tileId');
     if (tileId) {
+        if (!allowCF) {
+            const { data: ownTile } = await supabaseAdmin
+              .from('dashboard_charts')
+              .select(`id, custom_dashboards ( slug )`)
+              .eq('id', tileId)
+              .single();
+            const ownSlug = (ownTile as { custom_dashboards?: { slug?: string } } | null)?.custom_dashboards?.slug;
+            if (ownSlug && ownSlug.toLowerCase().includes('customer-feedback')) {
+              return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+        }
         // Fetch specific chart/tile using ADMIN client to bypass RLS for public access
         const { data: chart, error } = await supabaseAdmin
             .from('dashboard_charts')
@@ -103,7 +124,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Security check: only show if dashboard is public
-        if (!(chart.custom_dashboards as any)?.is_public) {
+        const isPublic = (chart as { custom_dashboards?: { is_public?: boolean } } | null)?.custom_dashboards?.is_public;
+        if (!isPublic) {
             return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
         }
 
@@ -125,7 +147,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ dashboards }, {
+    const filtered = allowCF ? dashboards : (dashboards || []).filter(d => !String(d.slug || '').toLowerCase().includes('customer-feedback'));
+
+    return NextResponse.json({ dashboards: filtered }, {
       headers: {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
         'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',

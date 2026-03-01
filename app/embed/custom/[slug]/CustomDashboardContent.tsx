@@ -9,7 +9,7 @@ import { DynamicFilterHeader, type FilterData } from '@/components/builder/Dynam
 import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import { processQuery } from '@/lib/engine/query-processor';
 import { useReportsData } from '@/hooks/use-reports-cache';
-import type { QueryResult, QueryDefinition, ChartType, ChartVisualization } from '@/types/builder';
+import type { QueryResult, QueryDefinition, ChartType, ChartVisualization, QueryFilter, DashboardTile, TileLayout } from '@/types/builder';
 import { cn } from '@/lib/utils';
 import { CustomerFeedbackView } from '@/components/dashboard/customer-feedback/CustomerFeedbackView';
 
@@ -128,7 +128,13 @@ export function CustomDashboardContent() {
       const res = await fetch(`/api/dashboards?slug=${slug}&t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
       });
-      if (!res.ok) throw new Error('Dashboard not found');
+      if (!res.ok) {
+        if (res.status === 403) {
+          setError('Akses ditolak');
+          return null;
+        }
+        throw new Error('Dashboard not found');
+      }
       const data = await res.json();
       setDashboard(data);
       if (data.config?.dateFrom && !searchParams.get('dateFrom')) setDateFrom(data.config.dateFrom);
@@ -194,7 +200,7 @@ export function CustomDashboardContent() {
       })
       .filter(Boolean);
 
-    const dateFilters: any[] = [];
+    const dateFilters: QueryFilter[] = [];
     if (dateFrom) {
       dateFilters.push({
         table: 'reports',
@@ -713,7 +719,12 @@ export function CustomDashboardContent() {
                         showLegend: true 
                       })} 
                       result={chartsData.get(chart.id)?.queryResult || { columns: [], rows: [], rowCount: 0, executionTimeMs: 0 }}
-                      tile={chart as any}
+                      tile={{
+                        id: chart.id,
+                        query: chart.query_config || { source: 'reports', joins: [], dimensions: [], measures: [], filters: [], sorts: [] },
+                        visualization: greenify(chart.visualization_config || { chartType: (chart.chart_type as ChartType) || 'bar', yAxis: [], showLegend: true }),
+                        layout: (chart.layout as TileLayout) || { x: 0, y: 0, w: 12, h: 4 }
+                      } as DashboardTile}
                     />
                   </div>
                 ))}

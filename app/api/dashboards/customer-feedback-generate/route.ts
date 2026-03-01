@@ -20,8 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const role = String(payload.role).trim().toUpperCase();
-    const isDivisionRole = role.startsWith('DIVISI_') || role.startsWith('PARTNER_');
-    if (role !== 'ANALYST' && role !== 'SUPER_ADMIN' && !isDivisionRole) {
+    if (role !== 'ANALYST' && role !== 'SUPER_ADMIN' && role !== 'DIVISI_OS') {
       return NextResponse.json({ error: 'Forbidden: Akses tidak diizinkan' }, { status: 403 });
     }
 

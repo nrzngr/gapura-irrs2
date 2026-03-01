@@ -718,8 +718,8 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
         backgroundColor: 'var(--surface-0)',
       }}
     >
-      <div className="space-y-8 pb-24 pt-0 px-4 md:px-6 w-full max-w-none">
-        <PresentationSlide className="!p-4 md:!p-5 !min-h-0 !bg-[var(--surface-1)] !shadow-sm !border !border-[var(--surface-3)] rounded-[24px] !overflow-visible">
+      <div className="space-y-4 sm:space-y-6 md:space-y-8 pb-24 pt-0 px-3 sm:px-4 md:px-6 w-full max-w-none">
+        <PresentationSlide className="!p-3 sm:!p-4 md:!p-5 !min-h-0 !bg-[var(--surface-1)] !shadow-sm !border !border-[var(--surface-3)] rounded-xl sm:rounded-2xl md:rounded-[24px] !overflow-visible">
           <ResponsiveHeader
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
@@ -732,63 +732,63 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             onExportPDF={exportToPDF}
             exporting={exporting}
           />
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
             <button
               onClick={() => setView('dashboard')}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold tracking-tight transition-all ${view === 'dashboard' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all ${view === 'dashboard' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             >
               <span className="truncate max-w-[140px] sm:max-w-none">Dashboard</span>
             </button>
             <button
               onClick={() => setView('reports')}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             >
               <span className="truncate max-w-[140px] sm:max-w-none">Semua Laporan</span>
             </button>
           </div>
           {view === 'dashboard' && division.code === 'OS' && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
               <button
                 onClick={() => router.push('/dashboard/os/joumpa')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">JOUMPA Dashboard</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                <span className="truncate">JOUMPA</span>
               </button>
               <button
                 onClick={() => window.open('https://lookerstudio.google.com/u/0/reporting/42384b46-8f39-4ffd-86ba-ca0e26ab56f4/page/p_8umvft5qyd', '_blank')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">Customer Survey Dashboard</span>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span className="truncate">Survey</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/sla')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-lg shadow-fuchsia-500/20 hover:shadow-xl hover:shadow-fuchsia-500/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">SLA Dashboard</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+                <span className="truncate">SLA</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/wsn')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><path d="M14 3h7v5h-7z"/><path d="M14 12h7v9h-7z"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">WSN Dashboard</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><rect x="3" y="3" width="7" height="9" rx="1"/><path d="M14 3h7v5h-7z"/><path d="M14 12h7v9h-7z"/></svg>
+                <span className="truncate">WSN</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/os/handbook')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-600 to-green-700 text-white shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M20 22H6.5A2.5 2.5 0 0 1 4 19.5V6"/><path d="M20 15V2H6.5A2.5 2.5 0 0 0 4 4.5V6"/><path d="M8 6h8"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">SLA Handbook</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M20 22H6.5A2.5 2.5 0 0 1 4 19.5V6"/><path d="M20 15V2H6.5A2.5 2.5 0 0 0 4 4.5V6"/><path d="M8 6h8"/></svg>
+                <span className="truncate">Handbook</span>
               </button>
               <button
                 onClick={() => window.open('https://lookerstudio.google.com/u/6/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_uyfwmq7usd', '_blank')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-600 to-yellow-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-amber-600 to-yellow-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h5l2 2h11v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7z"/><path d="M3 7V5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 1.4.6L12 5"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">Tentang Divisi OS</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><path d="M3 7h5l2 2h11v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7z"/><path d="M3 7V5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 1.4.6L12 5"/></svg>
+                <span className="truncate">Tentang OS</span>
               </button>
             </div>
           )}

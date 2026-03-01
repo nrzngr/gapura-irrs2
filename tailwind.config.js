@@ -7,6 +7,13 @@ module.exports = {
         './lib/**/*.{js,ts,jsx,tsx,mdx}',
     ],
     theme: {
+        screens: {
+            'sm': '640px',
+            'md': '768px',
+            'lg': '1024px',
+            'xl': '1280px',
+            '2xl': '1536px',
+        },
         extend: {
             /* PRISM V3 — Perceptual Color Physics */
             colors: {
@@ -112,10 +119,27 @@ module.exports = {
                     '50%': { boxShadow: '0 0 0 8px oklch(0.65 0.18 160 / 0)' },
                 },
             },
+
+            spacing: {
+                'safe-bottom': 'env(safe-area-inset-bottom)',
+                'safe-top': 'env(safe-area-inset-top)',
+                'safe-left': 'env(safe-area-inset-left)',
+                'safe-right': 'env(safe-area-inset-right)',
+            },
+
+            minHeight: {
+                'dvh': '100dvh',
+            },
+            height: {
+                'dvh': '100dvh',
+            },
+            minHeight: {
+                'svh': '100svh',
+            },
         },
     },
     plugins: [
-        function({ addUtilities }) {
+        function({ addUtilities, addComponents }) {
             addUtilities({
                 '.glass-morphism': {
                     'background': 'var(--surface-glass)',
@@ -126,6 +150,57 @@ module.exports = {
                 },
                 '.text-balance': {
                     'text-wrap': 'balance',
+                },
+                '.safe-padding-bottom': {
+                    'padding-bottom': 'max(1rem, env(safe-area-inset-bottom))',
+                },
+                '.safe-padding-top': {
+                    'padding-top': 'max(1rem, env(safe-area-inset-top))',
+                },
+                '.touch-scroll': {
+                    '-webkit-overflow-scrolling': 'touch',
+                    'overscroll-behavior': 'contain',
+                },
+                '.no-tap-highlight': {
+                    '-webkit-tap-highlight-color': 'transparent',
+                },
+                '.hide-scrollbar': {
+                    '-ms-overflow-style': 'none',
+                    'scrollbar-width': 'none',
+                    '&::-webkit-scrollbar': {
+                        'display': 'none',
+                    },
+                },
+            });
+            addComponents({
+                '.mobile-container': {
+                    'width': '100%',
+                    'padding-left': '1rem',
+                    'padding-right': '1rem',
+                    '@media (min-width: 640px)': {
+                        'padding-left': '1.5rem',
+                        'padding-right': '1.5rem',
+                    },
+                    '@media (min-width: 1024px)': {
+                        'padding-left': '2rem',
+                        'padding-right': '2rem',
+                    },
+                },
+                '.mobile-card': {
+                    'border-radius': '0.75rem',
+                    'padding': '1rem',
+                    '@media (min-width: 768px)': {
+                        'border-radius': '1rem',
+                        'padding': '1.5rem',
+                    },
+                },
+                '.mobile-stack': {
+                    'display': 'flex',
+                    'flex-direction': 'column',
+                    'gap': '0.75rem',
+                    '@media (min-width: 768px)': {
+                        'gap': '1rem',
+                    },
                 },
             });
         },

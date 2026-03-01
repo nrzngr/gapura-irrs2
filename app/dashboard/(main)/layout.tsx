@@ -21,8 +21,8 @@ export default async function MainDashboardLayout({
     return (
         <div className="flex min-h-screen">
              <Sidebar role={session.role as string} />
-             
-            <main className="flex-1 md:pl-[260px] min-h-screen overflow-x-hidden bg-[var(--surface-0)] flex flex-col pb-20 md:pb-0">
+            
+            <main className="flex-1 min-h-screen overflow-x-hidden bg-[var(--surface-0)] flex flex-col pb-24 md:pb-0 md:pl-[240px] lg:pl-[260px]">
                 {children}
             </main>
 

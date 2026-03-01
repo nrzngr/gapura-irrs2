@@ -24,9 +24,6 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { LINKS_CONFIG, GET_LINKS_KEY, type NavItemConfig } from '@/lib/nav-config';
 
-// Complexity: Time O(N) | Space O(N)
-// Design: Prism Spatial Capsule V5 Synchronized
-
 interface MobileBottomNavProps {
     role: string;
     onMenuClick?: () => void;
@@ -76,12 +73,7 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
     const navData = useMemo(() => {
         const configKey = GET_LINKS_KEY(role);
         const groups = LINKS_CONFIG[configKey] || [];
-        
-        // Flatten all groups into a single list for the menu
         const allItems = groups.flatMap(group => group.items);
-        
-        // Extract top-level items for the capsule [Dash, Secondary, (Primary), Third, Menu]
-        // Often we want Dash, first secondary from first group, then Menu
         const mainItems = allItems.slice(0, 4);
         
         return {
@@ -108,7 +100,6 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
 
     return (
         <>
-            {/* Bottom Sheet Menu */}
             <AnimatePresence>
                 {isMenuOpen && (
                     <MenuSheet 
@@ -119,7 +110,7 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
                 )}
             </AnimatePresence>
 
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] px-4 pb-6 pointer-events-none">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] px-2 sm:px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pointer-events-none">
                 <AnimatePresence>
                     {isVisible && (
                         <motion.nav
@@ -129,14 +120,11 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                             className="mx-auto max-w-md pointer-events-auto relative"
                         >
-                            {/* Capsule Background */}
-                            <div className="absolute inset-0 rounded-[3rem] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100/50" />
+                            <div className="absolute inset-0 rounded-[2rem] sm:rounded-[3rem] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100/50" />
                             
-                            <div className="relative flex items-center justify-between px-2 h-[4.5rem]">
+                            <div className="relative flex items-center justify-between px-1 sm:px-2 h-[3.75rem] sm:h-[4.5rem]">
                                 {navItems.map((item, idx) => {
                                     const Icon = item.icon;
-                                    
-                                    // Calculate if this item is the "best" match (longest matching prefix)
                                     const isMatch = item.href !== '#menu' && (pathname === item.href || pathname.startsWith(item.href + '/'));
                                     const isBestMatch = isMatch && !navItems.some(other => 
                                         other !== item && 
@@ -144,17 +132,17 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
                                         (pathname === other.href || pathname.startsWith(other.href + '/')) &&
                                         other.href.length > item.href.length
                                     );
-                                    
                                     const isActive = isBestMatch;
                                     if (item.isPrimary) {
                                         return (
-                                            <div key="primary" className="relative -top-3 px-2">
+                                            <div key="primary" className="relative -top-2 sm:-top-3 px-1 sm:px-2">
                                                 <button onClick={() => router.push(item.href)}>
                                                     <motion.div
                                                         whileTap={{ scale: 0.9 }}
-                                                        className="w-14 h-14 rounded-full bg-[#0F172A] flex items-center justify-center text-white shadow-lg border-4 border-white"
+                                                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#0F172A] flex items-center justify-center text-white shadow-lg border-4 border-white"
                                                     >
-                                                        <PlusCircle size={28} strokeWidth={2} />
+                                                        <PlusCircle size={24} strokeWidth={2} className="sm:hidden" />
+                                                        <PlusCircle size={28} strokeWidth={2} className="hidden sm:block" />
                                                     </motion.div>
                                                 </button>
                                             </div>
@@ -168,19 +156,19 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
                                                 if (item.href === '#menu') setIsMenuOpen(true);
                                                 else router.push(item.href);
                                             }}
-                                            className="flex-1 flex flex-col items-center justify-center relative group"
+                                            className="flex-1 flex flex-col items-center justify-center relative group py-1"
                                         >
                                             <Icon 
-                                                size={22} 
+                                                size={18} 
                                                 strokeWidth={isActive ? 2.5 : 1.5}
                                                 className={cn(
-                                                    "transition-all duration-300",
+                                                    "transition-all duration-300 sm:size-[22px]",
                                                     isActive ? "text-[#E91E63]" : "text-slate-400 group-active:scale-90"
                                                 )}
                                             />
                                             
                                             <span className={cn(
-                                                "text-[10px] font-semibold mt-0.5 tracking-tight transition-colors duration-300",
+                                                "text-[9px] sm:text-[10px] font-semibold mt-0.5 tracking-tight transition-colors duration-300",
                                                 isActive ? "text-[#E91E63]" : "text-slate-400"
                                             )}>
                                                 {item.label}
@@ -189,7 +177,7 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
                                             {isActive && (
                                                 <motion.div 
                                                     layoutId="active-dot"
-                                                    className="absolute -bottom-1 w-1 h-1 rounded-full bg-[#E91E63]"
+                                                    className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-[#E91E63]"
                                                     transition={{ type: "spring", stiffness: 400, damping: 25 }}
                                                 />
                                             )}
@@ -222,14 +210,13 @@ function MenuSheet({ items, onClose, onLogout }: { items: any[], onClose: () => 
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed bottom-0 left-0 right-0 z-[130] bg-[#F8FAFC] rounded-t-[2.5rem] px-6 pt-2 pb-12 shadow-2xl max-h-[85vh] overflow-y-auto"
+                className="fixed bottom-0 left-0 right-0 z-[130] bg-[#F8FAFC] rounded-t-[2rem] px-4 sm:px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-2xl max-h-[85vh] overflow-y-auto touch-scroll"
             >
-                {/* Grabber */}
-                <div className="sticky top-0 bg-[#F8FAFC] z-10 pt-4 pb-2">
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto" />
+                <div className="sticky top-0 bg-[#F8FAFC] z-10 pt-3 sm:pt-4 pb-2">
+                    <div className="w-10 sm:w-12 h-1.5 bg-slate-200 rounded-full mx-auto" />
                 </div>
                 
-                <div className="grid grid-cols-3 gap-y-8 gap-x-4 mt-8 pb-8">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-y-6 sm:gap-y-8 gap-x-3 sm:gap-x-4 mt-6 sm:mt-8 pb-4 sm:pb-8">
                     {items.map((item, idx) => {
                         const Icon = item.icon;
                         const isLogout = item.href === '#logout';
@@ -249,16 +236,17 @@ function MenuSheet({ items, onClose, onLogout }: { items: any[], onClose: () => 
                                         router.push(item.href);
                                     }
                                 }}
-                                className="flex flex-col items-center gap-3 active:scale-95 transition-transform"
+                                className="flex flex-col items-center gap-2 sm:gap-3 active:scale-95 transition-transform"
                             >
                                 <div className={cn(
-                                    "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border border-white",
+                                    "w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm border border-white",
                                     isLogout ? "bg-red-50 text-red-500 border-red-100" : "bg-white text-slate-600"
                                 )}>
-                                    <Icon size={24} />
+                                    <Icon size={20} className="sm:hidden" />
+                                    <Icon size={24} className="hidden sm:block" />
                                 </div>
                                 <span className={cn(
-                                    "text-xs font-semibold text-center whitespace-pre-wrap px-1 overflow-hidden transition-colors",
+                                    "text-[10px] sm:text-xs font-semibold text-center whitespace-pre-wrap px-1 overflow-hidden transition-colors",
                                     isLogout ? "text-red-500" : "text-slate-500 group-active:text-slate-800"
                                 )}>
                                     {item.label}

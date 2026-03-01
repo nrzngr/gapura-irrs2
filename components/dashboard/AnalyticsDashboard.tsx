@@ -73,6 +73,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
     const [cfLoading, setCfLoading] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterLoading, setFilterLoading] = useState(false);
+    const [allowCF, setAllowCF] = useState(false);
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -133,6 +134,21 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useEffect(() => {
+        const run = async () => {
+            try {
+                const res = await fetch('/api/auth/session', { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                const role = String(data?.user?.role || '').trim().toUpperCase();
+                setAllowCF(role === 'ANALYST' || role === 'SUPER_ADMIN' || role === 'DIVISI_OS');
+            } catch (_) {
+                setAllowCF(false);
+            }
+        };
+        run();
+    }, []);
 
     const filteredReportsList = useMemo(() => {
         let result = reports;
@@ -457,7 +473,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
-                        {showGenerateFeedback && (
+            {showGenerateFeedback && allowCF && (
                             <button 
                                 onClick={handleCustomerFeedbackShortcut}
                                 disabled={cfLoading}
@@ -469,15 +485,17 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                                 <span className="sm:hidden">Feedback</span>
                             </button>
                         )}
-                        <button 
-                            onClick={() => setShowFilterModal(true)} 
-                            title="Filter Laporan"
-                            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm"
-                        >
-                            <Plus size={16} /> 
-                            <span className="hidden sm:inline">Filter L&A</span>
-                            <span className="sm:hidden">Filter</span>
-                        </button>
+                        {allowCF && (
+                            <button 
+                                onClick={() => setShowFilterModal(true)} 
+                                title="Filter Laporan"
+                                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm"
+                            >
+                                <Plus size={16} /> 
+                                <span className="hidden sm:inline">Filter L&A</span>
+                                <span className="sm:hidden">Filter</span>
+                            </button>
+                        )}
                         <button 
                             onClick={() => fetchData(true)} 
                             disabled={refreshing} 
@@ -616,32 +634,34 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                 report={selectedReport}
             />
 
-            <CustomerFeedbackFilterModal
-                isOpen={showFilterModal}
-                onClose={() => setShowFilterModal(false)}
-                onApply={async (config: any) => {
-                    setFilterLoading(true);
-                    try {
-                        const res = await fetch('/api/dashboards/customer-feedback-generate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(config),
-                        });
-                        if (!res.ok) throw new Error('Gagal membuat dashboard');
-                        const data = await res.json();
-                        router.push(`/embed/custom/${data.dashboard.slug}`);
-                    } catch (err) {
-                        alert('Gagal membuat dashboard terfilter');
-                    } finally {
-                        setFilterLoading(false);
-                    }
-                }}
-                loading={filterLoading}
-                availableHubs={[]}
-                availableBranches={[]}
-                availableAirlines={[]}
-                availableCategories={[]}
-            />
+            {allowCF && (
+                <CustomerFeedbackFilterModal
+                    isOpen={showFilterModal}
+                    onClose={() => setShowFilterModal(false)}
+                    onApply={async (config: any) => {
+                        setFilterLoading(true);
+                        try {
+                            const res = await fetch('/api/dashboards/customer-feedback-generate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(config),
+                            });
+                            if (!res.ok) throw new Error('Gagal membuat dashboard');
+                            const data = await res.json();
+                            router.push(`/embed/custom/${data.dashboard.slug}`);
+                        } catch (err) {
+                            alert('Gagal membuat dashboard terfilter');
+                        } finally {
+                            setFilterLoading(false);
+                        }
+                    }}
+                    loading={filterLoading}
+                    availableHubs={[]}
+                    availableBranches={[]}
+                    availableAirlines={[]}
+                    availableCategories={[]}
+                />
+            )}
         </div>
     );
 }
