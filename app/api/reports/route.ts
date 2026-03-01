@@ -43,6 +43,8 @@ export async function GET(request: Request) {
 
         // Normalize role for consistent checking
         const role = String(payload.role).trim().toUpperCase();
+        const userEmail = String(payload.email || '').trim().toLowerCase();
+        const userFullName = String((payload as any).full_name || '').trim().toLowerCase();
         const url = new URL(request.url);
         const unfiltered = url.searchParams.get('unfiltered') === '1';
 
@@ -67,16 +69,36 @@ export async function GET(request: Request) {
 
             if (role === 'STAFF_CABANG') {
                 const originalCount = reports.length;
-                reports = reports.filter(r => r.user_id === payload.id);
-                console.log(`[REPORTS_API] STAFF_CABANG filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
+                reports = reports.filter(r => {
+                    const repEmail = (r as any).reporter_email ? String((r as any).reporter_email).toLowerCase() : '';
+                    const userEmailJoined = (r as any).users?.email ? String((r as any).users.email).toLowerCase() : '';
+                    const repName = (r as any).reporter_name ? String((r as any).reporter_name).toLowerCase() : '';
+                    return (
+                        r.user_id === payload.id || 
+                        repEmail === userEmail || 
+                        userEmailJoined === userEmail ||
+                        (userFullName && repName === userFullName)
+                    );
+                });
+                console.log(`[REPORTS_API] STAFF_CABANG filtered reports from ${originalCount} to ${reports.length} for user ${payload.id} (email fallback enabled)`);
             } else if (role === 'MANAGER_CABANG' && userStationId) {
                 const originalCount = reports.length;
                 reports = reports.filter(r => r.station_id === userStationId);
                 console.log(`[REPORTS_API] MANAGER_CABANG filtered reports from ${originalCount} to ${reports.length} for station ${userStationId}`);
             } else if (role === 'CABANG' || role === 'EMPLOYEE') {
                 const originalCount = reports.length;
-                reports = reports.filter(r => r.user_id === payload.id);
-                console.log(`[REPORTS_API] ${role} filtered reports from ${originalCount} to ${reports.length} for user ${payload.id}`);
+                reports = reports.filter(r => {
+                    const repEmail = (r as any).reporter_email ? String((r as any).reporter_email).toLowerCase() : '';
+                    const userEmailJoined = (r as any).users?.email ? String((r as any).users.email).toLowerCase() : '';
+                    const repName = (r as any).reporter_name ? String((r as any).reporter_name).toLowerCase() : '';
+                    return (
+                        r.user_id === payload.id || 
+                        repEmail === userEmail || 
+                        userEmailJoined === userEmail ||
+                        (userFullName && repName === userFullName)
+                    );
+                });
+                console.log(`[REPORTS_API] ${role} filtered reports from ${originalCount} to ${reports.length} for user ${payload.id} (email fallback enabled)`);
             } else if (isDivisionOrPartner) {
                 const division = role.split('_')[1];
                 reports = reports.filter(r => r.target_division === division);
@@ -245,6 +267,10 @@ export async function POST(request: Request) {
             general_category: general_category || ((area === 'GENERAL' || area === 'CARGO') ? area_category || null : null),
         };
 
+        // Ensure reporter_email always captured for filtering fallback
+        if (!reportData.reporter_email && payload.email) {
+            reportData.reporter_email = payload.email;
+        }
         const newReport = await reportsService.createReport(reportData);
 
         // Attempt to sync to Supabase (Best Effort for Tracking)
@@ -265,7 +291,7 @@ export async function POST(request: Request) {
                 incident_type_id: newReport.incident_type_id,
                 
                 // Store Google Sheet ID for reference
-                sheet_id: (newReport as any).original_id || newReport.id, 
+                sheet_id: (newReport as any).sheet_id || (newReport as any).original_id || newReport.id, 
                 
                 // Additional fields
                 reporter_name: newReport.reporter_name,
@@ -280,6 +306,30 @@ export async function POST(request: Request) {
 
             if (sbError) {
                 console.warn('[Supabase] Sync failed (non-blocking):', sbError.message);
+                try {
+                    // Best-effort update by sheet_id if row already exists or insert failed due to constraints
+                    await supabase.from('reports').update({
+                        user_id: payload.id,
+                        title: newReport.title,
+                        description: newReport.description,
+                        status: newReport.status,
+                        severity: newReport.severity,
+                        location: newReport.location,
+                        flight_number: newReport.flight_number,
+                        aircraft_reg: newReport.aircraft_reg,
+                        date_of_event: newReport.date_of_event,
+                        station_id: newReport.station_id,
+                        incident_type_id: newReport.incident_type_id,
+                        reporter_name: newReport.reporter_name,
+                        action_taken: newReport.action_taken,
+                        root_caused: newReport.root_caused,
+                        delay_code: newReport.delay_code,
+                        delay_duration: newReport.delay_duration,
+                        updated_at: new Date().toISOString()
+                    }).eq('sheet_id', (newReport as any).sheet_id || (newReport as any).original_id || newReport.id);
+                } catch (e) {
+                    console.warn('[Supabase] Update by sheet_id also failed (ignored)', (e as any)?.message || e);
+                }
             } else {
                 console.log('[Supabase] Report synced successfully');
             }

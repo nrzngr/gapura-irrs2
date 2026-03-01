@@ -1,21 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, Lock, ArrowRight, Loader2, Sparkles, Shield, Monitor } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
-const demoCredentials = [
-    { role: 'Super Admin', email: 'admin@gapura.demo', division: 'ALL', color: '#8b5cf6', description: 'Full access' },
-    { role: 'Analyst', email: 'supervisor@gapura.demo', division: 'OS', color: '#3b82f6', description: 'Create + Export' },
-    { role: 'Divisi OS', email: 'manager@gapura.demo', division: 'OS', color: '#10b981', description: 'Monitoring' },
-    { role: 'Divisi OT', email: 'partner.ot@gapura.demo', division: 'OT', color: '#f59e0b', description: 'ACC & Evidence' },
-    { role: 'Divisi OP', email: 'partner.op@gapura.demo', division: 'OP', color: '#06b6d4', description: 'ACC & Evidence' },
-    { role: 'Divisi UQ', email: 'partner.uq@gapura.demo', division: 'UQ', color: '#ec4899', description: 'ACC & Evidence' },
-    { role: 'Manager Cabang CGK', email: 'manager.cgk@gapura.id', division: 'CGK', color: '#059669', description: 'AI Reports + Cabang CGK' },
-    { role: 'Karyawan Cabang', email: 'karyawan@gapura.co.id', division: 'CGK', color: '#f87171', description: 'Akses Cabang' },
-];
+ 
 
 
 export default function LoginPage() {
@@ -23,27 +14,6 @@ export default function LoginPage() {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [demoMode, setDemoMode] = useState(false);
-
-    // Persist demo mode state
-    useEffect(() => {
-        const savedDemoMode = localStorage.getItem('demo_mode') === 'true';
-        setDemoMode(savedDemoMode);
-    }, []);
-
-    const toggleDemoMode = () => {
-        const newState = !demoMode;
-        setDemoMode(newState);
-        localStorage.setItem('demo_mode', String(newState));
-        if (newState) {
-            setError('');
-        }
-    };
-
-    const handleDemoEnter = () => {
-        // Redirect to analyst dashboard by default for demo mode
-        router.push('/dashboard/analyst?demo=1');
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -275,101 +245,6 @@ export default function LoginPage() {
                                 </Link>
                             </p>
                         </div>
-                    </div>
-
-                    {/* Demo Credentials */}
-                    <div className={`mt-6 rounded-2xl border transition-all duration-300 p-5 ${demoMode ? 'bg-emerald-50 border-emerald-100 ring-4 ring-emerald-500/5' : 'bg-white border-gray-100'}`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <Sparkles size={14} className={demoMode ? 'text-emerald-600' : 'text-emerald-500'} />
-                                <p className={`text-xs font-bold uppercase tracking-wider ${demoMode ? 'text-emerald-700' : 'text-gray-400'}`}>Quick Demo Access</p>
-                            </div>
-                            <button
-                                onClick={toggleDemoMode}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${demoMode ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                            >
-                                <span className="sr-only">Enable demo mode</span>
-                                <span
-                                    className={`${demoMode ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm`}
-                                />
-                            </button>
-                        </div>
-
-                        {demoMode ? (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <div className="p-4 bg-white rounded-xl border border-emerald-100 shadow-sm">
-                                    <p className="text-sm text-emerald-800 font-medium mb-3">
-                                        Demo Mode Aktif: Anda dapat mengakses dashboard tanpa login.
-                                    </p>
-                                    <button
-                                        onClick={handleDemoEnter}
-                                        className="w-full py-3 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <Monitor size={16} />
-                                        Masuk sebagai Tamu
-                                        <ArrowRight size={16} />
-                                    </button>
-                                </div>
-                                
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                        <div className="w-full border-t border-emerald-100"></div>
-                                    </div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-emerald-50 px-2 text-emerald-600 font-bold">Atau pilih role</span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto pr-1">
-                                    {demoCredentials.map((cred) => (
-                                        <button
-                                            key={cred.role}
-                                            onClick={() => setFormData({ email: cred.email, password: 'Gapura123!' })}
-                                            className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-left bg-white border border-emerald-50 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group"
-                                        >
-                                            <div 
-                                                className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
-                                                style={{ background: cred.color }} 
-                                            />
-                                            <span className="text-sm font-semibold text-gray-900 flex-1">{cred.role}</span>
-                                            <ArrowRight className="w-4 h-4 text-emerald-300 group-hover:text-emerald-500 transition-colors" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {demoCredentials.map((cred) => (
-                                    <button
-                                        key={cred.role}
-                                        onClick={() => setFormData({ email: cred.email, password: 'Gapura123!' })}
-                                        className="w-full flex items-center gap-3 py-3 px-3 -mx-1 rounded-xl text-left transition-all hover:bg-gray-50 group"
-                                    >
-                                        <div 
-                                            className="w-3 h-3 rounded-full flex-shrink-0 ring-4 ring-opacity-20" 
-                                            style={{ background: cred.color, boxShadow: `0 0 0 4px ${cred.color}20` }} 
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-gray-900">{cred.role}</span>
-                                                <span 
-                                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                                    style={{ background: `${cred.color}15`, color: cred.color }}
-                                                >
-                                                    {cred.division}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-gray-400 truncate">{cred.description}</p>
-                                        </div>
-                                        <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        
-                        <p className="text-[10px] text-gray-400 mt-3 text-center">
-                            Password: <span className="font-mono">Gapura123!</span>
-                        </p>
                     </div>
 
                     {/* Mobile Footer */}

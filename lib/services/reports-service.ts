@@ -909,17 +909,41 @@ export class ReportsService {
     // Invalidate cache
     this.invalidateCache();
     
-    // Attempt to set ID
-    const updatedRange = appendRes.data.updates?.updatedRange;
+    // Attempt to set ID (with fallback when updatedRange is missing)
+    let updatedRowNumber: string | null = null;
+    const updatedRange = appendRes.data.updates?.updatedRange || null;
     if (updatedRange) {
         const match = updatedRange.match(/!A(\d+)/);
         if (match && match[1]) {
-            const originalId = `${targetSheet}!row_${match[1]}`;
-            // Persist both original_id (sheet reference) and canonical UUID id
-            (newReport as any).original_id = originalId;
-            (newReport as any).id = this.getReportUuid(originalId);
-            (newReport as any).source_sheet = targetSheet;
+            updatedRowNumber = match[1];
         }
+    }
+    if (!updatedRowNumber) {
+        try {
+            // Fallback: read first column to infer last non-empty row (includes header)
+            const colA = await sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${targetSheet}!A:A`,
+            });
+            const totalRows = (colA.data.values || []).length;
+            if (totalRows && totalRows > 1) {
+                updatedRowNumber = String(totalRows);
+            }
+        } catch {}
+    }
+    if (updatedRowNumber) {
+        const originalId = `${targetSheet}!row_${updatedRowNumber}`;
+        (newReport as any).original_id = originalId;
+        (newReport as any).id = this.getReportUuid(originalId);
+        (newReport as any).sheet_id = originalId;
+        (newReport as any).source_sheet = targetSheet;
+    } else {
+        // As a last resort, keep a deterministic id for tracking even without row index
+        const fallbackId = `${targetSheet}!row_pending_${Date.now()}`;
+        (newReport as any).original_id = fallbackId;
+        (newReport as any).id = this.getReportUuid(fallbackId);
+        (newReport as any).sheet_id = fallbackId;
+        (newReport as any).source_sheet = targetSheet;
     }
 
     return newReport;
