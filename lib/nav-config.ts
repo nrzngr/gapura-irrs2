@@ -82,7 +82,6 @@ export const LINKS_CONFIG: Record<string, NavGroupConfig[]> = {
             items: [
                 { href: '/dashboard/os', label: 'Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/os/dispatched', label: 'Laporan Divisi', icon: Inbox },
-                { href: 'https://lookerstudio.google.com/u/6/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_uyfwmq7usd', label: 'Tentang Kami', icon: FolderOpen, external: true },
             ]
         },
         {
