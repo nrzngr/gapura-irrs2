@@ -2,6 +2,7 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { BarChart3 } from 'lucide-react';
 import { EntityStats, AirlineStats } from '@/types/entity-analytics';
 import { getTopEntities, translateSeverity, getSeverityColor } from '@/lib/utils/entity-analytics';
@@ -27,7 +28,10 @@ export function TopAirlinesChart({ entityStats, onAirlineClick }: TopAirlinesCha
     );
   }
 
-  const maxCount = Math.max(...topAirlines.map(a => a.count));
+  const maxCount = useMemo(() => {
+    if (topAirlines.length === 0) return 0;
+    return Math.max(...topAirlines.map(a => a.count));
+  }, [topAirlines]);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
