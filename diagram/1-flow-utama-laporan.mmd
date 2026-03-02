@@ -9,14 +9,14 @@ flowchart TD
     user_os[OS Admin / OSC Lead <br/> Super Admin]
 
     %% States
-    state_open([OPEN: Laporan Baru])
+    state_open([OPEN: Laporan Baru]) 
     state_ack([ACKNOWLEDGED: Diterima])
     state_prog([ON_PROGRESS: Dikerjakan])
     state_wait([WAITING_VALIDATION: Menunggu Validasi])
     state_close([CLOSED: Selesai])
     state_return([RETURNED: Dikembalikan])
     state_reject([REJECTED: Ditolak])
-
+ 
     %% Flows
     start -->|Login| user_branch
     user_branch -->|Buat Laporan| state_open
