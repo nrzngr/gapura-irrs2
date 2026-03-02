@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, AlertTriangle, RefreshCw, TrendingUp, TrendingDown, CheckCircle2, Target, Lightbulb,
-  Loader2, AlertCircle, X, ChevronLeft, ChevronRight, Calendar, MapPin, Plane, FileText,
-  Activity, Clock, Gauge, Zap, Shield, BarChart3, PieChart, Layers, Building2, Filter,
-  Download, ArrowUpRight, ArrowDownRight, Minus, Sparkles, Info, ChevronDown, ChevronUp,
-  Search, Eye, MessageSquare, Tag, Hash, Frown, Meh, Smile
+  Brain, AlertTriangle, RefreshCw, CheckCircle2, Target, Lightbulb,
+  Loader2, AlertCircle, X, ChevronLeft, ChevronRight, Calendar, MapPin, Plane,
+  Activity, Clock, Gauge, Zap, Shield, BarChart3, Building2,
+  Download, Sparkles, Search, MessageSquare, Tag, Hash, Frown, Meh, Smile
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -221,6 +220,87 @@ const getRecommendations = (category?: string, severity?: string, division?: str
   return [...matched, ...sevExtra, ...common];
 };
 
+function AILoadingProgress() {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0);
+  
+  const steps = [
+    { label: 'Mengambil data dari Google Sheets...', icon: Activity },
+    { label: 'Menjalankan model regresi...', icon: Gauge },
+    { label: 'Menganalisis dengan NLP...', icon: Brain },
+    { label: 'Mendeteksi anomali...', icon: Zap },
+    { label: 'Menghitung sentimen...', icon: MessageSquare },
+    { label: 'Menyiapkan visualisasi...', icon: BarChart3 },
+  ];
+
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) return prev;
+        return prev + Math.random() * 3;
+      });
+    }, 200);
+
+    const stepInterval = setInterval(() => {
+      setCurrentStep(prev => (prev + 1) % steps.length);
+    }, 2000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(stepInterval);
+    };
+  }, [steps.length]);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">Progress</span>
+          <span className="font-bold text-emerald-600">{Math.round(progress)}%</span>
+        </div>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentStep}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className="flex items-center gap-3 text-sm text-gray-600"
+        >
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+          <span>{steps[currentStep].label}</span>
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="flex justify-center gap-1.5 pt-2">
+        {steps.map((_, idx) => (
+          <div
+            key={idx}
+            className={cn(
+              "w-2 h-2 rounded-full transition-all duration-300",
+              idx === currentStep 
+                ? "bg-emerald-500 w-6" 
+                : idx < currentStep 
+                  ? "bg-emerald-300" 
+                  : "bg-gray-200"
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface DivisionAIReportsDashboardProps {
   division?: string;
   branchFilter?: string | null;
@@ -392,13 +472,13 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
     return filteredResults[detail.index]?.item || null;
   })();
 
-  const nav = (dir: -1 | 1) => {
+  const nav = useCallback((dir: -1 | 1) => {
     if (!detail) return;
     const next = detail.index + dir;
     if (next < 0 || next >= filteredResults.length) return;
     setDetail({ index: next, open: true });
     setShowFullDesc(false);
-  };
+  }, [detail, filteredResults.length]);
 
   useEffect(() => {
     if (!detail?.open) return;
@@ -409,7 +489,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [detail?.open]);
+  }, [detail?.open, nav]);
 
   const exportData = () => {
     if (!data) return;
@@ -484,9 +564,55 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-            <p className="text-gray-500 font-medium">Memuat analisis AI...</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative mb-8"
+            >
+              <div className="w-24 h-24 rounded-full border-4 border-emerald-100 flex items-center justify-center">
+                <Brain className="w-12 h-12 text-emerald-600 animate-pulse" />
+              </div>
+              <motion.div
+                className="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-500"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              />
+            </motion.div>
+            
+            <div className="text-center max-w-md mb-8">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Memuat Analisis AI</h3>
+              <p className="text-gray-500 text-sm mb-4">
+                Sedang memproses data dari model Machine Learning dan NLP...
+              </p>
+              <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-lg border border-amber-200">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm font-medium">Analisis AI membutuhkan waktu sekitar 2-3 menit</span>
+              </div>
+            </div>
+
+            <div className="w-full max-w-sm space-y-4">
+              <AILoadingProgress />
+            </div>
+
+            <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
+              {[
+                { icon: Gauge, label: 'Prediksi Waktu', delay: 0 },
+                { icon: AlertTriangle, label: 'Deteksi Anomali', delay: 0.1 },
+                { icon: MessageSquare, label: 'Analisis Sentimen', delay: 0.2 },
+              ].map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: item.delay + 0.5 }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-200"
+                >
+                  <item.icon className="w-5 h-5 text-gray-400 animate-pulse" />
+                  <span className="text-xs text-gray-500 text-center">{item.label}</span>
+                </motion.div>
+              ))}
+            </div>
           </div>
         ) : (
           <>
@@ -582,7 +708,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveView(tab.id as any)}
+                  onClick={() => setActiveView(tab.id as typeof activeView)}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
                     activeView === tab.id

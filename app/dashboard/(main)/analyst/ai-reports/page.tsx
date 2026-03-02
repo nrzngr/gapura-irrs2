@@ -943,12 +943,12 @@ export default function AIReportsPage() {
                       </div>
                     </Card>
                   )}
-
-                  {/* Entity Analytics Dashboard */}
-                  {batchResults && (
-                    <EntityAnalyticsDashboard batchResults={batchResults} />
-                  )}
                 </div>
+
+                {/* Entity Analytics Dashboard - Full Width */}
+                {batchResults && (
+                  <EntityAnalyticsDashboard batchResults={batchResults} />
+                )}
               </div>
             )}
 
