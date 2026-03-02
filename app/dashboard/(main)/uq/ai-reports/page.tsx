@@ -1,7 +1,7 @@
 'use client';
 
-import AIReportsPage from '@/components/dashboard/ai-reports/AIReportsPage';
+import DivisionAIReportsDashboard from '@/components/dashboard/ai-reports/DivisionAIReportsDashboard';
 
 export default function UQAIReportsPage() {
-  return <AIReportsPage userRole="UQ" />;
+  return <DivisionAIReportsDashboard division="UQ" />;
 }

@@ -21,6 +21,12 @@ export interface RouteStats {
   to: string;
   count: number;
   criticalRate: number;
+  severityBreakdown: {
+    Critical: number;
+    High: number;
+    Medium: number;
+    Low: number;
+  };
   primaryIssueType: string;
   lastIncident: Date | null;
   reports: any[];

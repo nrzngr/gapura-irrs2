@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Database, TrendingUp, Filter, AlertTriangle } from 'lucide-react';
+import { Database, TrendingUp, Filter, AlertTriangle, LucideIcon } from 'lucide-react';
 import { EntityStats } from '@/types/entity-analytics';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +16,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon: LucideIcon;
   color: string;
 }
 

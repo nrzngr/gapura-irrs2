@@ -66,6 +66,12 @@ export function processEntityData(results: any[]): EntityStats {
         to: to || route,
         count: 0,
         criticalRate: 0,
+        severityBreakdown: {
+          Critical: 0,
+          High: 0,
+          Medium: 0,
+          Low: 0
+        },
         primaryIssueType: '',
         lastIncident: null,
         reports: []
@@ -73,6 +79,7 @@ export function processEntityData(results: any[]): EntityStats {
     }
     const routeStats = routes.get(route)!;
     routeStats.count++;
+    routeStats.severityBreakdown[severity] = (routeStats.severityBreakdown[severity] || 0) + 1;
     routeStats.reports.push(result);
     const routeDate = result.originalData?.date ? new Date(result.originalData.date) : null;
     if (routeDate && (!routeStats.lastIncident || routeDate > routeStats.lastIncident)) {
