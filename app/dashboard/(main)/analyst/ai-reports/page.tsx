@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { ReportAnalysisTable } from './ReportAnalysisTable';
+import { EntityAnalyticsDashboard } from '@/components/dashboard/ai-reports/EntityAnalyticsDashboard';
 
 // --- Types ---
 interface ModelInfo {
@@ -941,6 +942,11 @@ export default function AIReportsPage() {
                         </div>
                       </div>
                     </Card>
+                  )}
+
+                  {/* Entity Analytics Dashboard */}
+                  {batchResults && (
+                    <EntityAnalyticsDashboard batchResults={batchResults} />
                   )}
                 </div>
               </div>
