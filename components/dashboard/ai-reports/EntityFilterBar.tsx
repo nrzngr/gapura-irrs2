@@ -57,15 +57,15 @@ export function EntityFilterBar({
   ];
 
   const toggleOption = (sectionId: string, option: string) => {
-    const section = sectionId as keyof Pick<FilterState, 'airlines' | 'routes' | 'hubs' | 'severities'>;
-    const currentSelection = activeFilters[section];
-    const newSelection = currentSelection.includes(option as any)
+    const sectionKey = sectionId as keyof Pick<FilterState, 'airlines' | 'routes' | 'hubs' | 'severities'>;
+    const currentSelection = activeFilters[sectionKey];
+    const newSelection = currentSelection.includes(option as never)
       ? currentSelection.filter(v => v !== option)
-      : [...currentSelection, option as any];
+      : [...currentSelection, option as never];
 
     onFilterChange({
       ...activeFilters,
-      [section]: newSelection
+      [sectionKey]: newSelection
     });
   };
 
@@ -99,6 +99,9 @@ export function EntityFilterBar({
           <div key={section.id} className="relative">
             <button
               onClick={() => setExpandedFilter(expandedFilter === section.id ? null : section.id)}
+              aria-expanded={expandedFilter === section.id}
+              aria-controls={`dropdown-${section.id}`}
+              aria-haspopup="listbox"
               className={cn(
                 "w-full flex items-center justify-between px-3 py-2 border rounded-lg transition-colors text-left",
                 section.selected.length > 0
@@ -125,26 +128,31 @@ export function EntityFilterBar({
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  id={`dropdown-${section.id}`}
+                  role="listbox"
+                  aria-label={section.label}
                   className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"
                 >
                   {section.options.map(option => (
                     <button
                       key={option}
                       onClick={() => toggleOption(section.id, option)}
+                      role="option"
+                      aria-selected={section.selected.includes(option as never)}
                       className={cn(
                         "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-left",
-                        section.selected.includes(option as any) && "bg-emerald-50 text-emerald-900"
+                        section.selected.includes(option as never) && "bg-emerald-50 text-emerald-900"
                       )}
                     >
                       <div
                         className={cn(
                           "w-4 h-4 rounded border-2 flex items-center justify-center transition-colors",
-                          section.selected.includes(option as any)
+                          section.selected.includes(option as never)
                             ? "bg-emerald-500 border-emerald-500"
                             : "border-gray-300"
                         )}
                       >
-                        {section.selected.includes(option as any) && (
+                        {section.selected.includes(option as never) && (
                           <svg className="w-3 h-3 text-white" viewBox="0 0 12 12">
                             <path
                               fill="currentColor"
@@ -175,6 +183,7 @@ export function EntityFilterBar({
               <button
                 onClick={() => toggleOption('airlines', airline)}
                 className="hover:text-emerald-900"
+                aria-label={`Hapus filter: ${airline}`}
               >
                 <X size={12} />
               </button>
@@ -189,6 +198,7 @@ export function EntityFilterBar({
               <button
                 onClick={() => toggleOption('routes', route)}
                 className="hover:text-blue-900"
+                aria-label={`Hapus filter: ${route}`}
               >
                 <X size={12} />
               </button>
@@ -203,6 +213,7 @@ export function EntityFilterBar({
               <button
                 onClick={() => toggleOption('hubs', hub)}
                 className="hover:text-purple-900"
+                aria-label={`Hapus filter: ${hub}`}
               >
                 <X size={12} />
               </button>
@@ -217,6 +228,7 @@ export function EntityFilterBar({
               <button
                 onClick={() => toggleOption('severities', severity)}
                 className="hover:text-amber-900"
+                aria-label={`Hapus filter: ${severity}`}
               >
                 <X size={12} />
               </button>
