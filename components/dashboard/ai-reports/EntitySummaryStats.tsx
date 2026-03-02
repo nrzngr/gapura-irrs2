@@ -2,6 +2,7 @@
 
 'use client';
 
+import React, { useMemo } from 'react';
 import { Database, TrendingUp, Filter, AlertTriangle } from 'lucide-react';
 import { EntityStats } from '@/types/entity-analytics';
 import { cn } from '@/lib/utils';
@@ -11,19 +12,21 @@ interface EntitySummaryStatsProps {
   filteredStats: EntityStats;
 }
 
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  color: string;
+}
+
 const StatCard = ({
   title,
   value,
   subtitle,
   icon: Icon,
   color
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: any;
-  color: string;
-}) => (
+}: StatCardProps) => (
   <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 hover:shadow-lg transition-shadow">
     <div className="flex items-start justify-between">
       <div className="flex-1">
@@ -42,8 +45,11 @@ const StatCard = ({
 
 export function EntitySummaryStats({ entityStats, filteredStats }: EntitySummaryStatsProps) {
   // Get most active entity
-  const topAirline = Array.from(entityStats.airlines.values())
-    .sort((a, b) => b.count - a.count)[0];
+  const topAirline = useMemo(() => {
+    if (!entityStats.airlines.size) return null;
+    return Array.from(entityStats.airlines.values())
+      .sort((a, b) => b.count - a.count)[0];
+  }, [entityStats.airlines]);
 
   const isFiltered = filteredStats.summary.totalReports !== entityStats.summary.totalReports;
 
