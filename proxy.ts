@@ -37,6 +37,8 @@ export default async function proxy(request: NextRequest) {
     const isAuthPagePath = path.startsWith('/auth');
     const isAuthApiPath = path.startsWith('/api/auth');
     const isAuthPath = isAuthPagePath || isAuthApiPath;
+    const isSyncEndpoint = path === '/api/admin/sync-reports';
+    const isDevelopment = process.env.NODE_ENV === 'development';
     const isPublicEmbedPath = path.startsWith('/embed') || 
                              path.startsWith('/api/embed') ||
                              path.startsWith('/api/dashboards/query') ||
@@ -47,7 +49,9 @@ export default async function proxy(request: NextRequest) {
                              // Public report submission & evidence upload
                              path.startsWith('/api/reports/public') ||
                              path.startsWith('/api/uploads/evidence/public') ||
-                             (path === '/api/dashboards' && request.method === 'GET');
+                             (path === '/api/dashboards' && request.method === 'GET') ||
+                             // Allow sync endpoint in development mode
+                             (isSyncEndpoint && isDevelopment);
     const isPublicPath = isAuthPath || isPublicEmbedPath || path === '/';
 
     // Verify session

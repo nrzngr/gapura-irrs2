@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const branchParam = searchParams.get('branch');
 
     // Get branch filter for MANAGER_CABANG or from query params
-    let branchFilter: string | null = branchParam;
+    const branchFilter: string | null = branchParam;
     let branchCode: string | null = null;
     if (role === 'MANAGER_CABANG') {
       const { data: userData } = await supabaseAdmin
@@ -133,17 +133,73 @@ export async function GET(request: NextRequest) {
 
     const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : (branchParam ? `&branch=${encodeURIComponent(branchParam)}` : '');
     const divisionQuery = divisionParam ? `&division=${encodeURIComponent(divisionParam)}` : '';
-    const aiResponse = await fetch(
-      `${AI_SERVICE_URL}/api/ai/analyze-all?max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&exclude_closed=${excludeClosed}${branchQuery}${divisionQuery}`,
-      {
+    const url = `${AI_SERVICE_URL}/api/ai/analyze-all/fast?&max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&exclude_closed=${excludeClosed}${branchQuery}${divisionQuery}`;
+    const controller = new AbortController();
+    const timeoutMs = Number(process.env.AI_API_TIMEOUT_MS || '20000');
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let aiResponse: Response | null = null;
+    try {
+      aiResponse = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-      }
-    );
+        signal: controller.signal,
+      });
+    } catch {
+      try {
+        const filePath = path.join(process.cwd(), 'analyze-all.json');
+        const fileContent = await readFile(filePath, 'utf-8');
+        const data = JSON.parse(fileContent);
 
-    if (!aiResponse.ok) {
+        if (data.results) {
+          const originalCount = data.results.length;
+          data.results = data.results.filter((item: AnalysisItem) => {
+            const code = item.originalData?.station_code || item.originalData?.branch;
+            const station = item.originalData?.Station || item.originalData?.station || item.originalData?.STATION;
+            const branchOk = branchCode
+              ? (code ? String(code).trim().toLowerCase() === branchCode?.toLowerCase() : true)
+              : (branchFilter
+                  ? (station ? String(station).trim().toLowerCase() === branchFilter?.toLowerCase() : true)
+                  : true);
+            const statusVal = item.originalData?.status || item.originalData?.Status || item.originalData?.STATUS;
+            const statusOk = excludeClosed ? String(statusVal || '').toLowerCase() !== 'closed' : true;
+            return branchOk && statusOk;
+          });
+          if (data.summary) {
+            data.summary.totalRecords = data.results.length;
+          }
+        }
+
+        const response = {
+          ...data,
+          _proxy: {
+            timestamp: new Date().toISOString(),
+            source: 'local-file-fallback',
+            ai_service_url: process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space',
+            branch_filter: branchCode || branchFilter
+          },
+          _pagination: null
+        };
+
+        clearTimeout(timer);
+        return NextResponse.json(response, {
+          headers: {
+            'Cache-Control': 'no-store'
+          }
+        });
+      } catch {
+        clearTimeout(timer);
+        return NextResponse.json(
+          { error: 'AI service tidak tersedia', details: 'Fetch failed and local fallback unavailable' },
+          { status: 503 }
+        );
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!aiResponse || !aiResponse.ok) {
       const errorText = await aiResponse.text().catch(() => '');
       console.error(`[AI API] Error from AI service: ${aiResponse.status}`, errorText);
       

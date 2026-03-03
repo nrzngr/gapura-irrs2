@@ -3,7 +3,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
 import { Bricolage_Grotesque, JetBrains_Mono } from 'next/font/google';
-import PWAInit from '@/components/PWAInit';
+import PWAProvider from '@/components/PWAProvider';
 
 const bricolage = Bricolage_Grotesque({
     subsets: ['latin'],
@@ -23,23 +23,45 @@ export const viewport: Viewport = {
     maximumScale: 1,
     userScalable: false,
     viewportFit: 'cover',
-    themeColor: '#10b981',
+    themeColor: [
+        { media: '(prefers-color-scheme: light)', color: '#10b981' },
+        { media: '(prefers-color-scheme: dark)', color: '#0ea5a2' }
+    ],
 };
 
 export const metadata: Metadata = {
-    title: 'One-click Gapura',
-    applicationName: 'One-click',
-    description: 'Gapura One-click - Sistem Pelaporan & Monitoring Operasional Bandara',
+    title: 'Gapura Operations Dashboard',
+    applicationName: 'Gapura IRRS',
+    description: 'Gapura Operations Dashboard - Sistem Pelaporan & Monitoring Operasional Bandara',
     manifest: '/manifest.webmanifest',
     icons: {
-        icon: '/logo.png',
+        icon: [
+            { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+            { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+        ],
         shortcut: '/logo.png',
-        apple: '/logo.png',
+        apple: [
+            { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+        ],
     },
     appleWebApp: {
         capable: true,
         statusBarStyle: 'black-translucent',
-        title: 'One-click',
+        title: 'Gapura IRRS',
+    },
+    formatDetection: {
+        telephone: false,
+    },
+    openGraph: {
+        type: 'website',
+        siteName: 'Gapura IRRS',
+        title: 'Gapura Operations Dashboard',
+        description: 'Sistem Pelaporan & Monitoring Operasional Bandara',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'Gapura Operations Dashboard',
+        description: 'Sistem Pelaporan & Monitoring Operasional Bandara',
     },
 };
 
@@ -51,8 +73,9 @@ export default function RootLayout({
     return (
         <html lang="id" className={`${bricolage.variable} ${jetbrainsMono.variable}`}>
             <body className={bricolage.className}>
-                <PWAInit />
-                {children}
+                <PWAProvider>
+                    {children}
+                </PWAProvider>
             </body>
         </html>
     );

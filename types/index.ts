@@ -73,6 +73,8 @@ export interface Report {
     reporter_email?: string;
     evidence_url?: string;
     evidence_urls?: string[];
+    video_url?: string;
+    video_urls?: string[];
     status: ReportStatus;
     severity: ReportSeverity;
     priority?: ReportPriority;

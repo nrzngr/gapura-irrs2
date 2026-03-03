@@ -129,28 +129,40 @@ const sentimentStyle: Record<string, { bg: string; text: string; icon: typeof Sm
 function formatExcelDate(value: unknown): string {
   if (value === null || value === undefined) return '-';
 
-  // If it's already a string that looks like an ISO date
   if (typeof value === 'string') {
-    if (value.includes('T')) {
-      try {
-        const d = new Date(value);
-        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-      } catch {
-        return value;
-      }
+    const s = value.trim();
+    if (!s) return '-';
+    const parsed = Date.parse(s);
+    if (!Number.isNaN(parsed)) {
+      const d = new Date(parsed);
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
     }
-    return value;
+    return s;
   }
 
-  // If it's a number (Excel serial date)
   if (typeof value === 'number') {
-    // Excel serial date: number of days since December 30, 1899
     const excelEpoch = new Date(1899, 11, 30);
     const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   return String(value);
+}
+
+function normalizeLabel(value: unknown, fallback: string): string {
+  if (value === null || value === undefined) return fallback;
+  const s = String(value).trim();
+  if (!s) return fallback;
+  const lower = s.toLowerCase();
+  if (lower === 'unknown' || lower === 'n/a' || lower === 'na' || lower === '-') return fallback;
+  return s;
+}
+
+function effectiveIssueType(item: AnalysisItem): string {
+  const cls = item.classification?.issueType;
+  if (cls && String(cls).trim().toLowerCase() !== 'unknown') return String(cls).trim();
+  const fallback = item.originalData?.issueType || item.originalData?.Irregularity_Complain_Category;
+  return normalizeLabel(fallback, 'Umum');
 }
 
 interface DivisionConfig {
@@ -254,7 +266,93 @@ const getRecommendations = (category?: string, severity?: string, division?: str
   return Array.from(new Set([...matched, ...sevExtra, ...common]));
 };
 
-function AILoadingProgress() {
+type DivisionTheme = {
+  textStrong: string;
+  barBg: string;
+  gradientFrom: string;
+  gradientTo: string;
+  dotActive: string;
+  dotPast: string;
+  spinner: string;
+};
+
+function themeForColor(color: string): DivisionTheme {
+  switch (color) {
+    case 'blue':
+      return {
+        textStrong: 'text-blue-600',
+        barBg: 'bg-blue-500',
+        gradientFrom: 'from-blue-400',
+        gradientTo: 'to-blue-600',
+        dotActive: 'bg-blue-500',
+        dotPast: 'bg-blue-300',
+        spinner: 'text-blue-500',
+      };
+    case 'purple':
+      return {
+        textStrong: 'text-purple-600',
+        barBg: 'bg-purple-500',
+        gradientFrom: 'from-purple-400',
+        gradientTo: 'to-purple-600',
+        dotActive: 'bg-purple-500',
+        dotPast: 'bg-purple-300',
+        spinner: 'text-purple-500',
+      };
+    case 'cyan':
+      return {
+        textStrong: 'text-cyan-600',
+        barBg: 'bg-cyan-500',
+        gradientFrom: 'from-cyan-400',
+        gradientTo: 'to-cyan-600',
+        dotActive: 'bg-cyan-500',
+        dotPast: 'bg-cyan-300',
+        spinner: 'text-cyan-500',
+      };
+    case 'rose':
+      return {
+        textStrong: 'text-rose-600',
+        barBg: 'bg-rose-500',
+        gradientFrom: 'from-rose-400',
+        gradientTo: 'to-rose-600',
+        dotActive: 'bg-rose-500',
+        dotPast: 'bg-rose-300',
+        spinner: 'text-rose-500',
+      };
+    case 'indigo':
+      return {
+        textStrong: 'text-indigo-600',
+        barBg: 'bg-indigo-500',
+        gradientFrom: 'from-indigo-400',
+        gradientTo: 'to-indigo-600',
+        dotActive: 'bg-indigo-500',
+        dotPast: 'bg-indigo-300',
+        spinner: 'text-indigo-500',
+      };
+    case 'slate':
+      return {
+        textStrong: 'text-slate-600',
+        barBg: 'bg-slate-500',
+        gradientFrom: 'from-slate-400',
+        gradientTo: 'to-slate-600',
+        dotActive: 'bg-slate-500',
+        dotPast: 'bg-slate-300',
+        spinner: 'text-slate-500',
+      };
+    case 'emerald':
+    default:
+      return {
+        textStrong: 'text-emerald-600',
+        barBg: 'bg-emerald-500',
+        gradientFrom: 'from-emerald-400',
+        gradientTo: 'to-emerald-600',
+        dotActive: 'bg-emerald-500',
+        dotPast: 'bg-emerald-300',
+        spinner: 'text-emerald-500',
+      };
+  }
+}
+
+function AILoadingProgress({ theme }: { theme: DivisionTheme }) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   
@@ -290,11 +388,11 @@ function AILoadingProgress() {
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Progress</span>
-          <span className="font-bold text-emerald-600">{Math.round(progress)}%</span>
+          <span className={cn("font-bold", theme.textStrong)}>{Math.round(progress)}%</span>
         </div>
         <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+            className={cn("h-full bg-gradient-to-r rounded-full", theme.gradientFrom, theme.gradientTo)}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.3 }}
@@ -311,7 +409,7 @@ function AILoadingProgress() {
           transition={{ duration: 0.2 }}
           className="flex items-center gap-3 text-sm text-gray-600"
         >
-          <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+          <Loader2 className={cn("w-4 h-4 animate-spin", theme.spinner)} />
           <span>{steps[currentStep].label}</span>
         </motion.div>
       </AnimatePresence>
@@ -323,9 +421,9 @@ function AILoadingProgress() {
             className={cn(
               "w-2 h-2 rounded-full transition-all duration-300",
               idx === currentStep 
-                ? "bg-emerald-500 w-6" 
+                ? cn(theme.dotActive, "w-6") 
                 : idx < currentStep 
-                  ? "bg-emerald-300" 
+                  ? theme.dotPast
                   : "bg-gray-200"
             )}
           />
@@ -342,6 +440,7 @@ interface DivisionAIReportsDashboardProps {
 
 export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: DivisionAIReportsDashboardProps) {
   const config = divisionConfigs[division] || divisionConfigs.OS;
+  const theme = themeForColor(config.color);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -351,19 +450,16 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [activeView, setActiveView] = useState<'overview' | 'anomalies' | 'sentiment' | 'airlines' | 'hubs'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0, status: 'Initializing...' });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError('');
-    setChunkProgress({ current: 0, total: 1, status: 'Mengambil data analisis AI...' });
 
     try {
       const params = new URLSearchParams({
         exclude_closed: 'true',
         division: division,
-        ...(branchFilter && { branch: branchFilter }),
-        source: 'local'
+        ...(branchFilter && { branch: branchFilter })
       });
 
       const res = await fetch(`/api/ai/analyze-all?${params.toString()}`);
@@ -373,7 +469,6 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
       }
 
       const data = await res.json();
-      setChunkProgress({ current: 1, total: 1, status: 'Data berhasil dimuat' });
 
       const metadataIn = data?.metadata || {};
       const summaryIn = data?.summary || {};
@@ -382,10 +477,10 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
       Object.entries(sdIn || {}).forEach(([k, v]) => {
         const key = String(k).toLowerCase();
         const val = Number(v) || 0;
-        if (key.includes('crit')) normalizedSD.Critical += val;
-        else if (key.includes('high')) normalizedSD.High += val;
-        else if (key.includes('med')) normalizedSD.Medium += val;
-        else if (key.includes('low')) normalizedSD.Low += val;
+        if (key.includes('crit') || key === '3') normalizedSD.Critical += val;
+        else if (key.includes('high') || key === '2') normalizedSD.High += val;
+        else if (key.includes('med') || key === '1') normalizedSD.Medium += val;
+        else if (key.includes('low') || key === '0') normalizedSD.Low += val;
       });
       const predStatsIn = summaryIn.predictionStats || summaryIn.prediction_stats || {};
       const finalPredictionStats = {
@@ -537,17 +632,12 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
     };
   }, [data]);
 
-  // Create unique recommendation groups to avoid duplicated cards (group by issueType + severity)
+  // Create unique recommendation groups to avoid duplicated cards (group by effective issueType + severity)
   const recommendationGroups = useMemo(() => {
     const map: Record<string, { sev: string; issueType: string; count: number }> = {};
     prioritized.forEach(({ item }) => {
       const sev = item.classification?.severity || 'Low';
-      const issueRaw =
-        item.classification?.issueType ||
-        item.originalData?.issueType ||
-        item.originalData?.Irregularity_Complain_Category ||
-        'Unknown';
-      const issueType = String(issueRaw).trim() || 'Unknown';
+      const issueType = effectiveIssueType(item);
       const key = `${issueType.toLowerCase()}::${sev}`;
       if (!map[key]) {
         map[key] = { sev, issueType, count: 0 };
@@ -583,11 +673,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
     const issueTypeStats: Record<string, { count: number; percentage: number }> = {};
     const results = data?.results || [];
     results.forEach(r => {
-      const issueType =
-        r.classification?.issueType ||
-        r.originalData?.issueType ||
-        r.originalData?.Irregularity_Complain_Category ||
-        'Unknown';
+      const issueType = effectiveIssueType(r);
       if (!issueTypeStats[issueType]) {
         issueTypeStats[issueType] = { count: 0, percentage: 0 };
       }
@@ -730,7 +816,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
             </div>
 
             <div className="w-full max-w-sm space-y-4">
-              <AILoadingProgress />
+              <AILoadingProgress theme={theme} />
             </div>
 
             <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
@@ -916,7 +1002,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                         {topPatterns.length > 0 ? topPatterns.map(([cat, info], idx) => (
                           <div key={idx} className="p-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-gray-800">{cat || 'Tidak terklasifikasi'}</p>
+                              <p className="text-sm font-bold text-gray-800">{String(cat || '').trim().toLowerCase() === 'unknown' || !cat ? 'Tidak terklasifikasi' : cat}</p>
                               <span className={cn(
                                 "px-2 py-0.5 rounded-full text-[10px] font-bold",
                                 info.count > 50 ? "bg-red-100 text-red-700" :
@@ -998,10 +1084,10 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                                   {item.originalData?.report || item.originalData?.Report || item.classification?.issueType || 'Deskripsi tidak tersedia'}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {item.originalData?.airline || item.originalData?.Airlines || 'Maskapai -'} · {item.originalData?.route || item.originalData?.Route || '-'}
+                                  {normalizeLabel(item.originalData?.airline || item.originalData?.Airlines, '-')} · {normalizeLabel(item.originalData?.route || item.originalData?.Route, '-')}
                                 </p>
                                 <div className="mt-2 flex flex-wrap gap-1.5">
-                                  {getRecommendations(item.classification?.issueType, sev, division).slice(0, 2).map((rec, i) => (
+                                  {getRecommendations(effectiveIssueType(item), sev, division).slice(0, 2).map((rec, i) => (
                                     <span key={i} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-600">
                                       {rec}
                                     </span>
@@ -1251,7 +1337,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                             const riskRatio = airline.count > 0 ? airline.critical / airline.count : 0;
                             return (
                               <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-3 px-4 font-medium text-gray-800">{airline.airline}</td>
+                                <td className="py-3 px-4 font-medium text-gray-800">{normalizeLabel(airline.airline, '-')}</td>
                                 <td className="py-3 px-4 text-center">
                                   <span className="px-2 py-1 bg-gray-100 rounded-lg font-semibold">{airline.count}</span>
                                 </td>
@@ -1330,7 +1416,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                             className={cn("p-4 rounded-xl border-2 transition-all hover:shadow-md", riskColors[riskLevel])}
                           >
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-bold text-sm">{hub.hub}</span>
+                              <span className="font-bold text-sm">{normalizeLabel(hub.hub, '-')}</span>
                               <span className={cn(
                                 "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
                                 riskBadgeColors[riskLevel]
@@ -1428,13 +1514,13 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                 <div className="grid grid-cols-2 gap-3">
                     {[
                       { label: 'Tanggal', value: formatExcelDate(current.originalData?.date || current.originalData?.Date_of_Event), icon: Calendar },
-                      { label: 'Maskapai', value: current.originalData?.airline || current.originalData?.Airlines, icon: Plane },
+                      { label: 'Maskapai', value: normalizeLabel(current.originalData?.airline || current.originalData?.Airlines, '-'), icon: Plane },
                       { label: 'No. Penerbangan', value: current.originalData?.flightNumber || current.originalData?.Flight_Number, icon: Hash },
-                      { label: 'Rute', value: current.originalData?.route || current.originalData?.Route, icon: MapPin },
-                      { label: 'Hub', value: current.originalData?.hub || current.originalData?.HUB, icon: Building2 },
-                      { label: 'Status', value: current.originalData?.status || current.originalData?.Status || current.originalData?.STATUS, icon: CheckCircle2 },
-                      { label: 'Branch', value: current.originalData?.branch || current.originalData?.Branch, icon: Building2 },
-                      { label: 'Kategori', value: current.originalData?.category || current.originalData?.issueType || current.originalData?.Irregularity_Complain_Category, icon: Tag },
+                      { label: 'Rute', value: normalizeLabel(current.originalData?.route || current.originalData?.Route, '-'), icon: MapPin },
+                      { label: 'Hub', value: normalizeLabel(current.originalData?.hub || current.originalData?.HUB, '-'), icon: Building2 },
+                      { label: 'Status', value: normalizeLabel(current.originalData?.status || current.originalData?.Status || current.originalData?.STATUS, '-'), icon: CheckCircle2 },
+                      { label: 'Branch', value: normalizeLabel(current.originalData?.branch || current.originalData?.Branch, '-'), icon: Building2 },
+                      { label: 'Kategori', value: normalizeLabel(effectiveIssueType(current), 'Tidak terklasifikasi'), icon: Tag },
                     ].map((it, i) => it.value ? (
                     <div key={i} className="p-3 rounded-xl border border-gray-200 bg-white shadow-sm">
                       <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
@@ -1552,7 +1638,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                 <div>
                   <div className="text-xs font-semibold text-gray-700 mb-2">Rekomendasi</div>
                   <div className="flex flex-wrap gap-2">
-                    {getRecommendations(current.classification?.issueType, current.classification?.severity, division).map((r, i) => (
+                    {getRecommendations(effectiveIssueType(current), current.classification?.severity, division).map((r, i) => (
                       <span key={i} className="text-[11px] font-medium px-2 py-1 rounded-md bg-gray-50 border border-gray-200 text-gray-700">{r}</span>
                     ))}
                   </div>

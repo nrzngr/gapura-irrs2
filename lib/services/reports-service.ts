@@ -167,6 +167,8 @@ const WRITE_MAPPING: Record<string, string> = {
   // Prefer writing the concatenated evidence_urls over single evidence_url
   evidence_urls: 'Upload Irregularity Photo',
   evidence_url: 'Upload Irregularity Photo',
+  video_urls: 'Upload Irregularity Photo', // Same column for videos
+  video_url: 'Upload Irregularity Photo', // Same column for videos
   area: 'Area',
   terminal_area_category: 'Terminal Area Category',
   apron_area_category: 'Apron Area Category',
@@ -564,22 +566,40 @@ export class ReportsService {
       }
     }
 
-    // --- PARALLEL FETCHING: Google Sheets & Supabase ---
-    const sheetsPromise = this.fetchGoogleSheetsReports();
+    // --- FAST PATH: Try reports_sync first ---
+    let sheetReports: Report[] = [];
+    let dbReports: Report[] = [];
+    
+    // Try to fetch from reports_sync (synced from Sheets)
+    const syncReports = await this.fetchReportsFromSync();
+    
+    if (syncReports.length > 0) {
+      // Use synced data (fast path)
+      sheetReports = syncReports;
+      console.log(`[ReportsService] Using ${syncReports.length} reports from reports_sync (fast path)`);
+    } else {
+      // Fallback: Fetch directly from Google Sheets
+      const sheetsPromise = this.fetchGoogleSheetsReports();
+      const [sheetsResult] = await Promise.all([
+        sheetsPromise.catch(err => {
+          console.error('[ReportsService] Google Sheets fetch failed:', err);
+          return [] as Report[];
+        })
+      ]);
+      sheetReports = sheetsResult;
+    }
+    
+    // Fetch from legacy reports table (for reports created directly in DB)
     const supabasePromise = this.fetchSupabaseReports();
-
-    const [sheetReports, dbReports] = await Promise.all([
-      sheetsPromise.catch(err => {
-        console.error('[ReportsService] Google Sheets fetch failed:', err);
-        return [] as Report[];
-      }),
+    const [dbResult] = await Promise.all([
       supabasePromise.catch(err => {
         console.error('[ReportsService] Supabase fetch failed:', err);
         return [] as Report[];
       })
     ]);
+    dbReports = dbResult;
 
-    console.log(`[ReportsService] Fetched ${sheetReports.length} from Sheets, ${dbReports.length} from Supabase`);
+    console.log(`[ReportsService] Fetched ${sheetReports.length} from Sheets/Sync, ${dbReports.length} from Supabase`);
 
     // --- MERGE STRATEGY ---
     // 1. Create a map of Sheet reports by ID for O(1) lookup
@@ -739,21 +759,93 @@ export class ReportsService {
     return allReports;
   }
 
-  // Supabase Fetch Logic
-  private async fetchSupabaseReports(): Promise<Report[]> {
-    const { data, error } = await supabase
-      .from('reports')
-      .select('*')
-      .order('created_at', { ascending: false });
+  // Fetch from reports_sync table (fast path - synced from Google Sheets)
+  private async fetchReportsFromSync(): Promise<Report[]> {
+    try {
+      // Fetch all records using pagination (Supabase has 1000 row limit by default)
+      const allReports: any[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-    if (error) {
-      console.warn('[ReportsService] Supabase fetch error:', error);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('reports_sync')
+          .select('*')
+          .order('date_of_event', { ascending: false })
+          .range(offset, offset + batchSize - 1);
+
+        if (error) {
+          console.warn('[ReportsService] reports_sync fetch error:', error);
+          break;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allReports.push(...data);
+          hasMore = data.length === batchSize;
+          offset += batchSize;
+        }
+      }
+
+      if (allReports.length === 0) {
+        console.log('[ReportsService] reports_sync table is empty, falling back to Sheets');
+        return [];
+      }
+
+      console.log(`[ReportsService] Fetched ${allReports.length} reports from reports_sync`);
+
+      return allReports.map((row: any) => ({
+        ...row,
+        id: row.id,
+        sheet_id: row.sheet_id,
+        evidence_urls: row.evidence_urls || (row.evidence_url ? [row.evidence_url] : []),
+        status: row.status || 'MENUNGGU_FEEDBACK',
+        severity: row.severity || 'low',
+        priority: row.priority || 'low',
+        date_of_event: row.date_of_event || row.incident_date || row.created_at,
+        created_at: row.created_at || new Date().toISOString(),
+        stations: row.station_id ? { code: row.station_id, name: row.station_id } : undefined,
+      })) as Report[];
+    } catch (error) {
+      console.error('[ReportsService] reports_sync fetch exception:', error);
       return [];
     }
+  }
 
-    if (!data) return [];
+  // Supabase Fetch Logic (legacy reports table)
+  private async fetchSupabaseReports(): Promise<Report[]> {
+    // Fetch using pagination to avoid 1000 row limit
+    const allReports: any[] = [];
+    const batchSize = 1000;
+    let offset = 0;
+    let hasMore = true;
 
-    return data.map((row: any) => ({
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + batchSize - 1);
+
+      if (error) {
+        console.warn('[ReportsService] Supabase fetch error:', error);
+        break;
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allReports.push(...data);
+        hasMore = data.length === batchSize;
+        offset += batchSize;
+      }
+    }
+
+    if (allReports.length === 0) return [];
+
+    return allReports.map((row: any) => ({
       ...row,
       // Map DB fields to Report interface if needed
       // Most fields should match due to direct mapping in POST
@@ -871,23 +963,34 @@ export class ReportsService {
       (newReport as any).root_caused = (newReport as any).root_cause;
     }
 
-    const row = headers.map((header: string) => {
+        const row = headers.map((header: string) => {
       const normalizedHeader = header.trim().toLowerCase();
       const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === normalizedHeader);
       if (propEntry) {
         const prop = propEntry[0] as keyof Report;
+        
+        // Handle evidence URLs - join all URLs with separator
         if (prop === 'evidence_url' || prop === 'evidence_urls') {
           const urls = Array.isArray((newReport as any).evidence_urls)
             ? (newReport as any).evidence_urls
             : ((newReport as any).evidence_url ? [(newReport as any).evidence_url] : []);
-          return urls.length ? urls.join(' | ') : '';
+          
+          // Include video URLs if present
+          const videoUrls = Array.isArray((newReport as any).video_urls)
+            ? (newReport as any).video_urls
+            : [];
+          
+          const allUrls = [...urls, ...videoUrls].filter(Boolean);
+          return allUrls.length ? allUrls.join(' | ') : '';
         }
+        
         // @ts-ignore
         const val = newReport[prop];
         if (Array.isArray(val)) return val.join(' | ');
         if (val && typeof val === 'object') return JSON.stringify(val);
         return val !== undefined ? val : '';
       }
+      
       // Fallback: try direct property match if header is simple
       // @ts-ignore
       if (newReport[header]) {
@@ -1017,6 +1120,28 @@ export class ReportsService {
     // Update individual cells based on headers mapping
     for (const [key, value] of Object.entries(updates)) {
         if (value === undefined) continue;
+
+        // Special handling for evidence_urls and video_urls - merge with existing
+        if (key === 'evidence_urls' || key === 'evidence_url' || key === 'video_urls' || key === 'video_url') {
+            const currentReport = await this.getReportById(id);
+            if (currentReport) {
+                const existingUrls = [
+                    ...(Array.isArray(currentReport.evidence_urls) ? currentReport.evidence_urls : []),
+                    ...(Array.isArray(currentReport.video_urls) ? currentReport.video_urls : [])
+                ];
+                
+                const newUrls = [
+                    ...(Array.isArray(updates.evidence_urls) ? updates.evidence_urls : []),
+                    ...(Array.isArray(updates.video_urls) ? updates.video_urls : [])
+                ];
+                
+                // Merge and deduplicate
+                const allUrls = [...new Set([...existingUrls, ...newUrls])].filter(Boolean);
+                
+                // Update both evidence_urls and video_urls to ensure all URLs are saved
+                updates.evidence_urls = allUrls;
+            }
+        }
 
         // Find column index for this property
         let colIndex = -1;
