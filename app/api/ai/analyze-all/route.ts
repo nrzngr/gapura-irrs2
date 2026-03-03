@@ -37,23 +37,7 @@ export async function GET(request: NextRequest) {
     // Allow all authenticated roles to access AI analysis
     const role = String(payload.role).trim().toUpperCase();
 
-    // Get branch filter for MANAGER_CABANG
-    const branchFilter: string | null = null;
-    let branchCode: string | null = null;
-    if (role === 'MANAGER_CABANG') {
-      const { data: userData } = await supabaseAdmin
-        .from('users')
-        .select('station_id')
-        .eq('id', payload.id)
-        .single();
-      
-      if (userData?.station_id) {
-        branchCode = String(userData.station_id);
-        console.log(`[AI API] Applying branch code for MANAGER_CABANG: ${branchCode}`);
-      }
-    }
-
-    // Get query parameters
+    // Get query parameters first
     const { searchParams } = new URL(request.url);
     const maxRows = searchParams.get('max_rows_per_sheet') || '10000';
     const bypassCache = searchParams.get('bypass_cache') || 'false';
@@ -62,6 +46,24 @@ export async function GET(request: NextRequest) {
     const includeTrends = searchParams.get('include_trends') || 'true';
     const source = searchParams.get('source');
     const excludeClosed = (searchParams.get('exclude_closed') || 'false').toLowerCase() === 'true';
+    const divisionParam = searchParams.get('division');
+    const branchParam = searchParams.get('branch');
+
+    // Get branch filter for MANAGER_CABANG or from query params
+    let branchFilter: string | null = branchParam;
+    let branchCode: string | null = null;
+    if (role === 'MANAGER_CABANG') {
+      const { data: userData } = await supabaseAdmin
+        .from('users')
+        .select('station_id')
+        .eq('id', payload.id)
+        .single();
+
+      if (userData?.station_id) {
+        branchCode = String(userData.station_id);
+        console.log(`[AI API] Applying branch code for MANAGER_CABANG: ${branchCode}`);
+      }
+    }
 
     type OriginalData = {
       station_code?: string;
@@ -126,12 +128,13 @@ export async function GET(request: NextRequest) {
 
     // Call the Python AI service
     const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
-    
-    console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}`);
-    
-    const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : '';
+
+    console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}, division=${divisionParam}, branch=${branchParam || branchCode || '-'}`);
+
+    const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : (branchParam ? `&branch=${encodeURIComponent(branchParam)}` : '');
+    const divisionQuery = divisionParam ? `&division=${encodeURIComponent(divisionParam)}` : '';
     const aiResponse = await fetch(
-      `${AI_SERVICE_URL}/api/ai/analyze-all?max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&exclude_closed=${excludeClosed}${branchQuery}`,
+      `${AI_SERVICE_URL}/api/ai/analyze-all?max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&exclude_closed=${excludeClosed}${branchQuery}${divisionQuery}`,
       {
         method: 'GET',
         headers: {

@@ -2,7 +2,7 @@
 
 import { useState, useId } from 'react';
 import { X, Save, Link2, Check, Loader2, LayoutGrid, FileText } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeWithLogo } from '@/components/ui/QRCodeWithLogo';
 
 interface SaveDashboardModalProps {
   isOpen: boolean;
@@ -177,7 +177,7 @@ export function SaveDashboardModal({
               {fullUrl && (
                 <div className="flex flex-col items-center gap-2 mb-4">
                   <div className="p-3 bg-white rounded-xl border border-[var(--surface-4)]">
-                    <QRCodeSVG value={fullUrl} size={120} fgColor="#6b8e3d" />
+                    <QRCodeWithLogo value={fullUrl} size={120} fgColor="#6b8e3d" />
                   </div>
                   <span className="text-[10px] text-[var(--text-muted)]">Scan QR untuk akses cepat</span>
                 </div>

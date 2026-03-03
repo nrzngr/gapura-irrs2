@@ -32,6 +32,11 @@ type AnalysisItem = {
     Date_of_Event?: string;
     Root_Caused?: string;
     Action_Taken?: string;
+    HUB?: string;
+    Irregularity_Complain_Category?: string;
+    Branch?: string;
+    Status?: string;
+    STATUS?: string;
   };
   prediction?: {
     predictedDays?: number;
@@ -119,6 +124,34 @@ const sentimentStyle: Record<string, { bg: string; text: string; icon: typeof Sm
   'Somewhat Positive': { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: Smile },
   'Positive': { bg: 'bg-green-100', text: 'text-green-700', icon: Smile },
 };
+
+// Convert Excel serial date number to readable date string
+function formatExcelDate(value: unknown): string {
+  if (value === null || value === undefined) return '-';
+
+  // If it's already a string that looks like an ISO date
+  if (typeof value === 'string') {
+    if (value.includes('T')) {
+      try {
+        const d = new Date(value);
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  }
+
+  // If it's a number (Excel serial date)
+  if (typeof value === 'number') {
+    // Excel serial date: number of days since December 30, 1899
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  return String(value);
+}
 
 interface DivisionConfig {
   id: string;
@@ -217,7 +250,8 @@ const getRecommendations = (category?: string, severity?: string, division?: str
     ? ['Eskalasi ke supervisor/manager', 'Prioritaskan service recovery'] 
     : ['Monitoring dampak dan dokumentasi pembelajaran'];
   
-  return [...matched, ...sevExtra, ...common];
+  // Deduplicate recommendations to avoid repeated lines
+  return Array.from(new Set([...matched, ...sevExtra, ...common]));
 };
 
 function AILoadingProgress() {
@@ -317,29 +351,79 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [activeView, setActiveView] = useState<'overview' | 'anomalies' | 'sentiment' | 'airlines' | 'hubs'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0, status: 'Initializing...' });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError('');
+    setChunkProgress({ current: 0, total: 1, status: 'Mengambil data analisis AI...' });
+
     try {
       const params = new URLSearchParams({
         exclude_closed: 'true',
         division: division,
-        ...(branchFilter && { branch: branchFilter })
+        ...(branchFilter && { branch: branchFilter }),
+        source: 'local'
       });
-      
-      const [resA, resB] = await Promise.all([
-        fetch(`/api/ai/analyze-all?${params.toString()}`),
-        fetch(`/api/ai/root-cause/stats?division=${division}`),
-      ]);
-      const jsonA = resA.ok ? await resA.json() : null;
-      const jsonB = resB.ok ? await resB.json() : null;
-      if (!resA.ok) {
-        const msg = jsonA?.error || `Gagal memuat data AI (${resA.status})`;
-        throw new Error(msg);
+
+      const res = await fetch(`/api/ai/analyze-all?${params.toString()}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Gagal mengambil data analisis (${res.status})`);
       }
-      setData(jsonA);
-      setRootStats(jsonB);
+
+      const data = await res.json();
+      setChunkProgress({ current: 1, total: 1, status: 'Data berhasil dimuat' });
+
+      const metadataIn = data?.metadata || {};
+      const summaryIn = data?.summary || {};
+      const sdIn = summaryIn.severityDistribution || summaryIn.severity_distribution || {};
+      const normalizedSD: Record<string, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+      Object.entries(sdIn || {}).forEach(([k, v]) => {
+        const key = String(k).toLowerCase();
+        const val = Number(v) || 0;
+        if (key.includes('crit')) normalizedSD.Critical += val;
+        else if (key.includes('high')) normalizedSD.High += val;
+        else if (key.includes('med')) normalizedSD.Medium += val;
+        else if (key.includes('low')) normalizedSD.Low += val;
+      });
+      const predStatsIn = summaryIn.predictionStats || summaryIn.prediction_stats || {};
+      const finalPredictionStats = {
+        min: Number(predStatsIn.min) || 0,
+        max: Number(predStatsIn.max) || 0,
+        mean: Number(predStatsIn.mean) || 0,
+      };
+      const totalRecordsCalc =
+        Number(summaryIn.totalRecords) ||
+        (Array.isArray(data?.results) ? data.results.length : 0) ||
+        Object.values(normalizedSD).reduce((a, b) => a + b, 0);
+
+      const finalData: AnalyzeAllResponse = {
+        status: 'success',
+        metadata: {
+          totalRecords: totalRecordsCalc,
+          processingTimeSeconds:
+            Number(metadataIn.processingTimeSeconds || metadataIn.processing_time_seconds) || 0,
+          recordsPerSecond:
+            Number(metadataIn.recordsPerSecond || metadataIn.records_per_second) || 0,
+          modelVersions: metadataIn.modelVersions || metadataIn.model_versions || { regression: '1.0.0', nlp: '3.0.0' }
+        },
+        summary: {
+          severityDistribution: normalizedSD,
+          predictionStats: finalPredictionStats,
+          totalRecords: totalRecordsCalc
+        },
+        results: Array.isArray(data?.results) ? data.results : []
+      };
+
+      setData(finalData);
+
+      const rootCauseRes = await fetch(`/api/ai/root-cause/stats?division=${division}`);
+      if (rootCauseRes.ok) {
+        const rootCauseData = await rootCauseRes.json();
+        setRootStats(rootCauseData);
+      }
+
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat data AI');
     } finally {
@@ -353,7 +437,11 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
 
   const distribution = useMemo(() => data?.summary?.severityDistribution || {}, [data]);
   
-  const totalRecords = useMemo(() => Object.values(distribution).reduce((a, b) => a + b, 0), [distribution]);
+  const totalRecords = useMemo(() => {
+    const fromSummary = data?.summary?.totalRecords || 0;
+    if (fromSummary) return fromSummary;
+    return Object.values(distribution).reduce((a, b) => a + b, 0);
+  }, [data, distribution]);
   
   const criticalHighCount = useMemo(() => 
     (distribution.Critical || 0) + (distribution.High || 0), [distribution]);
@@ -402,7 +490,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
   const hubStats = useMemo(() => {
     const stats: Record<string, { count: number; critical: number; high: number; avgDays: number; totalDays: number }> = {};
     (data?.results || []).forEach(r => {
-      const hub = r.originalData?.hub || 'Unknown';
+      const hub = r.originalData?.hub || r.originalData?.HUB || 'Unknown';
       if (!stats[hub]) {
         stats[hub] = { count: 0, critical: 0, high: 0, avgDays: 0, totalDays: 0 };
       }
@@ -449,6 +537,28 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
     };
   }, [data]);
 
+  // Create unique recommendation groups to avoid duplicated cards (group by issueType + severity)
+  const recommendationGroups = useMemo(() => {
+    const map: Record<string, { sev: string; issueType: string; count: number }> = {};
+    prioritized.forEach(({ item }) => {
+      const sev = item.classification?.severity || 'Low';
+      const issueRaw =
+        item.classification?.issueType ||
+        item.originalData?.issueType ||
+        item.originalData?.Irregularity_Complain_Category ||
+        'Unknown';
+      const issueType = String(issueRaw).trim() || 'Unknown';
+      const key = `${issueType.toLowerCase()}::${sev}`;
+      if (!map[key]) {
+        map[key] = { sev, issueType, count: 0 };
+      }
+      map[key].count += 1;
+    });
+    return Object.values(map)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [prioritized]);
+
   const filteredResults = useMemo(() => {
     if (!searchQuery) return prioritized;
     const q = searchQuery.toLowerCase();
@@ -463,9 +573,37 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
   }, [prioritized, searchQuery]);
 
   const topPatterns = useMemo(() => {
+    // First try to use rootStats from API
     const bc = rootStats?.by_category || {};
-    return Object.entries(bc).sort((a, b) => b[1].count - a[1].count).slice(0, 6);
-  }, [rootStats]);
+    if (Object.keys(bc).length > 0) {
+      return Object.entries(bc).sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+    }
+
+    // Fallback: compute from results data
+    const issueTypeStats: Record<string, { count: number; percentage: number }> = {};
+    const results = data?.results || [];
+    results.forEach(r => {
+      const issueType =
+        r.classification?.issueType ||
+        r.originalData?.issueType ||
+        r.originalData?.Irregularity_Complain_Category ||
+        'Unknown';
+      if (!issueTypeStats[issueType]) {
+        issueTypeStats[issueType] = { count: 0, percentage: 0 };
+      }
+      issueTypeStats[issueType].count++;
+    });
+
+    // Calculate percentages
+    const total = results.length || 1;
+    Object.keys(issueTypeStats).forEach(k => {
+      issueTypeStats[k].percentage = Math.round((issueTypeStats[k].count / total) * 100);
+    });
+
+    return Object.entries(issueTypeStats)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 6);
+  }, [rootStats, data]);
 
   const current = (() => {
     if (!detail || !detail.open) return null;
@@ -746,7 +884,8 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                         <h2 className="text-base font-bold text-gray-800">Distribusi Severity</h2>
                       </div>
                       <div className="space-y-3">
-                        {Object.entries(distribution).map(([sev, count]) => {
+                        {['Critical', 'High', 'Medium', 'Low'].map((sev) => {
+                          const count = distribution[sev] || 0;
                           const pct = totalRecords > 0 ? Math.round((count / totalRecords) * 100) : 0;
                           return (
                             <div key={sev} className="space-y-1.5">
@@ -771,18 +910,37 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                     <div className="p-5 rounded-2xl border border-gray-200 bg-white">
                       <div className="flex items-center gap-2 mb-4">
                         <Shield className="w-5 h-5 text-purple-600" />
-                        <h2 className="text-base font-bold text-gray-800">Pola Risiko Tinggi</h2>
+                        <h2 className="text-base font-bold text-gray-800">Kategori Issue</h2>
                       </div>
                       <div className="space-y-3">
-                        {topPatterns.map(([cat, info], idx) => (
-                          <div key={idx} className="p-3 rounded-xl border border-gray-200 bg-gray-50">
-                            <p className="text-sm font-bold text-gray-800">{cat || 'Tidak terklasifikasi'}</p>
-                            <p className="text-xs text-gray-500">{info.count} kasus · {info.percentage}%</p>
-                            {info.description && (
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{info.description}</p>
-                            )}
+                        {topPatterns.length > 0 ? topPatterns.map(([cat, info], idx) => (
+                          <div key={idx} className="p-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-gray-800">{cat || 'Tidak terklasifikasi'}</p>
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                                info.count > 50 ? "bg-red-100 text-red-700" :
+                                info.count > 20 ? "bg-amber-100 text-amber-700" :
+                                "bg-gray-100 text-gray-700"
+                              )}>
+                                {info.count}
+                              </span>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-purple-500 rounded-full"
+                                  style={{ width: `${Math.min(100, info.percentage)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-500">{info.percentage}%</span>
+                            </div>
                           </div>
-                        ))}
+                        )) : (
+                          <div className="text-sm text-gray-500 text-center py-4">
+                            Data kategori belum tersedia
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -869,9 +1027,10 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                         <h2 className="text-base font-bold text-gray-800">Rekomendasi Tindakan</h2>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {prioritized.slice(0, 4).map(({ item }, idx) => {
-                          const sev = item.classification?.severity || 'Low';
-                          const recs = getRecommendations(item.classification?.issueType, sev, division).slice(0, 3);
+                        {recommendationGroups.map((group, idx) => {
+                          const sev = group.sev || 'Low';
+                          const displayCategory = (group.issueType || 'Umum').toLowerCase() === 'unknown' ? 'Umum' : group.issueType;
+                          const recs = getRecommendations(displayCategory === 'Umum' ? '' : displayCategory, sev, division).slice(0, 3);
                           return (
                             <div key={idx} className="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50">
                               <div className="flex items-center gap-2 mb-2">
@@ -879,7 +1038,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                                   {sev}
                                 </span>
                                 <span className="text-xs font-semibold text-gray-700 truncate">
-                                  {item.classification?.issueType || 'Umum'}
+                                  {displayCategory}
                                 </span>
                               </div>
                               <ul className="space-y-1.5">
@@ -1254,7 +1413,9 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                   </p>
                   <div className="mt-2 flex items-center justify-between">
                     <p className="text-xs text-gray-500">
-                      {current.classification?.issueType ? `Kategori: ${current.classification.issueType}` : null}
+                      {current.classification?.issueType
+                        ? `Kategori: ${String(current.classification.issueType).toLowerCase() === 'unknown' ? 'Tidak terklasifikasi' : current.classification.issueType}`
+                        : null}
                     </p>
                     {(current.originalData?.report || current.originalData?.Report) && (
                       <button onClick={() => setShowFullDesc((s) => !s)} className="text-xs text-emerald-700 hover:underline">
@@ -1265,19 +1426,21 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: 'Tanggal', value: current.originalData?.date || current.originalData?.Date_of_Event, icon: Calendar },
-                    { label: 'Maskapai', value: current.originalData?.airline || current.originalData?.Airlines, icon: Plane },
-                    { label: 'No. Penerbangan', value: current.originalData?.flightNumber || current.originalData?.Flight_Number, icon: Hash },
-                    { label: 'Rute', value: current.originalData?.route || current.originalData?.Route, icon: MapPin },
-                    { label: 'Hub', value: current.originalData?.hub, icon: Building2 },
-                    { label: 'Status', value: current.originalData?.status, icon: CheckCircle2 },
-                  ].map((it, i) => it.value ? (
+                    {[
+                      { label: 'Tanggal', value: formatExcelDate(current.originalData?.date || current.originalData?.Date_of_Event), icon: Calendar },
+                      { label: 'Maskapai', value: current.originalData?.airline || current.originalData?.Airlines, icon: Plane },
+                      { label: 'No. Penerbangan', value: current.originalData?.flightNumber || current.originalData?.Flight_Number, icon: Hash },
+                      { label: 'Rute', value: current.originalData?.route || current.originalData?.Route, icon: MapPin },
+                      { label: 'Hub', value: current.originalData?.hub || current.originalData?.HUB, icon: Building2 },
+                      { label: 'Status', value: current.originalData?.status || current.originalData?.Status || current.originalData?.STATUS, icon: CheckCircle2 },
+                      { label: 'Branch', value: current.originalData?.branch || current.originalData?.Branch, icon: Building2 },
+                      { label: 'Kategori', value: current.originalData?.category || current.originalData?.issueType || current.originalData?.Irregularity_Complain_Category, icon: Tag },
+                    ].map((it, i) => it.value ? (
                     <div key={i} className="p-3 rounded-xl border border-gray-200 bg-white shadow-sm">
                       <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                         <it.icon className="w-3.5 h-3.5 text-gray-500" /> {it.label}
                       </div>
-                      <div className="text-xs text-gray-600 mt-1">{String(it.value)}</div>
+                      <div className="text-xs text-gray-600 mt-1">{it.value}</div>
                     </div>
                   ) : null)}
                 </div>

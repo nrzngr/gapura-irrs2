@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeWithLogo } from '@/components/ui/QRCodeWithLogo';
 
 const HANDBOOK_URL = 'https://sis.appsdev.my.id/';
 
@@ -35,7 +35,7 @@ export default function SLAHandbookPage() {
                 </a>
               </div>
               <div className="flex items-center justify-center p-3 rounded-xl border border-[var(--surface-4)] bg-[var(--surface-1)]">
-                <QRCodeSVG value={HANDBOOK_URL} size={156} fgColor="#0ea5a6" />
+                <QRCodeWithLogo value={HANDBOOK_URL} size={156} fgColor="#0ea5a6" />
               </div>
             </div>
             <div className="flex flex-col gap-1">

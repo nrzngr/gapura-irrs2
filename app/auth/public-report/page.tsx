@@ -11,7 +11,7 @@ import { PRIORITY_CONFIG, type ReportPriority } from '@/lib/constants/report-sta
 import { AIRLINES } from '@/lib/constants/airlines';
 import { AlertTriangle, Calendar, Plus, CheckCircle, Ship, Plane, Package, HelpCircle, MessageSquare, Heart, X, ChevronRight, ChevronLeft, ArrowRight, Upload, Loader2, Sparkles, MapPin, QrCode, ClipboardCheck, ExternalLink, BookOpen, Activity, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeWithLogo } from '@/components/ui/QRCodeWithLogo';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { NoiseTexture } from '@/components/ui/NoiseTexture';
 import { PrismButton } from '@/components/ui/PrismButton';
@@ -41,9 +41,9 @@ const CATEGORIES = [
     icon: QrCode,
     color: 'oklch(0.50 0.15 190)',
     span: 'col-span-1 row-span-1',
-    barcodes: [
-      { label: 'Customer', url: '/qr-code-customer-joumpa.png' },
-      { label: 'Staff', url: '/qr-code-staff-joumpa.png' }
+    qrLinks: [
+      { label: 'Customer JOUMPA', url: 'https://forms.gle/gQpqWn2eSRqSsoJt7' },
+      { label: 'Staff JOUMPA', url: 'https://forms.gle/QTP5vvwbmJxDroSB7' }
     ]
   },
   {
@@ -52,10 +52,10 @@ const CATEGORIES = [
     description: 'Akses cepat pengisian laporan SLA.',
     icon: ClipboardCheck,
     color: 'oklch(0.45 0.18 240)',
-    span: 'col-span-1 row-span-1',
-    links: [
-      { label: 'Pengisian SLA Landside', sublabel: 'Formulir Google', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' },
-      { label: 'Pengisian SLA Airside', sublabel: 'Formulir Google', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' }
+    span: 'col-span-2 md:col-span-2 row-span-1',
+    qrLinks: [
+      { label: 'Pengisian SLA Landside', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' },
+      { label: 'Pengisian SLA Airside', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' }
     ]
   },
   {
@@ -65,8 +65,8 @@ const CATEGORIES = [
     icon: QrCode,
     color: 'oklch(0.60 0.20 340)',
     span: 'col-span-1 row-span-1',
-    barcodes: [
-      { label: 'Survey Penumpang', url: '/qr-code-survey-penumpang.png' }
+    qrLinks: [
+      { label: 'Survey Penumpang', url: 'https://forms.gle/G5T9yx2MBSWdXtJE7' }
     ]
   },
   {
@@ -169,6 +169,9 @@ type FormData = {
   evidence_urls: string[];
 };
 
+type CreatedReport = { id?: string } & Record<string, unknown>;
+type QRLink = { label: string; url: string };
+
 export default function PublicReportPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -178,7 +181,7 @@ export default function PublicReportPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [stations, setStations] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [createdReport, setCreatedReport] = useState<any>(null);
+  const [createdReport, setCreatedReport] = useState<CreatedReport | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     incident_date: new Date().toISOString().split('T')[0],
@@ -487,7 +490,7 @@ export default function PublicReportPage() {
                   </div>
                   
                   <div className="flex items-center justify-between text-[oklch(0.15_0.02_200_/_0.2)] group-hover:text-emerald-600 transition-colors mt-auto">
-                    <span className="text-[9px] md:text-xs font-bold tracking-wide uppercase">{cat.barcodes ? 'Quick Access' : 'Luncurkan'}</span>
+                    <span className="text-[9px] md:text-xs font-bold tracking-wide uppercase">{('qrLinks' in cat) ? 'Quick Access' : 'Luncurkan'}</span>
                     <ArrowRight className="w-4 h-4 md:w-5 md:h-5 -translate-x-2 group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all" />
                   </div>
                 </div>
@@ -554,15 +557,21 @@ export default function PublicReportPage() {
                   <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
                     <div className="text-center space-y-3">
                       <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
-                        WSN Access
+                        {CATEGORIES.find(c => c.id === formData.main_category)?.title || 'Access'}
                       </h3>
                       <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Scan QR atau gunakan tombol untuk salin/buka link.</p>
                     </div>
-                    <div className="grid gap-12 w-full max-w-3xl px-4 grid-cols-1 md:grid-cols-2">
-                      {CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks?.map((item: any, idx: number) => (
+                    <div
+                      className={`grid gap-12 w-full max-w-3xl px-4 ${
+                        (CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks?.length ?? 0) > 1
+                          ? 'grid-cols-1 md:grid-cols-2'
+                          : 'grid-cols-1'
+                      } place-items-center justify-center`}
+                    >
+                      {CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks?.map((item: QRLink, idx: number) => (
                         <div key={idx} className="space-y-4">
                           <div className="aspect-square rounded-[40px] overflow-hidden bg-white border border-[oklch(0.15_0.02_200_/_0.06)] p-6 shadow-spatial-md flex items-center justify-center">
-                            <QRCodeSVG value={item.url} size={256} fgColor="#0ea5a6" />
+                            <QRCodeWithLogo value={item.url} size={256} fgColor="#0ea5a6" />
                           </div>
                           <div className="text-center">
                             <h4 className="text-xl font-display font-black text-[oklch(0.15_0.05_200)]">{item.label}</h4>
@@ -587,40 +596,6 @@ export default function PublicReportPage() {
                             >
                               Buka
                             </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : CATEGORIES.find(c => c.id === formData.main_category)?.barcodes ? (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
-                    <div className="text-center space-y-3">
-                      <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
-                        {CATEGORIES.find(c => c.id === formData.main_category)?.title} Access
-                      </h3>
-                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Scan code QR di bawah untuk mengakses layanan ini.</p>
-                    </div>
-                    
-                    <div className={`grid gap-12 w-full max-w-2xl px-4 ${
-                      (CATEGORIES.find(c => c.id === formData.main_category)?.barcodes?.length ?? 0) > 1 
-                        ? 'grid-cols-1 md:grid-cols-2' 
-                        : 'grid-cols-1'
-                    }`}>
-                      {CATEGORIES.find(c => c.id === formData.main_category)?.barcodes?.map((bc, bIdx) => (
-                        <div key={bIdx} className="group relative space-y-6">
-                          <div className="relative aspect-square rounded-[40px] overflow-hidden bg-white border border-[oklch(0.15_0.02_200_/_0.05)] p-8 group-hover:border-emerald-500/50 transition-all duration-700 shadow-spatial-md group-hover:shadow-spatial-lg">
-                            <div className="relative h-full w-full">
-                              <Image 
-                                src={bc.url} 
-                                alt={bc.label} 
-                                fill 
-                                className="object-contain p-2 transition-all duration-700 group-hover:scale-105"
-                              />
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <h4 className="text-2xl font-display font-black text-[oklch(0.15_0.05_200)] group-hover:text-emerald-600 transition-colors uppercase tracking-widest">{bc.label}</h4>
-                            <p className="text-sm text-[oklch(0.45_0.02_200)] font-bold mt-1">Layanan {bc.label}</p>
                           </div>
                         </div>
                       ))}

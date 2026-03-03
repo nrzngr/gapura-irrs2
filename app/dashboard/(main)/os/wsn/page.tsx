@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeWithLogo } from '@/components/ui/QRCodeWithLogo';
 
 export default function WSNPage() {
   const searchParams = useSearchParams();
@@ -56,7 +56,7 @@ export default function WSNPage() {
                   </a>
                 </div>
                 <div className="flex items-center justify-center p-3 rounded-xl border border-[var(--surface-4)] bg-[var(--surface-1)]">
-                  <QRCodeSVG value={links[k].short} size={156} fgColor="#0ea5a6" />
+                  <QRCodeWithLogo value={links[k].short} size={156} fgColor="#0ea5a6" />
                 </div>
               </div>
               <div className="flex flex-col gap-1">
