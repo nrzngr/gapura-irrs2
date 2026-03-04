@@ -276,6 +276,9 @@ function parseDate(dateStr: string | number | Date): Date | null {
 
 export class ReportsService {
   
+  private hubMap: Record<string, string> = {};
+  private hubMapTs = 0;
+  
   private async getSheets() {
     return await getGoogleSheets();
   }
@@ -287,6 +290,71 @@ export class ReportsService {
    */
   private getReportUuid(sourceId: string): string {
       return uuidv5(sourceId, IRRS_NAMESPACE_UUID);
+  }
+
+  private async getHubMappingFromSheet(): Promise<Record<string, string>> {
+    const now = Date.now();
+    if (Object.keys(this.hubMap).length && now - this.hubMapTs < 1000 * 60 * 60) {
+      return this.hubMap;
+    }
+    const sheets = await this.getSheets();
+    if (!SPREADSHEET_ID) throw new Error('GOOGLE_SHEET_ID is not defined');
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'HUB',
+    });
+    const rows = res.data.values || [];
+    if (!rows.length) return {};
+    let dataStart = 1;
+    let headers = (rows[0] || []).map((h: any) => String(h).trim().toLowerCase());
+    let codeIdx = headers.findIndex(h => /kode|code|station|branch/.test(h));
+    let hubIdx = headers.findIndex(h => /hub/.test(h));
+    // If first row doesn't contain headers, try to detect header row and column positions
+    if (codeIdx === -1 && hubIdx === -1) {
+      // Find a row that contains 'hub' or 'branch'
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        const r = (rows[i] || []).map((h: any) => String(h).trim().toLowerCase());
+        const bIdx = r.findIndex(h => /^branch$|^station$|^kode/.test(h));
+        const hIdx = r.findIndex(h => /^hub$/.test(h));
+        if (bIdx !== -1 || hIdx !== -1) {
+          codeIdx = bIdx !== -1 ? bIdx : codeIdx;
+          hubIdx = hIdx !== -1 ? hIdx : hubIdx;
+          dataStart = i + 1;
+          headers = r;
+          break;
+        }
+      }
+    }
+    // Heuristic fallback: many HUB sheets place data in columns B (code) and C (hub)
+    if (codeIdx === -1 && hubIdx === -1) {
+      codeIdx = 1;
+      hubIdx = 2;
+      dataStart = 1;
+    } else {
+      if (codeIdx === -1) codeIdx = 0;
+      if (hubIdx === -1) hubIdx = Math.max(1, codeIdx + 1);
+    }
+    const map: Record<string, string> = {};
+    for (let i = dataStart; i < rows.length; i++) {
+      const row = rows[i] || [];
+      const code = String(row[codeIdx] || '').trim().toUpperCase();
+      const hub = String(row[hubIdx] || '').trim();
+      if (code) map[code] = hub || '';
+    }
+    this.hubMap = map;
+    this.hubMapTs = now;
+    return map;
+  }
+
+  public async resolveHubForStation(stationCode?: string | null): Promise<string | null> {
+    if (!stationCode) return null;
+    try {
+      const map = await this.getHubMappingFromSheet();
+      const code = String(stationCode).trim().toUpperCase();
+      return map[code] || null;
+    } catch {
+      return null;
+    }
   }
 
   private mapRowToReport(row: any[], headers: string[], sheetName: string, rowIndex: number): Report {
@@ -961,6 +1029,16 @@ export class ReportsService {
     // Normalize aliases
     if (!(newReport as any).root_caused && (newReport as any).root_cause) {
       (newReport as any).root_caused = (newReport as any).root_cause;
+    }
+    if (!(newReport as any).action_taken && (newReport as any).immediate_action) {
+      (newReport as any).action_taken = (newReport as any).immediate_action;
+    }
+    // Ensure airline/airlines aliases are kept in sync for writing
+    if (!(newReport as any).airline && (newReport as any).airlines) {
+      (newReport as any).airline = (newReport as any).airlines;
+    }
+    if (!(newReport as any).airlines && (newReport as any).airline) {
+      (newReport as any).airlines = (newReport as any).airline;
     }
 
         const row = headers.map((header: string) => {

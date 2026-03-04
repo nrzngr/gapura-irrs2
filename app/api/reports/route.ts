@@ -209,6 +209,7 @@ export async function POST(request: Request) {
             .eq('id', payload.id)
             .single();
 
+        const areaKey = String(area || '').trim().toUpperCase().replace(/\s+AREA$/, '');
         // Construct report object for Google Sheets
         const reportData: any = {
             user_id: payload.id,
@@ -242,6 +243,7 @@ export async function POST(request: Request) {
             is_gse_related: is_gse_related || false,
             // Insert New Fields
             airlines: airline || null,
+            airline: airline || null,
             route: route || null,
             root_caused: root_cause || null,
             action_taken: action_taken || null,
@@ -250,11 +252,11 @@ export async function POST(request: Request) {
             delay_duration: delay_duration || null,
             // CSV-aligned fields
             station_code: station_code || null,
-            hub: hub || null,
+            hub: null,
             // Support both airline_type and jenis_maskapai from client
             jenis_maskapai: airline_type || jenis_maskapai || null,
             report: report_content || description || null,
-            reporting_branch: reporting_branch || station_code || null,
+            reporting_branch: reporting_branch || null,
             week_in_month: week_in_month || null,
             reporter_email: reporter_email || null,
             form_submitted_at: form_submitted_at || null,
@@ -262,15 +264,20 @@ export async function POST(request: Request) {
             // Ensure branch is populated if possible
             branch: station_code || null, 
             // Area-specific categories (ensure write to appropriate columns)
-            terminal_area_category: terminal_area_category || (area === 'TERMINAL' ? area_category || null : null),
-            apron_area_category: apron_area_category || (area === 'APRON' ? area_category || null : null),
-            general_category: general_category || ((area === 'GENERAL' || area === 'CARGO') ? area_category || null : null),
+            terminal_area_category: terminal_area_category || (areaKey === 'TERMINAL' ? area_category || null : null),
+            apron_area_category: apron_area_category || (areaKey === 'APRON' ? area_category || null : null),
+            general_category: general_category || (areaKey === 'GENERAL' ? area_category || null : null),
         };
 
         // Ensure reporter_email always captured for filtering fallback
         if (!reportData.reporter_email && payload.email) {
             reportData.reporter_email = payload.email;
         }
+        // Resolve HUB mapping using "HUB" sheet when available
+        try {
+            const resolvedHub = await reportsService.resolveHubForStation(reportData.station_code || reportData.station_id);
+            if (resolvedHub) reportData.hub = resolvedHub;
+        } catch {}
         const newReport = await reportsService.createReport(reportData);
 
         // Attempt to sync to Supabase (Best Effort for Tracking)
