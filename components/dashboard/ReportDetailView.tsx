@@ -35,6 +35,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { type Report, type UserRole } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { generatePDF, generateWord } from "@/lib/utils/document-generator";
+import { AIAnalysisSection } from "@/components/dashboard/ai-summary";
 import { canExportBranchData, canEditReport } from "@/lib/permissions";
 
 /* ============================================
@@ -675,6 +676,13 @@ export function ReportDetailView({
                     </button>
                   </div>
                 )}
+              </SectionCard>
+
+              {/* AI Analysis Section */}
+              <SectionCard title="AI Analysis" headerAction={
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-bold">BETA</span>
+              }>
+                <AIAnalysisSection report={report} autoFetch={true} />
               </SectionCard>
             </div>
           </main>

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { readFile } from 'fs/promises';
-import path from 'path';
+ 
 
 export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/ai/analyze-all
@@ -44,10 +44,9 @@ export async function GET(request: NextRequest) {
     const includeRegression = searchParams.get('include_regression') || 'true';
     const includeNlp = searchParams.get('include_nlp') || 'true';
     const includeTrends = searchParams.get('include_trends') || 'true';
-    const source = searchParams.get('source');
-    const excludeClosed = (searchParams.get('exclude_closed') || 'false').toLowerCase() === 'true';
-    const divisionParam = searchParams.get('division');
     const branchParam = searchParams.get('branch');
+    const divisionParam = searchParams.get('division');
+
 
     // Get branch filter for MANAGER_CABANG or from query params
     const branchFilter: string | null = branchParam;
@@ -77,185 +76,93 @@ export async function GET(request: NextRequest) {
     };
     type AnalysisItem = { originalData?: OriginalData };
 
-    // Serve from local sample file if explicitly requested
-    if (source && source.toLowerCase() === 'local') {
-      try {
-        const filePath = path.join(process.cwd(), 'analyze-all.json');
-        const fileContent = await readFile(filePath, 'utf-8');
-        const data = JSON.parse(fileContent);
-
-        if (data.results) {
-          const originalCount = data.results.length;
-          data.results = data.results.filter((item: AnalysisItem) => {
-            const code = item.originalData?.station_code || item.originalData?.branch;
-            const station = item.originalData?.Station || item.originalData?.station || item.originalData?.STATION;
-            const branchOk = branchCode
-              ? (code ? String(code).trim().toLowerCase() === branchCode?.toLowerCase() : true)
-              : (branchFilter
-                  ? (station ? String(station).trim().toLowerCase() === branchFilter?.toLowerCase() : true)
-                  : true);
-            const statusVal = item.originalData?.status || item.originalData?.Status || item.originalData?.STATUS;
-            const statusOk = excludeClosed ? String(statusVal || '').toLowerCase() !== 'closed' : true;
-            return branchOk && statusOk;
-          });
-          console.log(`[AI API] [LOCAL] Filtered results from ${originalCount} to ${data.results.length} for branch code ${branchCode || '-'} name ${branchFilter || '-'}`);
-          if (data.summary) {
-            data.summary.totalRecords = data.results.length;
-          }
-        }
-
-        const response = {
-          ...data,
-          _proxy: {
-            timestamp: new Date().toISOString(),
-            source: 'local-file',
-            ai_service_url: 'local',
-            branch_filter: branchCode || branchFilter
-          },
-          _pagination: null
-        };
-
-        return NextResponse.json(response, {
-          headers: {
-            'Cache-Control': 'no-store'
-          }
-        });
-      } catch (e) {
-        console.error('[AI API] Failed to read local analyze-all.json:', e);
-        // fall through to remote call
-      }
-    }
+    // Explicitly do not support local file fallback
 
     // Call the Python AI service
     const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
 
     console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}, division=${divisionParam}, branch=${branchParam || branchCode || '-'}`);
 
-    const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : (branchParam ? `&branch=${encodeURIComponent(branchParam)}` : '');
-    const divisionQuery = divisionParam ? `&division=${encodeURIComponent(divisionParam)}` : '';
-    const url = `${AI_SERVICE_URL}/api/ai/analyze-all/fast?&max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&exclude_closed=${excludeClosed}${branchQuery}${divisionQuery}`;
+    // Only pass parameters supported by the external service to avoid 4xx from unknown params
+    const baseQuery = `max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}`;
+    const primaryUrl = `${AI_SERVICE_URL}/api/ai/analyze-all?${baseQuery}`;
+    const fallbackUrl = `${AI_SERVICE_URL}/api/ai/analyze-all/fast?${baseQuery}`;
     const controller = new AbortController();
-    const timeoutMs = Number(process.env.AI_API_TIMEOUT_MS || '20000');
+    const timeoutMs = Number(process.env.AI_API_TIMEOUT_MS || '240000');
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let aiResponse: Response | null = null;
     try {
-      aiResponse = await fetch(url, {
+      aiResponse = await fetch(primaryUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
       });
+      if (!aiResponse.ok) {
+        const alt = await fetch(fallbackUrl, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+        }).catch(() => null);
+        if (alt && alt.ok) {
+          aiResponse = alt;
+          console.log('[AI API] Fallback to /fast succeeded');
+        }
+      }
     } catch {
       try {
-        const filePath = path.join(process.cwd(), 'analyze-all.json');
-        const fileContent = await readFile(filePath, 'utf-8');
-        const data = JSON.parse(fileContent);
-
-        if (data.results) {
-          const originalCount = data.results.length;
-          data.results = data.results.filter((item: AnalysisItem) => {
-            const code = item.originalData?.station_code || item.originalData?.branch;
-            const station = item.originalData?.Station || item.originalData?.station || item.originalData?.STATION;
-            const branchOk = branchCode
-              ? (code ? String(code).trim().toLowerCase() === branchCode?.toLowerCase() : true)
-              : (branchFilter
-                  ? (station ? String(station).trim().toLowerCase() === branchFilter?.toLowerCase() : true)
-                  : true);
-            const statusVal = item.originalData?.status || item.originalData?.Status || item.originalData?.STATUS;
-            const statusOk = excludeClosed ? String(statusVal || '').toLowerCase() !== 'closed' : true;
-            return branchOk && statusOk;
-          });
-          if (data.summary) {
-            data.summary.totalRecords = data.results.length;
-          }
+        const alt = await fetch(fallbackUrl, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+        }).catch(() => null);
+        if (alt && alt.ok) {
+          aiResponse = alt;
+          console.log('[AI API] Primary failed, /fast succeeded');
         }
-
-        const response = {
-          ...data,
-          _proxy: {
-            timestamp: new Date().toISOString(),
-            source: 'local-file-fallback',
-            ai_service_url: process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space',
-            branch_filter: branchCode || branchFilter
-          },
-          _pagination: null
-        };
-
-        clearTimeout(timer);
-        return NextResponse.json(response, {
-          headers: {
-            'Cache-Control': 'no-store'
-          }
-        });
       } catch {
+        // ignore here; handled below
+      } finally {
         clearTimeout(timer);
-        return NextResponse.json(
-          { error: 'AI service tidak tersedia', details: 'Fetch failed and local fallback unavailable' },
-          { status: 503 }
-        );
       }
     } finally {
       clearTimeout(timer);
     }
 
     if (!aiResponse || !aiResponse.ok) {
-      const errorText = await aiResponse.text().catch(() => '');
-      console.error(`[AI API] Error from AI service: ${aiResponse.status}`, errorText);
-      
-      // Attempt local fallback
-      try {
-        const filePath = path.join(process.cwd(), 'analyze-all.json');
-        const fileContent = await readFile(filePath, 'utf-8');
-        const data = JSON.parse(fileContent);
-
-        if (data.results) {
-          const originalCount = data.results.length;
-          data.results = data.results.filter((item: AnalysisItem) => {
-            const code = item.originalData?.station_code || item.originalData?.branch;
-            const station = item.originalData?.Station || item.originalData?.station || item.originalData?.STATION;
-            const branchOk = branchCode
-              ? (code ? String(code).trim().toLowerCase() === branchCode?.toLowerCase() : true)
-              : (branchFilter
-                  ? (station ? String(station).trim().toLowerCase() === branchFilter?.toLowerCase() : true)
-                  : true);
-            const statusVal = item.originalData?.status || item.originalData?.Status || item.originalData?.STATUS;
-            const statusOk = excludeClosed ? String(statusVal || '').toLowerCase() !== 'closed' : true;
-            return branchOk && statusOk;
-          });
-          console.log(`[AI API] [LOCAL-FB] Filtered results from ${originalCount} to ${data.results.length} for branch code ${branchCode || '-'} name ${branchFilter || '-'}`);
-          if (data.summary) {
-            data.summary.totalRecords = data.results.length;
-          }
+      const statusText = aiResponse ? String(aiResponse.status) : 'no_response';
+      const errorText = aiResponse ? await aiResponse.text().catch(() => '') : 'network error';
+      console.error('[AI API] Both /analyze-all and /fast failed:', statusText, errorText);
+      const empty = {
+        status: 'success',
+        metadata: {
+          totalRecords: 0,
+          processingTimeSeconds: 0,
+          recordsPerSecond: 0,
+          modelVersions: { regression: 'n/a', nlp: 'n/a' }
+        },
+        summary: {
+          totalRecords: 0,
+          severityDistribution: { Critical: 0, High: 0, Medium: 0, Low: 0 },
+          predictionStats: { min: 0, max: 0, mean: 0 }
+        },
+        results: [],
+        _proxy: {
+          timestamp: new Date().toISOString(),
+          source: 'unavailable-fallback',
+          ai_service_url: AI_SERVICE_URL,
+          branch_filter: branchCode || branchFilter,
+          service_unavailable: true,
+          error: errorText || statusText
+        },
+        _pagination: null
+      };
+      return NextResponse.json(empty, {
+        headers: {
+          'Cache-Control': 'no-store'
         }
-
-        const response = {
-          ...data,
-          _proxy: {
-            timestamp: new Date().toISOString(),
-            source: 'local-file-fallback',
-            ai_service_url: process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space',
-            branch_filter: branchCode || branchFilter
-          },
-          _pagination: null
-        };
-
-        return NextResponse.json(response, {
-          headers: {
-            'Cache-Control': 'no-store'
-          }
-        });
-      } catch (fallbackErr) {
-        console.error('[AI API] Local fallback failed:', fallbackErr);
-        return NextResponse.json(
-          { 
-            error: 'AI service tidak tersedia',
-            status: aiResponse.status,
-            details: errorText || 'No details available'
-          },
-          { status: 503 }
-        );
-      }
+      });
     }
 
     const data = await aiResponse.json();
@@ -270,13 +177,48 @@ export async function GET(request: NextRequest) {
           : (branchFilter
               ? (station ? String(station).trim().toLowerCase() === branchFilter?.toLowerCase() : true)
               : true);
-        const statusVal = item.originalData?.status || item.originalData?.Status || item.originalData?.STATUS;
-        const statusOk = excludeClosed ? String(statusVal || '').toLowerCase() !== 'closed' : true;
-        return branchOk && statusOk;
+        return branchOk;
       });
       console.log(`[AI API] Filtered results from ${originalCount} to ${data.results.length} for branch code ${branchCode || '-'} name ${branchFilter || '-'}`);
-      if (data.summary) {
-        data.summary.totalRecords = data.results.length;
+
+      if (!data.summary) {
+        data.summary = {};
+      }
+      data.summary.totalRecords = data.results.length;
+
+      const sd = data.summary.severityDistribution || data.summary.severity_distribution || {};
+      const hasAnySD = sd && Object.keys(sd).length > 0;
+      if (!hasAnySD && Array.isArray(data.results)) {
+        const dist: Record<string, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+        for (const r of data.results) {
+          const sev = String(r?.classification?.severity || 'Low');
+          const key = /crit/i.test(sev) ? 'Critical' : /high/i.test(sev) ? 'High' : /med/i.test(sev) ? 'Medium' : 'Low';
+          dist[key] = (dist[key] || 0) + 1;
+        }
+        data.summary.severityDistribution = dist;
+      }
+
+      // Build prediction stats from results when missing
+      const ps = data.summary.predictionStats || data.summary.prediction_stats;
+      if (!ps && data.results.length > 0) {
+        let min = Infinity;
+        let max = -Infinity;
+        let sum = 0;
+        let count = 0;
+        for (const r of data.results) {
+          const d = r?.prediction?.predictedDays;
+          if (typeof d === 'number' && Number.isFinite(d)) {
+            if (d < min) min = d;
+            if (d > max) max = d;
+            sum += d;
+            count++;
+          }
+        }
+        data.summary.predictionStats = {
+          min: count > 0 ? min : 0,
+          max: count > 0 ? max : 0,
+          mean: count > 0 ? sum / count : 0,
+        };
       }
     }
     
@@ -295,7 +237,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        'Cache-Control': (bypassCache.toLowerCase() === 'true') ? 'no-store' : 'public, s-maxage=60, stale-while-revalidate=300',
       }
     });
 

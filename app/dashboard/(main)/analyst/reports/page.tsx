@@ -16,6 +16,7 @@ import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { useReportsData } from '@/hooks/use-reports-cache';
 import { ReportsList } from '@/components/dashboard/analyst/ReportsList';
 import { cn } from '@/lib/utils';
+import { AISummaryKPICards } from '@/components/dashboard/ai-summary';
 
 export default function AnalystReportsPage() {
   // --- Data Fetching ---
@@ -219,6 +220,11 @@ export default function AnalystReportsPage() {
              </div>
           </div>
         </div>
+      </div>
+
+      {/* 2.5. AI Summary KPI Cards */}
+      <div className="max-w-[1700px] mx-auto px-4 md:px-8 mt-6">
+        <AISummaryKPICards showHeader={true} />
       </div>
 
       {/* 3. Main Content: Kinetic Reports List */}

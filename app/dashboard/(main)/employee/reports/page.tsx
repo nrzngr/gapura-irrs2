@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { type Report, type UserRole } from '@/types';
 import { ReportMasterDetail } from '@/components/dashboard/ReportMasterDetail';
 import { canExportBranchData } from '@/lib/permissions';
+import { AISummaryKPICards } from '@/components/dashboard/ai-summary';
 
 interface UserSession {
     id: string;
@@ -69,14 +70,20 @@ export default function EmployeeReportsPage() {
     const displayRole = userSession?.role || 'STAFF_CABANG';
 
     return (
-        <ReportMasterDetail
-            title="Laporan Saya"
-            reports={reports}
-            loading={loading}
-            // Pass actual role so export buttons can be conditionally shown based on canExportBranchData
-            userRole={displayRole}
-            currentUserId={userSession?.id}
-            currentUserStationId={userSession?.station_id}
-        />
+        <div className="space-y-6">
+            {/* AI Summary KPI Cards */}
+            <AISummaryKPICards showHeader={true} />
+            
+            {/* Reports Master Detail */}
+            <ReportMasterDetail
+                title="Laporan Saya"
+                reports={reports}
+                loading={loading}
+                // Pass actual role so export buttons can be conditionally shown based on canExportBranchData
+                userRole={displayRole}
+                currentUserId={userSession?.id}
+                currentUserStationId={userSession?.station_id}
+            />
+        </div>
     );
 }

@@ -88,7 +88,7 @@ export function AIReportsPage({ userRole, branchFilter }: AIReportsPageProps) {
         });
       }, 500);
 
-      const res = await fetch('/api/ai/analyze-all?max_rows_per_sheet=10000&source=local');
+      const res = await fetch('/api/ai/analyze-all?max_rows_per_sheet=10000&bypass_cache=true');
       clearInterval(progressInterval);
       setProgress(100);
 

@@ -13,6 +13,7 @@ import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
 import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
 import { CustomerFeedbackFilterModal } from '@/components/dashboard/analyst/CustomerFeedbackFilterModal';
 import { TriageModal } from '@/components/dashboard/analyst/TriageModal';
+import { AISummaryKPICards } from '@/components/dashboard/ai-summary';
 
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
 import type { Report } from '@/types';
@@ -1022,6 +1023,11 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
         )}
         {view === 'reports' && (
           <div className="max-w-[1700px] mx-auto w-full">
+            {/* AI Summary KPI Cards */}
+            <div className="mb-6">
+              <AISummaryKPICards showHeader={true} />
+            </div>
+            
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-2 w-2 rounded-full animate-pulse bg-emerald-500" />

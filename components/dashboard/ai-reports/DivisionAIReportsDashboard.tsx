@@ -457,12 +457,11 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
 
     try {
       const params = new URLSearchParams({
-        exclude_closed: 'true',
         division: division,
         ...(branchFilter && { branch: branchFilter })
       });
 
-      const res = await fetch(`/api/ai/analyze-all?${params.toString()}`);
+      const res = await fetch(`/api/ai/analyze-all?${params.toString()}&bypass_cache=true`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Gagal mengambil data analisis (${res.status})`);
@@ -488,10 +487,46 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
         max: Number(predStatsIn.max) || 0,
         mean: Number(predStatsIn.mean) || 0,
       };
-      const totalRecordsCalc =
-        Number(summaryIn.totalRecords) ||
-        (Array.isArray(data?.results) ? data.results.length : 0) ||
-        Object.values(normalizedSD).reduce((a, b) => a + b, 0);
+      // When summary had no severity data, compute from results
+      const resultsArr: AnalysisItem[] = Array.isArray(data?.results) ? data.results : [];
+      const sumFromSD = Object.values(normalizedSD).reduce((a, b) => a + b, 0);
+      if (sumFromSD === 0 && resultsArr.length > 0) {
+        for (const r of resultsArr) {
+          const sev = String(r?.classification?.severity || 'Low');
+          const key = /crit/i.test(sev) ? 'Critical' : /high/i.test(sev) ? 'High' : /med/i.test(sev) ? 'Medium' : 'Low';
+          normalizedSD[key] = (normalizedSD[key] || 0) + 1;
+        }
+      }
+
+      // Compute prediction stats from results when API summary lacks them
+      if (finalPredictionStats.min === 0 && finalPredictionStats.max === 0 && resultsArr.length > 0) {
+        let pMin = Infinity;
+        let pMax = -Infinity;
+        let pSum = 0;
+        let pCount = 0;
+        for (const r of resultsArr) {
+          const d = r?.prediction?.predictedDays;
+          if (typeof d === 'number' && Number.isFinite(d)) {
+            if (d < pMin) pMin = d;
+            if (d > pMax) pMax = d;
+            pSum += d;
+            pCount++;
+          }
+        }
+        if (pCount > 0) {
+          finalPredictionStats.min = pMin;
+          finalPredictionStats.max = pMax;
+          finalPredictionStats.mean = pSum / pCount;
+        }
+      }
+
+      const recomputedSumFromSD = Object.values(normalizedSD).reduce((a, b) => a + b, 0);
+      const totalFromSummary = Number(summaryIn.totalRecords) || 0;
+      const totalRecordsCalc = Math.max(
+        totalFromSummary,
+        recomputedSumFromSD,
+        resultsArr.length
+      );
 
       const finalData: AnalyzeAllResponse = {
         status: 'success',
@@ -508,7 +543,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
           predictionStats: finalPredictionStats,
           totalRecords: totalRecordsCalc
         },
-        results: Array.isArray(data?.results) ? data.results : []
+        results: resultsArr
       };
 
       setData(finalData);
@@ -750,7 +785,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
     <div className="min-h-screen px-4 md:px-6 py-6 bg-gray-50">
       <section className="relative overflow-hidden bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
             <div className={cn("p-2.5 rounded-xl", colorBgLight)}>
               <Brain className={cn("w-6 h-6", `text-${config.color}-600`)} />
             </div>
@@ -972,7 +1007,8 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
                       <div className="space-y-3">
                         {['Critical', 'High', 'Medium', 'Low'].map((sev) => {
                           const count = distribution[sev] || 0;
-                          const pct = totalRecords > 0 ? Math.round((count / totalRecords) * 100) : 0;
+                          const pctRaw = totalRecords > 0 ? Math.round((count / totalRecords) * 100) : 0;
+                          const pct = Math.max(0, Math.min(100, pctRaw));
                           return (
                             <div key={sev} className="space-y-1.5">
                               <div className="flex items-center justify-between text-xs">

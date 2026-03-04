@@ -11,6 +11,7 @@ import { Report } from '@/types';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { type TimePeriod } from '@/components/dashboard/TimePeriodFilter';
 import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
+import { AISummaryKPICards } from '@/components/dashboard/ai-summary';
 
 export default function AdminReportsPage() {
     const [reports, setReports] = useState<Report[]>([]);
@@ -78,6 +79,11 @@ export default function AdminReportsPage() {
                 period={period}
                 onPeriodChange={(p) => setPeriod(p)}
             />
+
+            {/* AI Summary KPI Cards */}
+            <div className="animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                <AISummaryKPICards showHeader={true} />
+            </div>
 
             {/* Filters */}
             <div className="flex flex-col gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
