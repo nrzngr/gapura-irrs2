@@ -7,7 +7,7 @@ import OfflineIndicator from './OfflineIndicator';
 export default function PWAProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Register service worker
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       const registerServiceWorker = async () => {
         try {
           const registration = await navigator.serviceWorker.register('/sw.js', {
@@ -99,9 +99,27 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
+  // Dev: actively unregister existing SW & clear cache to avoid stale responses
+  useEffect(() => {
+    if ('serviceWorker' in navigator && process.env.NODE_ENV !== 'production') {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+      }
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((reg) => {
+          reg.unregister().then((ok) => {
+            if (ok) console.log('[PWA] Unregistered SW in development');
+          });
+        });
+      }).catch((err) => {
+        console.warn('[PWA] Failed to unregister SW in development:', err);
+      });
+    }
+  }, []);
+
   // Cache important pages on first load
   useEffect(() => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller && process.env.NODE_ENV === 'production') {
       const pagesToCache = [
         '/',
         '/dashboard/employee',

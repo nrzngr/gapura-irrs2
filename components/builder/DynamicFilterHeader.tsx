@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PrismSelect } from '@/components/ui/PrismSelect';
 
 interface SelectOption {
@@ -34,24 +34,14 @@ interface DynamicFilterHeaderProps {
 }
 
 export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 'default' }: DynamicFilterHeaderProps) {
-  const [selectedHub, setSelectedHub] = useState(initialFilters?.hub || 'all');
-  const [selectedBranch, setSelectedBranch] = useState(initialFilters?.branch || 'all');
-  const [selectedMaskapai, setSelectedMaskapai] = useState(initialFilters?.maskapai || 'all');
-  const [selectedAirline, setSelectedAirline] = useState(initialFilters?.airline || 'all');
-  const [selectedCategory, setSelectedCategory] = useState(initialFilters?.main_category || 'all');
-  const [selectedArea, setSelectedArea] = useState(initialFilters?.area || 'all');
-
-  // Sync state if initialFilters changes from parent (e.g. via URL navigation)
-  useEffect(() => {
-    if (initialFilters) {
-      if (initialFilters.hub) setSelectedHub(initialFilters.hub);
-      if (initialFilters.branch) setSelectedBranch(initialFilters.branch);
-      if (initialFilters.maskapai) setSelectedMaskapai(initialFilters.maskapai);
-      if (initialFilters.airline) setSelectedAirline(initialFilters.airline);
-      if (initialFilters.main_category) setSelectedCategory(initialFilters.main_category);
-      if (initialFilters.area) setSelectedArea(initialFilters.area);
-    }
-  }, [initialFilters]);
+  const current = useMemo(() => ({
+    hub: initialFilters?.hub || 'all',
+    branch: initialFilters?.branch || 'all',
+    maskapai: initialFilters?.maskapai || 'all',
+    airline: initialFilters?.airline || 'all',
+    main_category: initialFilters?.main_category || 'all',
+    area: initialFilters?.area || 'all',
+  }), [initialFilters]);
 
   const [options, setOptions] = useState<FilterOptionsState>({
     hub: [{ value: 'all', label: 'HUB: All' }],
@@ -89,24 +79,17 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
     fetchFilters();
   }, []);
 
-  useEffect(() => {
-    onFilterChange({
-      hub: selectedHub,
-      branch: selectedBranch,
-      maskapai: selectedMaskapai,
-      airline: selectedAirline,
-      main_category: selectedCategory,
-      area: selectedArea
-    });
-  }, [selectedHub, selectedBranch, selectedMaskapai, selectedAirline, selectedCategory, selectedArea, onFilterChange]);
+  const mergeAndChange = (partial: Partial<FilterData>) => {
+    onFilterChange({ ...(initialFilters || {}), ...partial });
+  };
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 w-full">
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.hub} 
-          value={selectedHub} 
-          onChange={setSelectedHub} 
+          value={current.hub} 
+          onChange={(v) => mergeAndChange({ hub: v })} 
           placeholder="HUB" 
           variant={variant}
           label="HUB Area"
@@ -115,8 +98,8 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.branch} 
-          value={selectedBranch} 
-          onChange={setSelectedBranch} 
+          value={current.branch} 
+          onChange={(v) => mergeAndChange({ branch: v })} 
           placeholder="Branch" 
           variant={variant}
           label="Branch / Station"
@@ -125,18 +108,18 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.airline_type} 
-          value={selectedMaskapai} 
-          onChange={setSelectedMaskapai} 
+          value={current.maskapai} 
+          onChange={(v) => mergeAndChange({ maskapai: v })} 
           placeholder="Maskapai" 
           variant={variant}
-          label="Domestic/Intl"
+          label="Full Service Airlines / LCC Airlines"
         />
       </div>
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.airline} 
-          value={selectedAirline} 
-          onChange={setSelectedAirline} 
+          value={current.airline} 
+          onChange={(v) => mergeAndChange({ airline: v })} 
           placeholder="Airlines" 
           variant={variant}
           label="Airlines Name"
@@ -145,8 +128,8 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.main_category} 
-          value={selectedCategory} 
-          onChange={setSelectedCategory} 
+          value={current.main_category} 
+          onChange={(v) => mergeAndChange({ main_category: v })} 
           placeholder="Category" 
           variant={variant}
           label="Case Category"
@@ -155,8 +138,8 @@ export function DynamicFilterHeader({ onFilterChange, initialFilters, variant = 
       <div className="flex-1 min-w-[140px] max-w-[200px]">
         <PrismSelect 
           options={options.area} 
-          value={selectedArea} 
-          onChange={setSelectedArea} 
+          value={current.area} 
+          onChange={(v) => mergeAndChange({ area: v })} 
           placeholder="Area" 
           variant={variant}
           label="Ops. Area"

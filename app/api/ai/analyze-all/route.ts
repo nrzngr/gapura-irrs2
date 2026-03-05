@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     // Explicitly do not support local file fallback
 
     // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
 
     console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}, division=${divisionParam}, branch=${branchParam || branchCode || '-'}`);
 

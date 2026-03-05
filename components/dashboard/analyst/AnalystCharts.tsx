@@ -20,6 +20,10 @@ import { cn } from '@/lib/utils';
 import type { Report } from '@/types';
 import { AVIATION_CHART_COLORS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE, CHART_LEGEND_STYLE } from '@/lib/aviation-chart-config';
 import { ChartTitle } from '@/components/charts/ChartTitle';
+import { ComparisonTable } from '@/components/charts/ComparisonTable';
+import { MonthlyTrendChart } from '@/components/charts/MonthlyTrendChart';
+import type { ComparisonData, ComparisonMetric } from '@/types';
+import { calculateComparisonData } from '@/lib/utils/comparison-utils';
 
 // Complexity: Time O(n) per render | Space O(k) where k = chart data points (pre-computed by parent)
 
@@ -148,6 +152,7 @@ export interface AnalystChartsProps {
     readonly apronAreaCategoryData: readonly CategoryCountItem[];
     readonly generalCategoryData: readonly CategoryCountItem[];
     readonly caseClassificationData?: readonly CategoryCountItem[];
+    readonly comparisonData?: ComparisonData;
     readonly onDrilldown: (url: string) => void;
     readonly drilldownUrl: (type: string, value: string) => string;
 }
@@ -195,6 +200,13 @@ const COLORS = [
     'oklch(0.6 0.2 285)',   // Violet
     'oklch(0.6 0.05 240)',  // Slate-ish
 ];
+
+const ENTERPRISE_COLORS = [
+    'oklch(0.55 0.06 250)',
+    'oklch(0.62 0.12 210)',
+    'oklch(0.62 0.11 150)',
+    'oklch(0.62 0.11 80)',
+] as const;
 
 const WrappedXAxisTick = (props: any) => {
     const { x, y, payload } = props;
@@ -504,6 +516,7 @@ export default function AnalystCharts({
     apronAreaCategoryData,
     generalCategoryData,
     caseClassificationData = [],
+    comparisonData,
     onDrilldown,
     drilldownUrl,
 }: AnalystChartsProps) {
@@ -517,6 +530,24 @@ export default function AnalystCharts({
         insights: 'Insights',
     };
     const [activeTab, setActiveTab] = useState<AnalystTab>('tren');
+    const [timeframe, setTimeframe] = useState<'3m' | '6m' | '12m' | 'all'>('all');
+    const [focus, setFocus] = useState<'all' | 'Total' | 'Irregularity' | 'Complaint' | 'Compliment'>('all');
+    const [branchFilter, setBranchFilter] = useState<string[]>([]);
+    const [airlineFilter, setAirlineFilter] = useState<string[]>([]);
+    const [areaFilter, setAreaFilter] = useState<string[]>([]);
+    
+    const isDataStale = useMemo(() => {
+        if (!filteredReports.length) return false;
+        const latest = Math.max(...filteredReports.map(r => {
+            const d = new Date((r as any).date_of_event || r.created_at);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+        }));
+        if (latest === 0) return false;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return latest < thirtyDaysAgo.getTime();
+    }, [filteredReports]);
+
 
     // Extract unique sub-categories for stacked bar chart
     const allSubCategories = useMemo(() => {
@@ -539,6 +570,72 @@ export default function AnalystCharts({
     }, [caseCategoryData]);
 
     const router = useRouter();
+
+    const safeComparison = useMemo<ComparisonData | null>(() => {
+        if (comparisonData) return comparisonData;
+        try {
+            const calc = calculateComparisonData(filteredReports as Report[]);
+            return calc;
+        } catch {
+            return null;
+        }
+    }, [comparisonData, filteredReports]);
+
+    const filteredReportsForCalc = useMemo(() => {
+        let base = filteredReports as Report[];
+        if (branchFilter.length > 0) {
+            base = base.filter(r => {
+                const code = (r as any).stations?.code || r.branch || r.reporting_branch || r.station_code;
+                return code ? branchFilter.includes(String(code)) : false;
+            });
+        }
+        if (airlineFilter.length > 0) {
+            base = base.filter(r => {
+                const a = r.airlines || (r as any).airline;
+                return a ? airlineFilter.includes(String(a)) : false;
+            });
+        }
+        if (areaFilter.length > 0) {
+            base = base.filter(r => {
+                const a = (r as any).area || (r as any).terminal_area_category || (r as any).apron_area_category || (r as any).general_category;
+                if (!a) return false;
+                const v = String(a).toLowerCase();
+                const canon = v.includes('terminal') ? 'Terminal Area' : v.includes('apron') ? 'Apron Area' : v.includes('general') ? 'General Area' : '';
+                return areaFilter.includes(canon);
+            });
+        }
+        if (timeframe !== 'all') {
+            const monthsBack = timeframe === '3m' ? 3 : timeframe === '6m' ? 6 : 12;
+            const now = new Date();
+            const cutoff = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1).getTime();
+            base = base.filter(r => {
+                const raw = (r as any).date_of_event || r.created_at;
+                const d = new Date(raw as string);
+                if (isNaN(d.getTime())) return false;
+                const key = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+                return key >= cutoff;
+            });
+        }
+        return base;
+    }, [filteredReports, branchFilter, airlineFilter, areaFilter, timeframe]);
+
+    const customComparison = useMemo(() => calculateComparisonData(filteredReportsForCalc), [filteredReportsForCalc]);
+
+    const displayComparison = useMemo<ComparisonData | null>(() => {
+        const base = (branchFilter.length || airlineFilter.length || areaFilter.length || timeframe !== 'all') ? customComparison : safeComparison;
+        if (!base) return null;
+        if (timeframe === 'all') return base;
+        const take = timeframe === '3m' ? 3 : timeframe === '6m' ? 6 : 12;
+        return { ...base, monthlyTrend: base.monthlyTrend.slice(-take) };
+    }, [safeComparison, customComparison, timeframe, branchFilter.length, airlineFilter.length, areaFilter.length]);
+
+    const chartKeys = useMemo(() => {
+        if (focus === 'Total') return ['total'] as const;
+        if (focus === 'Irregularity') return ['irregularity'] as const;
+        if (focus === 'Complaint') return ['complaint'] as const;
+        if (focus === 'Compliment') return ['compliment'] as const;
+        return ['total', 'irregularity', 'complaint', 'compliment'] as const;
+    }, [focus]);
 
     const handleViewDetail = (
         title: string,
@@ -1107,6 +1204,129 @@ export default function AnalystCharts({
 
             {/* Slide 2: General Categories & Volume Trends */}
             {activeTab === 'tren' && (
+                <div className={cn(
+                    "p-2 text-center text-[10px] font-black uppercase tracking-widest rounded-lg mb-4 shadow-lg",
+                    isDataStale ? "bg-amber-500 text-black shadow-amber-500/20" : "bg-emerald-500 text-white shadow-emerald-500/20"
+                )}>
+                    {isDataStale ? "⚠️ STALE DATA ALERT — Source data is more than 30 days old. Showing all available records." : "PRISM MoM/YoY System Active"}
+                    {" — "}Reports: {filteredReports.length} | Data: {safeComparison ? 'LOADED' : 'MISSING'} | Months: {safeComparison?.monthlyTrend?.length ?? 0}
+                </div>
+            )}
+
+            {/* MoM/YoY Comparison — Tren Tab (Moved to Top for Visibility) */}
+            {activeTab === 'tren' && (
+            <PresentationSlide
+                title="MoM & YoY Comparison"
+                subtitle="Month-over-Month and Year-over-Year"
+                icon={TrendingUp}
+            >
+                <div className="space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-end gap-3 bg-[var(--surface-2)]/60 border border-[var(--surface-3)] rounded-xl p-3">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Timeframe</label>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                    {(['3m','6m','12m','all'] as const).map(tf => (
+                                        <button
+                                            key={tf}
+                                            onClick={() => setTimeframe(tf)}
+                                            className={`px-2 py-1.5 text-[11px] font-bold rounded-md border ${timeframe===tf?'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]':'bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--surface-3)]'}`}
+                                        >
+                                            {tf.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Focus</label>
+                                <select
+                                    value={focus}
+                                    onChange={(e)=>setFocus(e.target.value as any)}
+                                    className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
+                                >
+                                    <option value="all">All Categories</option>
+                                    <option value="Total">Total</option>
+                                    <option value="Irregularity">Irregularity</option>
+                                    <option value="Complaint">Complaint</option>
+                                    <option value="Compliment">Compliment</option>
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Branch</label>
+                                <select
+                                    multiple
+                                    value={branchFilter}
+                                    onChange={(e)=>setBranchFilter(Array.from(e.target.selectedOptions).map(o=>o.value))}
+                                    className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)] h-[40px]"
+                                >
+                                    {(safeComparison?.topBranches || []).map(b=>(
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Airline</label>
+                                <select
+                                    multiple
+                                    value={airlineFilter}
+                                    onChange={(e)=>setAirlineFilter(Array.from(e.target.selectedOptions).map(o=>o.value))}
+                                    className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)] h-[40px]"
+                                >
+                                    {(safeComparison?.topAirlines || []).map(a=>(
+                                        <option key={a} value={a}>{a}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <select
+                                multiple
+                                value={areaFilter}
+                                onChange={(e)=>setAreaFilter(Array.from(e.target.selectedOptions).map(o=>o.value))}
+                                className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)] h-[40px]"
+                            >
+                                {['Terminal Area','Apron Area','General Area'].map(a=>(
+                                    <option key={a} value={a}>{a}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={()=>{
+                                    setTimeframe('12m');
+                                    setFocus('all');
+                                    setBranchFilter([]);
+                                    setAirlineFilter([]);
+                                    setAreaFilter([]);
+                                }}
+                                className="px-3 py-2 text-[12px] font-black rounded-md border border-[var(--surface-3)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)]/30"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                    <MonthlyTrendChart
+                        title="Monthly Trend"
+                        subtitle="Volume by month"
+                        data={displayComparison?.monthlyTrend ?? []}
+                        dataKeys={chartKeys as any}
+                        metrics={displayComparison?.overallMetrics ?? []}
+                        colors={ENTERPRISE_COLORS}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <ComparisonTable 
+                            title="Category Summary" 
+                            metrics={displayComparison?.overallMetrics ?? []} 
+                        />
+                        <ComparisonTable 
+                            title="Area Summary" 
+                            metrics={displayComparison?.areaMetrics ?? []} 
+                        />
+                    </div>
+                </div>
+            </PresentationSlide>
+            )}
+
+            {/* Slide 2: General Categories & Volume Trends */}
+            {activeTab === 'tren' && (
             <PresentationSlide
                 title="Tren & Distribusi Kategori Landside & Airside + CGO"
                 subtitle="Volume laporan dan proporsi kategori"
@@ -1532,6 +1752,8 @@ export default function AnalystCharts({
             </PresentationSlide>
             )}
 
+
+
             {/* Slide 3: Station Analysis (Total & Category Breakdown) */}
             {activeTab === 'stasiun' && (
             <PresentationSlide
@@ -1840,6 +2062,31 @@ export default function AnalystCharts({
             </PresentationSlide>
             )}
 
+            {/* MoM/YoY Comparison — Stasiun Tab */}
+            {activeTab === 'stasiun' && safeComparison && safeComparison.branchMoM.length > 0 && (
+            <PresentationSlide
+                title="Perbandingan MoM per Stasiun"
+                subtitle="Top 5 branch — Month-over-Month trend"
+                icon={Building2}
+            >
+                <div className="space-y-6">
+                    <MonthlyTrendChart
+                        title="Top Branches — Tren 6 Bulan Terakhir"
+                        subtitle="Volume laporan per cabang teratas"
+                        data={safeComparison.branchMoM}
+                        dataKeys={safeComparison.topBranches}
+                        metrics={safeComparison.branchMetrics}
+                    />
+                    <div className="mt-6">
+                        <ComparisonTable 
+                            title="Detail MoM & YoY per Stasiun (Top 5)" 
+                            metrics={safeComparison.branchMetrics} 
+                        />
+                    </div>
+                </div>
+            </PresentationSlide>
+            )}
+
             {/* Slide 4: Airline Analysis (Total & Category Breakdown) */}
             {activeTab === 'maskapai' && (
             <PresentationSlide
@@ -2117,6 +2364,31 @@ export default function AnalystCharts({
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </PresentationSlide>
+            )}
+
+            {/* MoM/YoY Comparison — Maskapai Tab */}
+            {activeTab === 'maskapai' && safeComparison && safeComparison.airlineMoM.length > 0 && (
+            <PresentationSlide
+                title="Perbandingan MoM per Maskapai"
+                subtitle="Top 5 airlines — Month-over-Month trend"
+                icon={TrendingUp}
+            >
+                <div className="space-y-6">
+                    <MonthlyTrendChart
+                        title="Top Airlines — Tren 6 Bulan Terakhir"
+                        subtitle="Volume laporan per maskapai teratas"
+                        data={safeComparison.airlineMoM}
+                        dataKeys={safeComparison.topAirlines}
+                        metrics={safeComparison.airlineMetrics}
+                    />
+                    <div className="mt-6">
+                        <ComparisonTable 
+                            title="Detail MoM & YoY per Maskapai (Top 5)" 
+                            metrics={safeComparison.airlineMetrics} 
+                        />
                     </div>
                 </div>
             </PresentationSlide>

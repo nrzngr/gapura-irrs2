@@ -239,3 +239,50 @@ export interface CalendarEventFilters {
     start_date?: string;
     end_date?: string;
 }
+
+export interface AnalyticsData {
+    summary: {
+        totalReports: number;
+        resolvedReports: number;
+        pendingReports: number;
+        highSeverity: number;
+        avgResolutionRate: number;
+        slaBreachCount?: number;
+    };
+    stationData: Array<{ station: string; total: number; resolved: number }>;
+    statusData: Array<{ name: string; value: number; color: string }>;
+    trendData: Array<{ month: string; total: number; resolved: number }>;
+    divisionData?: Array<{ division: string; count: number }>;
+    categoryData?: Array<{ category: string; count: number }>;
+}
+
+export interface ComparisonMetric {
+    label: string;
+    current: number;
+    previous: number;
+    momDelta: number;
+    yoyCurrent?: number;
+    yoyPrevious?: number;
+    yoyDelta?: number;
+}
+
+export interface MonthlyBucket {
+    month: string;
+    total: number;
+    irregularity: number;
+    complaint: number;
+    compliment: number;
+    [key: string]: string | number;
+}
+
+export interface ComparisonData {
+    monthlyTrend: MonthlyBucket[];
+    overallMetrics: ComparisonMetric[];
+    branchMoM: Record<string, string | number>[];
+    branchMetrics: ComparisonMetric[];
+    airlineMoM: Record<string, string | number>[];
+    airlineMetrics: ComparisonMetric[];
+    topBranches: string[];
+    topAirlines: string[];
+    areaMetrics: ComparisonMetric[];
+}

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { RefreshCw, Loader2 } from 'lucide-react';
 
 // Components
 import { ResponsiveHeader } from '@/components/dashboard/analyst/ResponsiveHeader';
@@ -16,7 +15,8 @@ import { TriageModal } from '@/components/dashboard/analyst/TriageModal';
 
 // Utils
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
-import type { Report } from '@/types';
+import type { Report, ComparisonData, AnalyticsData } from '@/types';
+import { calculateComparisonData } from '@/lib/utils/comparison-utils';
 
 // Dynamic import for charts
 const AnalystCharts = dynamic(
@@ -37,23 +37,6 @@ const AnalystCharts = dynamic(
   }
 );
 
-// Types
-interface AnalyticsData {
-  summary: {
-    totalReports: number;
-    resolvedReports: number;
-    pendingReports: number;
-    highSeverity: number;
-    avgResolutionRate: number;
-    slaBreachCount?: number;
-  };
-  stationData: Array<{ station: string; total: number; resolved: number }>;
-  statusData: Array<{ name: string; value: number; color: string }>;
-  trendData: Array<{ month: string; total: number; resolved: number }>;
-  divisionData?: Array<{ division: string; count: number }>;
-  categoryData?: Array<{ category: string; count: number }>;
-}
-
 /**
  * Refactored Analyst Dashboard Page
  * Mobile-first responsive design
@@ -63,6 +46,7 @@ export default function AnalystDashboard() {
 
   // State
   const [reports, setReports] = useState<Report[]>([]);
+  const [serverComparison, setServerComparison] = useState<ComparisonData | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -673,6 +657,111 @@ export default function AnalystDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredReports]);
 
+  // MoM / YoY comparison data
+  const comparisonData = useMemo(() => {
+    return calculateComparisonData(filteredReports);
+  }, [filteredReports]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/reports/analytics/aggregated?view=monthly');
+        if (!res.ok) {
+          setServerComparison(null);
+          return;
+        }
+        const payload = await res.json();
+        const summary: any[] = payload?.data?.summary || [];
+        if (!Array.isArray(summary) || summary.length === 0) {
+          setServerComparison(null);
+          return;
+        }
+        const monthlyTrend = summary.map((m: any) => {
+          const parts = String(m.month || '').split('-').map((x: string) => parseInt(x, 10));
+          const y = parts[0];
+          const mm = parts[1];
+          const d = new Date(isNaN(y) ? 1970 : y, isNaN(mm) ? 0 : mm - 1, 1);
+          const label = `${isNaN(y) ? '1970' : y} ${d.toLocaleString('en-US', { month: 'short' })}`;
+          return {
+            month: label,
+            total: Number(m.total || 0),
+            irregularity: Number(m.irregularity || 0),
+            complaint: Number(m.complaint || 0),
+            compliment: Number(m.compliment || 0),
+          };
+        });
+        const latest = summary[summary.length - 1] || {};
+        const previous = summary.length > 1 ? summary[summary.length - 2] : {};
+        const getDelta = (curr: number, prev: number) => (prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100);
+        const findYoY = () => {
+          if (!latest?.month) return undefined;
+          const [yy, mm] = String(latest.month).split('-').map((s: string) => parseInt(s, 10));
+          const key = `${yy - 1}-${String(mm).padStart(2, '0')}`;
+          return summary.find((x: any) => x.month === key);
+        };
+        const yoy = findYoY();
+        const buildMetric = (label: string, curr: number, prev: number, yoyCurr?: number, yoyPrev?: number) => ({
+          label,
+          current: Number(curr || 0),
+          previous: Number(prev || 0),
+          momDelta: getDelta(Number(curr || 0), Number(prev || 0)),
+          ...(yoyCurr !== undefined && yoyPrev !== undefined
+            ? {
+                yoyCurrent: Number(yoyCurr || 0),
+                yoyPrevious: Number(yoyPrev || 0),
+                yoyDelta: getDelta(Number(yoyCurr || 0), Number(yoyPrev || 0)),
+              }
+            : {}),
+        });
+        const overallMetrics = [
+          buildMetric(
+            'Total',
+            Number(latest.total || 0),
+            Number(previous.total || 0),
+            Number(latest.total || 0),
+            Number(yoy?.total ?? undefined)
+          ),
+          buildMetric(
+            'Irregularity',
+            Number(latest.irregularity || 0),
+            Number(previous.irregularity || 0),
+            Number(latest.irregularity || 0),
+            Number(yoy?.irregularity ?? undefined)
+          ),
+          buildMetric(
+            'Complaint',
+            Number(latest.complaint || 0),
+            Number(previous.complaint || 0),
+            Number(latest.complaint || 0),
+            Number(yoy?.complaint ?? undefined)
+          ),
+          buildMetric(
+            'Compliment',
+            Number(latest.compliment || 0),
+            Number(previous.compliment || 0),
+            Number(latest.compliment || 0),
+            Number(yoy?.compliment ?? undefined)
+          ),
+        ];
+        const calc = calculateComparisonData(filteredReports);
+        setServerComparison({
+          monthlyTrend,
+          overallMetrics,
+          branchMoM: calc.branchMoM,
+          branchMetrics: calc.branchMetrics,
+          airlineMoM: calc.airlineMoM,
+          airlineMetrics: calc.airlineMetrics,
+          topBranches: calc.topBranches,
+          topAirlines: calc.topAirlines,
+          areaMetrics: calc.areaMetrics,
+        });
+      } catch {
+        setServerComparison(null);
+      }
+    };
+    load();
+  }, [filteredReports]);
+
   // Loading state
   if (loading) {
     return (
@@ -769,6 +858,7 @@ export default function AnalystDashboard() {
           apronAreaCategoryData={apronAreaCategoryData}
           generalCategoryData={generalCategoryData}
           caseClassificationData={caseClassificationData}
+          comparisonData={serverComparison ?? comparisonData}
           onDrilldown={(url) => router.push(url)}
           drilldownUrl={drilldownUrl}
         />

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import 'dotenv/config';
+console.log('Starting script...');
+import dotenv from 'dotenv';
+dotenv.config();
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -108,6 +110,25 @@ async function main() {
     const dataRows = allValues.slice(1);
     console.log(`Rows: ${dataRows.length}`);
 
+    // Map rows to objects for easier inspection
+    const objects = dataRows.map((r, idx) => {
+      const o = {};
+      headers.forEach((h, i) => { o[h] = r[i] ?? ''; });
+      o.__rowNumber = idx + 2; // account for header row
+      return o;
+    });
+
+    // Print sample rows by default; print ALL when DEBUG_SHEETS_PRINT_ALL=1
+    const printAll = (process.env.DEBUG_SHEETS_PRINT_ALL || '').trim() === '1';
+    if (printAll) {
+      console.log('All rows (object view):');
+      console.log(JSON.stringify(objects, null, 2));
+    } else {
+      const SAMPLE_N = Number(process.env.DEBUG_SHEETS_SAMPLE || 10);
+      console.log(`Sample first ${SAMPLE_N} rows (set DEBUG_SHEETS_PRINT_ALL=1 to print all):`);
+      console.log(JSON.stringify(objects.slice(0, SAMPLE_N), null, 2));
+    }
+
     const typeInfo = analyzeTypes(headers, dataRows);
     const coverage = compareMapping(headers, writeMap);
 
@@ -145,4 +166,3 @@ main().catch(err => {
   console.error('Diagnostics failed:', err.message);
   process.exit(1);
 });
-

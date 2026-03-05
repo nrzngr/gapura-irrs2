@@ -871,10 +871,7 @@ export default function BranchReportDetail({ filters = {}, hideAnalyzeButton = f
         </section>
       )}
 
-      {/* AI Branch Risk Visualization */}
-      <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl border border-[var(--surface-2)] shadow-spatial-sm">
-        <BranchAIVisualization filters={filters.branch ? [{ field: 'branch', value: filters.branch }] : []} />
-      </section>
+      {/* AI Branch Risk Visualization - removed for embed stability */}
 
       {/* Reports Detail Table */}
       <section className="relative overflow-hidden bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--surface-2)] shadow-spatial-sm">

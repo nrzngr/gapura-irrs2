@@ -46,6 +46,7 @@ export default async function proxy(request: NextRequest) {
                              path.startsWith('/api/admin/reports') ||
                              path.startsWith('/api/admin/analytics') ||
                              path.startsWith('/api/master-data') ||
+                             path.startsWith('/api/ai/') ||
                              // Public report submission & evidence upload
                              path.startsWith('/api/reports/public') ||
                              path.startsWith('/api/uploads/evidence/public') ||

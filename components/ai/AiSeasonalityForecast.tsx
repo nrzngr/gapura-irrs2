@@ -22,15 +22,14 @@ import {
   Filler
 } from 'chart.js';
 import { 
-  Sparkles, 
-  TrendingUp, 
-  TrendingDown, 
   Activity, 
   Brain, 
   Plane, 
   Package, 
   AlertCircle 
 } from 'lucide-react';
+import type { TooltipItem } from 'chart.js';
+import type { ComponentType } from 'react';
 
 ChartJS.register(
   CategoryScale,
@@ -75,11 +74,58 @@ const FALLBACK_DATA: SeasonalityForecastResponse = {
   }
 };
 
-function ForecastCard({ data, icon: Icon, colorClass }: { data: SeasonalityCategoryForecast, icon: any, colorClass: string }) {
-  const labels = data.forecasts.map(f => `Week ${f.period}`);
-  const predicted = data.forecasts.map(f => f.predicted);
-  const upper = data.forecasts.map(f => f.upper_bound);
-  const lower = data.forecasts.map(f => f.lower_bound);
+function ForecastCard({ data, icon: Icon, colorClass }: { data: SeasonalityCategoryForecast, icon: ComponentType<{ size?: number }>, colorClass: string }) {
+  if (!data || !Array.isArray(data.forecasts) || data.forecasts.length === 0) {
+    return (
+      <div className={`rounded-xl border p-5 ${colorClass === 'blue' ? 'bg-blue-50/50 border-blue-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${colorClass === 'blue' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              <Icon size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-800">{data?.category_name || 'Forecast'}</h4>
+              <div className="text-xs text-gray-500">Data forecast tidak tersedia</div>
+            </div>
+          </div>
+        </div>
+        <div className="h-[180px] w-full mb-4 flex items-center justify-center text-xs text-gray-500 border border-dashed border-gray-200 rounded-lg">
+          Tidak ada data
+        </div>
+      </div>
+    );
+  }
+  const forecasts = data.forecasts;
+  let labels: string[] = [];
+  let predicted: number[] = [];
+  let upper: number[] = [];
+  let lower: number[] = [];
+  try {
+    if (!Array.isArray(forecasts)) throw new Error('invalid_forecasts');
+    labels = forecasts.map(f => `Week ${f.period}`);
+    predicted = forecasts.map(f => f.predicted);
+    upper = forecasts.map(f => f.upper_bound);
+    lower = forecasts.map(f => f.lower_bound);
+  } catch {
+    return (
+      <div className={`rounded-xl border p-5 ${colorClass === 'blue' ? 'bg-blue-50/50 border-blue-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${colorClass === 'blue' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              <Icon size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-800">{data?.category_name || 'Forecast'}</h4>
+              <div className="text-xs text-gray-500">Data forecast tidak tersedia</div>
+            </div>
+          </div>
+        </div>
+        <div className="h-[180px] w-full mb-4 flex items-center justify-center text-xs text-gray-500 border border-dashed border-gray-200 rounded-lg">
+          Tidak ada data
+        </div>
+      </div>
+    );
+  }
 
   const chartData = {
     labels,
@@ -126,7 +172,7 @@ function ForecastCard({ data, icon: Icon, colorClass }: { data: SeasonalityCateg
         mode: 'index' as const,
         intersect: false,
         callbacks: {
-          label: (context: any) => {
+          label: (context: TooltipItem<'line'>) => {
             if (context.dataset.label === 'Confidence Interval' || context.dataset.label === 'Upper Bound') return '';
             return `Predicted: ${context.parsed.y}`;
           }
@@ -172,7 +218,13 @@ function ForecastCard({ data, icon: Icon, colorClass }: { data: SeasonalityCateg
       </div>
 
       <div className="h-[180px] w-full mb-4">
-        <Line data={chartData} options={options} />
+        {forecasts.length > 0 ? (
+          <Line data={chartData} options={options} />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center text-xs text-gray-500 border border-dashed border-gray-200 rounded-lg">
+            Data forecast tidak tersedia
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -188,7 +240,7 @@ function ForecastCard({ data, icon: Icon, colorClass }: { data: SeasonalityCateg
           <div className="flex items-center gap-1.5">
             <AlertCircle size={14} className="text-indigo-500" />
             <span className="font-semibold text-gray-700">
-              {Math.round(data.forecasts.reduce((acc, curr) => acc + curr.confidence, 0) / data.forecasts.length * 100)}%
+              {forecasts.length > 0 ? Math.round(forecasts.reduce((acc, curr) => acc + (curr.confidence || 0), 0) / forecasts.length * 100) : 0}%
             </span>
           </div>
         </div>
@@ -245,12 +297,12 @@ export function AiSeasonalityForecast() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ForecastCard 
-          data={data.landside_airside} 
+          data={(data.landside_airside || FALLBACK_DATA.landside_airside)} 
           icon={Plane} 
           colorClass="blue" 
         />
         <ForecastCard 
-          data={data.cgo} 
+          data={(data.cgo || FALLBACK_DATA.cgo)} 
           icon={Package} 
           colorClass="emerald" 
         />

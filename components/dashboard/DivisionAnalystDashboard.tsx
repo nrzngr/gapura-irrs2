@@ -16,7 +16,8 @@ import { TriageModal } from '@/components/dashboard/analyst/TriageModal';
 import { AISummaryKPICards } from '@/components/dashboard/ai-summary';
 
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
-import type { Report } from '@/types';
+import type { Report, AnalyticsData, ComparisonData } from '@/types';
+import { calculateComparisonData } from '@/lib/utils/comparison-utils';
 import type { DivisionConfig } from '@/components/dashboard/AnalyticsDashboard';
 
 const AnalystCharts = dynamic(
@@ -37,21 +38,6 @@ const AnalystCharts = dynamic(
   }
 );
 
-interface AnalyticsData {
-  summary: {
-    totalReports: number;
-    resolvedReports: number;
-    pendingReports: number;
-    highSeverity: number;
-    avgResolutionRate: number;
-    slaBreachCount?: number;
-  };
-  stationData: Array<{ station: string; total: number; resolved: number }>;
-  statusData: Array<{ name: string; value: number; color: string }>;
-  trendData: Array<{ month: string; total: number; resolved: number }>;
-  divisionData?: Array<{ division: string; count: number }>;
-  categoryData?: Array<{ category: string; count: number }>;
-}
 
 interface DivisionAnalystDashboardProps {
   division: DivisionConfig;
@@ -687,6 +673,11 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       .sort((a, b) => b.value - a.value);
   }, [filteredReports]);
 
+  // MoM / YoY comparison data
+  const comparisonData = useMemo(() => {
+    return calculateComparisonData(filteredReports);
+  }, [filteredReports]);
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
@@ -1076,6 +1067,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             apronAreaCategoryData={apronAreaCategoryData}
             generalCategoryData={generalCategoryData}
             caseClassificationData={caseClassificationData}
+            comparisonData={comparisonData}
             onDrilldown={(url) => router.push(url)}
             drilldownUrl={drilldownUrl}
           />

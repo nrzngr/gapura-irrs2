@@ -11,6 +11,15 @@ import {
     Plane, ClipboardList, Search
 } from 'lucide-react';
 
+import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
+import { type Report, type AnalyticsData, type ComparisonData } from '@/types';
+import { cn } from '@/lib/utils';
+import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
+import { calculateComparisonData } from '@/lib/utils/comparison-utils';
+import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
+import { CustomerFeedbackFilterModal } from './analyst/CustomerFeedbackFilterModal';
+import { NoiseTexture } from '@/components/ui/NoiseTexture';
+
 const AnalystCharts = dynamic(() => import('./analyst/AnalystCharts'), {
     ssr: false,
     loading: () => (
@@ -20,30 +29,7 @@ const AnalystCharts = dynamic(() => import('./analyst/AnalystCharts'), {
     ),
 });
 
-import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
-import { type Report } from '@/types';
-import { cn } from '@/lib/utils';
-import { ReportDetailModal } from '@/components/dashboard/ReportDetailModal';
-import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
-import { CustomerFeedbackFilterModal } from './analyst/CustomerFeedbackFilterModal';
-import { NoiseTexture } from '@/components/ui/NoiseTexture';
-
 // --- Types ---
-interface AnalyticsData {
-    summary: {
-        totalReports: number;
-        resolvedReports: number;
-        pendingReports: number;
-        highSeverity: number;
-        avgResolutionRate: number;
-        slaBreachCount?: number;
-    };
-    stationData: Array<{ station: string; total: number; resolved: number }>;
-    statusData: Array<{ name: string; value: number; color: string }>;
-    trendData: Array<{ month: string; total: number; resolved: number }>;
-    divisionData?: Array<{ division: string; count: number }>;
-    categoryData?: Array<{ category: string; count: number }>;
-}
 
 export interface DivisionConfig {
     code: string;
@@ -175,6 +161,10 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
 
         return result;
     }, [reports, dateRange, searchQuery]);
+
+    const comparisonData = useMemo(() => {
+        return calculateComparisonData(filteredReportsList);
+    }, [filteredReportsList]);
 
     const drilldownUrl = (type: string, value: string) =>
         `/dashboard/analyst/drilldown?type=${type}&value=${encodeURIComponent(value)}&period=${dateRange}`;
@@ -536,6 +526,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         terminalAreaCategoryData={terminalAreaCategoryData}
                         apronAreaCategoryData={apronAreaCategoryData}
                         generalCategoryData={generalCategoryData}
+                        comparisonData={comparisonData}
                         onDrilldown={(url) => router.push(url)}
                         drilldownUrl={drilldownUrl}
                     />

@@ -265,6 +265,7 @@ function normalizeSeverity(key: string): string {
   return key;
 }
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 function calculateTopRisky(
   items: Record<string, { count: number; severity: Record<string, number> }>,
   limit = 5
@@ -279,6 +280,7 @@ function calculateTopRisky(
   });
   return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.name);
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export async function fetchSeverityDistributionsAi(signal?: AbortSignal): Promise<SeverityDistributionsAiResponse | null> {
   try {
@@ -553,23 +555,29 @@ export async function fetchHubRiskAnalysis(signal?: AbortSignal): Promise<HubRis
 
 export async function fetchBranchRiskAnalysisAi(signal?: AbortSignal): Promise<BranchRiskSummaryResponse | null> {
   try {
-    // Use the specific HF Space URL as requested
-    const url = 'https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/risk/branches';
+    // Use local proxy to avoid CORS and align with server-side config
+    const url = `/api/ai/risk/branches`;
     console.log('[gapura-ai] Fetching branch risk analysis from:', url);
-    const response = await fetchWithTimeout(url, { signal }, 120000);
+    let response = await fetchWithTimeout(url, { signal }, 120000);
     if (!response.ok) {
-      console.error('[gapura-ai] Failed to fetch branch risk analysis:', response.status);
-      return null;
+      console.warn('[gapura-ai] Local proxy returned', response.status, '- attempting direct fallback');
+      const fallback = 'https://gapura-dev-gapura-ai.hf.space/api/ai/risk/branches?bypass_cache=true';
+      try {
+        response = await fetchWithTimeout(fallback, { signal }, 120000);
+      } catch {
+        // ignore, will handle below
+      }
+      if (!response || !response.ok) {
+        console.error('[gapura-ai] Failed to fetch branch risk analysis:', response ? response.status : 'no_response');
+        return null;
+      }
     }
 
     const data = await response.json();
-    
-    // Check if data is empty (API returning {} despite 200 OK)
     if (Object.keys(data).length === 0) {
       console.warn('[gapura-ai] API returned empty data');
       return null;
     }
-
     return data as BranchRiskSummaryResponse;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') return null;
