@@ -27,8 +27,8 @@ import {
 import { Button } from '@/components/ui/button';
 
 interface ResponsiveHeaderProps {
-  dateRange: 'all' | 'week' | 'month';
-  onDateRangeChange: (range: 'all' | 'week' | 'month') => void;
+  dateRange: 'all' | 'week' | 'month' | { from: string; to: string };
+  onDateRangeChange: (range: 'all' | 'week' | 'month' | { from: string; to: string }) => void;
   onRefresh: () => void;
   refreshing: boolean;
   onCustomerFeedback: () => void;
@@ -57,14 +57,23 @@ export function ResponsiveHeader({
 }: ResponsiveHeaderProps) {
   const router = useRouter();
   const [isDateOpen, setIsDateOpen] = useState(false);
+  const [showCustomPicker, setShowCustomPicker] = useState(typeof dateRange === 'object');
+  const [customRange, setCustomRange] = useState(
+    typeof dateRange === 'object' 
+      ? dateRange 
+      : { from: new Date().toISOString().split('T')[0], to: new Date().toISOString().split('T')[0] }
+  );
 
   const dateRangeOptions = [
     { value: 'all' as const, label: 'Semua', shortLabel: 'Semua' },
     { value: 'month' as const, label: '30 Hari', shortLabel: '30d' },
     { value: 'week' as const, label: '7 Hari', shortLabel: '7d' },
+    { value: 'custom' as const, label: 'Kustom', shortLabel: 'Kustom' },
   ];
 
-  const currentDateLabel = dateRangeOptions.find((o) => o.value === dateRange);
+  const currentDateLabel = typeof dateRange === 'string' 
+    ? dateRangeOptions.find((o) => o.value === dateRange)
+    : { label: 'Kustom', value: 'custom' };
 
   // Mobile menu actions for hidden buttons
   const mobileMenuActions = [
@@ -107,14 +116,21 @@ export function ResponsiveHeader({
         {/* Date Range Selector */}
         <div className="flex items-center gap-2">
           {/* Desktop: Segmented Control */}
-          <div className="hidden sm:flex p-1.5 rounded-2xl bg-[oklch(0.97_0.012_160_/_0.6)] backdrop-blur-xl border border-[oklch(0.65_0.18_160_/_0.15)] shadow-[inset_0_1px_2px_oklch(0.45_0.06_160_/_0.06)]">
+          <div className="hidden sm:flex items-center p-1.5 rounded-2xl bg-[oklch(0.97_0.012_160_/_0.6)] backdrop-blur-xl border border-[oklch(0.65_0.18_160_/_0.15)] shadow-[inset_0_1px_2px_oklch(0.45_0.06_160_/_0.06)]">
             {dateRangeOptions.map((option) => (
               <button
                 key={option.value}
-                onClick={() => onDateRangeChange(option.value)}
+                onClick={() => {
+                  if (option.value === 'custom') {
+                    setShowCustomPicker(true);
+                  } else {
+                    setShowCustomPicker(false);
+                    onDateRangeChange(option.value);
+                  }
+                }}
                 className={cn(
                   'px-5 py-2.5 text-[11px] font-display font-black uppercase tracking-widest rounded-xl transition-all duration-300 whitespace-nowrap min-h-[40px]',
-                  dateRange === option.value
+                  (typeof dateRange === 'string' ? dateRange === option.value : option.value === 'custom')
                     ? 'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)] shadow-lg shadow-emerald-500/20'
                     : 'text-text-secondary hover:text-text-primary hover:bg-[oklch(0.95_0.015_160_/_0.5)]'
                 )}
@@ -123,6 +139,34 @@ export function ResponsiveHeader({
               </button>
             ))}
           </div>
+
+          {showCustomPicker && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+              <div className="flex items-center p-1 rounded-xl bg-[oklch(0.97_0.012_160_/_0.6)] border border-[oklch(0.65_0.18_160_/_0.15)]">
+                <input
+                  type="date"
+                  value={customRange.from}
+                  onChange={(e) => {
+                    const newRange = { ...customRange, from: e.target.value };
+                    setCustomRange(newRange);
+                    onDateRangeChange(newRange);
+                  }}
+                  className="bg-transparent border-0 text-[11px] font-bold p-1 w-[120px] focus:ring-0"
+                />
+                <span className="text-[10px] px-1 text-text-muted">→</span>
+                <input
+                  type="date"
+                  value={customRange.to}
+                  onChange={(e) => {
+                    const newRange = { ...customRange, to: e.target.value };
+                    setCustomRange(newRange);
+                    onDateRangeChange(newRange);
+                  }}
+                  className="bg-transparent border-0 text-[11px] font-bold p-1 w-[120px] focus:ring-0"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Mobile: Dropdown */}
           <div className="sm:hidden w-full">
@@ -144,12 +188,17 @@ export function ResponsiveHeader({
                   <DropdownMenuItem
                     key={option.value}
                     onClick={() => {
-                      onDateRangeChange(option.value);
+                      if (option.value === 'custom') {
+                        setShowCustomPicker(true);
+                      } else {
+                        setShowCustomPicker(false);
+                        onDateRangeChange(option.value);
+                      }
                       setIsDateOpen(false);
                     }}
                     className={cn(
                       'min-h-[44px] cursor-pointer focus:bg-gray-50',
-                      dateRange === option.value && 'bg-blue-50 text-blue-600'
+                      (typeof dateRange === 'string' ? dateRange === option.value : option.value === 'custom') && 'bg-blue-50 text-blue-600'
                     )}
                   >
                     {option.label}
@@ -158,6 +207,39 @@ export function ResponsiveHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {showCustomPicker && (
+            <div className="sm:hidden w-full space-y-2 mt-2 p-3 rounded-2xl bg-[oklch(0.97_0.012_160_/_0.6)] border border-[oklch(0.65_0.18_160_/_0.15)] animate-in fade-in slide-in-from-top-2">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Mulai</span>
+                  <input
+                    type="date"
+                    value={customRange.from}
+                    onChange={(e) => {
+                      const newRange = { ...customRange, from: e.target.value };
+                      setCustomRange(newRange);
+                      onDateRangeChange(newRange);
+                    }}
+                    className="bg-white/50 border border-surface-3 rounded-xl p-2 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-text-muted px-1">Selesai</span>
+                  <input
+                    type="date"
+                    value={customRange.to}
+                    onChange={(e) => {
+                      const newRange = { ...customRange, to: e.target.value };
+                      setCustomRange(newRange);
+                      onDateRangeChange(newRange);
+                    }}
+                    className="bg-white/50 border border-surface-3 rounded-xl p-2 text-sm font-bold focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

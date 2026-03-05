@@ -20,7 +20,7 @@ interface ExportContext {
   reports: Report[];
   filteredReports: Report[];
   analytics: AnalyticsPayload | null;
-  dateRange: string;
+  dateRange: 'all' | 'week' | 'month' | { from: string; to: string };
 }
 
 // Complexity: Time O(N) where N = reports.length | Space O(N)
@@ -39,7 +39,7 @@ export async function exportToExcel(ctx: ExportContext): Promise<void> {
     [''],
     ['', 'Tanggal Export:', exportDate],
     ['', 'Waktu Export:', exportTime],
-    ['', 'Periode:', dateRange.toUpperCase()],
+    ['', 'Periode:', typeof dateRange === 'string' ? dateRange.toUpperCase() : `${dateRange.from} → ${dateRange.to}`],
     [''],
     ['', '═══════════════════════════════════════════════════'],
     ['', 'RINGKASAN EKSEKUTIF'],
@@ -169,7 +169,8 @@ export async function exportToPDF(ctx: ExportContext): Promise<void> {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Periode: ${dateRange.toUpperCase()} | Export: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 30, { align: 'center' });
+  const periodLabel = typeof dateRange === 'string' ? dateRange.toUpperCase() : `${dateRange.from} → ${dateRange.to}`;
+  doc.text(`Periode: ${periodLabel} | Export: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, 30, { align: 'center' });
 
   doc.setTextColor(0, 0, 0);
   let yPos = 55;

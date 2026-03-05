@@ -82,8 +82,6 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
         };
     }, [role]);
 
-    if (!mounted) return null;
-
     const navItems: NavItem[] = useMemo(() => {
         const dashboard = navData.main.find(i => i.label === 'Dashboard') || navData.main[0];
         const reports = navData.main.find(i => i.label === 'Laporan Divisi' || i.label === 'Laporan Saya') || navData.main[1];
@@ -97,6 +95,8 @@ export function MobileBottomNav({ role, onMenuClick }: MobileBottomNavProps) {
             { href: '#menu', label: 'Menu', icon: Menu }
         ];
     }, [navData, pathname]);
+
+    if (!mounted) return null;
 
     return (
         <>

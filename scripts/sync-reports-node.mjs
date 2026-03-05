@@ -75,6 +75,9 @@ async function main() {
     console.log('Total processed:', result.totalProcessed);
     console.log('Inserted:', result.inserted);
     console.log('Updated:', result.updated);
+    if (typeof result.deleted === 'number') {
+      console.log('Deleted:', result.deleted);
+    }
     console.log('Errors:', result.errors);
     console.log('Duration:', result.duration, 'ms');
     

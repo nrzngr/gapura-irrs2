@@ -11,7 +11,7 @@ import type { Report } from '@/types';
 
 interface ReportsTableSectionProps {
   reports: Report[];
-  dateRange: 'all' | 'week' | 'month';
+  dateRange: 'all' | 'week' | 'month' | { from: string; to: string };
   onViewReport: (report: Report) => void;
   onTriageReport: (report: Report) => void;
   drilldownUrl: (type: string, value: string) => string;

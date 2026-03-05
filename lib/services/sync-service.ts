@@ -8,6 +8,7 @@ export interface SyncResult {
   totalProcessed: number;
   inserted: number;
   updated: number;
+  deleted: number;
   errors: number;
   duration: number;
   error?: string;
@@ -26,6 +27,7 @@ export class SyncService {
     const startTime = Date.now();
     let inserted = 0;
     let updated = 0;
+    let deleted = 0;
     let errors = 0;
 
     try {
@@ -44,14 +46,31 @@ export class SyncService {
         errors += batchResult.errors;
       }
 
+      // Hard delete rows removed from Google Sheets
+      try {
+        deleted = await this.deleteMissingFromSync(reports);
+        if (deleted > 0) {
+          console.log(`[SyncService] Deleted ${deleted} records removed from Sheets`);
+        }
+        // Invalidate reports cache so reads reflect deletions immediately
+        try {
+          reportsService.invalidateCache();
+        } catch (e) {
+          console.warn('[SyncService] Failed to invalidate reports cache:', e);
+        }
+      } catch (delErr) {
+        console.warn('[SyncService] Delete-missing step failed:', delErr);
+      }
+
       const duration = Date.now() - startTime;
-      console.log(`[SyncService] Sync completed in ${duration}ms: ${inserted} inserted, ${updated} updated, ${errors} errors`);
+      console.log(`[SyncService] Sync completed in ${duration}ms: ${inserted} inserted, ${updated} updated, ${deleted} deleted, ${errors} errors`);
 
       return {
         success: true,
         totalProcessed,
         inserted,
         updated,
+        deleted,
         errors,
         duration,
       };
@@ -65,6 +84,7 @@ export class SyncService {
         totalProcessed: 0,
         inserted: 0,
         updated: 0,
+        deleted: 0,
         errors: 1,
         duration,
         error: errorMessage,
@@ -121,6 +141,120 @@ export class SyncService {
     }
 
     return { inserted, updated, errors };
+  }
+
+  /**
+   * Deletes rows in reports_sync which no longer exist on Google Sheets
+   * Complexity: Time O(N + M) | Space O(N) where N = sheet rows, M = db rows
+   */
+  private static async deleteMissingFromSync(reports: Report[]): Promise<number> {
+    const fetchedIds = new Set<string>(
+      reports
+        .map((r) => (r as any).original_id as string | undefined)
+        .filter((id): id is string => !!id)
+    );
+    if (fetchedIds.size === 0) {
+      // Nothing to compare; skip deletion to avoid accidental mass delete
+      return 0;
+    }
+
+    // Limit deletion scope to source sheets actually fetched
+    const sourceSheets = Array.from(
+      new Set(
+        reports
+          .map((r) => (r as any).source_sheet as string | undefined)
+          .filter((s): s is string => !!s)
+      )
+    );
+
+    // Fetch all existing sheet_ids for those source sheets
+    const existingIds: string[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const q = supabaseAdmin
+        .from('reports_sync')
+        .select('sheet_id', { count: 'exact' })
+        .order('sheet_id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      const query = sourceSheets.length > 0 ? q.in('source_sheet', sourceSheets) : q;
+      const { data, error } = await query;
+      if (error) {
+        console.warn('[SyncService] Failed to list existing sheet_ids:', error);
+        break;
+      }
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        existingIds.push(...data.map((r: any) => r.sheet_id as string));
+        hasMore = data.length === pageSize;
+        offset += pageSize;
+      }
+    }
+
+    // Determine which to delete
+    const toDelete = existingIds.filter((id) => !fetchedIds.has(id));
+    if (toDelete.length === 0) return 0;
+
+    // Delete in batches
+    let deleted = 0;
+    for (let i = 0; i < toDelete.length; i += 500) {
+      const batch = toDelete.slice(i, i + 500);
+      const { data, error } = await supabaseAdmin
+        .from('reports_sync')
+        .delete()
+        .in('sheet_id', batch)
+        .select('sheet_id');
+      if (error) {
+        console.warn('[SyncService] Delete batch failed:', error);
+        continue;
+      }
+      deleted += data?.length || 0;
+    }
+
+    // Also delete from legacy 'reports' table for entries mirrored from Sheets
+    // Scope to rows with sheet_id that match our fetched source sheets
+    const existingDbIds: Array<{ id: string; sheet_id: string }> = [];
+    offset = 0;
+    hasMore = true;
+    while (hasMore) {
+      // Fetch reports with a non-null sheet_id (likely linked to Sheets)
+      const { data, error } = await supabaseAdmin
+        .from('reports')
+        .select('id, sheet_id')
+        .not('sheet_id', 'is', null)
+        .range(offset, offset + pageSize - 1);
+      if (error) {
+        console.warn('[SyncService] Failed to list legacy reports by sheet_id:', error);
+        break;
+      }
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        existingDbIds.push(...(data as any[]).filter(r => typeof r.sheet_id === 'string').map((r) => ({ id: r.id, sheet_id: r.sheet_id })));
+        hasMore = data.length === pageSize;
+        offset += pageSize;
+      }
+    }
+    const dbToDelete = existingDbIds
+      .filter(({ sheet_id }) => !fetchedIds.has(sheet_id) && (sourceSheets.length === 0 || sourceSheets.some(s => sheet_id.startsWith(`${s}!row_`))))
+      .map(({ id }) => id);
+    for (let i = 0; i < dbToDelete.length; i += 500) {
+      const batch = dbToDelete.slice(i, i + 500);
+      const { data, error } = await supabaseAdmin
+        .from('reports')
+        .delete()
+        .in('id', batch)
+        .select('id');
+      if (error) {
+        console.warn('[SyncService] Legacy delete batch failed:', error);
+        continue;
+      }
+      deleted += data?.length || 0;
+    }
+
+    return deleted;
   }
 
   private static mapReportToSyncRow(report: Report): Record<string, any> {

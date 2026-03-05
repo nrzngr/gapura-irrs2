@@ -616,13 +616,15 @@ export class ReportsService {
       sourceSheet?: string;
     },
     fields?: string[];
+    source?: 'auto' | 'sheets' | 'sync';
   }): Promise<Report[]> {
-    const { refresh, filters, fields } = options || {};
+    const { refresh, filters, fields, source = 'auto' } = options || {};
     
     // Create a cache key that includes filters and fields
     const filterKey = filters ? JSON.stringify(filters) : 'none';
     const fieldsKey = fields ? fields.sort().join(',') : 'all';
-    const cacheKey = `${CACHE_KEY_ALL_REPORTS}:${filterKey}:${fieldsKey}`;
+    const sourceKey = source || 'auto';
+    const cacheKey = `${CACHE_KEY_ALL_REPORTS}:${filterKey}:${fieldsKey}:${sourceKey}`;
 
     if (!refresh) {
       const cached = getCache<Report[]>(cacheKey, CACHE_TTL);
@@ -634,27 +636,40 @@ export class ReportsService {
       }
     }
 
-    // --- FAST PATH: Try reports_sync first ---
+    // --- DATA SOURCE SELECTION ---
     let sheetReports: Report[] = [];
     let dbReports: Report[] = [];
     
-    // Try to fetch from reports_sync (synced from Sheets)
-    const syncReports = await this.fetchReportsFromSync();
-    
-    if (syncReports.length > 0) {
-      // Use synced data (fast path)
+    if (source === 'sheets') {
+      // Force direct Google Sheets
+      try {
+        sheetReports = await this.fetchGoogleSheetsReports();
+        console.log(`[ReportsService] Using ${sheetReports.length} reports directly from Google Sheets (forced)`);
+      } catch (err) {
+        console.error('[ReportsService] Google Sheets fetch failed (forced):', err);
+        sheetReports = [];
+      }
+    } else if (source === 'sync') {
+      // Force reports_sync only
+      const syncReports = await this.fetchReportsFromSync();
       sheetReports = syncReports;
-      console.log(`[ReportsService] Using ${syncReports.length} reports from reports_sync (fast path)`);
+      console.log(`[ReportsService] Using ${sheetReports.length} reports from reports_sync (forced)`);
     } else {
-      // Fallback: Fetch directly from Google Sheets
-      const sheetsPromise = this.fetchGoogleSheetsReports();
-      const [sheetsResult] = await Promise.all([
-        sheetsPromise.catch(err => {
-          console.error('[ReportsService] Google Sheets fetch failed:', err);
-          return [] as Report[];
-        })
-      ]);
-      sheetReports = sheetsResult;
+      // AUTO: Try reports_sync first then fallback to Sheets
+      const syncReports = await this.fetchReportsFromSync();
+      if (syncReports.length > 0) {
+        sheetReports = syncReports;
+        console.log(`[ReportsService] Using ${syncReports.length} reports from reports_sync (fast path)`);
+      } else {
+        const sheetsPromise = this.fetchGoogleSheetsReports();
+        const [sheetsResult] = await Promise.all([
+          sheetsPromise.catch(err => {
+            console.error('[ReportsService] Google Sheets fetch failed:', err);
+            return [] as Report[];
+          })
+        ]);
+        sheetReports = sheetsResult;
+      }
     }
     
     // Fetch from legacy reports table (for reports created directly in DB)

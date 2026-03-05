@@ -11,8 +11,21 @@ export function calculateComparisonData(filteredReports: Report[]): ComparisonDa
     const monthMap = new Map<string, { total: number; irregularity: number; complaint: number; compliment: number; branches: Record<string, number>; airlines: Record<string, number>; areas: { terminal: number; apron: number; general: number } }>();
 
     filteredReports.forEach((r) => {
-        const raw = r.date_of_event || r.created_at;
-        const d = new Date(raw as string);
+        // Use a robust date parsing strategy: 
+        // 1. Prefer date_of_event (string YYYY-MM-DD usually)
+        // 2. Fallback to created_at
+        // 3. Ensure YYYY-MM-DD strings are parsed as LOCAL midnight to avoid UTC day-shifts
+        const dateStr = r.date_of_event || r.created_at;
+        if (!dateStr) return;
+
+        let d: Date;
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [y, m, day] = dateStr.split('-').map(Number);
+            d = new Date(y, m - 1, day);
+        } else {
+            d = new Date(dateStr);
+        }
+
         if (isNaN(d.getTime())) return;
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
@@ -74,11 +87,23 @@ export function calculateComparisonData(filteredReports: Report[]): ComparisonDa
     }
     const yoyEntry = yoyKey ? monthMap.get(yoyKey)! : undefined;
 
+    const formatLabel = (key: string) => {
+        if (!key) return undefined;
+        const [y, m] = key.split('-').map(Number);
+        // Use Indonesian locale for clarity
+        return new Date(y, m - 1).toLocaleString('id-ID', { month: 'short', year: 'numeric' });
+    };
+
+    const currentLabel = formatLabel(latestKey);
+    const previousLabel = formatLabel(prevKey);
+
     const buildMetric = (label: string, currVal: number, prevVal: number, yoyCurr?: number, yoyPrev?: number): ComparisonMetric => ({
         label,
         current: currVal,
         previous: prevVal,
         momDelta: calcDelta(currVal, prevVal),
+        currentMonth: currentLabel,
+        previousMonth: previousLabel,
         ...(yoyCurr !== undefined && yoyPrev !== undefined
             ? { yoyCurrent: yoyCurr, yoyPrevious: yoyPrev, yoyDelta: calcDelta(yoyCurr, yoyPrev) }
             : {}),
@@ -90,6 +115,15 @@ export function calculateComparisonData(filteredReports: Report[]): ComparisonDa
         buildMetric('Complaint', latestEntry.complaint, prevEntry.complaint, yoyEntry ? latestEntry.complaint : undefined, yoyEntry?.complaint),
         buildMetric('Compliment', latestEntry.compliment, prevEntry.compliment, yoyEntry ? latestEntry.compliment : undefined, yoyEntry?.compliment),
     ];
+
+    // Add "Lainnya" (Others) if there are uncategorized reports
+    const latestOthers = latestEntry.total - (latestEntry.irregularity + latestEntry.complaint + latestEntry.compliment);
+    const prevOthers = prevEntry.total - (prevEntry.irregularity + prevEntry.complaint + prevEntry.compliment);
+    if (latestOthers > 0 || prevOthers > 0) {
+        overallMetrics.push(buildMetric('Lainnya', latestOthers, prevOthers, 
+            yoyKey ? latestOthers : undefined, 
+            yoyEntry ? (yoyEntry.total - (yoyEntry.irregularity + yoyEntry.complaint + yoyEntry.compliment)) : undefined));
+    }
 
     // Top 5 branches
     const branchTotals: Record<string, number> = {};

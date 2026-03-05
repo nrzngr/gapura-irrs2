@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "check:node": "node scripts/check-node-version.js",
-    "dev": "npm run check:node && next dev",
+    "dev": "npm run check:node && next dev --webpack",
     "build": "npm run check:node && next build",
     "start": "npm run check:node && next start",
     "lint": "eslint",

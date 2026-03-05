@@ -261,6 +261,8 @@ export interface ComparisonMetric {
     current: number;
     previous: number;
     momDelta: number;
+    currentMonth?: string;
+    previousMonth?: string;
     yoyCurrent?: number;
     yoyPrevious?: number;
     yoyDelta?: number;

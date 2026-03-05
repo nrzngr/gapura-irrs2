@@ -59,9 +59,10 @@ export async function GET(request: Request) {
         const from = searchParams.get('from');
         const to = searchParams.get('to');
         let targetDivision = searchParams.get('target_division');
+        const sourceParam = searchParams.get('source'); // 'sheets' | 'sync' | null
 
-        // Fetch using the shared service (Robust & Cached)
-        const allReports = await reportsService.getReports(); 
+        // Fetch using the shared service with optional source control
+        const allReports = await reportsService.getReports({ source: (sourceParam === 'sheets' || sourceParam === 'sync') ? (sourceParam as any) : 'auto' }); 
         let filteredData = allReports;
 
         // Filter: Status

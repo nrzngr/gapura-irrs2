@@ -69,6 +69,9 @@ async function performSync() {
     console.log(`   - Processed: ${result.totalProcessed}`);
     console.log(`   - Inserted: ${result.inserted}`);
     console.log(`   - Updated: ${result.updated}`);
+    if (typeof result.deleted === 'number') {
+      console.log(`   - Deleted: ${result.deleted}`);
+    }
     console.log(`   - Errors: ${result.errors}`);
     
     if (result.error) {

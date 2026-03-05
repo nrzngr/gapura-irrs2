@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import {
     TrendingUp, PieChart as PieChartIcon, Building2,
-    Target, Users, Activity, CalendarDays, MapPin
+    Target, Users, Activity, CalendarDays, MapPin, Shield
 } from 'lucide-react';
 import { BarChart3 } from 'lucide-react';
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
@@ -530,7 +530,11 @@ export default function AnalystCharts({
         insights: 'Insights',
     };
     const [activeTab, setActiveTab] = useState<AnalystTab>('tren');
-    const [timeframe, setTimeframe] = useState<'3m' | '6m' | '12m' | 'all'>('all');
+    const [timeframe, setTimeframe] = useState<'3m' | '6m' | '12m' | 'all' | 'custom'>('all');
+    const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+    const [matrixMode, setMatrixMode] = useState<'branch' | 'airline'>('branch');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo] = useState('');
     const [focus, setFocus] = useState<'all' | 'Total' | 'Irregularity' | 'Complaint' | 'Compliment'>('all');
     const [branchFilter, setBranchFilter] = useState<string[]>([]);
     const [airlineFilter, setAirlineFilter] = useState<string[]>([]);
@@ -581,6 +585,37 @@ export default function AnalystCharts({
         }
     }, [comparisonData, filteredReports]);
 
+    // Options populated from Google Sheets data (via filteredReports)
+    const branchOptions = useMemo(() => {
+        const set = new Set<string>();
+        (filteredReports as Report[]).forEach((r) => {
+            const code = (r as any).stations?.code || r.branch || r.reporting_branch || r.station_code;
+            if (code) set.add(String(code).trim());
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [filteredReports]);
+
+    const airlineOptions = useMemo(() => {
+        const set = new Set<string>();
+        (filteredReports as Report[]).forEach((r) => {
+            const a = (r as any).airlines || (r as any).airline;
+            if (a) set.add(String(a).trim());
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [filteredReports]);
+
+    const areaOptions = useMemo(() => {
+        const set = new Set<string>();
+        (filteredReports as Report[]).forEach((r) => {
+            const a = (r as any).area || (r as any).terminal_area_category || (r as any).apron_area_category || (r as any).general_category;
+            if (!a) return;
+            const v = String(a).toLowerCase();
+            const canon = v.includes('terminal') ? 'Terminal Area' : v.includes('apron') ? 'Apron Area' : v.includes('general') ? 'General Area' : '';
+            if (canon) set.add(canon);
+        });
+        return Array.from(set).sort();
+    }, [filteredReports]);
+
     const filteredReportsForCalc = useMemo(() => {
         let base = filteredReports as Report[];
         if (branchFilter.length > 0) {
@@ -608,23 +643,53 @@ export default function AnalystCharts({
             const monthsBack = timeframe === '3m' ? 3 : timeframe === '6m' ? 6 : 12;
             const now = new Date();
             const cutoff = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1).getTime();
-            base = base.filter(r => {
-                const raw = (r as any).date_of_event || r.created_at;
-                const d = new Date(raw as string);
-                if (isNaN(d.getTime())) return false;
-                const key = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-                return key >= cutoff;
-            });
+            if (timeframe === 'custom') {
+                if (customFrom && customTo) {
+                    const from = new Date(customFrom);
+                    const to = new Date(customTo);
+                    to.setHours(23,59,59,999);
+                    if (!isNaN(from.getTime()) && !isNaN(to.getTime()) && from.getTime() <= to.getTime()) {
+                        base = base.filter(r => {
+                            const dateStr = (r as any).date_of_event || r.created_at;
+                            if (!dateStr) return false;
+                            let d: Date;
+                            if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                                const [y, m, day] = dateStr.split('-').map(Number);
+                                d = new Date(y, m - 1, day);
+                            } else {
+                                d = new Date(dateStr);
+                            }
+                            if (isNaN(d.getTime())) return false;
+                            return d.getTime() >= from.getTime() && d.getTime() <= to.getTime();
+                        });
+                    }
+                }
+            } else {
+                base = base.filter(r => {
+                    const dateStr = (r as any).date_of_event || r.created_at;
+                    if (!dateStr) return false;
+                    let d: Date;
+                    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                        const [y, m, day] = dateStr.split('-').map(Number);
+                        d = new Date(y, m - 1, day);
+                    } else {
+                        d = new Date(dateStr);
+                    }
+                    if (isNaN(d.getTime())) return false;
+                    const key = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+                    return key >= cutoff;
+                });
+            }
         }
         return base;
-    }, [filteredReports, branchFilter, airlineFilter, areaFilter, timeframe]);
+    }, [filteredReports, branchFilter, airlineFilter, areaFilter, timeframe, customFrom, customTo]);
 
     const customComparison = useMemo(() => calculateComparisonData(filteredReportsForCalc), [filteredReportsForCalc]);
 
     const displayComparison = useMemo<ComparisonData | null>(() => {
         const base = (branchFilter.length || airlineFilter.length || areaFilter.length || timeframe !== 'all') ? customComparison : safeComparison;
         if (!base) return null;
-        if (timeframe === 'all') return base;
+        if (timeframe === 'all' || timeframe === 'custom') return base;
         const take = timeframe === '3m' ? 3 : timeframe === '6m' ? 6 : 12;
         return { ...base, monthlyTrend: base.monthlyTrend.slice(-take) };
     }, [safeComparison, customComparison, timeframe, branchFilter.length, airlineFilter.length, areaFilter.length]);
@@ -636,6 +701,84 @@ export default function AnalystCharts({
         if (focus === 'Compliment') return ['compliment'] as const;
         return ['total', 'irregularity', 'complaint', 'compliment'] as const;
     }, [focus]);
+
+    // Inline Monthly Trend table (no new file)
+    const MonthlyTrendTable = ({ data }: { data: Array<{ month: string; total: number; irregularity: number; complaint: number; compliment: number }> }) => {
+        if (!data || data.length === 0) return null;
+        return (
+            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--surface-3)] overflow-hidden shadow-sm">
+                <div className="px-4 py-3 border-b border-[var(--surface-3)] bg-[var(--surface-2)]/50">
+                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Monthly Trend (Table)</h4>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-[var(--surface-2)]/30">
+                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Bulan</th>
+                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Total</th>
+                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Irregularity</th>
+                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Complaint</th>
+                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Compliment</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--surface-3)]">
+                            {data.map((row, idx) => (
+                                <tr key={row.month + idx} className="hover:bg-[var(--surface-2)]/50 transition-colors">
+                                    <td className="px-4 py-3">
+                                        <span className="text-xs font-bold text-[var(--text-primary)]">{row.month}</span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-bold">{row.total.toLocaleString()}</span></td>
+                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-medium text-[var(--text-secondary)]">{row.irregularity.toLocaleString()}</span></td>
+                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-medium text-[var(--text-secondary)]">{row.complaint.toLocaleString()}</span></td>
+                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-medium text-[var(--text-secondary)]">{row.compliment.toLocaleString()}</span></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+    // Inline Monthly Matrix table for Branch × Bulan / Airline × Bulan
+    const MonthlyMatrixTable = ({ title, rows, columns }: { title: string; rows: Array<Record<string, string | number>>; columns: string[] }) => {
+        if (!rows || rows.length === 0 || !columns || columns.length === 0) return null;
+        return (
+            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--surface-3)] overflow-hidden shadow-sm">
+                <div className="px-4 py-3 border-b border-[var(--surface-3)] bg-[var(--surface-2)]/50">
+                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{title}</h4>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-[var(--surface-2)]/30">
+                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Bulan</th>
+                                {columns.map((c) => (
+                                    <th key={c} className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">{c}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--surface-3)]">
+                            {rows.map((row, idx) => (
+                                <tr key={String(row.month ?? idx)} className="hover:bg-[var(--surface-2)]/50 transition-colors">
+                                    <td className="px-4 py-3">
+                                        <span className="text-xs font-bold text-[var(--text-primary)]">{String(row.month)}</span>
+                                    </td>
+                                    {columns.map((c) => (
+                                        <td key={c} className="px-4 py-3 text-right">
+                                            <span className="text-sm font-mono font-medium text-[var(--text-secondary)]">
+                                                {Number(row[c] ?? 0).toLocaleString()}
+                                            </span>
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
 
     const handleViewDetail = (
         title: string,
@@ -1221,28 +1364,59 @@ export default function AnalystCharts({
                 icon={TrendingUp}
             >
                 <div className="space-y-4">
-                    <div className="flex flex-col lg:flex-row lg:items-end gap-3 bg-[var(--surface-2)]/60 border border-[var(--surface-3)] rounded-xl p-3">
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className="flex flex-col gap-1.5">
+                    <div className="bg-[var(--surface-2)]/60 border border-[var(--surface-3)] rounded-xl p-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                            <div className="flex flex-col gap-1.5 lg:col-span-6">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Custom Range</label>
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                    <div className="relative flex-1 min-w-[140px]">
+                                        <CalendarDays size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                                        <input
+                                            type="date"
+                                            value={customFrom}
+                                            onChange={(e)=>setCustomFrom(e.target.value)}
+                                            className="w-full pl-7 pr-2 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
+                                        />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-[var(--text-muted)]">→</span>
+                                    <div className="relative flex-1 min-w-[140px]">
+                                        <CalendarDays size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                                        <input
+                                            type="date"
+                                            value={customTo}
+                                            onChange={(e)=>setCustomTo(e.target.value)}
+                                            className="w-full pl-7 pr-2 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={()=> setTimeframe('custom')}
+                                        className={`px-3 py-2 h-[40px] text-[11px] font-bold rounded-lg border whitespace-nowrap shrink-0 ${timeframe==='custom' ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]' : 'bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--surface-3)]'}`}
+                                        disabled={!customFrom || !customTo}
+                                    >
+                                        Terapkan
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5 lg:col-span-3">
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Timeframe</label>
                                 <div className="grid grid-cols-4 gap-1.5">
                                     {(['3m','6m','12m','all'] as const).map(tf => (
                                         <button
                                             key={tf}
                                             onClick={() => setTimeframe(tf)}
-                                            className={`px-2 py-1.5 text-[11px] font-bold rounded-md border ${timeframe===tf?'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]':'bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--surface-3)]'}`}
+                                            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border ${timeframe===tf?'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]':'bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--surface-3)]'}`}
                                         >
                                             {tf.toUpperCase()}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-1.5 lg:col-span-3">
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Focus</label>
                                 <select
                                     value={focus}
                                     onChange={(e)=>setFocus(e.target.value as any)}
-                                    className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
+                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
                                 >
                                     <option value="all">All Categories</option>
                                     <option value="Total">Total</option>
@@ -1251,76 +1425,172 @@ export default function AnalystCharts({
                                     <option value="Compliment">Compliment</option>
                                 </select>
                             </div>
-                            <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-1.5 lg:col-span-3">
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Branch</label>
                                 <select
-                                    multiple
-                                    value={branchFilter}
-                                    onChange={(e)=>setBranchFilter(Array.from(e.target.selectedOptions).map(o=>o.value))}
-                                    className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)] h-[40px]"
+                                    value={branchFilter[0] ?? 'all'}
+                                    onChange={(e)=>setBranchFilter(e.target.value === 'all' ? [] : [e.target.value])}
+                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
                                 >
-                                    {(safeComparison?.topBranches || []).map(b=>(
+                                    <option value="all">All Branches</option>
+                                    {branchOptions.map(b=>(
                                         <option key={b} value={b}>{b}</option>
                                     ))}
                                 </select>
                             </div>
-                            <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-1.5 lg:col-span-3">
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Airline</label>
                                 <select
-                                    multiple
-                                    value={airlineFilter}
-                                    onChange={(e)=>setAirlineFilter(Array.from(e.target.selectedOptions).map(o=>o.value))}
-                                    className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)] h-[40px]"
+                                    value={airlineFilter[0] ?? 'all'}
+                                    onChange={(e)=>setAirlineFilter(e.target.value === 'all' ? [] : [e.target.value])}
+                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
                                 >
-                                    {(safeComparison?.topAirlines || []).map(a=>(
+                                    <option value="all">All Airlines</option>
+                                    {airlineOptions.map(a=>(
+                                        <option key={a} value={a}>{a}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1.5 lg:col-span-3">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Area</label>
+                                <select
+                                    value={areaFilter[0] ?? 'all'}
+                                    onChange={(e)=>setAreaFilter(e.target.value === 'all' ? [] : [e.target.value])}
+                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
+                                >
+                                    <option value="all">All Areas</option>
+                                    {areaOptions.map(a=>(
                                         <option key={a} value={a}>{a}</option>
                                     ))}
                                 </select>
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            <select
-                                multiple
-                                value={areaFilter}
-                                onChange={(e)=>setAreaFilter(Array.from(e.target.selectedOptions).map(o=>o.value))}
-                                className="px-2 py-2 text-[12px] font-semibold rounded-md border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)] h-[40px]"
-                            >
-                                {['Terminal Area','Apron Area','General Area'].map(a=>(
-                                    <option key={a} value={a}>{a}</option>
-                                ))}
-                            </select>
+                    </div>
+
+                    {/* View mode toggle */}
+                    <div className="flex items-center justify-end gap-2 -mt-2">
+                        <div className="flex p-0.5 rounded-xl bg-[var(--surface-2)] border border-[var(--surface-3)]">
                             <button
-                                onClick={()=>{
-                                    setTimeframe('12m');
-                                    setFocus('all');
-                                    setBranchFilter([]);
-                                    setAirlineFilter([]);
-                                    setAreaFilter([]);
-                                }}
-                                className="px-3 py-2 text-[12px] font-black rounded-md border border-[var(--surface-3)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)]/30"
+                                onClick={() => setViewMode('chart')}
+                                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${viewMode==='chart' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
                             >
-                                Reset
+                                Grafik
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${viewMode==='table' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
+                            >
+                                Tabel
                             </button>
                         </div>
                     </div>
-                    <MonthlyTrendChart
-                        title="Monthly Trend"
-                        subtitle="Volume by month"
-                        data={displayComparison?.monthlyTrend ?? []}
-                        dataKeys={chartKeys as any}
-                        metrics={displayComparison?.overallMetrics ?? []}
-                        colors={ENTERPRISE_COLORS}
-                    />
+
+                    {/* Management Summary Section */}
+                    <div className="grid grid-cols-1 gap-4 mb-6 animate-fade-in-up">
+                        <div className="card-glass p-6 border-l-4 border-[var(--brand-primary)] bg-white/50 backdrop-blur-md shadow-sm">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 rounded-2xl bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                                    <Shield size={24} />
+                                </div>
+                                <div className="space-y-2 flex-1">
+                                    <h3 className="text-lg font-extrabold text-[var(--text-primary)] tracking-tight uppercase flex items-center gap-2">
+                                        Management Summary
+                                        <span className="px-2 py-0.5 rounded-full bg-[var(--surface-3)] text-[10px] text-[var(--text-muted)] font-bold">RINGKASAN EKSEKUTIF</span>
+                                    </h3>
+                                    <div className="text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
+                                        <p>
+                                            Ringkasan perbandingan kinerja operasional antara periode ini (<span className="text-[var(--text-primary)] font-bold">{displayComparison?.overallMetrics[0]?.currentMonth || "Bulan Berjalan"}</span>) 
+                                            dengan periode sebelumnya (<span className="text-[var(--text-primary)] font-bold">{displayComparison?.overallMetrics[0]?.previousMonth || "Bulan Lalu"}</span>).
+                                        </p>
+                                        <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 list-none">
+                                            <li className="flex items-start gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] mt-1.5 shrink-0" />
+                                                <span>Tren volume laporan menunjukkan perubahan sebesar <span className={cn("font-bold px-1.5 py-0.5 rounded text-xs", (displayComparison?.overallMetrics[0]?.momDelta || 0) >= 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700")}>{(displayComparison?.overallMetrics[0]?.momDelta || 0).toFixed(1)}%</span> dari periode sebelumnya.</span>
+                                            </li>
+                                            <li className="flex items-start gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] mt-1.5 shrink-0" />
+                                                <span>Akurasi data dipantau setiap hari untuk memastikan perbandingan <strong>Month-over-Month (MoM)</strong> tetap valid dan transparan.</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <div className="mt-4 flex flex-wrap gap-4 text-[10px] items-center text-[var(--text-muted)] font-bold uppercase tracking-widest bg-[var(--surface-2)] p-2 rounded-lg border border-[var(--surface-3)]">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-[var(--brand-primary)]" />
+                                            Target: Stabilitas Operasional
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                            Status: Data Terverifikasi
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            Perbandingan: {displayComparison?.overallMetrics[0]?.previousMonth || "Lalu"} → {displayComparison?.overallMetrics[0]?.currentMonth || "Kini"}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {viewMode === 'chart' ? (
+                        <MonthlyTrendChart
+                            title="Monthly Trend"
+                            subtitle="Volume by month"
+                            data={displayComparison?.monthlyTrend ?? []}
+                            dataKeys={chartKeys as any}
+                            metrics={displayComparison?.overallMetrics ?? []}
+                            colors={ENTERPRISE_COLORS}
+                        />
+                    ) : (
+                        <MonthlyTrendTable data={displayComparison?.monthlyTrend ?? []} />
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <ComparisonTable 
                             title="Category Summary" 
-                            metrics={displayComparison?.overallMetrics ?? []} 
+                            metrics={(displayComparison?.overallMetrics ?? []).filter(m => m.label !== 'Total')} 
                         />
                         <ComparisonTable 
                             title="Area Summary" 
                             metrics={displayComparison?.areaMetrics ?? []} 
                         />
                     </div>
+                    {viewMode === 'table' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <ComparisonTable 
+                                title="Branch Summary" 
+                                metrics={displayComparison?.branchMetrics ?? []} 
+                            />
+                            <ComparisonTable 
+                                title="Airline Summary" 
+                                metrics={displayComparison?.airlineMetrics ?? []} 
+                            />
+                        </div>
+                    )}
+                    {viewMode === 'table' && (
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Matrix Distribusi Bulanan</h4>
+                                <div className="flex p-0.5 rounded-xl bg-[var(--surface-2)] border border-[var(--surface-3)]">
+                                    <button
+                                        onClick={() => setMatrixMode('branch')}
+                                        className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${matrixMode==='branch' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
+                                    >
+                                        Branch × Bulan
+                                    </button>
+                                    <button
+                                        onClick={() => setMatrixMode('airline')}
+                                        className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${matrixMode==='airline' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
+                                    >
+                                        Airline × Bulan
+                                    </button>
+                                </div>
+                            </div>
+                            <MonthlyMatrixTable
+                                title={matrixMode === 'branch' ? 'Branch × Bulan' : 'Airline × Bulan'}
+                                rows={(matrixMode === 'branch' ? (displayComparison?.branchMoM ?? []) : (displayComparison?.airlineMoM ?? [])) as Array<Record<string, string | number>>}
+                                columns={(matrixMode === 'branch' ? (displayComparison?.topBranches ?? []) : (displayComparison?.topAirlines ?? []))}
+                            />
+                        </div>
+                    )}
                 </div>
             </PresentationSlide>
             )}

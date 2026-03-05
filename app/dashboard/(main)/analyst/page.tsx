@@ -51,7 +51,7 @@ export default function AnalystDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
-  const [dateRange, setDateRange] = useState<'all' | 'week' | 'month'>('all');
+  const [dateRange, setDateRange] = useState<'all' | 'week' | 'month' | { from: string; to: string }>('all');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   // Triage State
@@ -76,7 +76,7 @@ export default function AnalystDashboard() {
         }
 
         const [reportsRes, analyticsRes] = await Promise.all([
-          fetch('/api/admin/reports'),
+          fetch('/api/admin/reports?source=sheets'),
           fetch('/api/admin/analytics'),
         ]);
 
@@ -111,11 +111,41 @@ export default function AnalystDashboard() {
   // Filtered reports based on date range
   const filteredReports = useMemo(() => {
     if (dateRange === 'all') return reports;
+    
     const now = new Date();
-    const daysMap: Record<'week' | 'month', number> = { week: 7, month: 30 };
-    const daysBack = daysMap[dateRange];
-    const cutoffDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-    return reports.filter((r) => new Date(r.created_at) >= cutoffDate);
+    // Set to local end of day to be inclusive
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    
+    let cutoffDate: Date;
+    let explicitEndDate: Date | null = null;
+
+    if (typeof dateRange === 'object') {
+      cutoffDate = new Date(dateRange.from);
+      cutoffDate.setHours(0, 0, 0, 0);
+      explicitEndDate = new Date(dateRange.to);
+      explicitEndDate.setHours(23, 59, 59, 999);
+    } else if (dateRange === 'month') {
+      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+    } else {
+      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+    }
+    
+    const endDate = explicitEndDate || today;
+    
+    return reports.filter((r) => {
+        const dateStr = r.date_of_event || r.created_at;
+        if (!dateStr) return false;
+        
+        let d: Date;
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [y, m, day] = dateStr.split('-').map(Number);
+            d = new Date(y, m - 1, day);
+        } else {
+            d = new Date(dateStr);
+        }
+        
+        return d >= cutoffDate && d <= endDate;
+    });
   }, [reports, dateRange]);
 
   // Calculate stats
@@ -319,11 +349,21 @@ export default function AnalystDashboard() {
     const compliment = filteredReports.filter(
       (r) => r.category === 'Compliment'
     ).length;
-    return [
+    const others = filteredReports.filter(
+      (r) => !['Irregularity', 'Complaint', 'Compliment'].includes(r.category || '')
+    ).length;
+    
+    const data = [
       { name: 'Irregularity', value: irregularity, fill: '#10b981' },
       { name: 'Complaint', value: complaint, fill: '#ec4899' },
       { name: 'Compliment', value: compliment, fill: '#06b6d4' },
     ];
+
+    if (others > 0) {
+      data.push({ name: 'Lainnya', value: others, fill: '#94a3b8' });
+    }
+    
+    return data;
   }, [filteredReports]);
 
   const branchReportData = useMemo(() => {
@@ -345,9 +385,22 @@ export default function AnalystDashboard() {
     >();
 
     filteredReports.forEach((r) => {
-      const d = new Date(r.created_at);
+      const dateStr = r.date_of_event || r.created_at;
+      if (!dateStr) return;
+
+      let d: Date;
+      if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [y, m, day] = dateStr.split('-').map(Number);
+        d = new Date(y, m - 1, day);
+      } else {
+        d = new Date(dateStr);
+      }
+
       if (isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0'
+      )}`;
 
       if (!dataMap.has(key)) {
         dataMap.set(key, {
@@ -497,14 +550,24 @@ export default function AnalystDashboard() {
     >();
 
     filteredReports.forEach((r) => {
-      const dCreated = new Date(r.created_at);
-      if (!isNaN(dCreated.getTime())) {
-        const keyCreated = `${dCreated.getFullYear()}-${String(
-          dCreated.getMonth() + 1
-        ).padStart(2, '0')}`;
-        if (!dataMap.has(keyCreated))
-          dataMap.set(keyCreated, { masuk: 0, selesai: 0, date: dCreated });
-        dataMap.get(keyCreated)!.masuk++;
+      const dateStrCreated = r.date_of_event || r.created_at;
+      if (dateStrCreated) {
+        let dCreated: Date;
+        if (typeof dateStrCreated === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStrCreated)) {
+          const [y, m, day] = dateStrCreated.split('-').map(Number);
+          dCreated = new Date(y, m - 1, day);
+        } else {
+          dCreated = new Date(dateStrCreated);
+        }
+
+        if (!isNaN(dCreated.getTime())) {
+          const keyCreated = `${dCreated.getFullYear()}-${String(
+            dCreated.getMonth() + 1
+          ).padStart(2, '0')}`;
+          if (!dataMap.has(keyCreated))
+            dataMap.set(keyCreated, { masuk: 0, selesai: 0, date: dCreated });
+          dataMap.get(keyCreated)!.masuk++;
+        }
       }
 
       if (r.resolved_at) {
