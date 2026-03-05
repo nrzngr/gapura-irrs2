@@ -35,7 +35,7 @@ const CATEGORIES = [
     description: 'Laporkan kendala operasional, kerusakan, atau penyimpangan.',
     icon: AlertTriangle,
     color: 'oklch(0.55 0.22 30)',
-    span: 'col-span-1 row-span-1'
+    span: 'col-span-2 row-span-2 md:col-span-2 md:row-span-2'
   },
   {
     id: 'JOUMPA',
@@ -454,7 +454,7 @@ export default function PublicReportPage() {
 
       {/* Bento Grid */}
       <main className="max-w-7xl mx-auto mb-32 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 auto-rows-[140px] md:auto-rows-[220px] px-4 md:px-0">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 auto-rows-[160px] md:auto-rows-[240px] px-4 md:px-0">
           {CATEGORIES.map((cat, idx) => (
             <motion.div
               key={cat.id}
@@ -472,7 +472,7 @@ export default function PublicReportPage() {
                 variant="frosted"
                 className="h-full border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 transition-all duration-500 shadow-spatial-sm hover:shadow-spatial-lg"
               >
-                <div className="p-4 md:p-8 h-full flex flex-col justify-between relative z-10 overflow-hidden">
+                <div className="p-5 md:p-7 h-full flex flex-col justify-between relative z-10 overflow-hidden">
                   <div className="space-y-1.5 md:space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-[oklch(1_0_0_/_0.4)] border border-white/40 shadow-inner-rim">
@@ -484,7 +484,7 @@ export default function PublicReportPage() {
                       <h3 className="text-base md:text-2xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)] group-hover:translate-x-1 transition-transform leading-tight">
                         {cat.title}
                       </h3>
-                      <p className="hidden md:block text-sm text-[oklch(0.45_0.02_200)] leading-relaxed font-medium line-clamp-2">{cat.description}</p>
+                      <p className="hidden md:block text-sm text-[oklch(0.45_0.02_200)] leading-relaxed font-medium line-clamp-3">{cat.description}</p>
                     </div>
                   </div>
                   
@@ -600,23 +600,27 @@ export default function PublicReportPage() {
                   <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
                     <div className="text-center space-y-3">
                       <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
-                        {CATEGORIES.find(c => c.id === formData.main_category)?.title} Access
+                        {CATEGORIES.find(c => c.id === formData.main_category)?.title}
                       </h3>
-                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Klik link di bawah untuk mengisi formulir report.</p>
+                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">
+                        {CATEGORIES.find(c => c.id === formData.main_category)?.description || 'Klik link di bawah ini.'}
+                      </p>
                     </div>
                     
                     <div className="flex flex-col gap-4 w-full max-w-xl px-4">
-                      {CATEGORIES.find(c => c.id === formData.main_category)?.links?.map((link, lIdx) => (
-                        <a 
-                          key={lIdx}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group relative flex items-center gap-6 p-6 rounded-[32px] bg-white border border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 transition-all duration-500 shadow-spatial-sm hover:shadow-spatial-md overflow-hidden"
-                        >
-                          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-500 shadow-inner-rim">
-                            <ClipboardCheck className="w-8 h-8 text-emerald-600" />
-                          </div>
+                      {CATEGORIES.find(c => c.id === formData.main_category)?.links?.map((link, lIdx) => {
+                        const Icon = CATEGORIES.find(c => c.id === formData.main_category)?.icon || ClipboardCheck;
+                        return (
+                          <a 
+                            key={lIdx}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative flex items-center gap-6 p-6 rounded-[32px] bg-white border border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 transition-all duration-500 shadow-spatial-sm hover:shadow-spatial-md overflow-hidden"
+                          >
+                            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-500 shadow-inner-rim">
+                              <Icon className="w-8 h-8 text-emerald-600" />
+                            </div>
                           
                           <div className="flex-1">
                             <h4 className="text-xl font-display font-black text-[oklch(0.15_0.05_200)] group-hover:text-emerald-700 transition-colors">{link.label}</h4>
@@ -628,9 +632,10 @@ export default function PublicReportPage() {
                           {/* Inner silk effect */}
                           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </a>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
+                </div>
                 ) : (
                   <>
                     {error && (

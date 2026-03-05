@@ -130,22 +130,27 @@ export function formatEventForCalendar(event: CalendarEvent): {
   resource: CalendarEvent;
 } {
   let startDate = parseISO(event.event_date);
+  const isMultiDay = !!event.event_end_date && event.event_end_date !== event.event_date;
 
-  // If event_time exists, parse and set the time
-  if (event.event_time) {
+  if (event.event_time && !isMultiDay) {
     const [hours, minutes] = event.event_time.split(':').map(Number);
-    // Validate hours and minutes
     if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
       startDate = set(startDate, { hours, minutes, seconds: 0, milliseconds: 0 });
     }
+  }
+
+  // react-big-calendar uses exclusive end dates for allDay events
+  let endDate = startDate;
+  if (isMultiDay) {
+    endDate = addDays(parseISO(event.event_end_date!), 1);
   }
 
   return {
     id: event.id,
     title: event.title,
     start: startDate,
-    end: startDate, // Same as start for single events
-    allDay: !event.event_time,
+    end: endDate,
+    allDay: isMultiDay || !event.event_time,
     resource: event,
   };
 }

@@ -77,8 +77,15 @@ export function EventDetailModal({
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-[var(--text-muted)] mt-0.5" />
               <div>
-                <p className="text-sm text-[var(--text-muted)]">Date</p>
-                <p className="text-[var(--text-primary)]">{formatDate(event.event_date)}</p>
+                <p className="text-sm text-[var(--text-muted)]">
+                  {event.event_end_date && event.event_end_date !== event.event_date ? 'Date Range' : 'Date'}
+                </p>
+                <p className="text-[var(--text-primary)]">
+                  {formatDate(event.event_date)}
+                  {event.event_end_date && event.event_end_date !== event.event_date && (
+                    <> – {formatDate(event.event_end_date)}</>
+                  )}
+                </p>
               </div>
             </div>
 

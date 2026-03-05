@@ -184,6 +184,7 @@ export interface CalendarEvent {
     id: string;
     title: string;
     event_date: string;  // ISO date string YYYY-MM-DD
+    event_end_date?: string | null;  // ISO date string YYYY-MM-DD (multi-day)
     event_time?: string | null;  // HH:MM format
     notes?: string | null;
     meeting_minutes_link?: string | null;
@@ -209,6 +210,7 @@ export type CalendarType = 'event' | 'meeting';
 export interface CreateCalendarEventInput {
     title: string;
     event_date: string;
+    event_end_date?: string | null;
     event_time?: string | null;
     notes?: string | null;
     meeting_minutes_link?: string | null;
@@ -221,6 +223,7 @@ export interface CreateCalendarEventInput {
 export interface UpdateCalendarEventInput {
     title?: string;
     event_date?: string;
+    event_end_date?: string | null;
     event_time?: string | null;
     notes?: string | null;
     meeting_minutes_link?: string | null;

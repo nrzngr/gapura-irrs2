@@ -63,6 +63,7 @@ export async function GET(
       id: data.id,
       title: data.title,
       event_date: data.event_date,
+      event_end_date: data.event_end_date || null,
       event_time: data.event_time,
       notes: data.notes,
       meeting_minutes_link: data.meeting_minutes_link,
@@ -177,9 +178,15 @@ export async function PATCH(
     const updatePayload: any = {};
     if (body.title !== undefined) updatePayload.title = body.title;
     if (body.event_date !== undefined) updatePayload.event_date = body.event_date;
+    if (body.event_end_date !== undefined) updatePayload.event_end_date = body.event_end_date;
     if (body.event_time !== undefined) updatePayload.event_time = body.event_time;
     if (body.notes !== undefined) updatePayload.notes = body.notes;
     if (body.meeting_minutes_link !== undefined) updatePayload.meeting_minutes_link = body.meeting_minutes_link;
+
+    if (updatePayload.event_end_date && updatePayload.event_date && updatePayload.event_end_date < updatePayload.event_date) {
+      return NextResponse.json({ error: 'End date must be on or after start date' }, { status: 400 });
+    }
+
     updatePayload.updated_at = new Date().toISOString();
 
     // 8. Handle edit scope logic
@@ -284,6 +291,7 @@ export async function PATCH(
       id: data.id,
       title: data.title,
       event_date: data.event_date,
+      event_end_date: data.event_end_date || null,
       event_time: data.event_time,
       notes: data.notes,
       meeting_minutes_link: data.meeting_minutes_link,

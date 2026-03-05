@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Trash2, FileText, Repeat } from 'lucide-react';
+import { X, Trash2, FileText, Repeat, CalendarRange } from 'lucide-react';
 import { CalendarEvent, CreateCalendarEventInput, RecurrencePattern, CalendarType } from '@/types';
 import { PrismInput } from '@/components/ui/PrismInput';
 import { PrismButton } from '@/components/ui/PrismButton';
@@ -39,6 +39,8 @@ export function EventModal({
   const [editScope, setEditScope] = useState<'single' | 'all'>('single');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [eventEndDate, setEventEndDate] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -56,6 +58,8 @@ export function EventModal({
         setIsRecurring(event.is_recurring);
         setRecurrencePattern(event.recurrence_pattern || 'weekly');
         setRecurrenceEndDate(event.recurrence_end_date || '');
+        setIsMultiDay(!!event.event_end_date && event.event_end_date !== event.event_date);
+        setEventEndDate(event.event_end_date || '');
       } else {
         setTitle('');
         setEventDate(defaultDate ? defaultDate.toISOString().split('T')[0] : '');
@@ -65,6 +69,8 @@ export function EventModal({
         setIsRecurring(false);
         setRecurrencePattern('weekly');
         setRecurrenceEndDate('');
+        setIsMultiDay(false);
+        setEventEndDate('');
       }
       setError('');
       setEditScope('single');
@@ -77,6 +83,11 @@ export function EventModal({
       return;
     }
 
+    if (isMultiDay && eventEndDate && eventEndDate < eventDate) {
+      setError('End date must be on or after start date');
+      return;
+    }
+
     try {
       setSaving(true);
       setError('');
@@ -84,6 +95,7 @@ export function EventModal({
       const payload: CreateCalendarEventInput = {
         title: title.trim(),
         event_date: eventDate,
+        event_end_date: isMultiDay && eventEndDate ? eventEndDate : null,
         event_time: eventTime || null,
         notes: notes || null,
         meeting_minutes_link: meetingMinutesLink || null,
@@ -171,22 +183,50 @@ export function EventModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-[var(--text-secondary)] mb-1">Date *</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-1">{isMultiDay ? 'Start Date *' : 'Date *'}</label>
               <PrismInput
                 type="date"
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm text-[var(--text-secondary)] mb-1">Time</label>
-              <PrismInput
-                type="time"
-                value={eventTime}
-                onChange={(e) => setEventTime(e.target.value)}
-                placeholder="HH:MM"
+            {isMultiDay ? (
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">End Date *</label>
+                <PrismInput
+                  type="date"
+                  value={eventEndDate}
+                  onChange={(e) => setEventEndDate(e.target.value)}
+                  min={eventDate}
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">Time</label>
+                <PrismInput
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  placeholder="HH:MM"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="pt-1">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isMultiDay}
+                onChange={(e) => {
+                  setIsMultiDay(e.target.checked);
+                  if (!e.target.checked) setEventEndDate('');
+                }}
+                className="w-4 h-4 rounded border-[oklch(0.85_0.02_90)] bg-[var(--surface-3)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
               />
-            </div>
+              <CalendarRange className="w-4 h-4" />
+              Multi-day Event
+            </label>
           </div>
 
           <div>
