@@ -73,12 +73,41 @@ export interface ActionSummaryResponse {
 }
 
 // Risk Summary Types
+
+export interface RiskOverview {
+  total_issues: number;
+  total_severity_distribution: Record<string, number>;
+  avg_risk_score_airlines: number;
+  avg_risk_score_branches: number;
+  avg_risk_score_hubs: number;
+  risk_level_thresholds: Record<string, number>;
+}
+
+export interface EntityRiskDetail {
+  name: string;
+  risk_score: number;
+  risk_level: string;
+  total_issues: number;
+  severity_distribution: Record<string, number>;
+  issue_categories: string[];
+  category_count: number;
+  frequency_score: number;
+  severity_score: number;
+  data_quality_score: number;
+  recommendations: string[];
+}
+
 export interface RiskSummaryData {
+  overview?: RiskOverview;
   airline_risks?: Record<string, number>;
   branch_risks?: Record<string, number>;
   hub_risks?: Record<string, number>;
   top_risky_airlines?: string[];
   top_risky_branches?: string[];
+  top_risky_hubs?: string[];
+  airline_details?: EntityRiskDetail[];
+  branch_details?: EntityRiskDetail[];
+  hub_details?: EntityRiskDetail[];
   total_airlines?: number;
   total_branches?: number;
   total_hubs?: number;

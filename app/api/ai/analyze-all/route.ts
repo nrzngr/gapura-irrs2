@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     const primaryUrl = `${AI_SERVICE_URL}/api/ai/analyze-all?${baseQuery}`;
     const fallbackUrl = `${AI_SERVICE_URL}/api/ai/analyze-all/fast?${baseQuery}`;
     const controller = new AbortController();
-    const timeoutMs = Number(process.env.AI_API_TIMEOUT_MS || '240000');
+    const timeoutMs = Number(process.env.AI_API_TIMEOUT_MS || '2400000');
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let aiResponse: Response | null = null;
     try {

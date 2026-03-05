@@ -28,7 +28,7 @@ export function AISummaryKPICards({
   const [riskError, setRiskError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const mountRef = useRef(true);
 
   const fetchRiskSummary = useCallback(async () => {
@@ -238,6 +238,7 @@ export function AISummaryKPICards({
                 >
                   <RiskSummaryCard
                     data={riskData}
+                    actionData={actionData}
                     loading={riskLoading}
                     error={riskError}
                   />

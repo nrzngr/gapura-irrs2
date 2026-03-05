@@ -15,7 +15,7 @@ import { QRCodeWithLogo } from '@/components/ui/QRCodeWithLogo';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { NoiseTexture } from '@/components/ui/NoiseTexture';
 import { PrismButton } from '@/components/ui/PrismButton';
-import { PublicAIChatbot } from '@/components/ai/PublicAIChatbot';
+
 
 const CATEGORIES = [
   {
@@ -24,7 +24,10 @@ const CATEGORIES = [
     description: 'Tanya asisten AI untuk bantuan operasional.',
     icon: Bot,
     color: 'oklch(0.60 0.18 260)',
-    span: 'col-span-2 row-span-2 md:col-span-2 md:row-span-2'
+    span: 'col-span-2 row-span-2 md:col-span-2 md:row-span-2',
+    links: [
+      { label: 'Buka AI Virtual Assistant', sublabel: 'Powered by Gapura RAG', url: 'https://gapura-dev-gapura-rag.hf.space/' }
+    ]
   },
   {
     id: 'Irregularity',
@@ -479,11 +482,7 @@ export default function PublicReportPage() {
                     </div>
                     <div className="space-y-0.5 md:space-y-2">
                       <h3 className="text-base md:text-2xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)] group-hover:translate-x-1 transition-transform leading-tight">
-                        {cat.id === 'AIChatbot' ? (
-                          <>
-                            <span className="italic font-black">&ldquo;I&apos;m in Charge&rdquo;</span> AI Virtual Assistant
-                          </>
-                        ) : cat.title}
+                        {cat.title}
                       </h3>
                       <p className="hidden md:block text-sm text-[oklch(0.45_0.02_200)] leading-relaxed font-medium line-clamp-2">{cat.description}</p>
                     </div>
@@ -533,11 +532,7 @@ export default function PublicReportPage() {
               <div className="p-6 md:p-8 pb-4 flex items-center justify-between relative z-10 border-b border-[oklch(0.15_0.02_200_/_0.05)]">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
-                    {formData.main_category === 'AIChatbot' ? (
-                      <>
-                        <span className="italic font-black">&ldquo;I&apos;m in Charge&rdquo;</span> AI Virtual Assistant
-                      </>
-                    ) : (CATEGORIES.find(c => c.id === formData.main_category)?.title ?? formData.main_category)}
+                    {CATEGORIES.find(c => c.id === formData.main_category)?.title ?? formData.main_category}
                   </h2>
                 </div>
                 <button 
@@ -600,10 +595,6 @@ export default function PublicReportPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : formData.main_category === 'AIChatbot' ? (
-                  <div className="py-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-500 w-full h-full">
-                    <PublicAIChatbot />
                   </div>
                 ) : CATEGORIES.find(c => c.id === formData.main_category)?.links ? (
                   <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
