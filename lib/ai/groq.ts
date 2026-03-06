@@ -16,11 +16,11 @@ export type GroqMessage = {
 };
 
 /**
- * Calls Groq AI API with llama-3.1-8b-instant
+ * Calls Groq AI API with llama-3.3-70b-versatile (high intelligence)
  */
 export async function callGroqAI(
   messages: GroqMessage[],
-  model: string = "llama-3.1-8b-instant"
+  model: string = "llama-3.3-70b-versatile"
 ): Promise<string> {
   try {
     console.log(`[Groq] Calling model: ${model}`);
@@ -29,7 +29,7 @@ export async function callGroqAI(
       model: model,
       messages: messages as any,
       temperature: 0.1, // Low temperature for deterministic analysis
-      max_tokens: 1024,
+      max_tokens: 4096,
     });
 
     return completion.choices[0]?.message?.content || "";

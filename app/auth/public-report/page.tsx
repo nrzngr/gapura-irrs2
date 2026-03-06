@@ -19,23 +19,12 @@ import { PrismButton } from '@/components/ui/PrismButton';
 
 const CATEGORIES = [
   {
-    id: 'AIChatbot',
-    title: "I'm in Charge AI Virtual Assistant",
-    description: 'Tanya asisten AI untuk bantuan operasional.',
-    icon: Bot,
-    color: 'oklch(0.60 0.18 260)',
-    span: 'col-span-2 row-span-2 md:col-span-2 md:row-span-2',
-    links: [
-      { label: 'Buka AI Virtual Assistant', sublabel: 'Powered by Gapura RAG', url: 'https://gapura-dev-gapura-rag.hf.space/' }
-    ]
-  },
-  {
     id: 'Irregularity',
     title: 'Irregularity Report',
     description: 'Laporkan kendala operasional, kerusakan, atau penyimpangan.',
     icon: AlertTriangle,
     color: 'oklch(0.55 0.22 30)',
-    span: 'col-span-2 row-span-2 md:col-span-2 md:row-span-2'
+    span: 'col-span-1 row-span-1 sm:col-span-2 sm:row-span-2 lg:col-span-2 lg:row-span-2'
   },
   {
     id: 'JOUMPA',
@@ -43,7 +32,7 @@ const CATEGORIES = [
     description: 'Hospitality & VIP Service access.',
     icon: QrCode,
     color: 'oklch(0.50 0.15 190)',
-    span: 'col-span-1 row-span-1',
+    span: 'col-span-1 row-span-1 sm:col-span-1 sm:row-span-1',
     qrLinks: [
       { label: 'Customer JOUMPA', url: 'https://forms.gle/gQpqWn2eSRqSsoJt7' },
       { label: 'Staff JOUMPA', url: 'https://forms.gle/QTP5vvwbmJxDroSB7' }
@@ -55,7 +44,7 @@ const CATEGORIES = [
     description: 'Akses cepat pengisian laporan SLA.',
     icon: ClipboardCheck,
     color: 'oklch(0.45 0.18 240)',
-    span: 'col-span-2 md:col-span-2 row-span-1',
+    span: 'col-span-1 sm:col-span-2 lg:col-span-2 row-span-1',
     qrLinks: [
       { label: 'Pengisian SLA Landside', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' },
       { label: 'Pengisian SLA Airside', url: 'https://docs.google.com/forms/d/e/1FAIpQLSeu3mRk2R_V-m9lBIn9704Kx6u3_p3d8pT80p3/viewform' }
@@ -70,29 +59,6 @@ const CATEGORIES = [
     span: 'col-span-1 row-span-1',
     qrLinks: [
       { label: 'Survey Penumpang', url: 'https://forms.gle/G5T9yx2MBSWdXtJE7' }
-    ]
-  },
-  {
-    id: 'WSN',
-    title: 'WSN Dashboard',
-    description: 'Monitoring WSN & Weekly Service Notice.',
-    icon: QrCode,
-    color: 'oklch(0.55 0.18 180)',
-    span: 'col-span-2 md:col-span-2 row-span-1',
-    qrLinks: [
-      { label: 'Monitoring WSN Dashboard', url: 'https://lookerstudio.google.com/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_ufv08vzhsd' },
-      { label: 'Weekly Service Notice Dashboard', url: 'https://lookerstudio.google.com/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_1swzqz7usd' }
-    ]
-  },
-  {
-    id: 'Handbook',
-    title: 'Handbook SLA',
-    description: 'Panduan standar layanan operasional prima.',
-    icon: BookOpen,
-    color: 'oklch(0.45 0.20 160)',
-    span: 'col-span-2 md:col-span-2 row-span-1',
-    links: [
-      { label: 'Buka Handbook SLA', sublabel: 'SIS Apps Dev', url: 'https://sis.appsdev.my.id/' }
     ]
   }
 ];
@@ -289,6 +255,11 @@ export default function PublicReportPage() {
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 5));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
+  const selectedCategory = CATEGORIES.find(c => c.id === formData.main_category);
+  const hasQrLinks = (c: (typeof CATEGORIES)[number]): c is (typeof CATEGORIES)[number] & { qrLinks: QRLink[] } => {
+    return 'qrLinks' in c && Array.isArray((c as { qrLinks?: QRLink[] }).qrLinks);
+  };
+
   const isStepValid = (): boolean => {
     switch (step) {
       case 1:
@@ -454,7 +425,7 @@ export default function PublicReportPage() {
 
       {/* Bento Grid */}
       <main className="max-w-7xl mx-auto mb-32 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 auto-rows-[160px] md:auto-rows-[240px] px-4 md:px-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 auto-rows-[minmax(140px,auto)] sm:auto-rows-[minmax(180px,auto)] lg:auto-rows-[minmax(220px,auto)] grid-flow-row-dense px-4 md:px-0">
           {CATEGORIES.map((cat, idx) => (
             <motion.div
               key={cat.id}
@@ -484,7 +455,7 @@ export default function PublicReportPage() {
                       <h3 className="text-base md:text-2xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)] group-hover:translate-x-1 transition-transform leading-tight">
                         {cat.title}
                       </h3>
-                      <p className="hidden md:block text-sm text-[oklch(0.45_0.02_200)] leading-relaxed font-medium line-clamp-3">{cat.description}</p>
+                      <p className="hidden md:block text-sm text-[oklch(0.45_0.02_200)] leading-relaxed font-medium">{cat.description}</p>
                     </div>
                   </div>
                   
@@ -548,22 +519,22 @@ export default function PublicReportPage() {
 
               {/* Modal Content */}
               <div className="flex-1 overflow-y-auto p-8 relative z-10 custom-scrollbar">
-                {CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks ? (
+                {selectedCategory && hasQrLinks(selectedCategory) ? (
                   <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
                     <div className="text-center space-y-3">
                       <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
-                        {CATEGORIES.find(c => c.id === formData.main_category)?.title || 'Access'}
+                        {selectedCategory?.title || 'Access'}
                       </h3>
                       <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">Scan QR atau gunakan tombol untuk salin/buka link.</p>
                     </div>
                     <div
                       className={`grid gap-12 w-full max-w-3xl px-4 ${
-                        (CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks?.length ?? 0) > 1
+                        (selectedCategory.qrLinks?.length ?? 0) > 1
                           ? 'grid-cols-1 md:grid-cols-2'
                           : 'grid-cols-1'
                       } place-items-center justify-center`}
                     >
-                      {CATEGORIES.find(c => c.id === formData.main_category)?.qrLinks?.map((item: QRLink, idx: number) => (
+                      {selectedCategory.qrLinks?.map((item: QRLink, idx: number) => (
                         <div key={idx} className="space-y-4">
                           <div className="aspect-square rounded-[40px] overflow-hidden bg-white border border-[oklch(0.15_0.02_200_/_0.06)] p-6 shadow-spatial-md flex items-center justify-center">
                             <QRCodeWithLogo value={item.url} size={256} fgColor="#0ea5a6" />
@@ -596,46 +567,6 @@ export default function PublicReportPage() {
                       ))}
                     </div>
                   </div>
-                ) : CATEGORIES.find(c => c.id === formData.main_category)?.links ? (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-12 animate-in zoom-in-95 duration-500">
-                    <div className="text-center space-y-3">
-                      <h3 className="text-4xl font-display font-black tracking-tight text-[oklch(0.15_0.05_200)]">
-                        {CATEGORIES.find(c => c.id === formData.main_category)?.title}
-                      </h3>
-                      <p className="text-[oklch(0.40_0.02_200)] text-lg font-medium">
-                        {CATEGORIES.find(c => c.id === formData.main_category)?.description || 'Klik link di bawah ini.'}
-                      </p>
-                    </div>
-                    
-                    <div className="flex flex-col gap-4 w-full max-w-xl px-4">
-                      {CATEGORIES.find(c => c.id === formData.main_category)?.links?.map((link, lIdx) => {
-                        const Icon = CATEGORIES.find(c => c.id === formData.main_category)?.icon || ClipboardCheck;
-                        return (
-                          <a 
-                            key={lIdx}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group relative flex items-center gap-6 p-6 rounded-[32px] bg-white border border-[oklch(0.15_0.02_200_/_0.05)] hover:border-emerald-500/30 transition-all duration-500 shadow-spatial-sm hover:shadow-spatial-md overflow-hidden"
-                          >
-                            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-500 shadow-inner-rim">
-                              <Icon className="w-8 h-8 text-emerald-600" />
-                            </div>
-                          
-                          <div className="flex-1">
-                            <h4 className="text-xl font-display font-black text-[oklch(0.15_0.05_200)] group-hover:text-emerald-700 transition-colors">{link.label}</h4>
-                            <p className="text-sm text-[oklch(0.40_0.02_200)] font-bold">{link.sublabel}</p>
-                          </div>
-                          
-                          <ExternalLink className="w-6 h-6 text-[oklch(0.15_0.02_200_/_0.1)] group-hover:text-emerald-600 transition-colors" />
-                          
-                          {/* Inner silk effect */}
-                          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
                 ) : (
                   <>
                     {error && (

@@ -252,7 +252,8 @@ export function AIAnalysisSection({
         Status: report.status || "Open",
       };
 
-      const res = await fetch("/api/ai/analyze", {
+      const baseUrl = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "https://gapura-dev-gapura-ai.hf.space";
+      const res = await fetch(`${baseUrl}/api/ai/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

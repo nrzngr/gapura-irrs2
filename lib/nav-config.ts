@@ -52,6 +52,7 @@ export const LINKS_CONFIG: Record<string, NavGroupConfig[]> = {
             items: [
                 { href: '/dashboard/employee', label: 'Laporan Saya', icon: FileText },
                 { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
+                { href: '/dashboard/employee/quick-access', label: 'Quick Access', icon: ChevronRight },
             ]
         }
     ],
@@ -61,6 +62,7 @@ export const LINKS_CONFIG: Record<string, NavGroupConfig[]> = {
             items: [
                 { href: '/dashboard/employee', label: 'Laporan Saya', icon: FileText },
                 { href: '/dashboard/employee/new', label: 'Buat Laporan', icon: Plane },
+                { href: '/dashboard/employee/quick-access', label: 'Quick Access', icon: ChevronRight },
             ]
         },
         {
