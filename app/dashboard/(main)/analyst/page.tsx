@@ -64,6 +64,19 @@ export default function AnalystDashboard() {
   const [filterLoading, setFilterLoading] = useState(false);
   const [savedDashboards, setSavedDashboards] = useState<any[]>([]);
 
+  // Global Filters State
+  const [globalFilters, setGlobalFilters] = useState<{
+    hubs: string[];
+    branches: string[];
+    airlines: string[];
+    categories: string[];
+  }>({
+    hubs: [],
+    branches: [],
+    airlines: [],
+    categories: [],
+  });
+
   // Fetch data
   const fetchData = useCallback(
     async (isRefresh = false) => {
@@ -108,45 +121,70 @@ export default function AnalystDashboard() {
     fetchData();
   }, [fetchData]);
 
-  // Filtered reports based on date range
+  // Filtered reports based on date range and global filters
   const filteredReports = useMemo(() => {
-    if (dateRange === 'all') return reports;
-    
-    const now = new Date();
-    // Set to local end of day to be inclusive
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    
-    let cutoffDate: Date;
-    let explicitEndDate: Date | null = null;
+    let baseReports = reports;
 
-    if (typeof dateRange === 'object') {
-      cutoffDate = new Date(dateRange.from);
-      cutoffDate.setHours(0, 0, 0, 0);
-      explicitEndDate = new Date(dateRange.to);
-      explicitEndDate.setHours(23, 59, 59, 999);
-    } else if (dateRange === 'month') {
-      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-    } else {
-      cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+    if (dateRange !== 'all') {
+      const now = new Date();
+      // Set to local end of day to be inclusive
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      
+      let cutoffDate: Date;
+      let explicitEndDate: Date | null = null;
+
+      if (typeof dateRange === 'object') {
+        cutoffDate = new Date(dateRange.from);
+        cutoffDate.setHours(0, 0, 0, 0);
+        explicitEndDate = new Date(dateRange.to);
+        explicitEndDate.setHours(23, 59, 59, 999);
+      } else if (dateRange === 'month') {
+        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+      } else {
+        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      }
+      
+      const endDate = explicitEndDate || today;
+      
+      baseReports = reports.filter((r) => {
+          const dateStr = r.date_of_event || r.created_at;
+          if (!dateStr) return false;
+          
+          let d: Date;
+          if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+              const [y, m, day] = dateStr.split('-').map(Number);
+              d = new Date(y, m - 1, day);
+          } else {
+              d = new Date(dateStr);
+          }
+          
+          return d >= cutoffDate && d <= endDate;
+      });
     }
-    
-    const endDate = explicitEndDate || today;
-    
-    return reports.filter((r) => {
-        const dateStr = r.date_of_event || r.created_at;
-        if (!dateStr) return false;
-        
-        let d: Date;
-        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            const [y, m, day] = dateStr.split('-').map(Number);
-            d = new Date(y, m - 1, day);
-        } else {
-            d = new Date(dateStr);
-        }
-        
-        return d >= cutoffDate && d <= endDate;
-    });
-  }, [reports, dateRange]);
+
+    let result = baseReports;
+
+    if (globalFilters.hubs.length > 0) {
+      result = result.filter(r => globalFilters.hubs.includes(r.hub || ''));
+    }
+    if (globalFilters.branches.length > 0) {
+      result = result.filter(r => {
+        const branchCode = r.stations?.code || r.branch || '';
+        return globalFilters.branches.includes(branchCode);
+      });
+    }
+    if (globalFilters.airlines.length > 0) {
+      result = result.filter(r => {
+        const airlineCode = r.airlines || r.airline || '';
+        return globalFilters.airlines.includes(airlineCode);
+      });
+    }
+    if (globalFilters.categories.length > 0) {
+      result = result.filter(r => globalFilters.categories.includes(r.main_category || ''));
+    }
+
+    return result;
+  }, [reports, dateRange, globalFilters]);
 
   // Calculate stats
   const filteredStats = useMemo(() => {
@@ -903,6 +941,9 @@ export default function AnalystDashboard() {
 
         {/* Charts */}
         <AnalystCharts
+          globalFilters={globalFilters}
+          setGlobalFilters={setGlobalFilters}
+          availableOptions={availableOptions}
           analytics={analytics}
           caseCategoryData={caseCategoryData}
           branchReportData={branchReportData}

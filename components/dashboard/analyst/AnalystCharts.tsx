@@ -11,9 +11,10 @@ import {
 } from 'recharts';
 import {
     TrendingUp, PieChart as PieChartIcon, Building2,
-    Target, Users, Activity, CalendarDays, MapPin, Shield
+    Target, Users, Activity, CalendarDays, MapPin, Shield, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { BarChart3 } from 'lucide-react';
+import { PrismMultiSelect } from '@/components/ui/PrismMultiSelect';
 import { STATUS_CONFIG, type ReportStatus } from '@/lib/constants/report-status';
 import { PresentationSlide } from '@/components/dashboard/PresentationSlide';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ import { AVIATION_CHART_COLORS, CHART_AXIS_STYLE, CHART_TOOLTIP_STYLE, CHART_LEG
 import { ChartTitle } from '@/components/charts/ChartTitle';
 import { ComparisonTable } from '@/components/charts/ComparisonTable';
 import { MonthlyTrendChart } from '@/components/charts/MonthlyTrendChart';
+import { ExecutiveSummaryTables } from '@/components/dashboard/analyst/ExecutiveSummaryTables';
 import type { ComparisonData, ComparisonMetric } from '@/types';
 import { calculateComparisonData } from '@/lib/utils/comparison-utils';
 
@@ -155,6 +157,24 @@ export interface AnalystChartsProps {
     readonly comparisonData?: ComparisonData;
     readonly onDrilldown: (url: string) => void;
     readonly drilldownUrl: (type: string, value: string) => string;
+    readonly globalFilters: {
+        hubs: string[];
+        branches: string[];
+        airlines: string[];
+        categories: string[];
+    };
+    readonly setGlobalFilters: React.Dispatch<React.SetStateAction<{
+        hubs: string[];
+        branches: string[];
+        airlines: string[];
+        categories: string[];
+    }>>;
+    readonly availableOptions: {
+        hubs: string[];
+        branches: string[];
+        airlines: string[];
+        categories: string[];
+    };
 }
 
 interface CustomTooltipProps {
@@ -519,6 +539,9 @@ export default function AnalystCharts({
     comparisonData,
     onDrilldown,
     drilldownUrl,
+    globalFilters,
+    setGlobalFilters,
+    availableOptions,
 }: AnalystChartsProps) {
     const TABS = ['tren', 'stasiun', 'maskapai', 'cgo', 'insights'] as const;
     type AnalystTab = typeof TABS[number];
@@ -531,14 +554,15 @@ export default function AnalystCharts({
     };
     const [activeTab, setActiveTab] = useState<AnalystTab>('tren');
     const [timeframe, setTimeframe] = useState<'3m' | '6m' | '12m' | 'all' | 'custom'>('all');
-    const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
-    const [matrixMode, setMatrixMode] = useState<'branch' | 'airline'>('branch');
+
     const [customFrom, setCustomFrom] = useState('');
     const [customTo, setCustomTo] = useState('');
     const [focus, setFocus] = useState<'all' | 'Total' | 'Irregularity' | 'Complaint' | 'Compliment'>('all');
     const [branchFilter, setBranchFilter] = useState<string[]>([]);
     const [airlineFilter, setAirlineFilter] = useState<string[]>([]);
     const [areaFilter, setAreaFilter] = useState<string[]>([]);
+    const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
+    const [isGlobalFilterCollapsed, setIsGlobalFilterCollapsed] = useState(true);
     
     const isDataStale = useMemo(() => {
         if (!filteredReports.length) return false;
@@ -701,84 +725,6 @@ export default function AnalystCharts({
         if (focus === 'Compliment') return ['compliment'] as const;
         return ['total', 'irregularity', 'complaint', 'compliment'] as const;
     }, [focus]);
-
-    // Inline Monthly Trend table (no new file)
-    const MonthlyTrendTable = ({ data }: { data: Array<{ month: string; total: number; irregularity: number; complaint: number; compliment: number }> }) => {
-        if (!data || data.length === 0) return null;
-        return (
-            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--surface-3)] overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-[var(--surface-3)] bg-[var(--surface-2)]/50">
-                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Monthly Trend (Table)</h4>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-[var(--surface-2)]/30">
-                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Bulan</th>
-                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Total</th>
-                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Irregularity</th>
-                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Complaint</th>
-                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Compliment</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--surface-3)]">
-                            {data.map((row, idx) => (
-                                <tr key={row.month + idx} className="hover:bg-[var(--surface-2)]/50 transition-colors">
-                                    <td className="px-4 py-3">
-                                        <span className="text-xs font-bold text-[var(--text-primary)]">{row.month}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-bold">{row.total.toLocaleString()}</span></td>
-                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-medium text-[var(--text-secondary)]">{row.irregularity.toLocaleString()}</span></td>
-                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-medium text-[var(--text-secondary)]">{row.complaint.toLocaleString()}</span></td>
-                                    <td className="px-4 py-3 text-right"><span className="text-sm font-mono font-medium text-[var(--text-secondary)]">{row.compliment.toLocaleString()}</span></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        );
-    };
-
-    // Inline Monthly Matrix table for Branch × Bulan / Airline × Bulan
-    const MonthlyMatrixTable = ({ title, rows, columns }: { title: string; rows: Array<Record<string, string | number>>; columns: string[] }) => {
-        if (!rows || rows.length === 0 || !columns || columns.length === 0) return null;
-        return (
-            <div className="bg-[var(--surface-1)] rounded-2xl border border-[var(--surface-3)] overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-[var(--surface-3)] bg-[var(--surface-2)]/50">
-                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{title}</h4>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-[var(--surface-2)]/30">
-                                <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Bulan</th>
-                                {columns.map((c) => (
-                                    <th key={c} className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">{c}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--surface-3)]">
-                            {rows.map((row, idx) => (
-                                <tr key={String(row.month ?? idx)} className="hover:bg-[var(--surface-2)]/50 transition-colors">
-                                    <td className="px-4 py-3">
-                                        <span className="text-xs font-bold text-[var(--text-primary)]">{String(row.month)}</span>
-                                    </td>
-                                    {columns.map((c) => (
-                                        <td key={c} className="px-4 py-3 text-right">
-                                            <span className="text-sm font-mono font-medium text-[var(--text-secondary)]">
-                                                {Number(row[c] ?? 0).toLocaleString()}
-                                            </span>
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        );
-    };
 
     const handleViewDetail = (
         title: string,
@@ -1318,6 +1264,71 @@ export default function AnalystCharts({
 
     return (
         <div className="space-y-6">
+            {/* Global Filters Section */}
+            <div className="relative z-50 bg-[oklch(1_0_0_/_0.4)] backdrop-blur-2xl border border-[oklch(1_0_0_/_0.1)] shadow-inner-rim rounded-2xl mb-6">
+                <div className="flex justify-between items-center px-6 py-4 border-b border-[oklch(1_0_0_/_0.05)]">
+                    <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                        <Filter size={16} className="text-[var(--brand-emerald-500)]" />
+                        Global Dashboard Filter
+                    </h3>
+                    <button
+                        onClick={() => setIsGlobalFilterCollapsed(!isGlobalFilterCollapsed)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] transition-colors text-xs font-bold text-[var(--text-secondary)]"
+                    >
+                        <span>{isGlobalFilterCollapsed ? 'Tampilkan' : 'Sembunyikan'}</span>
+                        <motion.svg 
+                            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                            animate={{ rotate: isGlobalFilterCollapsed ? 0 : 180 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </motion.svg>
+                    </button>
+                </div>
+                
+                <AnimatePresence>
+                    {!isGlobalFilterCollapsed && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                            animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                            exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        >
+                            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-[var(--surface-0)]/30 rounded-b-2xl">
+                                <PrismMultiSelect
+                                    label="Hub"
+                                    placeholder="Semua Hub..."
+                                    options={availableOptions.hubs.map(h => ({ label: h, value: h }))}
+                                    values={globalFilters.hubs}
+                                    onChange={(vals) => setGlobalFilters(prev => ({ ...prev, hubs: vals }))}
+                                />
+                                <PrismMultiSelect
+                                    label="Branch"
+                                    placeholder="Semua Branch..."
+                                    options={availableOptions.branches.map(b => ({ label: b, value: b }))}
+                                    values={globalFilters.branches}
+                                    onChange={(vals) => setGlobalFilters(prev => ({ ...prev, branches: vals }))}
+                                />
+                                <PrismMultiSelect
+                                    label="Airline"
+                                    placeholder="Semua Airline..."
+                                    options={availableOptions.airlines.map(a => ({ label: a, value: a }))}
+                                    values={globalFilters.airlines}
+                                    onChange={(vals) => setGlobalFilters(prev => ({ ...prev, airlines: vals }))}
+                                />
+                                <PrismMultiSelect
+                                    label="Kategori"
+                                    placeholder="Semua Kategori..."
+                                    options={availableOptions.categories.map(c => ({ label: c, value: c }))}
+                                    values={globalFilters.categories}
+                                    onChange={(vals) => setGlobalFilters(prev => ({ ...prev, categories: vals }))}
+                                />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
             {/* Tab Bar - PRISM Floating Capsule */}
             <div className="flex justify-center sticky top-0 z-40 py-2">
                 <div className="flex p-1.5 rounded-2xl bg-[oklch(1_0_0_/_0.4)] backdrop-blur-2xl border border-[oklch(1_0_0_/_0.1)] shadow-inner-rim max-w-full overflow-x-auto no-scrollbar">
@@ -1347,249 +1358,147 @@ export default function AnalystCharts({
 
             {/* Slide 2: General Categories & Volume Trends */}
             {activeTab === 'tren' && (
-                <div className={cn(
-                    "p-2 text-center text-[10px] font-black uppercase tracking-widest rounded-lg mb-4 shadow-lg",
-                    isDataStale ? "bg-amber-500 text-black shadow-amber-500/20" : "bg-emerald-500 text-white shadow-emerald-500/20"
-                )}>
-                    {isDataStale ? "⚠️ STALE DATA ALERT — Source data is more than 30 days old. Showing all available records." : "PRISM MoM/YoY System Active"}
-                    {" — "}Reports: {filteredReports.length} | Data: {safeComparison ? 'LOADED' : 'MISSING'} | Months: {safeComparison?.monthlyTrend?.length ?? 0}
-                </div>
-            )}
-
-            {/* MoM/YoY Comparison — Tren Tab (Moved to Top for Visibility) */}
-            {activeTab === 'tren' && (
             <PresentationSlide
                 title="MoM & YoY Comparison"
                 subtitle="Month-over-Month and Year-over-Year"
                 icon={TrendingUp}
             >
                 <div className="space-y-4">
-                    <div className="bg-[var(--surface-2)]/60 border border-[var(--surface-3)] rounded-xl p-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
-                            <div className="flex flex-col gap-1.5 lg:col-span-6">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Custom Range</label>
-                                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                                    <div className="relative flex-1 min-w-[140px]">
-                                        <CalendarDays size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                                        <input
-                                            type="date"
-                                            value={customFrom}
-                                            onChange={(e)=>setCustomFrom(e.target.value)}
-                                            className="w-full pl-7 pr-2 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
-                                        />
-                                    </div>
-                                    <span className="text-[10px] font-bold text-[var(--text-muted)]">→</span>
-                                    <div className="relative flex-1 min-w-[140px]">
-                                        <CalendarDays size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                                        <input
-                                            type="date"
-                                            value={customTo}
-                                            onChange={(e)=>setCustomTo(e.target.value)}
-                                            className="w-full pl-7 pr-2 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={()=> setTimeframe('custom')}
-                                        className={`px-3 py-2 h-[40px] text-[11px] font-bold rounded-lg border whitespace-nowrap shrink-0 ${timeframe==='custom' ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]' : 'bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--surface-3)]'}`}
-                                        disabled={!customFrom || !customTo}
-                                    >
-                                        Terapkan
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-1.5 lg:col-span-3">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Timeframe</label>
-                                <div className="grid grid-cols-4 gap-1.5">
-                                    {(['3m','6m','12m','all'] as const).map(tf => (
-                                        <button
-                                            key={tf}
-                                            onClick={() => setTimeframe(tf)}
-                                            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border ${timeframe===tf?'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]':'bg-[var(--surface-1)] text-[var(--text-secondary)] border-[var(--surface-3)]'}`}
-                                        >
-                                            {tf.toUpperCase()}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-1.5 lg:col-span-3">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Focus</label>
-                                <select
-                                    value={focus}
-                                    onChange={(e)=>setFocus(e.target.value as any)}
-                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
-                                >
-                                    <option value="all">All Categories</option>
-                                    <option value="Total">Total</option>
-                                    <option value="Irregularity">Irregularity</option>
-                                    <option value="Complaint">Complaint</option>
-                                    <option value="Compliment">Compliment</option>
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1.5 lg:col-span-3">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Branch</label>
-                                <select
-                                    value={branchFilter[0] ?? 'all'}
-                                    onChange={(e)=>setBranchFilter(e.target.value === 'all' ? [] : [e.target.value])}
-                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
-                                >
-                                    <option value="all">All Branches</option>
-                                    {branchOptions.map(b=>(
-                                        <option key={b} value={b}>{b}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1.5 lg:col-span-3">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Airline</label>
-                                <select
-                                    value={airlineFilter[0] ?? 'all'}
-                                    onChange={(e)=>setAirlineFilter(e.target.value === 'all' ? [] : [e.target.value])}
-                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
-                                >
-                                    <option value="all">All Airlines</option>
-                                    {airlineOptions.map(a=>(
-                                        <option key={a} value={a}>{a}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1.5 lg:col-span-3">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Area</label>
-                                <select
-                                    value={areaFilter[0] ?? 'all'}
-                                    onChange={(e)=>setAreaFilter(e.target.value === 'all' ? [] : [e.target.value])}
-                                    className="px-3 py-2 h-[40px] text-[12px] font-semibold rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] text-[var(--text-primary)]"
-                                >
-                                    <option value="all">All Areas</option>
-                                    {areaOptions.map(a=>(
-                                        <option key={a} value={a}>{a}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">
+                            Filter Data Analysis
+                        </h3>
+                        <button
+                            onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--surface-3)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] transition-colors text-xs font-bold text-[var(--text-secondary)]"
+                        >
+                            <span>{isFilterCollapsed ? 'Tampilkan Filter' : 'Sembunyikan Filter'}</span>
+                            <motion.svg 
+                                width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                animate={{ rotate: isFilterCollapsed ? 0 : 180 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </motion.svg>
+                        </button>
                     </div>
 
-                    {/* View mode toggle */}
-                    <div className="flex items-center justify-end gap-2 -mt-2">
-                        <div className="flex p-0.5 rounded-xl bg-[var(--surface-2)] border border-[var(--surface-3)]">
-                            <button
-                                onClick={() => setViewMode('chart')}
-                                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${viewMode==='chart' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
+                    <AnimatePresence>
+                        {!isFilterCollapsed && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                                animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                                exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                                transition={{ duration: 0.3, ease: 'easeInOut' }}
                             >
-                                Grafik
-                            </button>
-                            <button
-                                onClick={() => setViewMode('table')}
-                                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${viewMode==='table' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
-                            >
-                                Tabel
-                            </button>
-                        </div>
-                    </div>
+                                <div className="bg-white/60 backdrop-blur-xl border border-slate-200/60 rounded-xl p-4 shadow-sm mb-6 relative before:absolute before:inset-0 before:bg-[url('/noise.png')] before:opacity-[0.02] before:pointer-events-none">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end relative z-10">
+                                        <div className="flex flex-col gap-2 lg:col-span-6">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">Custom Range</label>
+                                            <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                                <div className="relative flex-1 min-w-[200px]">
+                                                    <CalendarDays size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="date"
+                                                        value={customFrom}
+                                                        onChange={(e)=>setCustomFrom(e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-2.5 h-[42px] text-xs font-bold rounded-lg border border-slate-200 bg-[#f8fafc] text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] transition-all"
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-400 px-1">→</span>
+                                                <div className="relative flex-1 min-w-[200px]">
+                                                    <CalendarDays size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="date"
+                                                        value={customTo}
+                                                        onChange={(e)=>setCustomTo(e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-2.5 h-[42px] text-xs font-bold rounded-lg border border-slate-200 bg-[#f8fafc] text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] transition-all"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={()=> setTimeframe('custom')}
+                                                    className={`px-4 py-2.5 h-[42px] text-xs font-bold rounded-lg border whitespace-nowrap shrink-0 transition-colors ${timeframe==='custom' ? 'bg-[#10b981] text-white border-[#10b981] shadow-md shadow-emerald-500/20' : 'bg-[#f8fafc] text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                                                    disabled={!customFrom || !customTo}
+                                                >
+                                                    Terapkan
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 lg:col-span-3">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">Timeframe</label>
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {(['3m','6m','12m','all'] as const).map(tf => (
+                                                    <button
+                                                        key={tf}
+                                                        onClick={() => setTimeframe(tf)}
+                                                        className={`px-3 py-2.5 text-xs font-bold rounded-lg border transition-colors ${timeframe===tf?'bg-[#0ea5e9] text-white border-[#0ea5e9] shadow-md shadow-sky-500/20':'bg-[#f8fafc] text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                                                    >
+                                                        {tf.toUpperCase()}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 lg:col-span-3">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">Focus</label>
+                                            <select
+                                                value={focus}
+                                                onChange={(e)=>setFocus(e.target.value as any)}
+                                                className="px-3 py-2.5 h-[42px] text-xs font-bold rounded-lg border border-slate-200 bg-[#f8fafc] text-slate-700 outline-none focus:border-[#3b82f6] transition-colors"
+                                            >
+                                                <option value="all">All Categories</option>
+                                                <option value="Total">Total</option>
+                                                <option value="Irregularity">Irregularity</option>
+                                                <option value="Complaint">Complaint</option>
+                                                <option value="Compliment">Compliment</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex flex-col gap-2 lg:col-span-3">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">Branch</label>
+                                            <select
+                                                value={branchFilter[0] ?? 'all'}
+                                                onChange={(e)=>setBranchFilter(e.target.value === 'all' ? [] : [e.target.value])}
+                                                className="px-3 py-2.5 h-[42px] text-xs font-bold rounded-lg border border-[#0ea5e9] bg-white text-slate-700 outline-none focus:border-[#0284c7] transition-colors ring-1 ring-sky-100"
+                                            >
+                                                <option value="all">All Branches</option>
+                                                {branchOptions.map(b=>(
+                                                    <option key={b} value={b}>{b}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex flex-col gap-2 lg:col-span-3">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">Airline</label>
+                                            <select
+                                                value={airlineFilter[0] ?? 'all'}
+                                                onChange={(e)=>setAirlineFilter(e.target.value === 'all' ? [] : [e.target.value])}
+                                                className="px-3 py-2.5 h-[42px] text-xs font-bold rounded-lg border border-slate-200 bg-[#f8fafc] text-slate-700 outline-none focus:border-[#3b82f6] transition-colors"
+                                            >
+                                                <option value="all">All Airlines</option>
+                                                {airlineOptions.map(a=>(
+                                                    <option key={a} value={a}>{a}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex flex-col gap-2 lg:col-span-3">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">Area</label>
+                                            <select
+                                                value={areaFilter[0] ?? 'all'}
+                                                onChange={(e)=>setAreaFilter(e.target.value === 'all' ? [] : [e.target.value])}
+                                                className="px-3 py-2.5 h-[42px] text-xs font-bold rounded-lg border border-slate-200 bg-[#f8fafc] text-slate-700 outline-none focus:border-[#3b82f6] transition-colors"
+                                            >
+                                                <option value="all">All Areas</option>
+                                                {areaOptions.map(a=>(
+                                                    <option key={a} value={a}>{a}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    {/* Management Summary Section */}
-                    <div className="grid grid-cols-1 gap-4 mb-6 animate-fade-in-up">
-                        <div className="card-glass p-6 border-l-4 border-[var(--brand-primary)] bg-white/50 backdrop-blur-md shadow-sm">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 rounded-2xl bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
-                                    <Shield size={24} />
-                                </div>
-                                <div className="space-y-2 flex-1">
-                                    <h3 className="text-lg font-extrabold text-[var(--text-primary)] tracking-tight uppercase flex items-center gap-2">
-                                        Management Summary
-                                        <span className="px-2 py-0.5 rounded-full bg-[var(--surface-3)] text-[10px] text-[var(--text-muted)] font-bold">RINGKASAN EKSEKUTIF</span>
-                                    </h3>
-                                    <div className="text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
-                                        <p>
-                                            Ringkasan perbandingan kinerja operasional antara periode ini (<span className="text-[var(--text-primary)] font-bold">{displayComparison?.overallMetrics[0]?.currentMonth || "Bulan Berjalan"}</span>) 
-                                            dengan periode sebelumnya (<span className="text-[var(--text-primary)] font-bold">{displayComparison?.overallMetrics[0]?.previousMonth || "Bulan Lalu"}</span>).
-                                        </p>
-                                        <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 list-none">
-                                            <li className="flex items-start gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] mt-1.5 shrink-0" />
-                                                <span>Tren volume laporan menunjukkan perubahan sebesar <span className={cn("font-bold px-1.5 py-0.5 rounded text-xs", (displayComparison?.overallMetrics[0]?.momDelta || 0) >= 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700")}>{(displayComparison?.overallMetrics[0]?.momDelta || 0).toFixed(1)}%</span> dari periode sebelumnya.</span>
-                                            </li>
-                                            <li className="flex items-start gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] mt-1.5 shrink-0" />
-                                                <span>Akurasi data dipantau setiap hari untuk memastikan perbandingan <strong>Month-over-Month (MoM)</strong> tetap valid dan transparan.</span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <div className="mt-4 flex flex-wrap gap-4 text-[10px] items-center text-[var(--text-muted)] font-bold uppercase tracking-widest bg-[var(--surface-2)] p-2 rounded-lg border border-[var(--surface-3)]">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-2 h-2 rounded-full bg-[var(--brand-primary)]" />
-                                            Target: Stabilitas Operasional
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                            Status: Data Terverifikasi
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                            Perbandingan: {displayComparison?.overallMetrics[0]?.previousMonth || "Lalu"} → {displayComparison?.overallMetrics[0]?.currentMonth || "Kini"}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {viewMode === 'chart' ? (
-                        <MonthlyTrendChart
-                            title="Monthly Trend"
-                            subtitle="Volume by month"
-                            data={displayComparison?.monthlyTrend ?? []}
-                            dataKeys={chartKeys as any}
-                            metrics={displayComparison?.overallMetrics ?? []}
-                            colors={ENTERPRISE_COLORS}
-                        />
-                    ) : (
-                        <MonthlyTrendTable data={displayComparison?.monthlyTrend ?? []} />
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ComparisonTable 
-                            title="Category Summary" 
-                            metrics={(displayComparison?.overallMetrics ?? []).filter(m => m.label !== 'Total')} 
-                        />
-                        <ComparisonTable 
-                            title="Area Summary" 
-                            metrics={displayComparison?.areaMetrics ?? []} 
-                        />
-                    </div>
-                    {viewMode === 'table' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <ComparisonTable 
-                                title="Branch Summary" 
-                                metrics={displayComparison?.branchMetrics ?? []} 
-                            />
-                            <ComparisonTable 
-                                title="Airline Summary" 
-                                metrics={displayComparison?.airlineMetrics ?? []} 
-                            />
-                        </div>
-                    )}
-                    {viewMode === 'table' && (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Matrix Distribusi Bulanan</h4>
-                                <div className="flex p-0.5 rounded-xl bg-[var(--surface-2)] border border-[var(--surface-3)]">
-                                    <button
-                                        onClick={() => setMatrixMode('branch')}
-                                        className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${matrixMode==='branch' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
-                                    >
-                                        Branch × Bulan
-                                    </button>
-                                    <button
-                                        onClick={() => setMatrixMode('airline')}
-                                        className={`px-3 py-1.5 text-[11px] font-bold rounded-lg ${matrixMode==='airline' ? 'bg-[var(--brand-primary)] text-white' : 'text-[var(--text-secondary)]'}`}
-                                    >
-                                        Airline × Bulan
-                                    </button>
-                                </div>
-                            </div>
-                            <MonthlyMatrixTable
-                                title={matrixMode === 'branch' ? 'Branch × Bulan' : 'Airline × Bulan'}
-                                rows={(matrixMode === 'branch' ? (displayComparison?.branchMoM ?? []) : (displayComparison?.airlineMoM ?? [])) as Array<Record<string, string | number>>}
-                                columns={(matrixMode === 'branch' ? (displayComparison?.topBranches ?? []) : (displayComparison?.topAirlines ?? []))}
-                            />
-                        </div>
+                    {displayComparison && (
+                        <ExecutiveSummaryTables data={displayComparison} className="mt-2" />
                     )}
                 </div>
             </PresentationSlide>

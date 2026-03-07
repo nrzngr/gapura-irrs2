@@ -82,7 +82,7 @@ export default function AdminReportsPage() {
 
             {/* AI Summary KPI Cards */}
             <div className="animate-fade-in-up" style={{ animationDelay: '50ms' }}>
-                <AISummaryKPICards showHeader={true} />
+                <AISummaryKPICards showHeader={true} hideActionIntelligence={true} />
             </div>
 
             {/* Filters */}

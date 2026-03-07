@@ -28,7 +28,6 @@ import {
   Package, 
   AlertCircle 
 } from 'lucide-react';
-import type { TooltipItem } from 'chart.js';
 import type { ComponentType } from 'react';
 
 ChartJS.register(
@@ -172,7 +171,7 @@ function ForecastCard({ data, icon: Icon, colorClass }: { data: SeasonalityCateg
         mode: 'index' as const,
         intersect: false,
         callbacks: {
-          label: (context: TooltipItem<'line'>) => {
+          label: (context: any) => {
             if (context.dataset.label === 'Confidence Interval' || context.dataset.label === 'Upper Bound') return '';
             return `Predicted: ${context.parsed.y}`;
           }

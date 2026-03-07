@@ -224,7 +224,7 @@ export default function AnalystReportsPage() {
 
       {/* 2.5. AI Summary KPI Cards */}
       <div className="max-w-[1700px] mx-auto px-4 md:px-8 mt-6">
-        <AISummaryKPICards showHeader={true} />
+        <AISummaryKPICards showHeader={true} hideActionIntelligence={true} />
       </div>
 
       {/* 3. Main Content: Kinetic Reports List */}

@@ -60,6 +60,19 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterLoading, setFilterLoading] = useState(false);
     const [allowCF, setAllowCF] = useState(false);
+    
+    // Global Filters State
+    const [globalFilters, setGlobalFilters] = useState<{
+        hubs: string[];
+        branches: string[];
+        airlines: string[];
+        categories: string[];
+    }>({
+        hubs: [],
+        branches: [],
+        airlines: [],
+        categories: [],
+    });
 
     const fetchData = useCallback(async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
@@ -186,8 +199,28 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             );
         }
 
+        // Global Filters
+        if (globalFilters.hubs.length > 0) {
+            result = result.filter(r => globalFilters.hubs.includes(r.hub || ''));
+        }
+        if (globalFilters.branches.length > 0) {
+            result = result.filter(r => {
+                const branchCode = r.station_code || r.branch || '';
+                return globalFilters.branches.includes(branchCode);
+            });
+        }
+        if (globalFilters.airlines.length > 0) {
+            result = result.filter(r => {
+                const airlineCode = r.airlines || r.airline || '';
+                return globalFilters.airlines.includes(airlineCode);
+            });
+        }
+        if (globalFilters.categories.length > 0) {
+            result = result.filter(r => globalFilters.categories.includes(r.main_category || ''));
+        }
+
         return result;
-    }, [reports, dateRange, searchQuery]);
+    }, [reports, dateRange, searchQuery, globalFilters]);
 
     const comparisonData = useMemo(() => {
         return calculateComparisonData(filteredReportsList);
@@ -195,6 +228,30 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
 
     const drilldownUrl = (type: string, value: string) =>
         `/dashboard/analyst/drilldown?type=${type}&value=${encodeURIComponent(value)}&period=${dateRange}`;
+
+    // Filter options
+    const availableOptions = useMemo(() => {
+        const hubs = new Set<string>();
+        const branches = new Set<string>();
+        const airlines = new Set<string>();
+        const categories = new Set<string>();
+
+        reports.forEach((r) => {
+            if (r.hub) hubs.add(r.hub);
+            if (r.station_code) branches.add(r.station_code);
+            else if (r.branch) branches.add(r.branch);
+            if (r.airlines) airlines.add(r.airlines);
+            else if (r.airline) airlines.add(r.airline);
+            if (r.main_category) categories.add(r.main_category);
+        });
+
+        return {
+            hubs: Array.from(hubs).sort(),
+            branches: Array.from(branches).sort(),
+            airlines: Array.from(airlines).sort(),
+            categories: Array.from(categories).sort(),
+        };
+    }, [reports]);
 
     // --- Chart Data Preparation (Copied from Analyst page) ---
     const caseCategoryData = useMemo(() => {
@@ -576,6 +633,9 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
                         comparisonData={comparisonData}
                         onDrilldown={(url) => router.push(url)}
                         drilldownUrl={drilldownUrl}
+                        globalFilters={globalFilters}
+                        setGlobalFilters={setGlobalFilters}
+                        availableOptions={availableOptions}
                     />
                 </div>
             </div>

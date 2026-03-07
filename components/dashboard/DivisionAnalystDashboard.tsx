@@ -16,6 +16,7 @@ import { TriageModal } from '@/components/dashboard/analyst/TriageModal';
 import { AISummaryKPICards } from '@/components/dashboard/ai-summary';
 
 import { exportToExcel as doExportExcel, exportToPDF as doExportPDF } from '@/lib/analyst-export';
+import { useAuth } from '@/lib/hooks/use-auth';
 import type { Report, AnalyticsData, ComparisonData } from '@/types';
 import { calculateComparisonData } from '@/lib/utils/comparison-utils';
 import type { DivisionConfig } from '@/components/dashboard/AnalyticsDashboard';
@@ -68,6 +69,19 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
   const [visibleCount, setVisibleCount] = useState(100);
   const view = searchParams.get('view') === 'reports' ? 'reports' : 'dashboard';
 
+  // Global Filters State
+  const [globalFilters, setGlobalFilters] = useState<{
+    hubs: string[];
+    branches: string[];
+    airlines: string[];
+    categories: string[];
+  }>({
+    hubs: [],
+    branches: [],
+    airlines: [],
+    categories: [],
+  });
+
   const fetchData = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) setRefreshing(true);
@@ -111,8 +125,6 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {}, []);
-
   const filteredReports = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -134,8 +146,12 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
     }
     
     const endDate = explicitEndDate || today;
+    const divisionCode = division.code.toUpperCase();
 
-    return reports.filter((r) => {
+    const base = reports.filter((r) => {
+      // Division Scoping: Only show reports for this division
+      if (divisionCode && r.target_division !== divisionCode) return false;
+
       const dateStr = r.date_of_event || r.created_at;
       if (!dateStr) return false;
       
@@ -149,10 +165,38 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       
       return d >= cutoffDate && d <= endDate;
     });
-  }, [reports, dateRange]);
+
+    let result = base;
+
+    if (globalFilters.hubs.length > 0) {
+      result = result.filter(r => globalFilters.hubs.includes(r.hub || ''));
+    }
+    if (globalFilters.branches.length > 0) {
+      result = result.filter(r => {
+        const branchCode = r.stations?.code || r.branch || '';
+        return globalFilters.branches.includes(branchCode);
+      });
+    }
+    if (globalFilters.airlines.length > 0) {
+      result = result.filter(r => {
+        const airlineCode = r.airlines || r.airline || '';
+        return globalFilters.airlines.includes(airlineCode);
+      });
+    }
+    if (globalFilters.categories.length > 0) {
+      result = result.filter(r => globalFilters.categories.includes(r.main_category || ''));
+    }
+
+    return result;
+  }, [reports, dateRange, globalFilters]);
   const listReports = useMemo(() => {
     const s = listSearch.toLowerCase();
+    const divisionCode = division.code.toUpperCase();
+
     return reports.filter(r => {
+      // Division Scoping: Only show reports for this division
+      if (divisionCode && r.target_division !== divisionCode) return false;
+
       if (listFilter !== 'all' && r.status !== listFilter) return false;
       if (listSeverity !== 'all' && r.severity !== listSeverity) return false;
       if (!s) return true;
@@ -198,6 +242,30 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       value
     )}&period=${dateRange}`;
 
+  // Filter options
+  const availableOptions = useMemo(() => {
+    const hubs = new Set<string>();
+    const branches = new Set<string>();
+    const airlines = new Set<string>();
+    const categories = new Set<string>();
+
+    reports.forEach((r) => {
+      if (r.hub) hubs.add(r.hub);
+      if (r.stations?.code) branches.add(r.stations.code);
+      else if (r.branch) branches.add(r.branch);
+      if (r.airlines) airlines.add(r.airlines);
+      else if (r.airline) airlines.add(r.airline);
+      if (r.main_category) categories.add(r.main_category);
+    });
+
+    return {
+      hubs: Array.from(hubs).sort(),
+      branches: Array.from(branches).sort(),
+      airlines: Array.from(airlines).sort(),
+      categories: Array.from(categories).sort(),
+    };
+  }, [reports]);
+
   const handleCustomerFeedbackShortcut = useCallback(async () => {
     setCfLoading(true);
     try {
@@ -237,29 +305,6 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
       setCfLoading(false);
     }
   }, [router]);
-
-  const availableOptions = useMemo(() => {
-    const hubs = new Set<string>();
-    const branches = new Set<string>();
-    const airlines = new Set<string>();
-    const categories = new Set<string>();
-
-    reports.forEach((r) => {
-      if (r.hub) hubs.add(r.hub);
-      if (r.stations?.code) branches.add(r.stations.code);
-      else if (r.branch) branches.add(r.branch);
-      if (r.airlines) airlines.add(r.airlines);
-      else if (r.airline) airlines.add(r.airline);
-      if (r.main_category) categories.add(r.main_category);
-    });
-
-    return {
-      hubs: Array.from(hubs).sort(),
-      branches: Array.from(branches).sort(),
-      airlines: Array.from(airlines).sort(),
-      categories: Array.from(categories).sort(),
-    };
-  }, [reports]);
 
   const existingFolders = useMemo(
     () =>
@@ -744,6 +789,10 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
     );
   }
 
+  const { user } = useAuth(false);
+  const isOSAnalyst = user?.division === 'OS' && user?.role === 'ANALYST';
+  const hasAllReportsAccess = division.code === 'OS' || isOSAnalyst;
+
   return (
     <div
       className="min-h-screen"
@@ -780,12 +829,14 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             >
               <span className="truncate max-w-[140px] sm:max-w-none">Dashboard</span>
             </button>
-            <button
-              onClick={() => setView('reports')}
-              className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-            >
-              <span className="truncate max-w-[140px] sm:max-w-none">Semua Laporan</span>
-            </button>
+            {hasAllReportsAccess && (
+              <button
+                onClick={() => setView('reports')}
+                className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all ${view === 'reports' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              >
+                <span className="truncate max-w-[140px] sm:max-w-none">Semua Laporan</span>
+              </button>
+            )}
           </div>
           {view === 'dashboard' && division.code === 'OS' && (
             <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
@@ -1065,7 +1116,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
           <div className="max-w-[1700px] mx-auto w-full">
             {/* AI Summary KPI Cards */}
             <div className="mb-6">
-              <AISummaryKPICards showHeader={true} />
+              <AISummaryKPICards showHeader={true} hideActionIntelligence={true} />
             </div>
             
             <div className="mb-6 flex items-center justify-between">
@@ -1119,6 +1170,9 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             comparisonData={comparisonData}
             onDrilldown={(url) => router.push(url)}
             drilldownUrl={drilldownUrl}
+            globalFilters={globalFilters}
+            setGlobalFilters={setGlobalFilters}
+            availableOptions={availableOptions}
           />
         )}
 

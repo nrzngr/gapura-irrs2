@@ -72,7 +72,7 @@ export default function EmployeeReportsPage() {
     return (
         <div className="space-y-6">
             {/* AI Summary KPI Cards */}
-            <AISummaryKPICards showHeader={true} />
+            <AISummaryKPICards showHeader={true} hideActionIntelligence={true} />
             
             {/* Reports Master Detail */}
             <ReportMasterDetail

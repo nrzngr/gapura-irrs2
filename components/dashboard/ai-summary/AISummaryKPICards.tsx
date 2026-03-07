@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, Sparkles, AlertCircle, ChevronDown, ChevronUp, TrendingUp, TrendingDown } from "lucide-react";
+import { RefreshCw, Sparkles, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { RiskSummaryCard } from "./RiskSummaryCard";
@@ -13,6 +13,7 @@ interface AISummaryKPICardsProps {
   className?: string;
   showHeader?: boolean;
   compact?: boolean;
+  hideActionIntelligence?: boolean;
 }
 
 export function AISummaryKPICards({
@@ -20,6 +21,7 @@ export function AISummaryKPICards({
   className,
   showHeader = true,
   compact = false,
+  hideActionIntelligence = false,
 }: AISummaryKPICardsProps) {
   const [riskData, setRiskData] = useState<RiskSummaryData | null>(null);
   const [actionData, setActionData] = useState<ActionSummaryResponse | null>(null);
@@ -97,13 +99,6 @@ export function AISummaryKPICards({
   const isLoading = riskLoading || actionLoading;
   const hasError = riskError || actionError;
 
-  // Quick stats for collapsed view
-  const quickStats = actionData?.overallSummary ? {
-    total: actionData.overallSummary.totalRecords,
-    open: actionData.overallSummary.openCount,
-    closed: actionData.overallSummary.closedCount,
-    highPriority: actionData.overallSummary.highPriorityCount,
-  } : null;
 
   // Derived counts for explanation banner
   const airlinesCount = riskData?.total_airlines || 0;
@@ -146,17 +141,6 @@ export function AISummaryKPICards({
             </motion.div>
 
             <div className="flex items-center gap-2">
-              {/* Quick Stats Pills */}
-              {quickStats && !isLoading && (
-                <div className="hidden md:flex items-center gap-2 mr-2">
-                  <span className="px-2.5 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
-                    {quickStats.total.toLocaleString()} records
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-amber-100 text-xs font-semibold text-amber-700">
-                    {quickStats.open} open
-                  </span>
-                </div>
-              )}
 
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -214,7 +198,9 @@ export function AISummaryKPICards({
                 <AlertCircle className="w-4 h-4 text-gray-500 mt-0.5" />
                 <div className="text-[12px] text-gray-600 leading-snug">
                   <p><span className="font-semibold text-gray-700">Risk Intelligence</span> = hitung entitas (Maskapai/Cabang/Hub) per level risiko.</p>
-                  <p><span className="font-semibold text-gray-700">Action Intelligence</span> = hitung per laporan (Total, Open/Closed, Severity).</p>
+                  {!hideActionIntelligence && (
+                    <p><span className="font-semibold text-gray-700">Action Intelligence</span> = hitung per laporan (Total, Open/Closed, Severity).</p>
+                  )}
                   {(airlinesCount + branchesCount + hubsCount > 0 || recordsTotal > 0) && (
                     <p className="text-[11px] text-gray-600 mt-1">
                       Contoh saat ini: entitas {airlinesCount} + {branchesCount} + {hubsCount} = <span className="font-semibold">{entitiesTotal}</span> • laporan <span className="font-semibold">{recordsTotal.toLocaleString("id-ID")}</span>
@@ -226,7 +212,7 @@ export function AISummaryKPICards({
               <div
                 className={cn(
                   "grid gap-4",
-                  compact ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+                  (compact || hideActionIntelligence) ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
                 )}
               >
                 {/* Risk Summary Card */}
@@ -245,70 +231,27 @@ export function AISummaryKPICards({
                 </motion.div>
 
                 {/* Action Summary Card */}
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm"
-                >
-                  <ActionSummaryCard
-                    data={actionData}
-                    loading={actionLoading}
-                    error={actionError}
-                  />
-                </motion.div>
+                {!hideActionIntelligence && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm"
+                  >
+                    <ActionSummaryCard
+                      data={actionData}
+                      loading={actionLoading}
+                      error={actionError}
+                    />
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Collapsed Summary */}
-        {!isExpanded && quickStats && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-wrap items-center gap-3 py-2"
-          >
-            <QuickStat label="Total" value={quickStats.total} color="gray" />
-            <QuickStat label="Open" value={quickStats.open} color="amber" trend="up" />
-            <QuickStat label="Closed" value={quickStats.closed} color="green" trend="down" />
-            <QuickStat label="High Priority" value={quickStats.highPriority} color="red" />
-          </motion.div>
-        )}
       </div>
     </div>
   );
 }
 
-function QuickStat({ 
-  label, 
-  value, 
-  color,
-  trend 
-}: { 
-  label: string; 
-  value: number; 
-  color: 'gray' | 'amber' | 'green' | 'red';
-  trend?: 'up' | 'down';
-}) {
-  const colors = {
-    gray: 'bg-gray-100 text-gray-700',
-    amber: 'bg-amber-100 text-amber-700',
-    green: 'bg-emerald-100 text-emerald-700',
-    red: 'bg-red-100 text-red-700',
-  };
-
-  return (
-    <div className={cn("px-3 py-1.5 rounded-lg", colors[color])}>
-      <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">{label}</span>
-      <div className="flex items-center gap-1">
-        <span className="text-sm font-black">{value.toLocaleString()}</span>
-        {trend && (
-          trend === 'up' 
-            ? <TrendingUp className="w-3 h-3" /> 
-            : <TrendingDown className="w-3 h-3" />
-        )}
-      </div>
-    </div>
-  );
-}

@@ -130,7 +130,7 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   // Triage Columns
   primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
   sub_category_note: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS', 'Gapura KPS Remarks', 'Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
-  target_division: ['Target Division', 'Target_Division', 'Divisi', 'Division'],
+  target_division: ['ESKLASI DIVISI', 'ESKLASI_DIVISI'],
   
   // Standard fields
   id: ['ID'],
@@ -182,7 +182,7 @@ const WRITE_MAPPING: Record<string, string> = {
   // Triage Write Mappings
   primary_tag: 'Primary Tag',
   sub_category_note: 'Sub Category Note',
-  target_division: 'Target Division',
+  target_division: 'ESKLASI DIVISI',
 
   // System Fields
   user_id: 'User ID',
@@ -533,13 +533,17 @@ export class ReportsService {
         report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
     }
 
-    // Normalize Target Division to match application constants (DIVISIONS)
+    // Normalize Target Division to match application constants (DIVISIONS) using strict regex extraction
     if (report.target_division) {
-        const div = String(report.target_division).trim();
-        if (div === 'Operational Services') report.target_division = 'Monitoring';
-        else if (div === 'Teknik (GSE)') report.target_division = 'Teknik (GSE)';
-        else if (div === 'Quality (Safety)') report.target_division = 'Quality (Safety)';
-        // Others already match or are close enough
+        const divRaw = String(report.target_division).trim();
+        // Strictly Match case: OT, OP, UQ, HT, OS, HC
+        const match = divRaw.match(/(OT|OP|UQ|HT|OS|HC)/);
+        if (match) {
+            report.target_division = match[1];
+        } else {
+            // No matches found for strict regex, clear to avoid false categorization
+            report.target_division = null;
+        }
     }
 
     return report as Report;

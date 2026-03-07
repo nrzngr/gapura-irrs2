@@ -193,24 +193,26 @@ export class SyncService {
       }
     }
 
-    // Determine which to delete
-    const toDelete = existingIds.filter((id) => !fetchedIds.has(id));
-    if (toDelete.length === 0) return 0;
-
-    // Delete in batches
+    // Determine which to delete from sync table
+    const syncToDelete = existingIds.filter((id) => !fetchedIds.has(id));
     let deleted = 0;
-    for (let i = 0; i < toDelete.length; i += 500) {
-      const batch = toDelete.slice(i, i + 500);
-      const { data, error } = await supabaseAdmin
-        .from('reports_sync')
-        .delete()
-        .in('sheet_id', batch)
-        .select('sheet_id');
-      if (error) {
-        console.warn('[SyncService] Delete batch failed:', error);
-        continue;
+
+    if (syncToDelete.length > 0) {
+      console.log(`[SyncService] Deleting ${syncToDelete.length} orphaned records from reports_sync`);
+      // Delete in batches
+      for (let i = 0; i < syncToDelete.length; i += 500) {
+        const batch = syncToDelete.slice(i, i + 500);
+        const { data, error } = await supabaseAdmin
+          .from('reports_sync')
+          .delete()
+          .in('sheet_id', batch)
+          .select('sheet_id');
+        if (error) {
+          console.warn('[SyncService] Delete batch failed:', error);
+          continue;
+        }
+        deleted += data?.length || 0;
       }
-      deleted += data?.length || 0;
     }
 
     // Also delete from legacy 'reports' table for entries mirrored from Sheets
@@ -237,21 +239,29 @@ export class SyncService {
         offset += pageSize;
       }
     }
+
     const dbToDelete = existingDbIds
-      .filter(({ sheet_id }) => !fetchedIds.has(sheet_id) && (sourceSheets.length === 0 || sourceSheets.some(s => sheet_id.startsWith(`${s}!row_`))))
+      .filter(({ sheet_id }) => 
+        !fetchedIds.has(sheet_id) && 
+        (sourceSheets.length === 0 || sourceSheets.some(s => sheet_id.startsWith(`${s}!`) || sheet_id.includes(`row_`)))
+      )
       .map(({ id }) => id);
-    for (let i = 0; i < dbToDelete.length; i += 500) {
-      const batch = dbToDelete.slice(i, i + 500);
-      const { data, error } = await supabaseAdmin
-        .from('reports')
-        .delete()
-        .in('id', batch)
-        .select('id');
-      if (error) {
-        console.warn('[SyncService] Legacy delete batch failed:', error);
-        continue;
+
+    if (dbToDelete.length > 0) {
+      console.log(`[SyncService] Deleting ${dbToDelete.length} orphaned records from legacy reports table`);
+      for (let i = 0; i < dbToDelete.length; i += 500) {
+        const batch = dbToDelete.slice(i, i + 500);
+        const { data, error } = await supabaseAdmin
+          .from('reports')
+          .delete()
+          .in('id', batch)
+          .select('id');
+        if (error) {
+          console.warn('[SyncService] Legacy delete batch failed:', error);
+          continue;
+        }
+        deleted += data?.length || 0;
       }
-      deleted += data?.length || 0;
     }
 
     return deleted;

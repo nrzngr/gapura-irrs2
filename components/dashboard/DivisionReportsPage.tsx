@@ -53,9 +53,11 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
 
   const filteredReports = useMemo(() => {
     const lowerSearch = search.toLowerCase();
+    const divisionCode = config.code.toUpperCase();
+    
     return allReports.filter(report => {
       // Apply division scoping only when enabled (default: true)
-      if (config.code && config.enforceDivisionScope !== false && report.target_division !== config.code) return false;
+      if (divisionCode && config.enforceDivisionScope !== false && report.target_division !== divisionCode) return false;
       
       if (filter !== 'all' && report.status !== filter) return false;
       if (severityFilter !== 'all' && report.severity !== severityFilter) return false;
