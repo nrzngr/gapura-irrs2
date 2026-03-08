@@ -23,52 +23,66 @@ export async function POST(
       return NextResponse.json({ error: 'File is required' }, { status: 400 });
     }
 
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
+    const isImage = file.type.startsWith('image/');
+    const isDoc = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ].includes(file.type);
+
+    if (!isImage && !isDoc) {
+      return NextResponse.json({ error: 'Only images and documents (PDF/Word) are allowed' }, { status: 400 });
     }
 
     // Basic server-side guardrail (client compresses first)
-    const MAX_BYTES = 10 * 1024 * 1024; // 10MB before compression
+    const MAX_BYTES = 20 * 1024 * 1024; // 20MB for documents, images should be smaller
     if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 413 });
+      return NextResponse.json({ error: 'File too large (max 20MB)' }, { status: 413 });
     }
 
-    console.log(`[EVIDENCE UPLOAD] Original file size: ${(file.size / 1024).toFixed(2)}KB`);
+    console.log(`[EVIDENCE UPLOAD] Original file: ${file.name}, type: ${file.type}, size: ${(file.size / 1024).toFixed(2)}KB`);
 
-    // Compress image to <5KB
     const arrayBuffer = await file.arrayBuffer();
-    let compressedBuffer: Buffer;
-    let contentType: string;
+    let uploadBuffer: Buffer;
+    let contentType = file.type;
 
-    try {
-      const result = await compressToExactSize(arrayBuffer, 5);
-      compressedBuffer = result.buffer;
-      contentType = 'image/webp';
-      
-      console.log(`[EVIDENCE UPLOAD] Compressed from ${result.originalSize}B to ${result.size}B (${result.compressionRatio.toFixed(1)}% reduction)`);
-      console.log(`[EVIDENCE UPLOAD] Final dimensions: ${result.width}x${result.height}`);
-    } catch (error) {
-      console.error('[EVIDENCE UPLOAD] Compression failed, using original:', error);
-      compressedBuffer = Buffer.from(arrayBuffer);
-      contentType = file.type;
+    if (isImage) {
+      try {
+        // Compress image to <5KB if possible
+        const result = await compressToExactSize(arrayBuffer, 5);
+        uploadBuffer = result.buffer;
+        contentType = 'image/webp';
+        console.log(`[EVIDENCE UPLOAD] Image compressed from ${result.originalSize}B to ${result.size}B`);
+      } catch (error) {
+        console.error('[EVIDENCE UPLOAD] Compression failed, using original:', error);
+        uploadBuffer = Buffer.from(arrayBuffer);
+      }
+    } else {
+      // Documents uploaded as-is
+      uploadBuffer = Buffer.from(arrayBuffer);
     }
 
-    // Final size check (should be <5KB after compression)
-    if (compressedBuffer.length > 5 * 1024) {
-      console.warn(`[EVIDENCE UPLOAD] Compressed file still large: ${(compressedBuffer.length / 1024).toFixed(2)}KB`);
-    }
-
-    const ext = 'webp';
-    const fileName = `${Date.now()}-${randomUUID()}.${ext}`;
+    // Filename: preserve tags TYPE__UPLOADER if present, but add randomness for uniqueness
+    const ext = isImage ? 'webp' : (file.name.split('.').pop() || 'tmp');
+    let fileName = file.name.replace(/\.[^.]+$/, ""); // strip extension
+    fileName = `${fileName}_${randomUUID().slice(0, 8)}.${ext}`; // add short suffix + extension
+    
+    // Clean up filename: strictly alphanumeric, dots, dashes, underscores
+    fileName = fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    
     const path = `reports/${id}/${fileName}`;
+    console.log(`[EVIDENCE UPLOAD] Uploading to path: ${path}, contentType: ${contentType}`);
 
     const { error: uploadErr } = await supabaseAdmin.storage
       .from('evidence')
-      .upload(path, compressedBuffer, { contentType, upsert: false });
+      .upload(path, uploadBuffer, { contentType, upsert: false });
+    
     if (uploadErr) {
-      return NextResponse.json({ error: uploadErr.message }, { status: 500 });
+      console.error('[EVIDENCE UPLOAD] Supabase storage error:', uploadErr);
+      return NextResponse.json({ error: uploadErr.message, details: uploadErr }, { status: 500 });
     }
 
+    console.log('[EVIDENCE UPLOAD] Upload successful, getting public URL...');
     const { data: pub } = supabaseAdmin.storage.from('evidence').getPublicUrl(path);
     const publicUrl = pub?.publicUrl;
     if (!publicUrl) {
@@ -80,7 +94,7 @@ export async function POST(
       url: publicUrl, 
       path,
       originalSize: file.size,
-      compressedSize: compressedBuffer.length
+      uploadSize: uploadBuffer.length
     });
   } catch (e: any) {
     console.error('[UPLOAD_EVIDENCE_ERROR]', e);

@@ -144,7 +144,7 @@ export function ReportsTableSection({
 
     if (
       !report.target_division &&
-      (report.status === 'BARU' || report.status === 'MENUNGGU_FEEDBACK')
+      report.status === 'OPEN'
     ) {
       baseActions.unshift({
         label: 'Triage',

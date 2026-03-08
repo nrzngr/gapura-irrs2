@@ -9,7 +9,7 @@
 import 'dotenv/config';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const SYNC_INTERVAL_MS = 1 * 60 * 1000; // 1 minute
 
 let isSyncing = false;
 let syncCount = 0;

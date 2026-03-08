@@ -69,8 +69,8 @@ export default function EmployeeDashboard() {
     // Derived Stats
     const stats = {
         total: reports.length,
-        inProgress: reports.filter(r => ['MENUNGGU_FEEDBACK', 'SUDAH_DIVERIFIKASI'].includes(r.status)).length,
-        resolved: reports.filter(r => r.status === 'SELESAI').length,
+        inProgress: reports.filter(r => r.status === 'ON PROGRESS').length,
+        resolved: reports.filter(r => r.status === 'CLOSED').length,
     };
 
     return (
@@ -248,7 +248,7 @@ export default function EmployeeDashboard() {
                         </div>
                     ) : (
                         reports.map((report, idx) => {
-                            const statusConfig = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
+                            const statusConfig = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
                             const severityKey = report.severity || 'medium';
                             
                             // Map severity to Prism Light tokens

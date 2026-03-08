@@ -12,6 +12,7 @@ import {
   ExternalLink,
   FileText,
   FileType,
+  Image as ImageIcon,
   Link,
   Loader2,
   MapPin,
@@ -29,12 +30,16 @@ import {
 import {
   STATUS_CONFIG,
   getAllowedTransitions,
+  normalizeStatus,
   type ReportStatus,
 } from "@/lib/constants/report-status";
 import { cn, formatDate } from "@/lib/utils";
 import { type Report, type UserRole } from "@/types";
 import { CommentInput } from "@/components/dashboard/reports/CommentInput";
 import { generatePDF, generateWord } from "@/lib/utils/document-generator";
+import { DocxEditorModal } from "@/components/dashboard/DocxEditorModal";
+import { BriefingEditorModal } from "@/components/dashboard/BriefingEditorModal";
+import { EvidenceViewModal } from "@/components/dashboard/EvidenceViewModal";
 import { AIAnalysisSection } from "@/components/dashboard/ai-summary";
 import { canExportBranchData, canEditReport } from "@/lib/permissions";
 
@@ -148,6 +153,10 @@ export function ReportDetailView({
   currentUserStationId,
 }: ReportDetailViewProps) {
   // State
+  const [isDocxModalOpen, setIsDocxModalOpen] = useState(false);
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
+  const [showBriefingEditor, setShowBriefingEditor] = useState(false);
+  const [lampiranActionType, setLampiranActionType] = useState<"CORRECTIVE" | "PREVENTIVE" | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
@@ -156,7 +165,12 @@ export function ReportDetailView({
   const [closeNotes, setCloseNotes] = useState("");
   const [reopenNotes, setReopenNotes] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", description: "", flight_number: "", aircraft_reg: "", location: "" });
+  const [editForm, setEditForm] = useState({ 
+    title: "", description: "", flight_number: "", aircraft_reg: "", location: "",
+    route: "", airline: "", area: "", target_division: "", branch: "",
+    date_of_event: "", root_caused: "", action_taken: "", preventive_action: "",
+    sub_category_note: ""
+  });
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -191,7 +205,17 @@ export function ReportDetailView({
         description: report.description || "",
         flight_number: report.flight_number || "",
         aircraft_reg: report.aircraft_reg || "",
-        location: report.location || "",
+        location: report.location || report.specific_location || "",
+        route: report.route || "",
+        airline: report.airline || report.airlines || "",
+        area: report.area || "",
+        target_division: report.target_division || "",
+        branch: report.branch || report.stations?.code || "",
+        date_of_event: report.date_of_event || report.event_date || report.created_at || "",
+        root_caused: report.root_caused || report.root_cause || "",
+        action_taken: report.action_taken || report.gapura_kps_action_taken || "",
+        preventive_action: report.preventive_action || report.immediate_action || "",
+        sub_category_note: report.sub_category_note || report.kps_remarks || report.remarks_gapura_kps || ""
       });
       if (!showDispatchModal) {
         setDispatchForm({
@@ -315,8 +339,13 @@ export function ReportDetailView({
       const uploaded: string[] = [];
       for (const file of evidenceFiles) {
         const compressed = await compressImage(file);
+        const typeTag = lampiranActionType; // e.g. CORRECTIVE or PREVENTIVE
+        const uploader = userRole || 'Unknown';
+        const cleanUploader = uploader.replace(/[^a-zA-Z0-9]/g, '-');
+        const newFilename = `${typeTag}__${cleanUploader}__${new Date().getTime()}__${compressed.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+        const renamedFile = new File([compressed], newFilename, { type: compressed.type });
         const fd = new FormData();
-        fd.append('file', compressed);
+        fd.append('file', renamedFile);
         const res = await fetch(`/api/reports/${report.id}/evidence`, { method: 'POST', body: fd });
         if (!res.ok) {
           const msg = await res.text();
@@ -327,9 +356,11 @@ export function ReportDetailView({
         uploaded.push(url);
       }
       const newEvidence = [...currentEvidence, ...uploaded];
-      await fetch(`/api/reports/${report.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ evidence_urls: newEvidence }) });
+      const resPatch = await fetch(`/api/reports/${report.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ evidence_urls: newEvidence }) });
+      if (!resPatch.ok) throw new Error("Gagal mengupdate evidence di laporan");
+      const patchData = await resPatch.json();
       setEvidenceFiles([]);
-      onRefresh?.();
+      onRefresh?.(patchData.data || patchData);
     } catch (error) {
       console.error(error);
       alert('Gagal mengunggah bukti');
@@ -342,8 +373,9 @@ export function ReportDetailView({
     try {
       const res = await fetch(`/api/reports/${report.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editForm) });
       if (!res.ok) throw new Error("Failed to update");
+      const patchData = await res.json();
       setIsEditing(false);
-      onRefresh?.();
+      onRefresh?.(patchData.data || patchData);
     } catch (error) {
       console.error(error);
       alert("Gagal menyimpan perubahan");
@@ -366,9 +398,17 @@ export function ReportDetailView({
   // Derived values
   const severityKey = (report.severity || report.priority || "medium").toLowerCase();
   const severityBadge = SEVERITY_BADGES[severityKey] || SEVERITY_BADGES.medium;
-  const statusConfig = STATUS_CONFIG[report.status as ReportStatus];
-  const evidenceList = report.evidence_urls?.length ? report.evidence_urls : report.evidence_url ? [report.evidence_url] : [];
-  const allEvidence = [...evidenceList, ...(report.partner_evidence_urls || [])];
+  const normalizedStatus = normalizeStatus(report.status);
+  const statusConfig = STATUS_CONFIG[normalizedStatus];
+  
+  // Aggregate all possible evidence sources
+  const allEvidence = Array.from(new Set([
+    ...(Array.isArray(report.evidence_urls) ? report.evidence_urls : (report.evidence_urls ? [report.evidence_urls as string] : [])),
+    ...(report.evidence_url ? [report.evidence_url] : []),
+    ...(Array.isArray(report.video_urls) ? report.video_urls : (report.video_urls ? [report.video_urls as string] : [])),
+    ...(report.video_url ? [report.video_url] : []),
+    ...(report.partner_evidence_urls || [])
+  ])).filter(Boolean);
   const nextActions = getAllowedTransitions(report.status, userRole);
   const primaryAction = nextActions[0] || null;
   const canEdit = canEditReport(
@@ -378,14 +418,14 @@ export function ReportDetailView({
     currentUserStationId,
     report.station_id
   );
-  const isClosed = report.status === "SELESAI";
+  const isClosed = normalizedStatus === "CLOSED";
 
   let actionLabel = "Update Status";
-  if (primaryAction === "SUDAH_DIVERIFIKASI") {
-    actionLabel = "Verifikasi Laporan";
+  if (primaryAction === "ON PROGRESS") {
+    actionLabel = "Update Progress";
   }
-  else if (primaryAction === "SELESAI") actionLabel = "Selesaikan Kasus";
-  else if (primaryAction === "MENUNGGU_FEEDBACK") actionLabel = "Buka Kembali";
+  else if (primaryAction === "CLOSED") actionLabel = "Selesaikan Kasus";
+  else if (primaryAction === "OPEN") actionLabel = "Buka Kembali";
 
   return (
     <div className="min-h-full flex flex-col bg-[var(--surface-1)] md:p-4 gap-4 overflow-x-hidden">
@@ -461,13 +501,20 @@ export function ReportDetailView({
               </div>
 
               <div className="flex items-center gap-1.5 ml-auto">
+                {/* Evidence Link */}
+                {report.evidence_urls && report.evidence_urls.length > 0 && (
+                  <button onClick={() => setIsEvidenceModalOpen(true)} className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center transition-colors">
+                    <ImageIcon size={14} strokeWidth={2.5} />
+                  </button>
+                )}
+                
                 {/* PDF/Word */}
                 {(userRole === "CABANG" || canExportBranchData(userRole as UserRole)) && (
                    <div className="flex items-center gap-1 mr-1 pr-1 border-r border-slate-100">
                     <button onClick={() => generatePDF(report)} className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center transition-colors">
                       <FileType size={14} strokeWidth={2.5} />
                     </button>
-                    <button onClick={() => generateWord(report)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center transition-colors">
+                    <button onClick={() => setIsDocxModalOpen(true)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center transition-colors">
                       <FileText size={14} strokeWidth={2.5} />
                     </button>
                   </div>
@@ -489,12 +536,19 @@ export function ReportDetailView({
 
             {/* Row 4: Desktop Actions Only */}
             <div className="hidden md:flex items-center justify-end gap-2 border-t border-slate-50 pt-3 mt-1">
+               {/* Evidence Link */}
+               {report.evidence_urls && report.evidence_urls.length > 0 && (
+                <button onClick={() => setIsEvidenceModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-[12px] font-bold hover:bg-emerald-100 transition-colors mr-2 border-r border-emerald-100 pr-4">
+                  <ImageIcon size={14} strokeWidth={2.5} /> View Evidence
+                </button>
+               )}
+
                {(userRole === "CABANG" || canExportBranchData(userRole as UserRole)) && (
                 <div className="flex items-center gap-2 mr-2 pr-2 border-r border-slate-100">
                   <button onClick={() => generatePDF(report)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-[12px] font-bold hover:bg-red-100 transition-colors">
                     <FileType size={14} strokeWidth={2.5} /> PDF
                   </button>
-                  <button onClick={() => generateWord(report)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-[12px] font-bold hover:bg-blue-100 transition-colors">
+                  <button onClick={() => setIsDocxModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-[12px] font-bold hover:bg-blue-100 transition-colors">
                     <FileText size={14} strokeWidth={2.5} /> DOCX
                   </button>
                 </div>
@@ -549,16 +603,57 @@ export function ReportDetailView({
 
               {/* RINGKASAN — Summary Grid */}
               <SectionCard title="Ringkasan">
-                <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-6 gap-y-6 md:gap-y-5">
-                  <DataField label="Flight" value={`${report.flight_number || ""}${report.aircraft_reg ? ` (${report.aircraft_reg})` : ""}`} icon={Plane} />
-                  <DataField label="Route" value={report.route} icon={MapPin} />
-                  <DataField label="Airline" value={report.airlines} icon={Building2} />
-                  <DataField label="Area" value={AREA_LABELS[report.area || ""] || report.area} icon={Tag} />
-                  <DataField label="Target Divisi" value={report.target_division} />
-                  <DataField label="Station" value={`${report.stations?.code || report.branch || ""}${report.stations?.name ? ` - ${report.stations.name}` : ""}`} icon={Building2} />
-                  <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} span={2} />
-                  <DataField label="Tanggal" value={formatDate(report.date_of_event || report.event_date || report.created_at)} icon={Calendar} />
-                </dl>
+                {isEditing ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-5">
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Flight Number</label>
+                      <input value={editForm.flight_number} onChange={e => setEditForm(p => ({...p, flight_number: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Aircraft Reg</label>
+                      <input value={editForm.aircraft_reg} onChange={e => setEditForm(p => ({...p, aircraft_reg: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Route</label>
+                      <input value={editForm.route} onChange={e => setEditForm(p => ({...p, route: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Airline</label>
+                      <input value={editForm.airline} onChange={e => setEditForm(p => ({...p, airline: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Area</label>
+                      <input value={editForm.area} onChange={e => setEditForm(p => ({...p, area: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Target Divisi</label>
+                      <input value={editForm.target_division} onChange={e => setEditForm(p => ({...p, target_division: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Station / Branch</label>
+                      <input value={editForm.branch} onChange={e => setEditForm(p => ({...p, branch: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div className="col-span-2">
+                       <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Lokasi Detail</label>
+                       <input value={editForm.location} onChange={e => setEditForm(p => ({...p, location: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" />
+                    </div>
+                    <div className="col-span-2 md:col-span-3">
+                       <label className="text-[11px] font-semibold uppercase text-gray-500 block mb-1">Tanggal</label>
+                       <input type="text" value={editForm.date_of_event} onChange={e => setEditForm(p => ({...p, date_of_event: e.target.value}))} className="w-full text-[14px] bg-gray-50 border border-gray-200 rounded-lg p-2 focus:border-[var(--brand-primary)] outline-none transition-all" placeholder="YYYY-MM-DD HH:mm (opsional)" />
+                    </div>
+                  </div>
+                ) : (
+                  <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-6 gap-y-6 md:gap-y-5">
+                    <DataField label="Flight" value={`${report.flight_number || ""}${report.aircraft_reg ? ` (${report.aircraft_reg})` : ""}`} icon={Plane} />
+                    <DataField label="Route" value={report.route} icon={MapPin} />
+                    <DataField label="Airline" value={report.airlines} icon={Building2} />
+                    <DataField label="Area" value={AREA_LABELS[report.area || ""] || report.area} icon={Tag} />
+                    <DataField label="Target Divisi" value={report.target_division} />
+                    <DataField label="Station" value={`${report.stations?.code || report.branch || ""}${report.stations?.name ? ` - ${report.stations.name}` : ""}`} icon={Building2} />
+                    <DataField label="Lokasi Detail" value={report.specific_location || report.location} icon={MapPin} span={2} />
+                    <DataField label="Tanggal" value={formatDate(report.date_of_event || report.event_date || report.created_at)} icon={Calendar} />
+                  </dl>
+                )}
               </SectionCard>
 
               {/* DESKRIPSI MASALAH */}
@@ -579,40 +674,61 @@ export function ReportDetailView({
               </SectionCard>
 
               {/* AKAR MASALAH & TINDAKAN */}
-              {(report.root_caused || report.action_taken || report.immediate_action || report.preventive_action || report.sub_category_note) && (
+              {(isEditing || report.root_caused || report.action_taken || report.immediate_action || report.preventive_action || report.sub_category_note) && (
                 <SectionCard title="Analisis & Tindakan">
-                  <div className="space-y-5">
-                    {report.immediate_action && (
-                      <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Tindakan Pencegahan</p>
-                        <p className="text-[15px] text-emerald-800">{report.immediate_action}</p>
-                      </div>
-                    )}
-                    {report.preventive_action && (
-                      <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600 mb-1">Preventive Action</p>
-                        <p className="text-[15px] text-blue-800">{report.preventive_action}</p>
-                      </div>
-                    )}
-                    {report.root_caused && (
+                  {isEditing ? (
+                    <div className="space-y-4">
                       <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Akar Masalah</p>
-                        <p className="text-[15px] text-[var(--text-secondary)]">{report.root_caused}</p>
+                        <label className="text-[11px] font-bold uppercase text-emerald-600 tracking-wider mb-1 block">Tindakan Pencegahan</label>
+                        <textarea value={editForm.preventive_action} onChange={e => setEditForm(p => ({...p, preventive_action: e.target.value}))} className="w-full bg-emerald-50/50 border border-emerald-200 rounded-xl p-3 text-[14px] text-emerald-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none transition-all resize-none" rows={3} placeholder="Masukkan tindakan pencegahan..." />
                       </div>
-                    )}
-                    {report.action_taken && (
                       <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Tindakan Perbaikan</p>
-                        <p className="text-[15px] text-[var(--text-secondary)]">{report.action_taken}</p>
+                        <label className="text-[11px] font-bold uppercase text-[var(--text-muted)] tracking-wider mb-1 block">Akar Masalah</label>
+                        <textarea value={editForm.root_caused} onChange={e => setEditForm(p => ({...p, root_caused: e.target.value}))} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] text-[var(--text-secondary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none transition-all resize-none" rows={3} placeholder="Masukkan akar masalah..." />
                       </div>
-                    )}
-                    {report.sub_category_note && (
-                      <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 mb-1">Remarks Gapura KPS</p>
-                        <p className="text-[15px] text-indigo-800">{report.sub_category_note}</p>
+                      <div>
+                        <label className="text-[11px] font-bold uppercase text-[var(--text-muted)] tracking-wider mb-1 block">Tindakan Perbaikan</label>
+                        <textarea value={editForm.action_taken} onChange={e => setEditForm(p => ({...p, action_taken: e.target.value}))} className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] text-[var(--text-secondary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none transition-all resize-none" rows={3} placeholder="Masukkan tindakan perbaikan..." />
                       </div>
-                    )}
-                  </div>
+                      <div>
+                        <label className="text-[11px] font-bold uppercase text-indigo-600 tracking-wider mb-1 block">Remarks Gapura KPS</label>
+                        <textarea value={editForm.sub_category_note} onChange={e => setEditForm(p => ({...p, sub_category_note: e.target.value}))} className="w-full bg-indigo-50/50 border border-indigo-200 rounded-xl p-3 text-[14px] text-indigo-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all resize-none" rows={3} placeholder="Remarks dari verifikator..." />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      {report.immediate_action && (
+                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Tindakan Pencegahan</p>
+                          <p className="text-[15px] text-emerald-800 leading-relaxed whitespace-pre-wrap">{report.immediate_action}</p>
+                        </div>
+                      )}
+                      {report.preventive_action && !report.immediate_action && (
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600 mb-1">Preventive Action</p>
+                          <p className="text-[15px] text-blue-800 leading-relaxed whitespace-pre-wrap">{report.preventive_action}</p>
+                        </div>
+                      )}
+                      {report.root_caused && (
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Akar Masalah</p>
+                          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">{report.root_caused}</p>
+                        </div>
+                      )}
+                      {report.action_taken && (
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Tindakan Perbaikan</p>
+                          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">{report.action_taken}</p>
+                        </div>
+                      )}
+                      {report.sub_category_note && (
+                        <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 mb-1">Remarks Gapura KPS</p>
+                          <p className="text-[15px] text-indigo-800 leading-relaxed whitespace-pre-wrap">{report.sub_category_note}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </SectionCard>
               )}
 
@@ -622,7 +738,8 @@ export function ReportDetailView({
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {allEvidence.map((url, i) => {
                       const isPartnerEvidence = report.partner_evidence_urls?.includes(url);
-                      const isImage = /\.(png|jpg|jpeg|webp|gif)$/i.test(url) || url.includes('/storage/v1/object/public/evidence/');
+                      const isImage = /\.(png|jpg|jpeg|webp|gif|avif)$/i.test(url) || 
+                                     (url.includes('/storage/v1/object/public/evidence/') && !/\.(docx|doc|pdf|xlsx|xls|pptx|ppt)$/i.test(url));
                       return (
                         <a
                           key={i}
@@ -635,15 +752,59 @@ export function ReportDetailView({
                           )}
                         >
                           {isImage ? (
-                            <div className="aspect-video bg-gray-50">
+                            <div className="relative aspect-video bg-gray-50 group">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={url} alt={`evidence-${i}`} className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]" />
+                              
+                              {/* Metadata Overlay for Images */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end">
+                                {(() => {
+                                  const filename = decodeURIComponent(url.split('/').pop() || '');
+                                  const metadataMatch = filename.match(/^([A-Z]+)__(.*?)__/);
+                                  if (metadataMatch) {
+                                    const actionType = metadataMatch[1] === 'CORRECTIVE' ? 'Corrective Action' : 
+                                                      metadataMatch[1] === 'PREVENTIVE' ? 'Preventive Action' : 
+                                                      metadataMatch[1].replace(/-/g, ' ');
+                                    return (
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">{actionType}</span>
+                                        <span className="text-[9px] text-gray-200">Oleh: {metadataMatch[2]}</span>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-3 p-3">
-                              <Link size={16} className={isPartnerEvidence ? "text-emerald-600 shrink-0" : "text-blue-500 shrink-0"} />
-                              <span className="text-sm text-[var(--text-secondary)] truncate flex-1">{url}</span>
-                              <ExternalLink size={14} className="text-gray-400 shrink-0" />
+                            <div className="flex flex-col p-3 gap-2">
+                              <div className="flex items-center gap-3">
+                                <FileText size={16} className={isPartnerEvidence ? "text-emerald-600 shrink-0" : "text-blue-500 shrink-0"} />
+                                <span className="text-sm text-[var(--text-secondary)] truncate flex-1 font-medium">
+                                  {decodeURIComponent(url.split('/').pop() || '').split('__').pop() || 'Document'}
+                                </span>
+                              </div>
+                              
+                              {(() => {
+                                const filename = decodeURIComponent(url.split('/').pop() || '');
+                                const metadataMatch = filename.match(/^([A-Z]+)__(.*?)__/);
+                                if (metadataMatch) {
+                                  const actionType = metadataMatch[1] === 'CORRECTIVE' ? 'Corrective Action' : 
+                                                    metadataMatch[1] === 'PREVENTIVE' ? 'Preventive Action' : 
+                                                    metadataMatch[1].replace(/-/g, ' ');
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold uppercase ring-1 ring-gray-200">
+                                        {actionType}
+                                      </span>
+                                      <span className="text-[9px] text-gray-400 font-medium">
+                                        {metadataMatch[2]}
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           )}
                         </a>
@@ -657,23 +818,62 @@ export function ReportDetailView({
                   </div>
                 )}
                 {/* Upload new evidence */}
+                {/* Upload new evidence */}
                 {!isClosed && (
-                  <div className="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
-                      className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none"
-                    />
-                    <button
-                      onClick={handleUploadEvidence}
-                      disabled={evidenceFiles.length === 0 || actionLoading}
-                      className="px-3 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all flex items-center gap-1.5 disabled:opacity-60"
-                    >
-                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                      Upload {evidenceFiles.length > 1 ? `(${evidenceFiles.length})` : 'Bukti'}
-                    </button>
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-[var(--text-secondary)]">Jenis Action</label>
+                      <select 
+                        className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/20 outline-none"
+                        value={lampiranActionType || ""}
+                        onChange={(e) => setLampiranActionType(e.target.value as any)}
+                      >
+                        <option value="" disabled>-- Pilih Corrective / Preventive Action --</option>
+                        <option value="CORRECTIVE">Corrective Action</option>
+                        <option value="PREVENTIVE">Preventive Action</option>
+                      </select>
+                    </div>
+
+                    {lampiranActionType && (
+                      <div className="flex flex-col gap-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                        <p className="text-xs font-semibold text-blue-800 mb-1">Opsi Briefing</p>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <a
+                              href="/templates/form-briefing.docx"
+                              download
+                              className="flex-1 text-center px-3 py-2 bg-white border border-blue-200 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors"
+                            >
+                              Download Template
+                            </a>
+                            <button
+                              onClick={() => setShowBriefingEditor(true)}
+                              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5"
+                            >
+                              <FileText size={14} /> Isi Form Briefing
+                            </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {lampiranActionType && (
+                      <div className="flex flex-col sm:flex-row gap-2 items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+                          className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] outline-none"
+                        />
+                        <button
+                          onClick={handleUploadEvidence}
+                          disabled={evidenceFiles.length === 0 || actionLoading}
+                          className="px-4 py-2 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-semibold hover:brightness-110 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 whitespace-nowrap"
+                        >
+                          {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                          Upload Foto
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </SectionCard>
@@ -711,9 +911,9 @@ export function ReportDetailView({
                     <span className="text-sm font-semibold">{actionLabel}</span>
                     <button
                       onClick={() => {
-                        if (primaryAction === "SELESAI") setShowCloseModal(true);
-                        else if (primaryAction === "MENUNGGU_FEEDBACK") setShowReopenModal(true);
-                        else if (primaryAction === "SUDAH_DIVERIFIKASI") setShowVerifyModal(true);
+                        if (primaryAction === "CLOSED") setShowCloseModal(true);
+                        else if (primaryAction === "OPEN") setShowReopenModal(true);
+                        else if (primaryAction === "ON PROGRESS") setShowVerifyModal(true);
                         else handleUpdateStatus(primaryAction);
                       }}
                       disabled={actionLoading}
@@ -733,7 +933,7 @@ export function ReportDetailView({
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex flex-col">
                             <span className="text-sm font-semibold">
-                                {report.target_division ? `Dispatched to ${report.target_division}` : "Unassigned"}
+                                {report.target_division && report.target_division !== "-" ? `Dispatched to ${report.target_division}` : "Unassigned"}
                             </span>
                             {report.primary_tag && <span className="text-[10px] opacity-80">{report.primary_tag}</span>}
                         </div>
@@ -742,7 +942,7 @@ export function ReportDetailView({
                             className="px-4 py-2.5 bg-white text-indigo-700 rounded-xl text-[13px] font-bold flex items-center gap-2 hover:bg-indigo-50 active:scale-95 transition-all shadow-sm"
                         >
                             <Plane size={16} />
-                            {report.target_division ? "Update Dispatch" : "Dispatch"}
+                            {report.target_division && report.target_division !== "-" ? "Update Dispatch" : "Dispatch"}
                         </button>
                     </div>
                 </div>
@@ -903,19 +1103,19 @@ export function ReportDetailView({
         <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-[var(--text-primary)]">Verifikasi Laporan</h3>
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Update Progress</h3>
               <button onClick={() => setShowVerifyModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-            <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl text-[13px] mb-5 flex items-center gap-3 border border-emerald-100">
+            <div className="bg-blue-50 text-blue-700 p-4 rounded-xl text-[13px] mb-5 flex items-center gap-3 border border-blue-100">
               <CheckCircle2 size={18} className="shrink-0" />
-              <span>Laporan akan ditandai sebagai sudah diverifikasi. Tambahkan catatan verifikasi di bawah ini.</span>
+              <span>Laporan akan ditandai sebagai ON PROGRESS. Tambahkan catatan di bawah ini.</span>
             </div>
             <textarea
               value={verifyNotes}
               onChange={(e) => setVerifyNotes(e.target.value)}
               className="w-full p-4 rounded-xl border border-gray-200 text-[15px] focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 outline-none bg-gray-50 mb-5 resize-none"
               rows={4}
-              placeholder="Tambahkan catatan verifikasi (wajib)..."
+              placeholder="Tambahkan catatan (wajib)..."
               autoFocus
             />
             <div className="flex gap-3">
@@ -926,12 +1126,12 @@ export function ReportDetailView({
                 Batal
               </button>
               <button
-                onClick={() => handleUpdateStatus("SUDAH_DIVERIFIKASI", verifyNotes)}
+                onClick={() => handleUpdateStatus("ON PROGRESS", verifyNotes)}
                 disabled={actionLoading || !verifyNotes.trim()}
-                className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                Verifikasi
+                Update Progress
               </button>
             </div>
           </div>
@@ -966,7 +1166,7 @@ export function ReportDetailView({
                 Batal
               </button>
               <button
-                onClick={() => handleUpdateStatus("MENUNGGU_FEEDBACK", reopenNotes)}
+                onClick={() => handleUpdateStatus("OPEN", reopenNotes)}
                 disabled={actionLoading}
                 className="flex-1 py-3.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 active:scale-[0.98] transition-all text-[15px] flex items-center justify-center gap-2"
               >
@@ -1005,7 +1205,7 @@ export function ReportDetailView({
                 Batal
               </button>
               <button 
-                onClick={() => handleUpdateStatus("SELESAI", closeNotes)}
+                onClick={() => handleUpdateStatus("CLOSED", closeNotes)}
                 disabled={actionLoading} 
                 className="flex-1 py-3.5 text-white font-bold rounded-xl text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                 style={{ background: divisionColor }}
@@ -1016,6 +1216,41 @@ export function ReportDetailView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Docx Editor Modal */}
+      <DocxEditorModal
+        isOpen={isDocxModalOpen}
+        onClose={() => setIsDocxModalOpen(false)}
+        reportData={report}
+        onSuccess={(updatedReport) => {
+          onRefresh?.(updatedReport);
+        }}
+      />
+
+      {/* Evidence View Modal */}
+      <EvidenceViewModal
+        isOpen={isEvidenceModalOpen}
+        onClose={() => setIsEvidenceModalOpen(false)}
+        evidenceUrls={(report.evidence_urls || []).filter(url => 
+          /\.(png|jpg|jpeg|webp|gif|avif)$/i.test(url) || 
+          (url.includes('/storage/v1/object/public/evidence/') && !/\.(docx|doc|pdf|xlsx|xls|pptx|ppt)$/i.test(url))
+        )}
+      />
+
+      {/* Briefing Editor Modal */}
+      {showBriefingEditor && report && lampiranActionType && (
+        <BriefingEditorModal
+          isOpen={showBriefingEditor}
+          onClose={() => setShowBriefingEditor(false)}
+          reportData={report}
+          uploadType={lampiranActionType}
+          divisionName={userRole}
+          onSuccess={(updatedReport) => {
+             // Keep modal open to show success state and download button
+             onRefresh?.(updatedReport);
+          }}
+        />
       )}
     </div>
   );

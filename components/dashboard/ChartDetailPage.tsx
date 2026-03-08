@@ -30,8 +30,8 @@ export function ChartDetailPage({
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
     const totalCount = reports.length;
-    const resolvedCount = reports.filter(r => r.status === 'SELESAI').length;
-    const pendingCount = reports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length;
+    const resolvedCount = reports.filter(r => r.status === 'CLOSED').length;
+    const pendingCount = reports.filter(r => r.status === 'OPEN').length;
     const highCount = reports.filter(r => r.severity === 'high' || r.severity === 'urgent').length;
 
     if (loading) {

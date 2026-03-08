@@ -35,9 +35,9 @@ interface ReportsResponse {
 const CHART_COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#2dd4bf'];
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
-  'MENUNGGU_FEEDBACK': { label: 'Menunggu', class: 'pending' },
-  'SUDAH_DIVERIFIKASI': { label: 'Diverifikasi', class: 'verified' },
-  'SELESAI': { label: 'Selesai', class: 'completed' }
+  'OPEN': { label: 'Open', class: 'pending' },
+  'ON PROGRESS': { label: 'Dalam Proses', class: 'verified' },
+  'CLOSED': { label: 'Selesai', class: 'completed' }
 };
 
 const SEVERITY_MAP: Record<string, string> = {

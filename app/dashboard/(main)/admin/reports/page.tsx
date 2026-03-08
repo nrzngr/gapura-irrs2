@@ -74,8 +74,8 @@ export default function AdminReportsPage() {
                 title="Kelola Laporan"
                 subtitle="Kelola dan tindaklanjuti semua laporan masuk"
                 totalReports={reports.length}
-                pendingReports={reports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length}
-                resolvedReports={reports.filter(r => r.status === 'SELESAI').length}
+                pendingReports={reports.filter(r => r.status === 'OPEN').length}
+                resolvedReports={reports.filter(r => r.status === 'CLOSED').length}
                 period={period}
                 onPeriodChange={(p) => setPeriod(p)}
             />
@@ -110,9 +110,9 @@ export default function AdminReportsPage() {
                     <div className="relative flex-1 min-w-[140px]">
                         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field pl-10 pr-10 cursor-pointer" style={{ background: 'var(--surface-2)' }}>
                             <option value="all">Semua Status</option>
-                            <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
-                            <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
-                            <option value="SELESAI">Selesai</option>
+                            <option value="OPEN">Open</option>
+                            <option value="ON PROGRESS">On Progress</option>
+                            <option value="CLOSED">Closed</option>
                         </select>
                         <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
@@ -172,7 +172,7 @@ export default function AdminReportsPage() {
                             <tbody>
                                 {filteredReports.map((report) => {
                                     const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-                                    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
+                                    const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
                                     const SevIcon = severity.icon;
                                     const StatIcon = status.icon;
 

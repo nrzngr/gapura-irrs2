@@ -58,9 +58,9 @@ export function computeAnalytics(reports: Report[], dateRange?: { from: Date; to
         }
         const stats = stationMap.get(stationName)!;
         stats.total++;
-        if (r.status === 'SELESAI' || r.status === 'Closed') stats.resolved++;
-        if (r.status === 'MENUNGGU_FEEDBACK' || r.status === 'BARU') stats.pending++;
-        if (r.status === 'SUDAH_DIVERIFIKASI') stats.in_progress++;
+        if (r.status === 'CLOSED') stats.resolved++;
+        if (r.status === 'OPEN') stats.pending++;
+        if (r.status === 'ON PROGRESS') stats.in_progress++;
         
         const severity = r.severity?.toLowerCase();
         if (severity === 'high') stats.high++;
@@ -84,8 +84,8 @@ export function computeAnalytics(reports: Report[], dateRange?: { from: Date; to
         }
         const stats = divisionMap.get(divName)!;
         stats.total++;
-        if (r.status === 'SELESAI' || r.status === 'Closed') stats.resolved++;
-        if (r.status === 'MENUNGGU_FEEDBACK' || r.status === 'BARU') stats.pending++;
+        if (r.status === 'CLOSED') stats.resolved++;
+        if (r.status === 'OPEN') stats.pending++;
         
         const severity = r.severity?.toLowerCase();
         if (severity === 'high') stats.high++;
@@ -109,8 +109,8 @@ export function computeAnalytics(reports: Report[], dateRange?: { from: Date; to
     // --- Summary ---
     const summary = {
         total: filteredReports.length,
-        resolved: filteredReports.filter(r => r.status === 'SELESAI' || r.status === 'Closed').length,
-        pending: filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK' || r.status === 'BARU').length,
+        resolved: filteredReports.filter(r => r.status === 'CLOSED').length,
+        pending: filteredReports.filter(r => r.status === 'OPEN').length,
         high: filteredReports.filter(r => r.severity?.toLowerCase() === 'high').length
     };
 

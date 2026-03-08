@@ -96,11 +96,11 @@ const parseDateOnly = (val: string | number): string | null => {
 
 // Map CSV Status to DB constraint
 const normalizeStatus = (raw: string | undefined | null): string => {
-  if (!raw) return 'MENUNGGU_FEEDBACK';
+  if (!raw) return 'OPEN';
   const upper = raw.toUpperCase().trim();
-  if (['SELESAI', 'CLOSED', 'DONE', 'RESOLVED', 'CLOSE'].includes(upper)) return 'SELESAI';
-  if (['SUDAH_DIVERIFIKASI', 'VERIFIED', 'OPEN', 'ON PROGRESS'].includes(upper)) return 'SUDAH_DIVERIFIKASI';
-  return 'MENUNGGU_FEEDBACK';
+  if (['SELESAI', 'CLOSED', 'DONE', 'RESOLVED', 'CLOSE'].includes(upper)) return 'CLOSED';
+  if (['SUDAH_DIVERIFIKASI', 'VERIFIED', 'ON PROGRESS'].includes(upper)) return 'ON PROGRESS';
+  return 'OPEN';
 };
 
 // Main Helper: Map a single CSV row to a Report object

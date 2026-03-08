@@ -42,14 +42,14 @@ export const canExecuteReport = (role: UserRole): boolean =>
     role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
- * Check if user can close a case (mark as SELESAI)
+ * Check if user can close a case (mark as CLOSED)
  * Only ANALYST and SUPER_ADMIN
  */
 export const canCloseCase = (role: UserRole): boolean =>
     role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
- * Check if user can reopen a case (SELESAI → MENUNGGU_FEEDBACK)
+ * Check if user can reopen a case (CLOSED → OPEN)
  * Only ANALYST and SUPER_ADMIN
  */
 export const canReopenCase = (role: UserRole): boolean =>

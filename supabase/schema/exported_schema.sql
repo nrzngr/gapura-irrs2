@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS public.reports (
   user_id uuid NOT NULL,
   title text,
   description text,
-  status text DEFAULT 'MENUNGGU_FEEDBACK'::text,
+  status text DEFAULT 'OPEN'::text,
   severity text DEFAULT 'low'::text,
   location text,
   flight_number text,

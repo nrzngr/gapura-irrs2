@@ -9,7 +9,7 @@ export const TABLES: TableDef[] = [
     fields: [
       { name: 'id', label: 'ID Laporan', type: 'uuid' },
       { name: 'title', label: 'Judul', type: 'string' },
-      { name: 'status', label: 'Status', type: 'string', enumValues: ['MENUNGGU_FEEDBACK', 'SUDAH_DIVERIFIKASI', 'SELESAI', 'Closed', 'OPEN'] },
+      { name: 'status', label: 'Status', type: 'string', enumValues: ['OPEN', 'ON PROGRESS', 'CLOSED'] },
       { name: 'severity', label: 'Severity', type: 'string', enumValues: ['low', 'medium', 'high'] },
       { name: 'priority', label: 'Prioritas', type: 'string', enumValues: ['low', 'medium', 'high', 'urgent'] },
       { name: 'category', label: 'Kategori Utama', type: 'string', enumValues: ['Irregularity', 'Complaint', 'Compliment'] },

@@ -827,9 +827,9 @@ export default function AnalystCharts({
 
     // Derived Data: Status Flow
     const statusFlowData = useMemo(() => [
-        { status: 'MENUNGGU_FEEDBACK', label: 'Menunggu Feedback', count: filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length },
-        { status: 'SUDAH_DIVERIFIKASI', label: 'Sudah Diverifikasi', count: filteredReports.filter(r => r.status === 'SUDAH_DIVERIFIKASI').length },
-        { status: 'SELESAI', label: 'Selesai', count: filteredReports.filter(r => r.status === 'SELESAI').length },
+        { status: 'OPEN', label: 'Open', count: filteredReports.filter(r => r.status === 'OPEN').length },
+        { status: 'ON PROGRESS', label: 'On Progress', count: filteredReports.filter(r => r.status === 'ON PROGRESS').length },
+        { status: 'CLOSED', label: 'Closed', count: filteredReports.filter(r => r.status === 'CLOSED').length },
     ], [filteredReports]);
 
     // Pivot data for Case Category by Branch table (top 6)

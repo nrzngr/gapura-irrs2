@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/admin/sync-reports",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/1 * * * *"
     }
   ],
   "headers": [

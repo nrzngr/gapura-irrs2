@@ -24,9 +24,9 @@ interface ReportsResponse {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; class: string }> = {
-  'MENUNGGU_FEEDBACK': { label: 'Menunggu Feedback', color: '#fbbf24', class: 'pending' },
-  'SUDAH_DIVERIFIKASI': { label: 'Sudah Diverifikasi', color: '#60a5fa', class: 'verified' },
-  'SELESAI': { label: 'Selesai', color: '#22c55e', class: 'completed' }
+  'OPEN': { label: 'Open', color: '#fbbf24', class: 'pending' },
+  'ON PROGRESS': { label: 'Dalam Proses', color: '#60a5fa', class: 'verified' },
+  'CLOSED': { label: 'Selesai', color: '#22c55e', class: 'completed' }
 };
 const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
 const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
@@ -75,7 +75,7 @@ export function StatusDetailContent() {
   let overdueCount = 0;
   let atRiskCount = 0;
   for (const r of data?.reports || []) {
-    if (r.sla_deadline && r.status !== 'SELESAI') {
+    if (r.sla_deadline && r.status !== 'CLOSED') {
       const deadline = new Date(r.sla_deadline);
       const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
       if (hoursLeft < 0) overdueCount++;
@@ -84,7 +84,7 @@ export function StatusDetailContent() {
   }
   
   const completionRate = data?.summary.total 
-    ? Math.round(((data.summary.byStatus['SELESAI'] || 0) / data.summary.total) * 100) 
+    ? Math.round(((data.summary.byStatus['CLOSED'] || 0) / data.summary.total) * 100) 
     : 0;
   
   return (

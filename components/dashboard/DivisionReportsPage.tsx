@@ -77,8 +77,8 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
 
   const stats = useMemo(() => ({
     total: filteredReports.length,
-    pending: filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length,
-    resolved: filteredReports.filter(r => r.status === 'SELESAI').length
+    pending: filteredReports.filter(r => r.status === 'OPEN').length,
+    resolved: filteredReports.filter(r => r.status === 'CLOSED').length
   }), [filteredReports]);
 
   const handleUpdateStatus = async (reportId: string, status: string, notes?: string, evidenceUrl?: string) => {
@@ -187,11 +187,9 @@ export function DivisionReportsPage({ config }: { config: DivisionConfig }) {
                   className="w-full h-12 pl-10 pr-8 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-[11px] uppercase tracking-wide text-slate-600"
                 >
                   <option value="all">Semua Status</option>
-                  <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
-                  <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
-                  <option value="SELESAI">Selesai</option>
                   <option value="OPEN">Open</option>
-                  <option value="Closed">Closed</option>
+                  <option value="ON PROGRESS">On Progress</option>
+                  <option value="CLOSED">Closed</option>
                 </select>
                 <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-teal-500" />
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

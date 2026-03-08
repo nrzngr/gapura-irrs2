@@ -32,9 +32,9 @@ const CHART_COLORS = [
 const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
 
 const STATUS_MAP: Record<string, string> = {
-  'MENUNGGU_FEEDBACK': 'Menunggu',
-  'SUDAH_DIVERIFIKASI': 'Diverifikasi',
-  'SELESAI': 'Selesai'
+  'OPEN': 'Open',
+  'ON PROGRESS': 'Dalam Proses',
+  'CLOSED': 'Selesai'
 };
 
 export function OverviewContent() {
@@ -100,8 +100,8 @@ export function OverviewContent() {
   
   const totalReports = airlineData?.totalCount || 0;
   const statusCounts = statusData?.distribution || [];
-  const pendingCount = statusCounts.find(s => s.name === 'MENUNGGU_FEEDBACK')?.count || 0;
-  const completedCount = statusCounts.find(s => s.name === 'SELESAI')?.count || 0;
+  const pendingCount = statusCounts.find(s => s.name === 'OPEN')?.count || 0;
+  const completedCount = statusCounts.find(s => s.name === 'CLOSED')?.count || 0;
   const severityCounts = severityData?.distribution || [];
   const highSeverity = severityCounts.find(s => s.name === 'high')?.count || 0;
   const statusDonutData = [...(statusData?.distribution || [])]

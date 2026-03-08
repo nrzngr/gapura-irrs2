@@ -79,9 +79,9 @@ export async function GET(request: Request) {
             }
             const stats = stationMap.get(stationName)!;
             stats.total++;
-            if (r.status === REPORT_STATUS.SELESAI) stats.resolved++;
-            if (r.status === REPORT_STATUS.MENUNGGU_FEEDBACK) stats.pending++;
-            if (r.status === REPORT_STATUS.SUDAH_DIVERIFIKASI) stats.in_progress++;
+            if (r.status === REPORT_STATUS.CLOSED) stats.resolved++;
+            if (r.status === REPORT_STATUS.OPEN) stats.pending++;
+            if (r.status === REPORT_STATUS['ON PROGRESS']) stats.in_progress++;
             if (r.severity === 'high') stats.high++;
             if (r.severity === 'medium') stats.medium++;
             if (r.severity === 'low') stats.low++;
@@ -103,8 +103,8 @@ export async function GET(request: Request) {
             }
             const stats = divisionMap.get(divName)!;
             stats.total++;
-            if (r.status === REPORT_STATUS.SELESAI) stats.resolved++;
-            if (r.status === REPORT_STATUS.MENUNGGU_FEEDBACK) stats.pending++;
+            if (r.status === REPORT_STATUS.CLOSED) stats.resolved++;
+            if (r.status === REPORT_STATUS.OPEN) stats.pending++;
             if (r.severity === 'high') stats.high++;
         });
 
@@ -114,8 +114,8 @@ export async function GET(request: Request) {
         // --- Summary Stats ---
         const summary = {
             totalReports: filteredReports.length,
-            resolvedReports: filteredReports.filter(r => r.status === REPORT_STATUS.SELESAI).length,
-            pendingReports: filteredReports.filter(r => r.status === REPORT_STATUS.MENUNGGU_FEEDBACK).length,
+            resolvedReports: filteredReports.filter(r => r.status === REPORT_STATUS.CLOSED).length,
+            pendingReports: filteredReports.filter(r => r.status === REPORT_STATUS.OPEN).length,
             highSeverity: filteredReports.filter(r => r.severity === 'high').length,
             avgResolutionRate: 0,
             slaBreachCount: 0 // Not calculated yet
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
             if (trendMap.has(key)) {
                 const stats = trendMap.get(key)!;
                 stats.total++;
-                if (r.status === REPORT_STATUS.SELESAI) stats.resolved++;
+                if (r.status === REPORT_STATUS.CLOSED) stats.resolved++;
             }
         });
 
@@ -184,11 +184,9 @@ export async function GET(request: Request) {
 
 function getStatusColor(status: string): string {
     switch (status) {
-        case REPORT_STATUS.BARU: return '#3b82f6'; // blue-500
-        case REPORT_STATUS.DITOLAK: return '#ef4444'; // red-500
-        case REPORT_STATUS.MENUNGGU_FEEDBACK: return '#f59e0b'; // amber-500
-        case REPORT_STATUS.SUDAH_DIVERIFIKASI: return '#8b5cf6'; // violet-500
-        case REPORT_STATUS.SELESAI: return '#22c55e'; // green-500
+        case REPORT_STATUS.OPEN: return '#f59e0b'; // amber-500
+        case REPORT_STATUS['ON PROGRESS']: return '#8b5cf6'; // violet-500
+        case REPORT_STATUS.CLOSED: return '#22c55e'; // green-500
         default: return '#94a3b8'; // slate-400
     }
 }

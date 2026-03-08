@@ -20,13 +20,13 @@ const reportsServiceContent = fs.readFileSync(reportsServicePath, 'utf8');
 
 // Check for status mapping
 const hasStatusMapping = reportsServiceContent.includes('statusMapping');
-const hasClosedMapping = reportsServiceContent.includes("'Closed': 'SELESAI'");
-const hasOpenMapping = reportsServiceContent.includes("'Open': 'MENUNGGU_FEEDBACK'");
+const hasClosedMapping = reportsServiceContent.includes("'Closed': 'CLOSED'");
+const hasOpenMapping = reportsServiceContent.includes("'Open': 'OPEN'");
 
 console.log('Status Mapping Implementation:');
 console.log(`  ${hasStatusMapping ? '✅' : '❌'} Status mapping object exists`);
-console.log(`  ${hasClosedMapping ? '✅' : '❌'} Maps "Closed" to "SELESAI"`);
-console.log(`  ${hasOpenMapping ? '✅' : '❌'} Maps "Open" to "MENUNGGU_FEEDBACK"`);
+console.log(`  ${hasClosedMapping ? '✅' : '❌'} Maps "Closed" to "CLOSED"`);
+console.log(`  ${hasOpenMapping ? '✅' : '❌'} Maps "Open" to "OPEN"`);
 
 // Test 2: Check severity mapping
 console.log('\n✅ TEST 2: Severity Mapping\n');
@@ -92,7 +92,7 @@ console.log(`Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`);
 if (passedTests === totalTests) {
   console.log('\n✅ All data mapping fixes are in place!');
   console.log('\nKey Improvements:');
-  console.log('  1. Status values from Google Sheets (Closed/Open) now map to internal values (SELESAI/MENUNGGU_FEEDBACK)');
+  console.log('  1. Status values from Google Sheets (Closed/Open) now map to internal values (CLOSED/OPEN)');
   console.log('  2. Severity values are normalized to lowercase (high/medium/low)');
   console.log('  3. Google Sheets headers with underscores are now properly mapped');
   console.log('  4. Field aliases ensure data consistency across different field names');

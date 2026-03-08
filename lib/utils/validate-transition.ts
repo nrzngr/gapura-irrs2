@@ -6,17 +6,17 @@ import type { UserRole } from '@/types';
  * Only ANALYST and SUPER_ADMIN can change statuses
  */
 const TRANSITION_RULES: Partial<Record<ReportStatus, Partial<Record<UserRole, ReportStatus[]>>>> = {
-    MENUNGGU_FEEDBACK: {
-        ANALYST: ['SUDAH_DIVERIFIKASI'],
-        SUPER_ADMIN: ['SUDAH_DIVERIFIKASI'],
+    OPEN: {
+        ANALYST: ['ON PROGRESS', 'CLOSED'],
+        SUPER_ADMIN: ['ON PROGRESS', 'CLOSED'],
     },
-    SUDAH_DIVERIFIKASI: {
-        ANALYST: ['SELESAI'],
-        SUPER_ADMIN: ['SELESAI'],
+    'ON PROGRESS': {
+        ANALYST: ['CLOSED'],
+        SUPER_ADMIN: ['CLOSED'],
     },
-    SELESAI: {
-        ANALYST: ['MENUNGGU_FEEDBACK'],     // Reopen
-        SUPER_ADMIN: ['MENUNGGU_FEEDBACK'], // Reopen
+    CLOSED: {
+        ANALYST: ['OPEN'],     // Reopen
+        SUPER_ADMIN: ['OPEN'], // Reopen
     },
 };
 
@@ -24,9 +24,9 @@ const TRANSITION_RULES: Partial<Record<ReportStatus, Partial<Record<UserRole, Re
  * Action to Status mapping
  */
 export const ACTION_TO_STATUS: Record<string, ReportStatus> = {
-    verify: 'SUDAH_DIVERIFIKASI',
-    close: 'SELESAI',
-    reopen: 'MENUNGGU_FEEDBACK',
+    update_progress: 'ON PROGRESS',
+    close: 'CLOSED',
+    reopen: 'OPEN',
 };
 
 interface ValidationResult {
@@ -82,8 +82,8 @@ export function validateStatusTransition(
  */
 export function getTimestampFieldForStatus(status: ReportStatus): string | null {
     const fieldMap: Partial<Record<ReportStatus, string>> = {
-        SUDAH_DIVERIFIKASI: 'validated_at',
-        SELESAI: 'resolved_at',
+        'ON PROGRESS': 'validated_at',
+        CLOSED: 'resolved_at',
     };
     return fieldMap[status] || null;
 }
@@ -93,8 +93,8 @@ export function getTimestampFieldForStatus(status: ReportStatus): string | null 
  */
 export function getUserFieldForStatus(status: ReportStatus): string | null {
     const fieldMap: Partial<Record<ReportStatus, string>> = {
-        SUDAH_DIVERIFIKASI: 'validated_by',
-        SELESAI: 'resolved_by',
+        'ON PROGRESS': 'validated_by',
+        CLOSED: 'resolved_by',
     };
     return fieldMap[status] || null;
 }

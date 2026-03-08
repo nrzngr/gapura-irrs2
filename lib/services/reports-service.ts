@@ -104,14 +104,15 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   description: ['Report', 'Laporan', 'Description', 'Deskripsi'],
   root_caused: ['Root_Caused', 'Root Caused', 'Akar Masalah', 'Root Cause'],
   action_taken: ['Action_Taken', 'Action Taken', 'Tindakan'],
-  kps_remarks: ['Gapura_KPS_Remarks', 'Gapura KPS Remarks', 'KPS Remarks'],
+  kps_remarks: ['Gapura_KPS_Remarks', 'Gapura KPS Remarks', 'KPS Remarks', 'Remarks Gapura KPS', 'Remarks_Gapura_KPS'],
   gapura_kps_action_taken: ['Gapura_KPS_Action_Taken', 'Gapura KPS Action Taken'],
   preventive_action: ['Preventive Action', 'Preventive_Action'],
-  remarks_gapura_kps: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS'],
   reporter_name: ['Report_By', 'Report By', 'Pelapor', 'Reporter'],
   reporter_email: ['Reporter Email', 'Email'],
   evidence_url: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti'],
   evidence_urls: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti', 'Lampiran'],
+  video_url: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti'],
+  video_urls: ['Upload_Irregularity_Photo', 'Upload Irregularity Photo', 'Evidence', 'Bukti'],
   area: ['Area', 'Wilayah'],
   terminal_area_category: ['Terminal_Area_Category', 'Terminal Area Category'],
   apron_area_category: ['Apron_Area_Category', 'Apron Area Category'],
@@ -129,8 +130,8 @@ const PROP_TO_HEADER: Partial<Record<keyof Report, string[]>> = {
   
   // Triage Columns
   primary_tag: ['Primary Tag', 'Primary_Tag', 'Area Category', 'Area_Category'],
-  sub_category_note: ['Remarks Gapura KPS', 'Remarks_Gapura_KPS', 'Gapura KPS Remarks', 'Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
-  target_division: ['ESKLASI DIVISI', 'ESKLASI_DIVISI'],
+  sub_category_note: ['Sub Category Note', 'Sub_Category_Note', 'Sub Category', 'Additional Note'],
+  target_division: ['ESKLASI DIVISI', 'ESKLASI_DIVISI', 'Target Division'],
   
   // Standard fields
   id: ['ID'],
@@ -406,19 +407,22 @@ export class ReportsService {
         }
     });
 
-    // Post-parse evidence URLs into an array and primary value for compatibility
-    if (report.evidence_urls && typeof report.evidence_urls === 'string') {
-      const parts = String(report.evidence_urls)
-        .split(/\s*\|\s*|\n+/)
-        .map(s => s.trim())
-        .filter(Boolean);
-      if (parts.length) {
-        report.evidence_urls = parts;
-        report.evidence_url = parts[0];
+    // Post-parse evidence & video URLs into arrays and primary values for compatibility
+    const parseUrlField = (pluralKey: keyof Report, singularKey: keyof Report) => {
+      const val = report[pluralKey] || report[singularKey];
+      if (val && typeof val === 'string') {
+        const parts = val.split(/\s*\|\s*|\n+/).map(s => s.trim()).filter(Boolean);
+        if (parts.length) {
+          report[pluralKey] = parts as any;
+          report[singularKey] = parts[0] as any;
+        }
+      } else if (report[singularKey] && typeof report[singularKey] === 'string' && !report[pluralKey]) {
+        report[pluralKey] = [report[singularKey]] as any;
       }
-    } else if (report.evidence_url && typeof report.evidence_url === 'string' && !report.evidence_urls) {
-      report.evidence_urls = [report.evidence_url];
-    }
+    };
+
+    parseUrlField('evidence_urls', 'evidence_url');
+    parseUrlField('video_urls', 'video_url');
 
     // Handle internal IDs
     if (report.row_number) {
@@ -459,22 +463,26 @@ export class ReportsService {
 
     // Status Normalization
     const statusMapping: Record<string, string> = {
-      'Closed': 'SELESAI', 'Open': 'MENUNGGU_FEEDBACK', 'OPEN': 'MENUNGGU_FEEDBACK',
-      'CLOSED': 'SELESAI', 'closed': 'SELESAI', 'open': 'MENUNGGU_FEEDBACK',
-      'Selesai': 'SELESAI', 'selesai': 'SELESAI', 'Menunggu': 'MENUNGGU_FEEDBACK',
-      'menunggu': 'MENUNGGU_FEEDBACK',
+      'Closed': 'CLOSED', 'Open': 'OPEN', 'OPEN': 'OPEN',
+      'CLOSED': 'CLOSED', 'closed': 'CLOSED', 'open': 'OPEN',
+      'Selesai': 'CLOSED', 'selesai': 'CLOSED', 'Menunggu': 'OPEN',
+      'menunggu': 'OPEN', 'On Progress': 'ON PROGRESS', 'ON PROGRESS': 'ON PROGRESS'
     };
     
     if (report.status) {
       let normalizedStatus = report.status.toString().trim().toUpperCase();
       normalizedStatus = statusMapping[normalizedStatus] || normalizedStatus;
-      // Canonicalize: underscores instead of spaces (e.g., "SUDAH DIVERIFIKASI" -> "SUDAH_DIVERIFIKASI")
-      normalizedStatus = normalizedStatus.replace(/\s+/g, '_');
-      if (normalizedStatus === 'SELESAI' || normalizedStatus === 'CLOSED') normalizedStatus = 'SELESAI';
-      else if (normalizedStatus === 'OPEN' || normalizedStatus === 'MENUNGGU' || normalizedStatus === 'ACTIVE') normalizedStatus = 'MENUNGGU_FEEDBACK';
+      
+      if (normalizedStatus === 'SELESAI' || normalizedStatus === 'CLOSED') {
+          normalizedStatus = 'CLOSED';
+      } else if (normalizedStatus === 'OPEN' || normalizedStatus === 'MENUNGGU' || normalizedStatus === 'ACTIVE' || normalizedStatus === 'MENUNGGU_FEEDBACK' || normalizedStatus === 'MENUNGGU FEEDBACK') {
+          normalizedStatus = 'OPEN';
+      } else if (normalizedStatus === 'ON PROGRESS' || normalizedStatus === 'ON_PROGRESS' || normalizedStatus === 'SUDAH_DIVERIFIKASI' || normalizedStatus === 'SUDAH DIVERIFIKASI') {
+          normalizedStatus = 'ON PROGRESS';
+      }
       report.status = normalizedStatus;
     } else {
-      report.status = 'MENUNGGU_FEEDBACK';
+      report.status = 'OPEN';
     }
     
     // Severity Normalization
@@ -529,7 +537,7 @@ export class ReportsService {
          else if (report.apron_area_category) report.area = 'APRON';
     }
 
-    if (report.status === 'SELESAI' && !report.resolved_at) {
+    if (report.status === 'CLOSED' && !report.resolved_at) {
         report.resolved_at = report.date_of_event || report.created_at || new Date().toISOString();
     }
 
@@ -596,11 +604,23 @@ export class ReportsService {
   }
 
   public invalidateCache() {
+    // Clear memory cache
     const keys = Array.from(ttlCache.keys());
     keys.forEach((k) => {
       if (k.startsWith(CACHE_KEY_ALL_REPORTS)) ttlCache.delete(k);
     });
-    console.log('[ReportsService] Cache invalidated');
+    
+    // Clear file system cache
+    try {
+        const fs = require('fs');
+        if (fs.existsSync(FS_CACHE_DIR)) {
+            fs.rmSync(FS_CACHE_DIR, { recursive: true, force: true });
+        }
+    } catch (err) {
+        console.warn('[ReportsService] Failed to clear FS cache:', err);
+    }
+    
+    console.log('[ReportsService] All caches invalidated');
   }
 
   public getLastUpdated(): number {
@@ -888,7 +908,7 @@ export class ReportsService {
         id: row.id,
         sheet_id: row.sheet_id,
         evidence_urls: row.evidence_urls || (row.evidence_url ? [row.evidence_url] : []),
-        status: row.status || 'MENUNGGU_FEEDBACK',
+        status: row.status || 'OPEN',
         severity: row.severity || 'low',
         priority: row.priority || 'low',
         date_of_event: row.date_of_event || row.incident_date || row.created_at,
@@ -943,7 +963,7 @@ export class ReportsService {
       evidence_urls: row.evidence_urls || (row.evidence_url ? [row.evidence_url] : []),
       
       // Fallbacks
-      status: row.status || 'MENUNGGU_FEEDBACK',
+      status: row.status || 'OPEN',
       severity: row.severity || 'low',
       priority: row.priority || 'low',
       
@@ -1038,7 +1058,7 @@ export class ReportsService {
       ...reportData,
       created_at: reportData.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      status: reportData.status || 'MENUNGGU_FEEDBACK',
+      status: reportData.status || 'OPEN',
       severity: reportData.severity || 'low',
       title: reportData.title || 'Untitled',
       description: reportData.description || '',
@@ -1060,9 +1080,13 @@ export class ReportsService {
       (newReport as any).airlines = (newReport as any).airline;
     }
 
-        const row = headers.map((header: string) => {
+    const row = headers.map((header: string) => {
       const normalizedHeader = header.trim().toLowerCase();
-      const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === normalizedHeader);
+      
+      const propEntry = Object.entries(PROP_TO_HEADER).find(([_, names]) => 
+        (names as string[]).some(name => name.toLowerCase() === normalizedHeader)
+      );
+
       if (propEntry) {
         const prop = propEntry[0] as keyof Report;
         
@@ -1218,18 +1242,24 @@ export class ReportsService {
     for (const [key, value] of Object.entries(updates)) {
         if (value === undefined) continue;
 
+        let currentUpdateValue = value;
+
         // Special handling for evidence_urls and video_urls - merge with existing
         if (key === 'evidence_urls' || key === 'evidence_url' || key === 'video_urls' || key === 'video_url') {
             const currentReport = await this.getReportById(id);
             if (currentReport) {
                 const existingUrls = [
                     ...(Array.isArray(currentReport.evidence_urls) ? currentReport.evidence_urls : []),
-                    ...(Array.isArray(currentReport.video_urls) ? currentReport.video_urls : [])
+                    ...(currentReport.evidence_url && !Array.isArray(currentReport.evidence_urls) ? [currentReport.evidence_url] : []),
+                    ...(Array.isArray(currentReport.video_urls) ? currentReport.video_urls : []),
+                    ...(currentReport.video_url && !Array.isArray(currentReport.video_urls) ? [currentReport.video_url] : [])
                 ];
                 
                 const newUrls = [
                     ...(Array.isArray(updates.evidence_urls) ? updates.evidence_urls : []),
-                    ...(Array.isArray(updates.video_urls) ? updates.video_urls : [])
+                    ...(updates.evidence_url ? [updates.evidence_url] : []),
+                    ...(Array.isArray(updates.video_urls) ? updates.video_urls : []),
+                    ...(updates.video_url ? [updates.video_url] : [])
                 ];
                 
                 // Merge and deduplicate
@@ -1237,6 +1267,7 @@ export class ReportsService {
                 
                 // Update both evidence_urls and video_urls to ensure all URLs are saved
                 updates.evidence_urls = allUrls;
+                currentUpdateValue = allUrls;
             }
         }
 
@@ -1262,11 +1293,11 @@ export class ReportsService {
         const colLetter = getColLetter(colIndex);
         const cellRange = `${sheetName}!${colLetter}${rowIndex}`;
         
-        let stringValue: any = value;
-        if (value === null || value === undefined) stringValue = '';
-        else if (Array.isArray(value)) stringValue = value.join(' | ');
-        else if (typeof value === 'object') stringValue = JSON.stringify(value);
-        else stringValue = String(value);
+        let stringValue: any = currentUpdateValue;
+        if (currentUpdateValue === null || currentUpdateValue === undefined) stringValue = '';
+        else if (Array.isArray(currentUpdateValue)) stringValue = currentUpdateValue.join('\n');
+        else if (typeof currentUpdateValue === 'object') stringValue = JSON.stringify(currentUpdateValue);
+        else stringValue = String(currentUpdateValue);
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
@@ -1346,7 +1377,7 @@ export class ReportsService {
           ...reportData,
           created_at: reportData.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          status: reportData.status || 'MENUNGGU_FEEDBACK',
+          status: reportData.status || 'OPEN',
           severity: reportData.severity || 'low',
           title: reportData.title || 'Untitled',
           description: reportData.description || '',
@@ -1355,7 +1386,9 @@ export class ReportsService {
 
         return headers.map((header: string) => {
           const normalizedHeader = header.trim().toLowerCase();
-          const propEntry = Object.entries(WRITE_MAPPING).find(([_, h]) => h.toLowerCase() === normalizedHeader);
+          const propEntry = Object.entries(PROP_TO_HEADER).find(([_, names]) => 
+            (names as string[]).some(name => name.toLowerCase() === normalizedHeader)
+          );
           if (propEntry) {
             const prop = propEntry[0] as keyof Report;
             if (prop === 'evidence_url' || prop === 'evidence_urls') {

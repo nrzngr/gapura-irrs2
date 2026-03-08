@@ -448,7 +448,7 @@ export function AnalyticsDashboard({ division, showGenerateFeedback = true }: An
             const branch = r.station_code || r.branch || 'Unknown';
             if (!branchMap[branch]) branchMap[branch] = { total: 0, resolved: 0 };
             branchMap[branch].total++;
-            if (r.status === 'SELESAI') branchMap[branch].resolved++;
+            if (r.status === 'CLOSED') branchMap[branch].resolved++;
         });
         return Object.entries(branchMap).map(([branch, data]) => ({
             branch,

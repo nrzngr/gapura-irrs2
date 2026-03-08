@@ -131,29 +131,37 @@ export async function PATCH(
             priority,
             location,
             station_id,
-            // Add other fields that might be updated
             action_taken,
             root_cause,
+            preventive_action,
+            reporter_name,
+            attachments,
             // Triage
             primary_tag,
             sub_category_note,
             target_division,
             is_dispatch, // New flag for dispatch action
+            route,
+            airline,
+            area,
+            date_of_event,
+            branch,
         } = body;
 
         const updates: any = {};
 
-        // Normalize status to canonical value (underscored, uppercased)
+        // Normalize status to canonical value
         const normalizeStatus = (val: unknown) => {
             if (!val) return val;
-            const up = String(val).trim().toUpperCase().replace(/\s+/g, '_');
-            const map: Record<string, string> = {
-                'OPEN': 'MENUNGGU_FEEDBACK',
-                'MENUNGGU': 'MENUNGGU_FEEDBACK',
-                'ACTIVE': 'MENUNGGU_FEEDBACK',
-                'CLOSED': 'SELESAI'
-            };
-            return map[up] || up;
+            let up = String(val).trim().toUpperCase().replace(/_/g, ' ');
+            if (up === 'SELESAI' || up === 'CLOSED') {
+                return 'CLOSED';
+            } else if (up === 'MENUNGGU FEEDBACK' || up === 'OPEN' || up === 'BARU' || up === 'MENUNGGU' || up === 'ACTIVE') {
+                return 'OPEN';
+            } else if (up === 'SUDAH DIVERIFIKASI' || up === 'ON PROGRESS') {
+                return 'ON PROGRESS';
+            }
+            return up;
         };
 
         if (title !== undefined) updates.title = title;
@@ -170,11 +178,21 @@ export async function PATCH(
         if (station_id !== undefined) updates.station_id = station_id;
         if (action_taken !== undefined) updates.action_taken = action_taken;
         if (root_cause !== undefined) updates.root_caused = root_cause;
+        if (preventive_action !== undefined) updates.preventive_action = preventive_action;
+        if (reporter_name !== undefined) updates.reporter_name = reporter_name;
+        if (attachments !== undefined) updates.attachments = attachments;
         
         // Triage
         if (primary_tag !== undefined) updates.primary_tag = primary_tag;
         if (sub_category_note !== undefined) updates.sub_category_note = sub_category_note;
         if (target_division !== undefined) updates.target_division = target_division;
+
+        // Additional Fields
+        if (route !== undefined) updates.route = route;
+        if (airline !== undefined) updates.airline = airline;
+        if (area !== undefined) updates.area = area;
+        if (date_of_event !== undefined) updates.date_of_event = date_of_event;
+        if (branch !== undefined) updates.branch = branch;
 
         // Perform the update in Google Sheets
         const updatedReport = await reportsService.updateReport(id, updates);
@@ -217,42 +235,42 @@ export async function PATCH(
         }
 
         // Supabase write-through sync (best-effort)
-        // Match by sheet_id since Supabase stores the Google Sheets ID
         try {
             const supabaseUpdates: Record<string, unknown> = {};
             const syncableFields = [
-                'title', 'description', 'severity', 'status',
+                'title', 'description', 'severity', 'status', 'evidence_urls',
                 'flight_number', 'aircraft_reg', 'category', 'priority',
                 'location', 'station_id', 'action_taken', 'root_caused',
-                'primary_tag', 'target_division',
+                'preventive_action', 'reporter_name', 'attachments',
+                'primary_tag', 'target_division', 'route', 'airline',
+                'area', 'date_of_event', 'branch',
             ] as const;
 
             for (const field of syncableFields) {
-                if (updates[field] !== undefined) {
-                    supabaseUpdates[field] = updates[field];
+                if (updatedReport[field] !== undefined) {
+                    supabaseUpdates[field] = updatedReport[field];
                 }
             }
-
-            if (sub_category_note !== undefined) {
-                supabaseUpdates.remarks_gapura_kps = sub_category_note;
-            }
-
+            
+            // Add metadata for reports_sync
             if (Object.keys(supabaseUpdates).length > 0) {
                 supabaseUpdates.updated_at = new Date().toISOString();
-
-                const { error: sbError } = await supabaseAdmin
+                
+                // 1. Sync to legacy reports table
+                await supabaseAdmin
                     .from('reports')
                     .update(supabaseUpdates)
                     .eq('sheet_id', updatedReport.original_id || id);
 
-                if (sbError) {
-                    console.warn('[Supabase] PATCH sync failed (non-blocking):', sbError.message);
-                }
+                // 2. Sync to reports_sync table (the fast path for the dashboard)
+                await supabaseAdmin
+                    .from('reports_sync')
+                    .update(supabaseUpdates)
+                    .eq('sheet_id', updatedReport.original_id || id);
             }
         } catch (syncErr) {
             console.warn('[Supabase] PATCH sync error:', syncErr);
         }
-
         return NextResponse.json({ success: true, data: updatedReport });
     } catch (error) {
         console.error('Error updating report:', error);

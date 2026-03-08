@@ -58,9 +58,9 @@ export async function GET(request: Request) {
 
         // Calculate Stats
         const totalReports = filteredReports.length;
-        const menungguFeedback = filteredReports.filter(r => r.status === REPORT_STATUS.MENUNGGU_FEEDBACK).length;
-        const sudahDiverifikasi = filteredReports.filter(r => r.status === REPORT_STATUS.SUDAH_DIVERIFIKASI).length;
-        const selesai = filteredReports.filter(r => r.status === REPORT_STATUS.SELESAI).length;
+        const menungguFeedback = filteredReports.filter(r => r.status === REPORT_STATUS.OPEN).length;
+        const sudahDiverifikasi = filteredReports.filter(r => r.status === REPORT_STATUS['ON PROGRESS']).length;
+        const selesai = filteredReports.filter(r => r.status === REPORT_STATUS.CLOSED).length;
 
         const highSeverity = filteredReports.filter(r => r.severity?.toLowerCase() === 'high').length;
         const mediumSeverity = filteredReports.filter(r => r.severity?.toLowerCase() === 'medium').length;
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
 
         // SLA Breach: deadline < now AND status != SELESAI
         const slaBreachCount = filteredReports.filter(r => {
-            if (r.status === REPORT_STATUS.SELESAI) return false;
+            if (r.status === REPORT_STATUS.CLOSED) return false;
             if (!r.sla_deadline) return false;
             return new Date(r.sla_deadline) < now;
         }).length;

@@ -1,6 +1,6 @@
 export type UserRole = 'SUPER_ADMIN' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'DIVISI_HC' | 'DIVISI_HT' | 'ANALYST' | 'MANAGER_CABANG' | 'STAFF_CABANG';
 
-export type ReportStatus = 'BARU' | 'DITOLAK' | 'MENUNGGU_FEEDBACK' | 'SUDAH_DIVERIFIKASI' | 'SELESAI' | 'Closed' | 'OPEN';
+export type ReportStatus = 'OPEN' | 'ON PROGRESS' | 'CLOSED';
 
 export type ReportPriority = 'low' | 'medium' | 'high' | 'urgent';
 

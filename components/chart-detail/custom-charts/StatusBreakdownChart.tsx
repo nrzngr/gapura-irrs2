@@ -28,40 +28,19 @@ const STATUS_CONFIG: Record<string, { color: string; bgColor: string; icon: any;
     icon: Clock,
     label: 'Terbuka'
   },
-  'IN PROGRESS': { 
+  'ON PROGRESS': { 
     color: '#ca8a04', 
     bgColor: 'bg-yellow-100', 
     icon: Hourglass,
     label: 'Dalam Proses'
-  },
-  'MENUNGGU_FEEDBACK': { 
-    color: '#2563eb', 
-    bgColor: 'bg-blue-100', 
-    icon: HelpCircle,
-    label: 'Menunggu'
-  },
-  'DITOLAK': { 
-    color: '#7c3aed', 
-    bgColor: 'bg-purple-100', 
-    icon: XCircle,
-    label: 'Ditolak'
-  },
-  'BARU': { 
-    color: '#0891b2', 
-    bgColor: 'bg-cyan-100', 
-    icon: Clock,
-    label: 'Baru'
   },
 };
 
 function normalizeStatus(status: string): string {
   const normalized = status.toUpperCase().replace(/\s+/g, ' ').trim();
   if (normalized.includes('CLOSED') || normalized.includes('SELESAI')) return 'CLOSED';
-  if (normalized.includes('OPEN') || normalized.includes('TERBUKA')) return 'OPEN';
-  if (normalized.includes('PROGRESS') || normalized.includes('PROSES')) return 'IN PROGRESS';
-  if (normalized.includes('FEEDBACK') || normalized.includes('MENUNGGU')) return 'MENUNGGU_FEEDBACK';
-  if (normalized.includes('DITOLAK') || normalized.includes('REJECT')) return 'DITOLAK';
-  if (normalized.includes('BARU') || normalized.includes('NEW')) return 'BARU';
+  if (normalized.includes('OPEN') || normalized.includes('TERBUKA') || normalized.includes('BARU') || normalized.includes('NEW') || normalized.includes('FEEDBACK') || normalized.includes('MENUNGGU') || normalized.includes('DITOLAK')) return 'OPEN';
+  if (normalized.includes('PROGRESS') || normalized.includes('PROSES')) return 'ON PROGRESS';
   return normalized;
 }
 

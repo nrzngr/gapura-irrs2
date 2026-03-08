@@ -14,13 +14,9 @@ import {
 } from 'lucide-react';
 
 export const REPORT_STATUS = {
-    BARU: 'BARU',
-    DITOLAK: 'DITOLAK',
-    MENUNGGU_FEEDBACK: 'MENUNGGU_FEEDBACK',     // Menunggu feedback dari analyst
-    SUDAH_DIVERIFIKASI: 'SUDAH_DIVERIFIKASI',   // Sudah diverifikasi analyst
-    SELESAI: 'SELESAI',                           // Kasus selesai
-    Closed: 'Closed',
     OPEN: 'OPEN',
+    'ON PROGRESS': 'ON PROGRESS',
+    CLOSED: 'CLOSED',
 } as const;
 
 export type ReportStatus = typeof REPORT_STATUS[keyof typeof REPORT_STATUS];
@@ -38,48 +34,28 @@ export const STATUS_CONFIG: Record<ReportStatus, {
     textClass?: string;
     borderClass?: string;
 }> = {
-    BARU: {
-        label: 'Baru',
+    OPEN: {
+        label: 'Open',
         color: 'oklch(0.65 0.20 240)',     // Blue
         bgColor: 'oklch(0.65 0.20 240 / 0.1)',
         icon: AlertCircle,
-        description: 'Laporan baru dibuat',
+        description: 'Laporan baru atau terbuka',
         bgClass: 'bg-blue-50',
         textClass: 'text-blue-700',
         borderClass: 'border-blue-200',
     },
-    DITOLAK: {
-        label: 'Ditolak',
-        color: 'oklch(0.55 0.20 20)',      // Red
-        bgColor: 'oklch(0.55 0.20 20 / 0.1)',
-        icon: AlertTriangle,
-        description: 'Laporan ditolak',
-        bgClass: 'bg-red-50',
-        textClass: 'text-red-700',
-        borderClass: 'border-red-200',
-    },
-    MENUNGGU_FEEDBACK: {
-        label: 'Menunggu Feedback',
+    'ON PROGRESS': {
+        label: 'On Progress',
         color: 'oklch(0.65 0.18 85)',      // Amber
         bgColor: 'oklch(0.65 0.18 85 / 0.1)',
         icon: Clock,
-        description: 'Menunggu feedback dari analyst',
+        description: 'Sedang ditangani analyst',
         bgClass: 'bg-amber-50',
         textClass: 'text-amber-700',
         borderClass: 'border-amber-200',
     },
-    SUDAH_DIVERIFIKASI: {
-        label: 'Sudah Diverifikasi',
-        color: 'oklch(0.55 0.20 240)',     // Blue
-        bgColor: 'oklch(0.55 0.20 240 / 0.1)',
-        icon: Eye,
-        description: 'Laporan sudah diverifikasi, menunggu penyelesaian',
-        bgClass: 'bg-blue-50',
-        textClass: 'text-blue-700',
-        borderClass: 'border-blue-200',
-    },
-    SELESAI: {
-        label: 'Selesai',
+    CLOSED: {
+        label: 'Closed',
         color: 'oklch(0.55 0.18 145)',     // Green
         bgColor: 'oklch(0.55 0.18 145 / 0.1)',
         icon: CheckCircle2,
@@ -87,26 +63,6 @@ export const STATUS_CONFIG: Record<ReportStatus, {
         bgClass: 'bg-green-50',
         textClass: 'text-green-700',
         borderClass: 'border-green-200',
-    },
-    Closed: {
-        label: 'Closed',
-        color: 'oklch(0.55 0.18 145)',     // Green
-        bgColor: 'oklch(0.55 0.18 145 / 0.1)',
-        icon: CheckCircle2,
-        description: 'Laporan ditutup (Imported)',
-        bgClass: 'bg-green-50',
-        textClass: 'text-green-700',
-        borderClass: 'border-green-200',
-    },
-    OPEN: {
-        label: 'Open',
-        color: 'oklch(0.65 0.18 85)',      // Amber
-        bgColor: 'oklch(0.65 0.18 85 / 0.1)',
-        icon: Clock,
-        description: 'Laporan baru (Imported)',
-        bgClass: 'bg-amber-50',
-        textClass: 'text-amber-700',
-        borderClass: 'border-amber-200',
     },
 };
 
@@ -216,26 +172,72 @@ export function getSlaStatus(slaDeadline: Date | string | null): {
 }
 
 /**
+ * Normalize system status strings to canonical ReportStatus
+ */
+export function normalizeStatus(status: any): ReportStatus {
+    if (!status) return 'OPEN';
+    
+    // Convert to upper case and replace spaces/underscores
+    const s = String(status).trim().toUpperCase().replace(/\s+/g, '_');
+    
+    // Map of variations to canonical statuses
+    if ([
+        'OPEN', 
+        'BARU', 
+        'NEW', 
+        'BARU/NEW', 
+        'MENUNGGU_FEEDBACK', 
+        'UNASSIGNED',
+        'ACTIVE'
+    ].includes(s)) {
+        return 'OPEN';
+    }
+    
+    if ([
+        'ON_PROGRESS', 
+        'ONPROGRESS', 
+        'SUDAH_DIVERIFIKASI', 
+        'DIVERIFIKASI',
+        'DIKONFIRMASI',
+        'PROGRESS'
+    ].includes(s)) {
+        return 'ON PROGRESS';
+    }
+    
+    if ([
+        'CLOSED', 
+        'SELESAI', 
+        'NON_ACTIVE'
+    ].includes(s)) {
+        return 'CLOSED';
+    }
+    
+    return 'OPEN'; // Default fallback
+}
+
+/**
  * Get allowed status transitions based on current status and user role
  * Only ANALYST can change statuses
  */
 export function getAllowedTransitions(
-    currentStatus: ReportStatus,
+    currentStatus: string | ReportStatus,
     userRole: string
 ): ReportStatus[] {
     const isAnalyst = userRole === 'ANALYST' || userRole === 'SUPER_ADMIN';
 
     if (!isAnalyst) return [];
 
-    switch (currentStatus) {
-        case 'MENUNGGU_FEEDBACK':
-            return ['SUDAH_DIVERIFIKASI'];
+    const normalized = normalizeStatus(currentStatus);
 
-        case 'SUDAH_DIVERIFIKASI':
-            return ['SELESAI'];
+    switch (normalized) {
+        case 'OPEN':
+            return ['ON PROGRESS', 'CLOSED'];
 
-        case 'SELESAI':
-            return ['MENUNGGU_FEEDBACK']; // Reopen
+        case 'ON PROGRESS':
+            return ['CLOSED'];
+
+        case 'CLOSED':
+            return ['OPEN']; // Reopen
 
         default:
             return [];
@@ -247,21 +249,22 @@ export function getAllowedTransitions(
  * Analyst controls ALL status changes. Other roles can only view and comment.
  */
 export function canPerformAction(
-    action: 'verify' | 'close' | 'reopen' | 'comment',
-    currentStatus: ReportStatus,
+    action: 'update_progress' | 'close' | 'reopen' | 'comment',
+    currentStatus: string | ReportStatus,
     userRole: string
 ): boolean {
     const isAnalyst = userRole === 'ANALYST' || userRole === 'SUPER_ADMIN';
+    const normalized = normalizeStatus(currentStatus);
 
     switch (action) {
-        case 'verify':
-            return isAnalyst && currentStatus === 'MENUNGGU_FEEDBACK';
+        case 'update_progress':
+            return isAnalyst && normalized === 'OPEN';
 
         case 'close':
-            return isAnalyst && currentStatus === 'SUDAH_DIVERIFIKASI';
+            return isAnalyst && (normalized === 'OPEN' || normalized === 'ON PROGRESS');
 
         case 'reopen':
-            return isAnalyst && currentStatus === 'SELESAI';
+            return isAnalyst && normalized === 'CLOSED';
 
         case 'comment':
             return true; // Everyone can comment

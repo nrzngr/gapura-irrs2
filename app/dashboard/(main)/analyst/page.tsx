@@ -189,9 +189,9 @@ export default function AnalystDashboard() {
   // Calculate stats
   const filteredStats = useMemo(() => {
     const total = filteredReports.length;
-    const resolved = filteredReports.filter((r) => r.status === 'SELESAI').length;
+    const resolved = filteredReports.filter((r) => r.status === 'CLOSED').length;
     const pending = filteredReports.filter(
-      (r) => r.status === 'MENUNGGU_FEEDBACK'
+      (r) => r.status === 'OPEN'
     ).length;
     const highSeverity = filteredReports.filter(
       (r) => r.severity === 'high' || r.severity === 'urgent'
@@ -324,7 +324,7 @@ export default function AnalystDashboard() {
           primary_tag: data.primary_tag,
           sub_category_note: data.sub_category_note,
           target_division: data.target_division,
-          status: 'MENUNGGU_FEEDBACK',
+          status: 'OPEN',
         }),
       });
 
@@ -365,10 +365,10 @@ export default function AnalystDashboard() {
         router.push(drilldownUrl('severity', 'all'));
         break;
       case 'resolved':
-        router.push(drilldownUrl('status', 'SELESAI'));
+        router.push(drilldownUrl('status', 'CLOSED'));
         break;
       case 'pending':
-        router.push(drilldownUrl('status', 'MENUNGGU_FEEDBACK'));
+        router.push(drilldownUrl('status', 'OPEN'));
         break;
       case 'high':
         router.push(drilldownUrl('severity', 'high'));
@@ -655,7 +655,7 @@ export default function AnalystDashboard() {
       const branch = r.stations?.code || r.branch || 'Unknown';
       if (!branchMap[branch]) branchMap[branch] = { total: 0, resolved: 0 };
       branchMap[branch].total++;
-      if (r.status === 'SELESAI') branchMap[branch].resolved++;
+      if (r.status === 'CLOSED') branchMap[branch].resolved++;
     });
     return Object.entries(branchMap)
       .map(([branch, data]) => ({

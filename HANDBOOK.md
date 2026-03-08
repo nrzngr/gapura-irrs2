@@ -159,7 +159,7 @@ flowchart TB
 - GET `/api/admin/reports`
   - Mengambil daftar laporan.
   - Parameter filter (opsional): 
-    - `status` (mis. `SELESAI`, `MENUNGGU_FEEDBACK`), 
+    - `status` (mis. `CLOSED`, `OPEN`), 
     - `station` (kode cabang, mis. `DPS`), 
     - `from`/`to` (tanggal), 
     - `search` (kata kunci judul/isi), 

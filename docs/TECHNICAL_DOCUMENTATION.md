@@ -487,7 +487,7 @@ The core feature of the application is the operational report management system.
 - **Flight Information**: flight_number, aircraft_reg, is_flight_related
 - **GSE Information**: gse_number, gse_name, is_gse_related
 - **Severity & Priority**: severity, priority
-- **Status Management**: status (BARU, DITOLAK, MENUNGGU_FEEDBACK, SUDAH_DIVERIFIKASI, SELESAI, CLOSED, OPEN)
+- **Status Management**: status (OPEN, ON PROGRESS, CLOSED)
 - **Investigation**: investigator_notes, manager_notes, partner_response_notes, validation_notes
 - **Root Cause**: root_caused, root_cause, action_taken, immediate_action, preventive_action
 - **Evidence**: evidence_url, evidence_urls, partner_evidence_urls
@@ -496,20 +496,13 @@ The core feature of the application is the operational report management system.
 **Report Status Flow**:
 
 ```
-BARU (New)
-    │
-    ▼
-MENUNGGU_FEEDBACK (Awaiting Feedback)
-    │
-    ├──► DITOLAK (Rejected)
-    │
-    └──► SUDAH_DIVERIFIKASI (Verified)
-              │
-              ▼
-         SELESAI (Completed)
-              │
-              ▼
-           CLOSED
+OPEN
+  │
+  ▼
+ON PROGRESS
+  │
+  ▼
+CLOSED
 ```
 
 ### 2. Dashboard System
@@ -1134,14 +1127,10 @@ Defines the complete set of possible report statuses:
 
 ```typescript
 export const REPORT_STATUS = {
-    BARU: 'BARU',                      // New report
-    DITOLAK: 'DITOLAK',                // Rejected
-    MENUNGGU_FEEDBACK: 'MENUNGGU_FEEDBACK',  // Awaiting feedback
-    SUDAH_DIVERIFIKASI: 'SUDAH_DIVERIFIKASI', // Verified
-    SELESAI: 'SELESAI',                // Completed
-    CLOSED: 'Closed',                  // Closed
-    OPEN: 'OPEN'                        // Open
-};
+    OPEN: 'OPEN',
+    'ON PROGRESS': 'ON PROGRESS',
+    CLOSED: 'CLOSED'
+} as const;
 ```
 
 ### Report Severity Levels

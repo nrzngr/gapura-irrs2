@@ -10,7 +10,7 @@ const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1TFPZOAWAKubPl7iaUk8BXt2BabY1N-
 const REPORT_SHEETS = ['NON CARGO', 'CGO'];
 
 // Columns to ensure exist
-const TRIAGE_COLUMNS = ['Primary Tag', 'Sub Category Note', 'Target Division'];
+const TRIAGE_COLUMNS = ['Primary Tag', 'Sub Category Note', 'ESKLASI DIVISI'];
 
 function getGoogleAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;

@@ -342,7 +342,7 @@ KONTEKS DOMAIN:
 - "Report Category" berisi tipe besar: Irregularity, Complaint, Compliment.
 - "Irregularity/Complain Category" berisi tipe spesifik: Pax Handling, Baggage Handling, GSE, Operation, dll. INILAH YANG DIMAKSUD JIKA USER BERTANYA TENTANG "Kategori Irregularity".
 - Gunakan data "SUMMARY DISTRIBUTIONS" di bagian paling atas data untuk membikin visualisasi chart. JANGAN MENGHITUNG MANUAL dari sampel row. Data SUMMARY adalah kebenaran mutlak seluruh records.
-- Status: "Open" = belum selesai, "Closed" = sudah selesai, "MENUNGGU_FEEDBACK" = perlu respons
+- Status: "Open" = belum selesai atau perlu respons, "Closed" = sudah selesai, "On Progress" = sedang ditangani
 - Corrective action yang tidak efektif = case yang sudah ada respon "Action Taken" tapi "Status" masih "Open"
 - Preventive action = Usulan tindakan pencegahan agar case (berdasarkan "Root Caused" dan "Report") tidak terulang kembali
 

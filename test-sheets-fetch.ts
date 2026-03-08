@@ -4,7 +4,7 @@ import { reportsService } from './lib/services/reports-service';
 async function testFetch() {
     console.log('Fetching Google Sheets reports...');
     try {
-        const reports = await reportsService.getReports({ forceRefresh: true, source: 'google_sheets' });
+        const reports = await reportsService.getReports({ refresh: true, source: 'sheets' });
         console.log('Total reports fetched:', reports.length);
         if (reports.length > 0) {
             console.log('Sample report:', JSON.stringify(reports[0], null, 2));

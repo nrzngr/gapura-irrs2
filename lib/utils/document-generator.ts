@@ -28,7 +28,7 @@ const generateRefNo = (report: Report) => {
     return `CABANG ${branch}/LK/       /       / ${month}/${year}`;
 };
 
-export const generatePDF = (report: Report) => {
+export const generatePDF = (report: Report, signatureDataUrl?: string | null) => {
     const doc = new jsPDF();
     
     const marginX = 14;
@@ -230,6 +230,9 @@ export const generatePDF = (report: Report) => {
     doc.setLineWidth(0.2);
     doc.line(marginX + 45, currentY + 31, marginX + 85, currentY + 31);
     
+    if (signatureDataUrl) {
+        doc.addImage(signatureDataUrl, 'PNG', marginX + 35, currentY + 32, 30, 10);
+    }
     doc.setFont('helvetica', 'bold');
     doc.text('(' + (report.reporter_name || '...................') + ')', marginX + 5, currentY + 45);
 
@@ -258,7 +261,7 @@ export const generatePDF = (report: Report) => {
     doc.save(`Irregularity_Report_${report.flight_number || 'Ref'}.pdf`);
 };
 
-export const generateWord = async (report: Report) => {
+export const generateWord = async (report: Report, signatureDataUrl?: string | null) => {
     const refNo = generateRefNo(report);
     
     const createBoldText = (text: string) => new TextRun({ text, bold: true });
@@ -549,6 +552,28 @@ export const generateWord = async (report: Report) => {
         ]
     });
 
+    let signatureRun: ImageRun | undefined = undefined;
+    if (signatureDataUrl) {
+        try {
+            const base64Data = signatureDataUrl.split(',')[1];
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            signatureRun = new ImageRun({
+                data: bytes,
+                transformation: {
+                    width: 140,
+                    height: 50,
+                },
+                type: 'png'
+            });
+        } catch(e) {
+            console.error("Failed to parse signature image", e);
+        }
+    }
+
     const signatureTable = new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [
@@ -581,20 +606,25 @@ export const generateWord = async (report: Report) => {
                 children: [
                     new TableCell({
                         children: [
-                            new Paragraph({ text: "Prepared by,", spacing: { after: 50 } }),
+                            new Paragraph({ text: "Prepared by,", spacing: { after: 50 }, alignment: AlignmentType.CENTER }),
                             new Paragraph({
                                 children: [
-                                    new TextRun({ text: "Controller Operation Airside ", font: "Arial", size: 24 }),
-                                    new TextRun({ text: "...........................", underline: { type: "single" }, font: "Arial", size: 24 }),
-                                ]
+                                    new TextRun({ text: "Controller Operation Airside", font: "Arial", size: 24 }),
+                                ],
+                                alignment: AlignmentType.CENTER
                             }),
-                            new Paragraph({ text: "", spacing: { before: 500, after: 100 } }),
+                            new Paragraph({
+                                children: signatureRun ? [signatureRun] : [],
+                                spacing: signatureRun ? { before: 10, after: 10 } : { before: 500, after: 100 },
+                                alignment: AlignmentType.CENTER
+                            }),
                             new Paragraph({
                                 children: [
                                     new TextRun({ text: "(  ", bold: true, font: "Arial", size: 24 }),
                                     new TextRun({ text: `${report.reporter_name || '...................' }`, bold: true, underline: { type: "single" }, font: "Arial", size: 24 }),
                                     new TextRun({ text: "  )", bold: true, font: "Arial", size: 24 }),
-                                ]
+                                ],
+                                alignment: AlignmentType.CENTER
                             }),
                         ],
                         width: { size: 50, type: WidthType.PERCENTAGE },
@@ -603,12 +633,12 @@ export const generateWord = async (report: Report) => {
                     }),
                     new TableCell({
                         children: [
-                            new Paragraph({ text: "Acknowlegde by,", spacing: { after: 50 }, alignment: AlignmentType.RIGHT }),
+                            new Paragraph({ text: "Acknowledge by,", spacing: { after: 50 }, alignment: AlignmentType.CENTER }),
                             new Paragraph({
                                 children: [
                                     new TextRun({ text: "Manager of Airside Service", font: "Arial", size: 24 })
                                 ],
-                                alignment: AlignmentType.RIGHT
+                                alignment: AlignmentType.CENTER
                             }),
                             new Paragraph({ text: "", spacing: { before: 500, after: 100 } }),
                             new Paragraph({
@@ -617,7 +647,7 @@ export const generateWord = async (report: Report) => {
                                     new TextRun({ text: " ........................ ", bold: true, underline: { type: "single" }, font: "Arial", size: 24 }),
                                     new TextRun({ text: " )", bold: true, font: "Arial", size: 24 }),
                                 ],
-                                alignment: AlignmentType.RIGHT
+                                alignment: AlignmentType.CENTER
                             }),
                         ],
                         width: { size: 50, type: WidthType.PERCENTAGE },

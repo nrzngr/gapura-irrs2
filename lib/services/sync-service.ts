@@ -52,14 +52,25 @@ export class SyncService {
         if (deleted > 0) {
           console.log(`[SyncService] Deleted ${deleted} records removed from Sheets`);
         }
-        // Invalidate reports cache so reads reflect deletions immediately
-        try {
-          reportsService.invalidateCache();
-        } catch (e) {
-          console.warn('[SyncService] Failed to invalidate reports cache:', e);
-        }
       } catch (delErr) {
         console.warn('[SyncService] Delete-missing step failed:', delErr);
+      }
+
+      // Reconciliation: Push local updates (Supabase -> Sheets)
+      try {
+        const pushed = await this.pushLocalUpdatesToSheets();
+        if (pushed > 0) {
+          console.log(`[SyncService] Reconciled ${pushed} local updates to Sheets`);
+        }
+      } catch (recErr) {
+        console.warn('[SyncService] Reconciliation step failed:', recErr);
+      }
+
+      // Invalidate reports cache
+      try {
+        reportsService.invalidateCache();
+      } catch (e) {
+        console.warn('[SyncService] Failed to invalidate reports cache:', e);
       }
 
       const duration = Date.now() - startTime;
@@ -141,6 +152,49 @@ export class SyncService {
     }
 
     return { inserted, updated, errors };
+  }
+
+  /**
+   * Pushes local updates (Supabase) to Google Sheets if they are newer than last sync
+   * Complexity: Time O(N) | Space O(N)
+   */
+  private static async pushLocalUpdatesToSheets(): Promise<number> {
+    let pushed = 0;
+    try {
+      // Find records updated in Supabase AFTER they were last synced from Sheets
+      // Avoid infinite loop by only picking those with substantial time difference
+      const { data: dirtyReports, error } = await supabaseAdmin
+        .from('reports_sync')
+        .select('*')
+        .filter('updated_at', 'gt', 'synced_at')
+        .order('updated_at', { ascending: false })
+        .limit(50); // Batch size for safety
+
+      if (error || !dirtyReports || dirtyReports.length === 0) return 0;
+
+      console.log(`[SyncService] Found ${dirtyReports.length} dirty records in Supabase, pushing to Sheets...`);
+
+      for (const report of dirtyReports) {
+        try {
+            // Use the reportsService to update Sheets
+            // This also handles the mapping back to Sheet columns
+            const success = await reportsService.updateReport(report.sheet_id, report);
+            if (success) {
+                // Update synced_at to prevent re-pushing in same cycle
+                await supabaseAdmin
+                    .from('reports_sync')
+                    .update({ synced_at: new Date().toISOString() })
+                    .eq('id', report.id);
+                pushed++;
+            }
+        } catch (err) {
+            console.warn(`[SyncService] Failed to push report ${report.sheet_id} to Sheets:`, err);
+        }
+      }
+    } catch (err) {
+      console.error('[SyncService] pushLocalUpdatesToSheets exception:', err);
+    }
+    return pushed;
   }
 
   /**

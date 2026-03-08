@@ -77,7 +77,7 @@ export function ReportsList({ reports, onReportClick, loading, disableAnimation 
       <div className="space-y-4">
         {reports.map((report) => {
           const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-          const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
+          const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
           const SevIcon = severity.icon;
           const StatIcon = status.icon;
           return (
@@ -177,7 +177,7 @@ export function ReportsList({ reports, onReportClick, loading, disableAnimation 
     >
       {reports.map((report) => {
         const severity = SEVERITY_CONFIG[report.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.low;
-        const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.MENUNGGU_FEEDBACK;
+        const status = STATUS_CONFIG[report.status as ReportStatus] || STATUS_CONFIG.OPEN;
         const SevIcon = severity.icon;
         const StatIcon = status.icon;
 

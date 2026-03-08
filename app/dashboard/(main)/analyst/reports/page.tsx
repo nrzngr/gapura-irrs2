@@ -74,8 +74,8 @@ export default function AnalystReportsPage() {
 
   const stats = useMemo(() => ({
     total: filteredReports.length,
-    pending: filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length,
-    resolved: filteredReports.filter(r => r.status === 'SELESAI').length
+    pending: filteredReports.filter(r => r.status === 'OPEN').length,
+    resolved: filteredReports.filter(r => r.status === 'CLOSED').length
   }), [filteredReports]);
 
   const handleUpdateStatus = async (reportId: string, status: string, notes?: string, evidenceUrl?: string) => {
@@ -194,11 +194,9 @@ export default function AnalystReportsPage() {
                     className="w-full h-14 pl-12 pr-10 appearance-none bg-gray-50 rounded-2xl border border-transparent hover:bg-gray-100 transition-colors outline-none font-bold text-xs uppercase tracking-widest text-slate-600"
                   >
                     <option value="all">Semua Status</option>
-                    <option value="MENUNGGU_FEEDBACK">Menunggu Feedback</option>
-                    <option value="SUDAH_DIVERIFIKASI">Sudah Diverifikasi</option>
-                    <option value="SELESAI">Selesai</option>
                     <option value="OPEN">Open</option>
-                    <option value="Closed">Closed</option>
+                    <option value="ON PROGRESS">Dalam Proses</option>
+                    <option value="CLOSED">Selesai</option>
                   </select>
                   <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

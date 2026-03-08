@@ -138,9 +138,9 @@ export async function exportToExcel(ctx: ExportContext): Promise<void> {
     [`Per tanggal ${exportDate}`],
     [],
     ['Status', 'Jumlah', 'Persentase', 'Indikator'],
-    ['Menunggu Feedback', filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length, `${Math.round((filteredReports.filter(r => r.status === 'MENUNGGU_FEEDBACK').length / Math.max(filteredReports.length, 1)) * 100)}%`, '🟡'],
-    ['Sudah Diverifikasi', filteredReports.filter(r => r.status === 'SUDAH_DIVERIFIKASI').length, `${Math.round((filteredReports.filter(r => r.status === 'SUDAH_DIVERIFIKASI').length / Math.max(filteredReports.length, 1)) * 100)}%`, '🔵'],
-    ['Selesai', filteredReports.filter(r => r.status === 'SELESAI').length, `${Math.round((filteredReports.filter(r => r.status === 'SELESAI').length / Math.max(filteredReports.length, 1)) * 100)}%`, '🟢'],
+    ['Open', filteredReports.filter(r => r.status === 'OPEN').length, `${Math.round((filteredReports.filter(r => r.status === 'OPEN').length / Math.max(filteredReports.length, 1)) * 100)}%`, '🟡'],
+    ['On Progress', filteredReports.filter(r => r.status === 'ON PROGRESS').length, `${Math.round((filteredReports.filter(r => r.status === 'ON PROGRESS').length / Math.max(filteredReports.length, 1)) * 100)}%`, '🔵'],
+    ['Closed', filteredReports.filter(r => r.status === 'CLOSED').length, `${Math.round((filteredReports.filter(r => r.status === 'CLOSED').length / Math.max(filteredReports.length, 1)) * 100)}%`, '🟢'],
   ];
 
   const ws4 = XLSX.utils.aoa_to_sheet(statusData);

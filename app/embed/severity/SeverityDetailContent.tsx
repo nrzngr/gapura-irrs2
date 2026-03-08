@@ -32,9 +32,9 @@ const FIXED_DONUT_RANK_COLORS = ['#81c784', '#13b5cb', '#cddc39'];
 const DONUT_FALLBACK_COLORS = ['#66bb6a', '#9ccc65', '#aed581', '#4db6ac', '#80cbc4'];
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
-  'MENUNGGU_FEEDBACK': { label: 'Menunggu', class: 'pending' },
-  'SUDAH_DIVERIFIKASI': { label: 'Diverifikasi', class: 'verified' },
-  'SELESAI': { label: 'Selesai', class: 'completed' }
+  'OPEN': { label: 'Open', class: 'pending' },
+  'ON PROGRESS': { label: 'Dalam Proses', class: 'verified' },
+  'CLOSED': { label: 'Selesai', class: 'completed' }
 };
 
 export function SeverityDetailContent() {

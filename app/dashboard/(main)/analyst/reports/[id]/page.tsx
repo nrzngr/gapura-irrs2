@@ -32,7 +32,11 @@ export default function AnalystReportDetailPage() {
         }
     }, []);
 
-    const fetchReport = useCallback(async () => {
+    const fetchReport = useCallback(async (updatedData?: Report) => {
+        if (updatedData) {
+            setReport(updatedData);
+            return;
+        }
         try {
             const res = await fetch(`/api/reports/${reportId}`);
             if (!res.ok) throw new Error('Failed to load report');

@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       evidence_url: evidence_url || (Array.isArray(evidence_urls) && evidence_urls[0]) || '',
       evidence_urls: Array.isArray(evidence_urls) ? evidence_urls : (evidence_url ? [evidence_url] : []),
       severity: severity || 'low',
-      status: 'MENUNGGU_FEEDBACK',
+      status: 'OPEN',
       created_at: new Date().toISOString(),
       // CSV-aligned / derived fields
       station_id: station_id || null,
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
             description: newReport.description,
             reporter_name: newReport.reporter_name || body.reporter_name || null,
             reporter_email: newReport.reporter_email || body.reporter_email || null,
-            status: newReport.status || 'MENUNGGU_FEEDBACK',
+            status: newReport.status || 'OPEN',
             severity: newReport.severity || 'low',
             date_of_event: newReport.date_of_event || null,
             created_at: newReport.created_at || new Date().toISOString(),
