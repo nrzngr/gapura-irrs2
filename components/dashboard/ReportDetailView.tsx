@@ -402,12 +402,34 @@ export function ReportDetailView({
   const statusConfig = STATUS_CONFIG[normalizedStatus];
   
   // Aggregate all possible evidence sources
+  const extractUrls = (val: any): string[] => {
+    if (!val || typeof val !== 'string') return [];
+    const m = val.match(/https?:\/\/[^\s"',<>]+/g);
+    return m ? m.map(s => s.trim()) : [];
+  };
+  const textFieldUrls = [
+    ...(extractUrls(report.description)),
+    ...(extractUrls(report.action_taken)),
+    ...(extractUrls(report.preventive_action)),
+    ...(extractUrls(report.immediate_action)),
+    ...(extractUrls(report.sub_category_note)),
+    ...(extractUrls(report.root_caused)),
+    ...(extractUrls(report.kps_remarks)),
+    ...(extractUrls(report.remarks_gapura_kps)),
+    ...(extractUrls(report.partner_response_notes)),
+  ];
+  const commentUrls = (report.comments || []).flatMap(c => [
+    ...(Array.isArray(c.attachments) ? c.attachments.filter(Boolean) : []),
+    ...extractUrls(c.content || '')
+  ]);
   const allEvidence = Array.from(new Set([
     ...(Array.isArray(report.evidence_urls) ? report.evidence_urls : (report.evidence_urls ? [report.evidence_urls as string] : [])),
     ...(report.evidence_url ? [report.evidence_url] : []),
     ...(Array.isArray(report.video_urls) ? report.video_urls : (report.video_urls ? [report.video_urls as string] : [])),
     ...(report.video_url ? [report.video_url] : []),
-    ...(report.partner_evidence_urls || [])
+    ...(report.partner_evidence_urls || []),
+    ...textFieldUrls,
+    ...commentUrls
   ])).filter(Boolean);
   const nextActions = getAllowedTransitions(report.status, userRole);
   const primaryAction = nextActions[0] || null;
