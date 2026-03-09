@@ -51,7 +51,8 @@ export function BranchAIVisualization({ branchName, filters = [] }: BranchVisual
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${GAPURA_AI_BASE_URL}/api/ai/branch/summary`);
+        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+        const response = await fetch(`${GAPURA_AI_BASE_URL}/api/ai/branch/summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
         if (!response.ok) {
           throw new Error('Failed to fetch branch summary');
         }

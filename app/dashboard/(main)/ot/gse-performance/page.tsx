@@ -358,10 +358,11 @@ export default function OTGsePerformancePage() {
       setLoading(true);
       setError(null);
 
+      const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
       const [topRes, serviceRes, casesRes] = await Promise.allSettled([
-        fetchJson<GseTopResponse>('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/gse/top'),
-        fetchJson<GseServiceabilityResponse>('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/gse/serviceability'),
-        fetchJson<GseCasesResponse>('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/gse/cases'),
+        fetchJson<GseTopResponse>(`https://gapura-dev-gapura-ai.hf.space/api/ai/gse/top?esklasi_regex=${encodeURIComponent(esklasiRegex)}`),
+        fetchJson<GseServiceabilityResponse>(`https://gapura-dev-gapura-ai.hf.space/api/ai/gse/serviceability?esklasi_regex=${encodeURIComponent(esklasiRegex)}`),
+        fetchJson<GseCasesResponse>(`https://gapura-dev-gapura-ai.hf.space/api/ai/gse/cases?esklasi_regex=${encodeURIComponent(esklasiRegex)}`),
       ]);
 
       if (!mounted) return;

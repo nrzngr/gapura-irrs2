@@ -40,12 +40,13 @@ export async function POST(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const force = searchParams.get('force') || 'false';
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/train?force=${force}`, {
+      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/train?force=${force}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { RefreshCw, Loader2, Search, Filter, ChevronDown, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Loader2, Search, Filter, ChevronDown, AlertTriangle, Link as LinkIcon, ExternalLink, Copy, X } from 'lucide-react';
 
 import { ResponsiveHeader } from '@/components/dashboard/analyst/ResponsiveHeader';
 import { ResponsiveStatsGrid } from '@/components/dashboard/analyst/ResponsiveStatsGrid';
@@ -69,6 +69,10 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
   const [listSearch, setListSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(100);
   const view = searchParams.get('view') === 'reports' ? 'reports' : 'dashboard';
+  const [showOSDashboardModal, setShowOSDashboardModal] = useState(false);
+  const [osDashboardLink, setOsDashboardLink] = useState<string>('https://lookerstudio.google.com/reporting/55737b14-c27a-4ed8-b65c-336317790314');
+  const [showOPDashboardModal, setShowOPDashboardModal] = useState(false);
+  const [opDashboardLink, setOpDashboardLink] = useState<string>('https://lookerstudio.google.com/u/0/reporting/06d31553-08c6-42f3-81e6-1bc96356a854/page/tKISF');
 
   // Global Filters State
   const [globalFilters, setGlobalFilters] = useState<{
@@ -125,6 +129,19 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+  
+  useEffect(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('os_dashboard_link') : null;
+      if (saved) setOsDashboardLink(saved);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('op_dashboard_link') : null;
+      if (saved) setOpDashboardLink(saved);
+    } catch {}
+  }, []);
 
   const filteredReports = useMemo(() => {
     const now = new Date();
@@ -815,20 +832,16 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             onDateRangeChange={setDateRange}
             onRefresh={() => fetchData(true)}
             refreshing={refreshing}
-            onCustomerFeedback={handleCustomerFeedbackShortcut}
-            cfLoading={cfLoading}
-            onFilterClick={() => setShowFilterModal(true)}
+            onCustomerFeedback={division.code === 'OP' ? undefined : handleCustomerFeedbackShortcut}
+            cfLoading={division.code === 'OP' ? false : cfLoading}
+            onFilterClick={division.code === 'OP' ? undefined : () => setShowFilterModal(true)}
             onExportExcel={exportToExcel}
             onExportPDF={exportToPDF}
             exporting={exporting}
+            divisionDashboardLabel={division.code === 'OP' ? 'Dashboard OP' : undefined}
+            onOpenDivisionDashboard={division.code === 'OP' ? () => setShowOPDashboardModal(true) : undefined}
           />
           <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
-            <button
-              onClick={() => setView('dashboard')}
-              className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all ${view === 'dashboard' ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-            >
-              <span className="truncate max-w-[140px] sm:max-w-none">Dashboard</span>
-            </button>
             {hasAllReportsAccess && (
               <button
                 onClick={() => setView('reports')}
@@ -846,6 +859,13 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
                 <span className="truncate">JOUMPA</span>
+              </button>
+              <button
+                onClick={() => setShowOSDashboardModal(true)}
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-teal-700 to-cyan-700 text-white shadow-lg shadow-teal-600/20 hover:shadow-xl hover:shadow-teal-600/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
+              >
+                <LinkIcon className="shrink-0 sm:w-4 sm:h-4" />
+                <span className="truncate">Dashboard OS</span>
               </button>
               <button
                 onClick={() => window.open('https://lookerstudio.google.com/u/0/reporting/42384b46-8f39-4ffd-86ba-ca0e26ab56f4/page/p_8umvft5qyd', '_blank')}
@@ -1172,6 +1192,144 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             setGlobalFilters={setGlobalFilters}
             availableOptions={availableOptions}
           />
+        )}
+
+        {showOPDashboardModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOPDashboardModal(false)} />
+            <div className="relative z-10 bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in border border-[var(--surface-3)]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <LinkIcon size={18} /> Dashboard OP
+                </h3>
+                <button onClick={() => setShowOPDashboardModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-xl transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="text-[13px] text-[var(--text-secondary)] mb-4">
+                Ubah, salin, atau buka tautan Dashboard OP (Google Looker Studio).
+              </p>
+              <div className="space-y-3">
+                <label className="block text-[11px] font-bold text-[var(--text-muted)]">Link Dashboard</label>
+                <input
+                  type="text"
+                  value={opDashboardLink}
+                  onChange={(e) => setOpDashboardLink(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-sm"
+                  placeholder="https://lookerstudio.google.com/..."
+                />
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(opDashboardLink);
+                      } catch {}
+                    }}
+                    className="flex-1 py-3.5 bg-[var(--surface-2)] text-[var(--text-primary)] font-semibold rounded-xl hover:bg-[var(--surface-3)] transition-all text-[13px] flex items-center justify-center gap-2"
+                  >
+                    <Copy size={16} /> Salin Link
+                  </button>
+                  <button
+                    onClick={() => window.open(opDashboardLink, '_blank')}
+                    className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all text-[13px] flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink size={16} /> Buka
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      try {
+                        localStorage.setItem('op_dashboard_link', opDashboardLink);
+                      } catch {}
+                      setShowOPDashboardModal(false);
+                    }}
+                    className="flex-1 py-3.5 bg-[var(--brand-primary)] text-white font-bold rounded-xl hover:bg-[var(--brand-primary-hover,#2563eb)] active:scale-[0.98] transition-all text-[13px]"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    onClick={() => {
+                      const saved = typeof window !== 'undefined' ? localStorage.getItem('op_dashboard_link') : null;
+                      setOpDashboardLink(saved || 'https://lookerstudio.google.com/u/0/reporting/06d31553-08c6-42f3-81e6-1bc96356a854/page/tKISF');
+                    }}
+                    className="flex-1 py-3.5 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-[13px]"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showOSDashboardModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOSDashboardModal(false)} />
+            <div className="relative z-10 bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in border border-[var(--surface-3)]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <LinkIcon size={18} /> Dashboard OS
+                </h3>
+                <button onClick={() => setShowOSDashboardModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-xl transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="text-[13px] text-[var(--text-secondary)] mb-4">
+                Ubah, salin, atau buka tautan Dashboard OS (Google Looker Studio).
+              </p>
+              <div className="space-y-3">
+                <label className="block text-[11px] font-bold text-[var(--text-muted)]">Link Dashboard</label>
+                <input
+                  type="text"
+                  value={osDashboardLink}
+                  onChange={(e) => setOsDashboardLink(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-sm"
+                  placeholder="https://lookerstudio.google.com/..."
+                />
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(osDashboardLink);
+                      } catch {}
+                    }}
+                    className="flex-1 py-3.5 bg-[var(--surface-2)] text-[var(--text-primary)] font-semibold rounded-xl hover:bg-[var(--surface-3)] transition-all text-[13px] flex items-center justify-center gap-2"
+                  >
+                    <Copy size={16} /> Salin Link
+                  </button>
+                  <button
+                    onClick={() => window.open(osDashboardLink, '_blank')}
+                    className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all text-[13px] flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink size={16} /> Buka
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      try {
+                        localStorage.setItem('os_dashboard_link', osDashboardLink);
+                      } catch {}
+                      setShowOSDashboardModal(false);
+                    }}
+                    className="flex-1 py-3.5 bg-[var(--brand-primary)] text-white font-bold rounded-xl hover:bg-[var(--brand-primary-hover,#2563eb)] active:scale-[0.98] transition-all text-[13px]"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    onClick={() => {
+                      const saved = typeof window !== 'undefined' ? localStorage.getItem('os_dashboard_link') : null;
+                      setOsDashboardLink(saved || 'https://lookerstudio.google.com/reporting/55737b14-c27a-4ed8-b65c-336317790314');
+                    }}
+                    className="flex-1 py-3.5 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-[13px]"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         <ReportDetailModal

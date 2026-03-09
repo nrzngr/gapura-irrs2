@@ -28,11 +28,13 @@ export async function GET(req: NextRequest) {
     const search = new URL(req.url).searchParams;
     const division = search.get('division') || '';
     const branch = search.get('branch') || '';
+    const esklasiRegex = search.get('esklasi_regex') || '';
 
     const internalUrl = new URL('/api/ai/analyze-all', req.url);
     internalUrl.searchParams.set('bypass_cache', 'true');
     if (division) internalUrl.searchParams.set('division', division);
     if (branch) internalUrl.searchParams.set('branch', branch);
+    internalUrl.searchParams.set('esklasi_regex', esklasiRegex);
 
     type SeverityDistribution = { Low: number; Medium: number; High: number; Critical: number };
     type ResultItem = {

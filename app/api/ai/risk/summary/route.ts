@@ -24,10 +24,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Panggil AI service (Python FastAPI)
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     
+    const { searchParams } = new URL(req.url);
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
+
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/risk/summary`, {
+      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/risk/summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

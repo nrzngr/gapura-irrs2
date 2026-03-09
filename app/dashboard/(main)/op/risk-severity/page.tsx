@@ -70,7 +70,8 @@ export default function OPRiskSeverity() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/risk/summary', {
+        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+        const res = await fetch(`https://gapura-dev-gapura-ai.hf.space/api/ai/risk/summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
           cache: 'no-store',

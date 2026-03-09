@@ -40,14 +40,15 @@ export async function POST(request: Request) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const sheetName = searchParams.get('sheet_name');
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     
     try {
       const url = sheetName 
-        ? `${AI_SERVICE_URL}/api/ai/cache/invalidate?sheet_name=${encodeURIComponent(sheetName)}`
-        : `${AI_SERVICE_URL}/api/ai/cache/invalidate`;
+        ? `${AI_SERVICE_URL}/api/ai/cache/invalidate?sheet_name=${encodeURIComponent(sheetName)}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`
+        : `${AI_SERVICE_URL}/api/ai/cache/invalidate?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
         
       const aiResponse = await fetch(url, {
         method: 'POST',

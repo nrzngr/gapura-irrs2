@@ -19,17 +19,19 @@ export async function POST(req: NextRequest) {
     const text = searchParams.get('text') || '';
     const topK = searchParams.get('top_k') || '5';
     const threshold = searchParams.get('threshold') || '0.3';
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     if (!text) {
       return NextResponse.json({ error: 'Text parameter is required' }, { status: 400 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     
     const targetUrl = new URL(`${AI_SERVICE_URL}/api/ai/similar`);
     targetUrl.searchParams.set('text', text);
     targetUrl.searchParams.set('top_k', topK);
     targetUrl.searchParams.set('threshold', threshold);
+    targetUrl.searchParams.set('esklasi_regex', esklasiRegex);
 
     const aiResponse = await fetch(targetUrl.toString(), {
       method: 'POST',

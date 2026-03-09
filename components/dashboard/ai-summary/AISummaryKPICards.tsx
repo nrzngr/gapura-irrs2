@@ -36,7 +36,8 @@ export function AISummaryKPICards({
   const fetchRiskSummary = useCallback(async () => {
     try {
       setRiskError(null);
-      const res = await fetch("/api/ai/risk/summary");
+      const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+      const res = await fetch(`/api/ai/risk/summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
       if (!res.ok) throw new Error("Failed to fetch risk summary");
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -54,7 +55,8 @@ export function AISummaryKPICards({
   const fetchActionSummary = useCallback(async () => {
     try {
       setActionError(null);
-      const res = await fetch("/api/ai/action-summary");
+      const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+      const res = await fetch(`/api/ai/action-summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
       if (!res.ok) throw new Error("Failed to fetch action summary");
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -254,4 +256,3 @@ export function AISummaryKPICards({
     </div>
   );
 }
-

@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const url = 'https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/risk/hubs';
+    const esklasiRegex = new URL(req.url).searchParams.get('esklasi_regex') || '';
+    const url = `https://gapura-dev-gapura-ai.hf.space/api/ai/risk/hubs?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
     const response = await fetch(url, {
       cache: 'no-store', // Disable caching
       headers: {

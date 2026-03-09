@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const includeTrends = searchParams.get('include_trends') || 'true';
     const branchParam = searchParams.get('branch');
     const divisionParam = searchParams.get('division');
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
 
     // Get branch filter for MANAGER_CABANG or from query params
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
     console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}, division=${divisionParam}, branch=${branchParam || branchCode || '-'}`);
 
     // Only pass parameters supported by the external service to avoid 4xx from unknown params
-    const baseQuery = `max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}`;
+    const baseQuery = `max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
     const primaryUrl = `${AI_SERVICE_URL}/api/ai/analyze-all?${baseQuery}`;
     const fallbackUrl = `${AI_SERVICE_URL}/api/ai/analyze-all/fast?${baseQuery}`;
     const controller = new AbortController();

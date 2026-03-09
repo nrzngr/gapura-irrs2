@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Get detailed model information and metrics
  * Fetches actual data from Google Sheets to show real statistics
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Verify authentication
     const cookieStore = await cookies();
@@ -43,11 +43,14 @@ export async function GET() {
     }
 
     // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     console.log('[AI Model Info] URL:', AI_SERVICE_URL);
     
+    const { searchParams } = new URL(request.url);
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
+
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/model-info`, {
+      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/model-info?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

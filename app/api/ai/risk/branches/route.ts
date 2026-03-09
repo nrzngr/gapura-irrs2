@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const url = 'https://gapura-dev-gapura-ai.hf.space/api/ai/risk/branches?bypass_cache=true';
+    const esklasiRegex = new URL(req.url).searchParams.get('esklasi_regex') || '';
+    const url = `https://gapura-dev-gapura-ai.hf.space/api/ai/risk/branches?bypass_cache=true&esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
     console.log('[API Proxy] /api/ai/risk/branches ->', url);
     const response = await fetch(url, {
       cache: 'no-store',

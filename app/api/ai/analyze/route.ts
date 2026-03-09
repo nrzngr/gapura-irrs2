@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Panggil AI service (Python FastAPI)
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     
     // DEBUG: Log payload sent to AI service
     console.log('[AI Analyze Route] Sending payload to AI service:', JSON.stringify({
@@ -70,8 +70,11 @@ export async function POST(req: NextRequest) {
       options: analysisOptions,
     }, null, 2));
     
+    const { searchParams } = new URL(req.url);
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
+
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/analyze`, {
+      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/analyze?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,4 +145,3 @@ function translateToIndonesian(result: any) {
     }
   };
 }
-

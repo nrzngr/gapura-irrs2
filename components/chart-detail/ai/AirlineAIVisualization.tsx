@@ -36,7 +36,8 @@ export function AirlineAIVisualization({ airlineName, filters = [] }: AirlineVis
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${GAPURA_AI_BASE_URL}/api/ai/risk/airlines`);
+        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+        const response = await fetch(`${GAPURA_AI_BASE_URL}/api/ai/risk/airlines?esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
         if (!response.ok) {
           throw new Error('Failed to fetch airline risk data');
         }

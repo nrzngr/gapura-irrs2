@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Clock,
@@ -31,12 +31,14 @@ interface ResponsiveHeaderProps {
   onDateRangeChange: (range: 'all' | 'week' | 'month' | { from: string; to: string }) => void;
   onRefresh: () => void;
   refreshing: boolean;
-  onCustomerFeedback: () => void;
-  cfLoading: boolean;
-  onFilterClick: () => void;
+  onCustomerFeedback?: () => void;
+  cfLoading?: boolean;
+  onFilterClick?: () => void;
   onExportExcel: () => void;
   onExportPDF: () => void;
   exporting: 'excel' | 'pdf' | null;
+  divisionDashboardLabel?: string;
+  onOpenDivisionDashboard?: () => void;
 }
 
 /**
@@ -54,6 +56,8 @@ export function ResponsiveHeader({
   onExportExcel,
   onExportPDF,
   exporting,
+  divisionDashboardLabel,
+  onOpenDivisionDashboard,
 }: ResponsiveHeaderProps) {
   const router = useRouter();
   const [isDateOpen, setIsDateOpen] = useState(false);
@@ -76,17 +80,29 @@ export function ResponsiveHeader({
     : { label: 'Kustom', value: 'custom' };
 
   // Mobile menu actions for hidden buttons
-  const mobileMenuActions = [
-    {
+  const mobileMenuActions: { label: string; icon?: ReactNode; onClick: () => void }[] = [];
+  if (onCustomerFeedback) {
+    mobileMenuActions.push({
       label: 'Customer Feedback',
       icon: <LayoutDashboard className="w-4 h-4" />,
       onClick: onCustomerFeedback,
-    },
-    {
+    });
+  }
+  if (onFilterClick) {
+    mobileMenuActions.push({
       label: 'Filter Dashboard',
       icon: <Shield className="w-4 h-4" />,
       onClick: onFilterClick,
-    },
+    });
+  }
+  if (onOpenDivisionDashboard && divisionDashboardLabel) {
+    mobileMenuActions.push({
+      label: divisionDashboardLabel,
+      icon: <LayoutDashboard className="w-4 h-4" />,
+      onClick: onOpenDivisionDashboard,
+    });
+  }
+  mobileMenuActions.push(
     {
       label: 'Download Excel',
       icon: <FileSpreadsheet className="w-4 h-4" />,
@@ -96,8 +112,8 @@ export function ResponsiveHeader({
       label: 'Download PDF',
       icon: <FileText className="w-4 h-4" />,
       onClick: onExportPDF,
-    },
-  ];
+    }
+  );
 
   return (
     <div className="space-y-4 animate-fade-in-up">
@@ -245,37 +261,56 @@ export function ResponsiveHeader({
         {/* Action Buttons */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Desktop: Full buttons */}
-          <Button
-            onClick={onCustomerFeedback}
-            disabled={cfLoading}
-            className={cn(
-              'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-6',
-              'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)]',
-              'rounded-2xl border-0 shadow-lg shadow-emerald-500/20 transition-all duration-300',
-              'hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 font-display font-bold',
-              cfLoading && 'opacity-70 cursor-not-allowed'
-            )}
-          >
-            {cfLoading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <LayoutDashboard size={16} />
-            )}
-            <span className="hidden 2xl:inline tracking-tight">Feedback</span>
-          </Button>
+          {onCustomerFeedback && (
+            <Button
+              onClick={onCustomerFeedback}
+              disabled={cfLoading}
+              className={cn(
+                'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-6',
+                'bg-gradient-to-br from-[var(--brand-emerald-500)] to-[var(--brand-emerald-600)] text-[var(--text-on-brand)]',
+                'rounded-2xl border-0 shadow-lg shadow-emerald-500/20 transition-all duration-300',
+                'hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 font-display font-bold',
+                cfLoading && 'opacity-70 cursor-not-allowed'
+              )}
+            >
+              {cfLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <LayoutDashboard size={16} />
+              )}
+              <span className="hidden 2xl:inline tracking-tight">Feedback</span>
+            </Button>
+          )}
 
-          <Button
-            onClick={onFilterClick}
-            variant="ghost"
-            className={cn(
-              'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-5',
-              'bg-[oklch(1_0_0_/_0.3)] backdrop-blur-xl border border-[oklch(1_0_0_/_0.1)] text-[var(--text-primary)] transition-all duration-300',
-              'rounded-2xl hover:bg-[oklch(1_0_0_/_0.5)] hover:-translate-y-0.5 active:scale-95'
-            )}
-          >
-            <Shield size={16} className="text-emerald-600" />
-            <span className="hidden 2xl:inline font-bold tracking-tight">Filter</span>
-          </Button>
+          {onFilterClick && (
+            <Button
+              onClick={onFilterClick}
+              variant="ghost"
+              className={cn(
+                'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-5',
+                'bg-[oklch(1_0_0_/_0.3)] backdrop-blur-xl border border-[oklch(1_0_0_/_0.1)] text-[var(--text-primary)] transition-all duration-300',
+                'rounded-2xl hover:bg-[oklch(1_0_0_/_0.5)] hover:-translate-y-0.5 active:scale-95'
+              )}
+            >
+              <Shield size={16} className="text-emerald-600" />
+              <span className="hidden 2xl:inline font-bold tracking-tight">Filter</span>
+            </Button>
+          )}
+
+          {onOpenDivisionDashboard && divisionDashboardLabel && (
+            <Button
+              onClick={onOpenDivisionDashboard}
+              className={cn(
+                'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-6',
+                'bg-gradient-to-br from-teal-700 to-cyan-700 text-white',
+                'rounded-2xl border-0 shadow-lg shadow-teal-600/20 transition-all duration-300',
+                'hover:shadow-xl hover:shadow-teal-600/30 hover:-translate-y-0.5 active:scale-95 font-display font-bold'
+              )}
+            >
+              <LayoutDashboard size={16} />
+              <span className="hidden 2xl:inline tracking-tight">{divisionDashboardLabel}</span>
+            </Button>
+          )}
 
           <Button
             onClick={onExportExcel}

@@ -461,7 +461,8 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
         ...(branchFilter && { branch: branchFilter })
       });
 
-      const res = await fetch(`/api/ai/analyze-all?${params.toString()}&bypass_cache=true`);
+      const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+      const res = await fetch(`/api/ai/analyze-all?${params.toString()}&bypass_cache=true&esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Gagal mengambil data analisis (${res.status})`);
@@ -548,7 +549,7 @@ export function DivisionAIReportsDashboard({ division = 'OS', branchFilter }: Di
 
       setData(finalData);
 
-      const rootCauseRes = await fetch(`/api/ai/root-cause/stats?division=${division}`);
+      const rootCauseRes = await fetch(`/api/ai/root-cause/stats?division=${division}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
       if (rootCauseRes.ok) {
         const rootCauseData = await rootCauseRes.json();
         setRootStats(rootCauseData);

@@ -17,13 +17,14 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category'); // e.g. non_cargo
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
     
     // Determine path based on category
     // If category=non_cargo => /api/ai/summarize?category=non_cargo
     // If category=cgo => /api/ai/summarize/cgo
     // default => /api/ai/summarize
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     let path = '/api/ai/summarize';
     
     if (category === 'cgo') {
@@ -32,7 +33,8 @@ export async function GET(req: NextRequest) {
       path = `/api/ai/summarize?category=${category}`;
     }
 
-    const aiResponse = await fetch(`${AI_SERVICE_URL}${path}`, {
+    const sep = path.includes('?') ? '&' : '?';
+    const aiResponse = await fetch(`${AI_SERVICE_URL}${path}${sep}esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });

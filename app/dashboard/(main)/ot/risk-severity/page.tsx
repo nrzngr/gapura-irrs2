@@ -84,8 +84,9 @@ export default function OTRiskSeverity() {
       try {
         setLoading(true);
         setError(null);
+        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
         const [rootCauseRes, calculateRes] = await Promise.allSettled([
-          fetch('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/root-cause/stats', {
+          fetch(`https://gapura-dev-gapura-ai.hf.space/api/ai/root-cause/stats?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
             method: 'GET',
             headers: { Accept: 'application/json' },
             cache: 'no-store',
@@ -94,7 +95,7 @@ export default function OTRiskSeverity() {
             if (!r.ok || !ct.includes('application/json')) throw new Error(String(r.status));
             return (await r.json()) as unknown;
           }),
-          fetch('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/risk/calculate', {
+          fetch(`https://gapura-dev-gapura-ai.hf.space/api/ai/risk/calculate?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({}),

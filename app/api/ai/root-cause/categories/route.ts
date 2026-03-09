@@ -19,8 +19,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://ridzki-nrzngr-gapura-ai.hf.space';
-    const targetUrl = `${AI_SERVICE_URL}/api/ai/root-cause/categories`;
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
+    const { searchParams } = new URL(req.url);
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
+    const targetUrl = `${AI_SERVICE_URL}/api/ai/root-cause/categories?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
 
     const response = await fetch(targetUrl, {
       method: 'GET',

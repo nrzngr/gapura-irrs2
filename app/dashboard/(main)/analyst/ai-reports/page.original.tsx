@@ -214,7 +214,8 @@ export default function AIReportsPage() {
         filteredReports = reports.filter(r => new Date(r.created_at) >= cutoff);
       }
 
-      const res = await fetch('/api/ai/analyze', {
+      const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+      const res = await fetch(`/api/ai/analyze?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

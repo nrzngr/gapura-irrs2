@@ -193,7 +193,8 @@ export default function OTGseTopCases() {
       try {
         setLoading(true);
         setError(null);
-        const json = await fetchJson<GseTopResponse>('https://ridzki-nrzngr-gapura-ai.hf.space/api/ai/gse/top');
+        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+        const json = await fetchJson<GseTopResponse>(`https://gapura-dev-gapura-ai.hf.space/api/ai/gse/top?esklasi_regex=${encodeURIComponent(esklasiRegex)}`);
         if (mounted) setData(json);
       } catch {
         if (mounted) setError('Gagal memuat data GSE Top Cases');
