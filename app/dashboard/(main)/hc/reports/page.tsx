@@ -5,7 +5,19 @@ import { useRouter } from 'next/navigation';
 export default function HCReportsPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/dashboard/hc?view=reports');
+        const controller = new AbortController();
+        const run = async () => {
+            try {
+                await fetch('/api/admin/sync-reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+            } catch {}
+            router.replace('/dashboard/hc?view=reports');
+        };
+        run();
+        return () => controller.abort();
     }, [router]);
     return null;
 }

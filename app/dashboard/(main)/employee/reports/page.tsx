@@ -59,9 +59,25 @@ export default function EmployeeReportsPage() {
     };
 
     useEffect(() => {
-        if (userSession) {
-            fetchReports();
-        }
+        if (!userSession) return;
+        const controller = new AbortController();
+        const run = async () => {
+            try {
+                await fetch('/api/reports/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+                await fetch('/api/admin/sync-reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+            } catch {}
+            await fetchReports();
+        };
+        run();
+        return () => controller.abort();
     }, [userSession]);
 
     // Determine user role for ReportDetailView
