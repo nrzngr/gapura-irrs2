@@ -9,6 +9,7 @@ type Report = {
   category?: string;
   irregularity_complain_category?: string;
   main_category?: string;
+  target_division?: string;
 };
 
 export default function OPTopIrregularityComplaintCases() {
@@ -22,8 +23,8 @@ export default function OPTopIrregularityComplaintCases() {
       if (hard) setRefreshing(true);
       else setLoading(true);
       if (hard) await fetch('/api/reports/refresh', { method: 'POST' });
-      // Primary endpoint
-      let res = await fetch('/api/admin/reports');
+      // Primary endpoint (filtered by OP division)
+      let res = await fetch('/api/admin/reports?esklasi_regex=OP');
       if (!res.ok) {
         // Fallback to analytics endpoint (no division filter)
         const fields = [
@@ -38,16 +39,18 @@ export default function OPTopIrregularityComplaintCases() {
           'branch',
           'reporting_branch',
         ].join(',');
-        res = await fetch(`/api/reports/analytics?fields=${encodeURIComponent(fields)}&refresh=${hard ? 'true' : 'false'}`);
+        res = await fetch(`/api/reports/analytics?fields=${encodeURIComponent(fields)}&refresh=${hard ? 'true' : 'false'}&esklasi_regex=OP`);
         if (res.ok) {
           const data = await res.json();
-          setReports(Array.isArray(data?.reports) ? data.reports : []);
+          const onlyOP = Array.isArray(data?.reports) ? data.reports.filter((r: any) => String(r?.target_division || '').trim() === 'OP') : [];
+          setReports(onlyOP);
         } else {
           setReports([]);
         }
       } else {
         const data = await res.json();
-        setReports(Array.isArray(data) ? data : []);
+        const onlyOP = Array.isArray(data) ? data.filter((r: any) => String(r?.target_division || '').trim() === 'OP') : [];
+        setReports(onlyOP);
       }
     } finally {
       setLoading(false);

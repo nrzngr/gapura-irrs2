@@ -84,7 +84,7 @@ export default function OTRiskSeverity() {
       try {
         setLoading(true);
         setError(null);
-        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+        const esklasiRegex = 'OT';
         const [rootCauseRes, calculateRes] = await Promise.allSettled([
           fetch(`https://gapura-dev-gapura-ai.hf.space/api/ai/root-cause/stats?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
             method: 'GET',

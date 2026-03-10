@@ -10,6 +10,7 @@ type Report = {
   created_at?: string;
   status?: string;
   category?: string;
+  target_division?: string;
   [key: string]: unknown;
 };
 
@@ -41,17 +42,19 @@ export default function OPCaseStatus() {
       if (hard) setRefreshing(true);
       else setLoading(true);
       if (hard) await fetch('/api/reports/refresh', { method: 'POST' });
-      // Primary: Google Sheets enriched data with full columns
-      const res = await fetch('/api/reports?unfiltered=1');
+      // Primary: Google Sheets enriched data with full columns (filtered by OP)
+      const res = await fetch('/api/reports?unfiltered=1&esklasi_regex=OP');
       if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
         const data = await res.json();
-        setReports(Array.isArray(data) ? data : []);
+        const onlyOP = Array.isArray(data) ? data.filter((r: any) => String(r?.target_division || '').trim() === 'OP') : [];
+        setReports(onlyOP);
       } else {
         // Fallback to analytics
-        const res2 = await fetch(`/api/reports/analytics?refresh=${hard ? 'true' : 'false'}`);
+        const res2 = await fetch(`/api/reports/analytics?refresh=${hard ? 'true' : 'false'}&esklasi_regex=OP`);
         if (res2.ok && (res2.headers.get('content-type') || '').includes('application/json')) {
           const data2 = await res2.json();
-          setReports(Array.isArray(data2?.reports) ? data2.reports : []);
+          const onlyOP = Array.isArray(data2?.reports) ? data2.reports.filter((r: any) => String(r?.target_division || '').trim() === 'OP') : [];
+          setReports(onlyOP);
         } else {
           setReports([]);
         }

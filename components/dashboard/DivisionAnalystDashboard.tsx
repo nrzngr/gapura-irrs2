@@ -928,18 +928,11 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
                 <span className="truncate max-w-[150px] sm:max-w-none">Status Case</span>
               </button>
               <button
-                onClick={() => router.push('/dashboard/ot/gse-top-cases')}
+                onClick={() => router.push('/dashboard/ot/gse')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">Case GSE Tertinggi</span>
-              </button>
-              <button
-                onClick={() => router.push('/dashboard/ot/gse-performance')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 hover:-translate-y-0.5 active:scale-95 min-w-[160px] h-12 sm:h-auto whitespace-nowrap"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v10"/><path d="M12 3c-4.2 0-8 3.8-8 8 0 4 2.6 7.4 6.2 8.7.6.2 1.3-.2 1.3-.9v-3.1c0-.4-.2-.7-.5-.9-1.5-.8-2.5-2.4-2.5-4.2 0-2.6 2.1-4.8 4.8-4.8s4.8 2.1 4.8 4.8c0 1.8-1 3.4-2.5 4.2-.3.2-.5.5-.5.9v3.1c0 .7.7 1.1 1.3.9C17.4 18.4 20 15 20 11c0-4.2-3.8-8-8-8Z"/></svg>
-                <span className="truncate max-w-[150px] sm:max-w-none">Performa GSE</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <span className="truncate max-w-[150px] sm:max-w-none">GSE Dashboard</span>
               </button>
             </div>
           )}

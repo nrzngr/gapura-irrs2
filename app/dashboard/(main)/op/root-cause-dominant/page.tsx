@@ -38,7 +38,7 @@ export default function OPRootCauseDominant() {
       try {
         setStatsLoading(true);
         setStatsError(null);
-        const esklasiRegex = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('esklasi_regex') || '' : '';
+        const esklasiRegex = 'OP';
         const res = await fetch(`https://gapura-dev-gapura-ai.hf.space/api/ai/root-cause/stats?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
@@ -65,13 +65,16 @@ export default function OPRootCauseDominant() {
       try {
         setReportsLoading(true);
         setReportsError(null);
-        const res = await fetch('/api/reports?unfiltered=1', { cache: 'no-store' });
+        const res = await fetch('/api/reports?unfiltered=1&esklasi_regex=OP', { cache: 'no-store' });
         if (!res.ok) {
           const t = await res.text().catch(() => '');
           throw new Error(t || `HTTP ${res.status}`);
         }
         const json = await res.json();
-        if (mounted) setReports(Array.isArray(json) ? json : []);
+        if (mounted) {
+          const onlyOP = Array.isArray(json) ? json.filter((r: any) => String(r?.target_division || '').trim() === 'OP') : [];
+          setReports(onlyOP);
+        }
       } catch (e: any) {
         if (mounted) setReportsError('Gagal memuat daftar laporan');
       } finally {

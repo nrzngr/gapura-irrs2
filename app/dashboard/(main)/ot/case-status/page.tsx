@@ -10,6 +10,7 @@ type Report = {
   created_at?: string;
   status?: string;
   category?: string;
+  target_division?: string;
   [key: string]: unknown;
 };
 
@@ -41,15 +42,17 @@ export default function OTCaseStatus() {
       if (hard) setRefreshing(true);
       else setLoading(true);
       if (hard) await fetch('/api/reports/refresh', { method: 'POST' });
-      const res = await fetch('/api/reports?unfiltered=1');
+      const res = await fetch('/api/reports?unfiltered=1&esklasi_regex=OT');
       if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
         const data = await res.json();
-        setReports(Array.isArray(data) ? data : []);
+        const onlyOT = Array.isArray(data) ? data.filter((r: any) => String(r?.target_division || '').trim() === 'OT') : [];
+        setReports(onlyOT);
       } else {
-        const res2 = await fetch(`/api/reports/analytics?refresh=${hard ? 'true' : 'false'}`);
+        const res2 = await fetch(`/api/reports/analytics?refresh=${hard ? 'true' : 'false'}&esklasi_regex=OT`);
         if (res2.ok && (res2.headers.get('content-type') || '').includes('application/json')) {
           const data2 = await res2.json();
-          setReports(Array.isArray(data2?.reports) ? data2.reports : []);
+          const onlyOT = Array.isArray(data2?.reports) ? data2.reports.filter((r: any) => String(r?.target_division || '').trim() === 'OT') : [];
+          setReports(onlyOT);
         } else {
           setReports([]);
         }

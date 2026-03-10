@@ -22,6 +22,7 @@ type ReportRow = {
   severity?: string;
   branch?: string;
   title?: string;
+  target_division?: string;
 };
 
 function normalizeCategory(report: ReportRow): 'Accidents / Incidents' | 'Irregularity Report' | 'Complaint' | 'Compliment' | 'Other' {
@@ -72,10 +73,11 @@ export default function OPComplaintByCategory() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/reports?unfiltered=1');
+      const res = await fetch('/api/reports?unfiltered=1&esklasi_regex=OP');
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || `Gagal memuat data (${res.status})`);
-      setReports(json);
+      const onlyOP = Array.isArray(json) ? json.filter((r: any) => String(r?.target_division || '').trim() === 'OP') : [];
+      setReports(onlyOP);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat data');
     } finally {
