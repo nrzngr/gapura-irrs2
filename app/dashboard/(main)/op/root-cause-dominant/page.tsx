@@ -193,6 +193,7 @@ export default function OPRootCauseDominant() {
             root_cause: 'min-w-[20rem] max-w-[40rem] break-words whitespace-pre-wrap',
             action_taken: 'min-w-[20rem] max-w-[40rem] break-words whitespace-pre-wrap',
             preventive_action: 'min-w-[20rem] max-w-[40rem] break-words whitespace-pre-wrap',
+            description: 'min-w-[28rem] max-w-[60rem] break-words whitespace-pre-wrap',
           }}
         />
         {reportsError && <div className="mt-2 text-xs text-red-600">{reportsError}</div>}

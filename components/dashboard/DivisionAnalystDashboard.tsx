@@ -868,7 +868,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
                 <span className="truncate">Dashboard OS</span>
               </button>
               <button
-                onClick={() => window.open('https://lookerstudio.google.com/u/0/reporting/42384b46-8f39-4ffd-86ba-ca0e26ab56f4/page/p_8umvft5qyd', '_blank')}
+                onClick={() => window.open('https://lookerstudio.google.com/u/0/reporting/55737b14-c27a-4ed8-b65c-336317790314/page/p_qqvwkh1hsd', '_blank')}
                 className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 active:scale-95 flex-1 sm:flex-none justify-center min-w-0 sm:min-w-[160px] whitespace-nowrap"
               >
                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 sm:w-4 sm:h-4"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
