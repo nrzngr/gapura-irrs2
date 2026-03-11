@@ -85,7 +85,6 @@ export async function POST(request: Request) {
             else if (division === 'OT' || posName.includes('OT') || posName.includes('TEKNOLOGI') || emailUpper.includes('PARTNER.OT')) finalRole = 'PARTNER_OT';
             else if (division === 'OP' || posName.includes('OP') || posName.includes('OPERASI') || emailUpper.includes('PARTNER.OP')) finalRole = 'PARTNER_OP';
             else if (division === 'UQ' || posName.includes('UQ') || posName.includes('QUAL') || emailUpper.includes('PARTNER.UQ')) finalRole = 'PARTNER_UQ';
-            else if (division === 'HC' || posName.includes('HC') || emailUpper.includes('PARTNER.HC')) finalRole = 'PARTNER_HC';
             else if (division === 'HT' || posName.includes('HT') || emailUpper.includes('PARTNER.HT')) finalRole = 'PARTNER_HT';
         }
 

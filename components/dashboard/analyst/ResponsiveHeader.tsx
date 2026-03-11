@@ -30,15 +30,16 @@ interface ResponsiveHeaderProps {
   dateRange: 'all' | 'week' | 'month' | { from: string; to: string };
   onDateRangeChange: (range: 'all' | 'week' | 'month' | { from: string; to: string }) => void;
   onRefresh: () => void;
-  refreshing: boolean;
-  onCustomerFeedback?: () => void;
-  cfLoading?: boolean;
-  onFilterClick?: () => void;
-  onExportExcel: () => void;
-  onExportPDF: () => void;
-  exporting: 'excel' | 'pdf' | null;
-  divisionDashboardLabel?: string;
-  onOpenDivisionDashboard?: () => void;
+    refreshing: boolean;
+    onCustomerFeedback?: () => void;
+    cfLoading?: boolean;
+    onFilterClick?: () => void;
+    onExportExcel: () => void;
+    onExportPDF: () => void;
+    exporting: 'excel' | 'pdf' | null;
+    divisionDashboardLabel?: string;
+    onOpenDivisionDashboard?: () => void;
+    onSwitchDivision?: () => void;
 }
 
 /**
@@ -58,6 +59,7 @@ export function ResponsiveHeader({
   exporting,
   divisionDashboardLabel,
   onOpenDivisionDashboard,
+  onSwitchDivision,
 }: ResponsiveHeaderProps) {
   const router = useRouter();
   const [isDateOpen, setIsDateOpen] = useState(false);
@@ -100,6 +102,13 @@ export function ResponsiveHeader({
       label: divisionDashboardLabel,
       icon: <LayoutDashboard className="w-4 h-4" />,
       onClick: onOpenDivisionDashboard,
+    });
+  }
+  if (onSwitchDivision) {
+    mobileMenuActions.push({
+      label: 'Ganti Divisi',
+      icon: <LayoutDashboard className="w-4 h-4" />,
+      onClick: onSwitchDivision,
     });
   }
   mobileMenuActions.push(
@@ -309,6 +318,21 @@ export function ResponsiveHeader({
             >
               <LayoutDashboard size={16} />
               <span className="hidden 2xl:inline tracking-tight">{divisionDashboardLabel}</span>
+            </Button>
+          )}
+          
+          {onSwitchDivision && (
+            <Button
+              onClick={onSwitchDivision}
+              variant="ghost"
+              className={cn(
+                'hidden xl:inline-flex items-center gap-2 min-h-[48px] px-5',
+                'bg-[oklch(1_0_0_/_0.3)] backdrop-blur-xl border border-[oklch(1_0_0_/_0.1)] text-[var(--text-primary)] transition-all duration-300',
+                'rounded-2xl hover:bg-[oklch(1_0_0_/_0.5)] hover:-translate-y-0.5 active:scale-95'
+              )}
+            >
+              <LayoutDashboard size={16} className="text-emerald-600" />
+              <span className="hidden 2xl:inline font-bold tracking-tight">Ganti Divisi</span>
             </Button>
           )}
 

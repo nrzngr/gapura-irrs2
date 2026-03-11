@@ -14,8 +14,8 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
     DIVISI_OT: 2,
     DIVISI_OP: 2,
     DIVISI_UQ: 2,
-    DIVISI_HC: 2,
     DIVISI_HT: 2,
+    DIVISI_ESKALASI: 3,
     ANALYST: 3,
     SUPER_ADMIN: 4,
 };
@@ -25,7 +25,7 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
  * DIVISI_OS, ANALYST, and SUPER_ADMIN per requirements
  */
 export const canExportData = (role: UserRole): boolean =>
-    role === 'DIVISI_OS' || role === 'ANALYST' || role === 'SUPER_ADMIN';
+    role === 'DIVISI_OS' || role === 'DIVISI_ESKALASI' || role === 'ANALYST' || role === 'SUPER_ADMIN';
 
 /**
  * Check if user can access admin dashboard
@@ -100,6 +100,9 @@ export const hasGlobalAccess = (role: UserRole): boolean =>
 export const getLoginRedirectPath = (role: UserRole): string => {
     if (role === 'MANAGER_CABANG' || role === 'STAFF_CABANG') {
         return '/dashboard/employee';
+    }
+    if (role === 'DIVISI_ESKALASI') {
+        return '/dashboard/eskalasi/select';
     }
     return '/dashboard/admin';
 };
@@ -188,8 +191,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
     DIVISI_OT: 'Divisi OT',
     DIVISI_OP: 'Divisi OP',
     DIVISI_UQ: 'Divisi UQ',
-    DIVISI_HC: 'Divisi HC',
     DIVISI_HT: 'Divisi HT',
+    DIVISI_ESKALASI: 'Divisi Eskalasi',
     ANALYST: 'Analyst',
     SUPER_ADMIN: 'Super Admin',
 };
@@ -204,8 +207,8 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
     DIVISI_OT: 'Divisi Teknik. Eksekutor laporan terkait GSE dan peralatan.',
     DIVISI_OP: 'Divisi Operasi. Eksekutor laporan terkait operasional.',
     DIVISI_UQ: 'Divisi Quality. Eksekutor laporan terkait safety dan quality.',
-    DIVISI_HC: 'Divisi Human Capital. Eksekutor laporan terkait kepegawaian.',
     DIVISI_HT: 'Divisi Human Training. Eksekutor laporan terkait pelatihan.',
+    DIVISI_ESKALASI: 'Pusat Eskalasi. Akses view semua laporan divisi, export data.',
     ANALYST: 'Kepala divisi. Akses global + export data.',
     SUPER_ADMIN: 'Full access. Kelola user dan master data.',
 };

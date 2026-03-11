@@ -10,6 +10,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { LINKS_CONFIG, GET_LINKS_KEY, type NavGroupConfig as NavGroup, type NavItemConfig as NavItem } from '@/lib/nav-config';
 
+declare global {
+    interface Window {
+        toggleMobileSidebar: () => void;
+    }
+}
 interface NavContentProps {
     groups: NavGroup[];
     pathname: string;
@@ -158,7 +163,7 @@ export default function Sidebar({ role }: { role: string }) {
     const [loading, setLoading] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    const configKey = GET_LINKS_KEY(role || '');
+    const configKey = GET_LINKS_KEY(role || '', pathname);
     const groups = LINKS_CONFIG[configKey];
 
     const handleLogout = async () => {
@@ -177,7 +182,7 @@ export default function Sidebar({ role }: { role: string }) {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            (window as any).toggleMobileSidebar = () => setMobileOpen(prev => !prev);
+            window.toggleMobileSidebar = () => setMobileOpen(prev => !prev);
         }
     }, []);
 

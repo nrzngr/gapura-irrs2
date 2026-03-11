@@ -840,6 +840,7 @@ export function DivisionAnalystDashboard({ division }: DivisionAnalystDashboardP
             exporting={exporting}
             divisionDashboardLabel={division.code === 'OP' ? 'Dashboard OP' : undefined}
             onOpenDivisionDashboard={division.code === 'OP' ? () => setShowOPDashboardModal(true) : undefined}
+            onSwitchDivision={() => router.push('/dashboard/eskalasi/select')}
           />
           <div className="mt-2 sm:mt-3 flex flex-wrap gap-1.5 sm:gap-2">
             {hasAllReportsAccess && (

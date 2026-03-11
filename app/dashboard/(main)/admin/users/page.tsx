@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
     Users, Search, RefreshCw, Check, X, Shield, User,
     Filter, ChevronDown, Mail, Building2,
-    Eye, Wrench, Star, Edit2, Save, Plus
+    Eye, Wrench, Star, Edit2, Save, Plus, Layers
 } from 'lucide-react';
 import type { UserRole, DivisionType } from '@/types';
 
@@ -34,8 +34,8 @@ const roleConfig: Record<UserRole, { label: string; color: string; icon: typeof 
     DIVISI_OT: { label: 'Divisi OT', color: 'bg-orange-100 text-orange-700', icon: Wrench },
     DIVISI_OP: { label: 'Divisi OP', color: 'bg-teal-100 text-teal-700', icon: User },
     DIVISI_UQ: { label: 'Divisi UQ', color: 'bg-pink-100 text-pink-700', icon: Shield },
-    DIVISI_HC: { label: 'Divisi HC', color: 'bg-violet-100 text-violet-700', icon: User },
     DIVISI_HT: { label: 'Divisi HT', color: 'bg-sky-100 text-sky-700', icon: User },
+    DIVISI_ESKALASI: { label: 'Divisi Eskalasi', color: 'bg-indigo-100 text-indigo-700', icon: Layers },
     ANALYST: { label: 'Analyst', color: 'bg-indigo-100 text-indigo-700', icon: Star },
     SUPER_ADMIN: { label: 'Super Admin', color: 'bg-purple-100 text-purple-700', icon: Shield },
     MANAGER_CABANG: { label: 'Manager Cabang', color: 'bg-emerald-100 text-emerald-700', icon: Shield },

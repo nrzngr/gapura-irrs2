@@ -1,4 +1,4 @@
-export type UserRole = 'SUPER_ADMIN' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'DIVISI_HC' | 'DIVISI_HT' | 'ANALYST' | 'MANAGER_CABANG' | 'STAFF_CABANG';
+export type UserRole = 'SUPER_ADMIN' | 'DIVISI_ESKALASI' | 'DIVISI_OS' | 'DIVISI_OT' | 'DIVISI_OP' | 'DIVISI_UQ' | 'DIVISI_HT' | 'ANALYST' | 'MANAGER_CABANG' | 'STAFF_CABANG';
 
 export type ReportStatus = 'OPEN' | 'ON PROGRESS' | 'CLOSED';
 
@@ -156,7 +156,7 @@ export interface Report {
     // Triage / Pivot Fields
     primary_tag?: string; // 'Landside' | 'Airside'
     sub_category_note?: string;
-    target_division?: string; // 'OS' | 'OP' | 'OT' | 'UQ' | 'HC' | 'HT'
+    target_division?: string; // 'OS' | 'OP' | 'OT' | 'UQ' | 'HT'
 
     // Triage Fields (Analyst -> Division)
     // primary_tag?: 'Landside' | 'Airside' | string;

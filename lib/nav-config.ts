@@ -13,7 +13,8 @@ import {
     Shield, 
     Brain, 
     Inbox, 
-    Calendar 
+    Calendar,
+    Layers
 } from 'lucide-react';
 
 export interface NavItemConfig {
@@ -145,21 +146,31 @@ export const LINKS_CONFIG: Record<string, NavGroupConfig[]> = {
             ]
         }
     ],
-    'HC': [
-        {
-            title: 'Human Capital',
-            items: [
-                { href: '/dashboard/hc', label: 'HC Dashboard', icon: LayoutDashboard },
-                { href: '/dashboard/hc/dispatched', label: 'Laporan Divisi', icon: Inbox },
-            ]
-        }
-    ],
     'HT': [
         {
             title: 'Human Training',
             items: [
                 { href: '/dashboard/ht', label: 'HT Dashboard', icon: LayoutDashboard },
                 { href: '/dashboard/ht/dispatched', label: 'Laporan Divisi', icon: Inbox },
+            ]
+        }
+    ],
+    'DIVISI_ESKALASI': [
+        {
+            title: 'Pusat Eskalasi',
+            items: [
+                { href: '/dashboard/eskalasi', label: 'Dashboard', icon: LayoutDashboard },
+                { href: '/dashboard/eskalasi/laporan-divisi', label: 'Semua Laporan', icon: Layers },
+            ]
+        },
+        {
+            title: 'Laporan Per Divisi',
+            items: [
+                { href: '/dashboard/eskalasi/op', label: 'Divisi OP', icon: FolderOpen },
+                { href: '/dashboard/eskalasi/os', label: 'Divisi OS', icon: FolderOpen },
+                { href: '/dashboard/eskalasi/uq', label: 'Divisi UQ', icon: FolderOpen },
+                { href: '/dashboard/eskalasi/ot', label: 'Divisi OT', icon: FolderOpen },
+                { href: '/dashboard/eskalasi/ht', label: 'Divisi HT', icon: FolderOpen },
             ]
         }
     ],
@@ -186,16 +197,23 @@ export const LINKS_CONFIG: Record<string, NavGroupConfig[]> = {
     ]
 };
 
-export const GET_LINKS_KEY = (role: string): string => {
+export const GET_LINKS_KEY = (role: string, pathname?: string): string => {
     const r = (role || '').toUpperCase();
     if (r.includes('SUPER') || r === 'ADMIN') return 'ADMIN';
     if (r === 'ANALYST') return 'ANALYST';
     if (r === 'MANAGER_CABANG') return 'MANAGER';
+    if (r === 'DIVISI_ESKALASI') {
+        if (pathname?.startsWith('/dashboard/op')) return 'OP';
+        if (pathname?.startsWith('/dashboard/os')) return 'OS';
+        if (pathname?.startsWith('/dashboard/ot')) return 'OT';
+        if (pathname?.startsWith('/dashboard/uq')) return 'UQ';
+        if (pathname?.startsWith('/dashboard/ht')) return 'HT';
+        return 'DIVISI_ESKALASI';
+    }
     if (r === 'DIVISI_OS' || r === 'PARTNER_OS') return 'OS';
     if (r === 'DIVISI_OT' || r === 'PARTNER_OT') return 'OT';
     if (r === 'DIVISI_OP' || r === 'PARTNER_OP') return 'OP';
     if (r === 'DIVISI_UQ' || r === 'PARTNER_UQ') return 'UQ';
-    if (r === 'DIVISI_HC' || r === 'PARTNER_HC') return 'HC';
     if (r === 'DIVISI_HT' || r === 'PARTNER_HT') return 'HT';
     return 'EMPLOYEE';
 };

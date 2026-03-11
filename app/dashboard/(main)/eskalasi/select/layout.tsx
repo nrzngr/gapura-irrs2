@@ -1,10 +1,8 @@
-
-import { DashboardFrame } from '@/components/layout/DashboardFrame';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
 
-export default async function MainDashboardLayout({
+export default async function SelectLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -17,5 +15,13 @@ export default async function MainDashboardLayout({
         redirect('/auth/login');
     }
 
-    return <DashboardFrame role={session.role as string}>{children}</DashboardFrame>;
+    if (session.role !== 'DIVISI_ESKALASI') {
+        redirect('/dashboard/employee');
+    }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+            {children}
+        </div>
+    );
 }

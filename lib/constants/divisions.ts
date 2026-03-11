@@ -42,15 +42,6 @@ export const DIVISIONS: Record<string, DivisionConfig> = {
         bgLight: 'bg-pink-50',
         textColor: 'text-pink-600',
     },
-    HC: {
-        code: 'HC',
-        name: 'Human Capital',
-        color: '#8b5cf6',
-        gradient: 'from-violet-500 via-purple-600 to-indigo-600',
-        bgLight: 'bg-violet-50',
-        textColor: 'text-violet-600',
-        borderColor: 'border-violet-200',
-    },
     HT: {
         code: 'HT',
         name: 'Human Training',

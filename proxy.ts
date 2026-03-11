@@ -4,6 +4,7 @@ import { verifySession } from '@/lib/auth-utils';
 
 const ROLE_DASHBOARDS: Record<string, string> = {
     SUPER_ADMIN: '/dashboard/admin',
+    DIVISI_ESKALASI: '/dashboard/eskalasi/select',
     DIVISI_OS: '/dashboard/os',
     PARTNER_OS: '/dashboard/os',
     DIVISI_OT: '/dashboard/ot',
@@ -115,25 +116,25 @@ export default async function proxy(request: NextRequest) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
 
-        // Division Dashboards (OS, OT, OP, UQ)
+        // Division Dashboards (OS, OT, OP, UQ, HT)
         if (path.startsWith('/dashboard/os') && !path.startsWith('/dashboard/analyst')) {
-             if (!['DIVISI_OS', 'PARTNER_OS', 'DIVISI_OT', 'PARTNER_OT', 'DIVISI_OP', 'PARTNER_OP', 'DIVISI_UQ', 'PARTNER_UQ'].includes(role)) {
+             if (!['DIVISI_OS', 'PARTNER_OS', 'DIVISI_OT', 'PARTNER_OT', 'DIVISI_OP', 'PARTNER_OP', 'DIVISI_UQ', 'PARTNER_UQ', 'DIVISI_ESKALASI'].includes(role)) {
                   return NextResponse.redirect(new URL('/dashboard/employee', request.url));
              }
         }
-        if (path.startsWith('/dashboard/ot') && !['DIVISI_OT', 'PARTNER_OT'].includes(role)) {
+        if (path.startsWith('/dashboard/ot') && !['DIVISI_OT', 'PARTNER_OT', 'DIVISI_ESKALASI'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
-        if (path.startsWith('/dashboard/op') && !['DIVISI_OP', 'PARTNER_OP'].includes(role)) {
+        if (path.startsWith('/dashboard/op') && !['DIVISI_OP', 'PARTNER_OP', 'DIVISI_ESKALASI'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
-        if (path.startsWith('/dashboard/uq') && !['DIVISI_UQ', 'PARTNER_UQ'].includes(role)) {
+        if (path.startsWith('/dashboard/uq') && !['DIVISI_UQ', 'PARTNER_UQ', 'DIVISI_ESKALASI'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
-        if (path.startsWith('/dashboard/hc') && !['DIVISI_HC', 'PARTNER_HC'].includes(role)) {
+        if (path.startsWith('/dashboard/ht') && !['DIVISI_HT', 'PARTNER_HT', 'DIVISI_ESKALASI'].includes(role)) {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
-        if (path.startsWith('/dashboard/ht') && !['DIVISI_HT', 'PARTNER_HT'].includes(role)) {
+        if (path.startsWith('/dashboard/eskalasi') && role !== 'DIVISI_ESKALASI') {
              return NextResponse.redirect(new URL('/dashboard/employee', request.url));
         }
     }

@@ -39,17 +39,18 @@ export default function LoginPage() {
 
             const roleRedirects: Record<string, string> = {
                 SUPER_ADMIN: '/dashboard/admin',
+                DIVISI_ESKALASI: '/dashboard/eskalasi/select',
                 DIVISI_OS: '/dashboard/os',
                 DIVISI_OT: '/dashboard/ot',
                 DIVISI_OP: '/dashboard/op',
                 DIVISI_UQ: '/dashboard/uq',
+                DIVISI_HT: '/dashboard/ht',
                 ANALYST: '/dashboard/analyst',
                 CABANG: '/dashboard/employee',
                 PARTNER_OS: '/dashboard/os',
                 PARTNER_OT: '/dashboard/ot',
                 PARTNER_OP: '/dashboard/op',
                 PARTNER_UQ: '/dashboard/uq',
-                PARTNER_HC: '/dashboard/hc',
                 PARTNER_HT: '/dashboard/ht',
             };
             
