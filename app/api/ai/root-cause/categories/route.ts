@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes
@@ -19,15 +20,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     const { searchParams } = new URL(req.url);
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
-    const targetUrl = `${AI_SERVICE_URL}/api/ai/root-cause/categories?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
+    const targetPath = `/api/ai/root-cause/categories?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
 
-    const response = await fetch(targetUrl, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const hfClient = getHfClient();
+    const response = await hfClient.fetch(
+      targetPath,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+      { ttl: 300000 }
+    );
 
     if (!response.ok) {
       return NextResponse.json(

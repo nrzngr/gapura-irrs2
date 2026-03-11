@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
+import { getHfClient } from '@/lib/hf-client';
 
 export const maxDuration = 300; // 5 minutes
 
@@ -19,25 +20,23 @@ export async function POST(req: NextRequest) {
     const report = searchParams.get('report') || '';
     const area = searchParams.get('area') || '';
     const category = searchParams.get('category') || '';
-  const esklasiRegex = searchParams.get('esklasi_regex') || '';
+    const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     if (!rootCause) {
       return NextResponse.json({ error: 'Root cause text is required' }, { status: 400 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
-    const targetUrl = new URL(`${AI_SERVICE_URL}/api/ai/root-cause/classify`);
-    targetUrl.searchParams.set('root_cause', rootCause);
-    if (report) targetUrl.searchParams.set('report', report);
-    if (area) targetUrl.searchParams.set('area', area);
-    if (category) targetUrl.searchParams.set('category', category);
-  targetUrl.searchParams.set('esklasi_regex', esklasiRegex);
+    let targetPath = `/api/ai/root-cause/classify?root_cause=${encodeURIComponent(rootCause)}`;
+    if (report) targetPath += `&report=${encodeURIComponent(report)}`;
+    if (area) targetPath += `&area=${encodeURIComponent(area)}`;
+    if (category) targetPath += `&category=${encodeURIComponent(category)}`;
+    targetPath += `&esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
 
-    const aiResponse = await fetch(targetUrl.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const hfClient = getHfClient();
+    const aiResponse = await hfClient.fetch(
+      targetPath,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+    );
 
     if (!aiResponse.ok) {
       throw new Error(`AI service error: ${aiResponse.status}`);
@@ -53,4 +52,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-// Complexity: Time O(1) + Network | Space O(1)

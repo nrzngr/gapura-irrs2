@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 300; // Cache for 5 minutes
 
 /**
  * API endpoint untuk mendapatkan ringkasan risiko
@@ -11,7 +11,6 @@ export const revalidate = 300; // Cache for 5 minutes
  */
 export async function GET(req: NextRequest) {
   try {
-    // Verifikasi session
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     const session = token ? await verifySession(token) : null;
@@ -23,21 +22,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Panggil AI service (Python FastAPI)
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
     const { searchParams } = new URL(req.url);
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/risk/summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Cache for 5 minutes
-        next: { revalidate: 300 }
-      });
+      const hfClient = getHfClient();
+      const aiResponse = await hfClient.fetch(
+        `/api/ai/risk/summary?esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+        { ttl: 300000 }
+      );
 
       if (!aiResponse.ok) {
         throw new Error(`AI service error: ${aiResponse.status}`);
@@ -49,7 +43,6 @@ export async function GET(req: NextRequest) {
     } catch (aiError) {
       console.error('AI Service Error:', aiError);
       
-      // Return error - no fallback/mock data
       return NextResponse.json(
         { 
           error: 'AI service tidak tersedia',

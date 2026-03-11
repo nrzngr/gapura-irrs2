@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { supabaseAdmin } from '@/lib/supabase-admin';
- 
+import { getHfClient } from '@/lib/hf-client';
 
-export const maxDuration = 300; // 5 minutes
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 /**
@@ -15,7 +15,6 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     
@@ -34,10 +33,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Allow all authenticated roles to access AI analysis
     const role = String(payload.role).trim().toUpperCase();
 
-    // Get query parameters first
     const { searchParams } = new URL(request.url);
     const maxRows = searchParams.get('max_rows_per_sheet') || '10000';
     const bypassCache = searchParams.get('bypass_cache') || 'false';
@@ -48,8 +45,6 @@ export async function GET(request: NextRequest) {
     const divisionParam = searchParams.get('division');
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
-
-    // Get branch filter for MANAGER_CABANG or from query params
     const branchFilter: string | null = branchParam;
     let branchCode: string | null = null;
     if (role === 'MANAGER_CABANG') {
@@ -77,35 +72,27 @@ export async function GET(request: NextRequest) {
     };
     type AnalysisItem = { originalData?: OriginalData };
 
-    // Explicitly do not support local file fallback
-
-    // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
+    const hfClient = getHfClient();
 
     console.log(`[AI API] Calling analyze-all with max_rows=${maxRows}, division=${divisionParam}, branch=${branchParam || branchCode || '-'}`);
 
-    // Only pass parameters supported by the external service to avoid 4xx from unknown params
     const baseQuery = `max_rows_per_sheet=${maxRows}&bypass_cache=${bypassCache}&include_regression=${includeRegression}&include_nlp=${includeNlp}&include_trends=${includeTrends}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
-    const primaryUrl = `${AI_SERVICE_URL}/api/ai/analyze-all?${baseQuery}`;
-    const fallbackUrl = `${AI_SERVICE_URL}/api/ai/analyze-all/fast?${baseQuery}`;
-    const controller = new AbortController();
-    const timeoutMs = Number(process.env.AI_API_TIMEOUT_MS || '2400000');
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const primaryPath = `/api/ai/analyze-all?${baseQuery}`;
+    const fallbackPath = `/api/ai/analyze-all/fast?${baseQuery}`;
+    
     let aiResponse: Response | null = null;
     try {
-      aiResponse = await fetch(primaryUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
+      aiResponse = await hfClient.fetch(
+        primaryPath,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+        { bypassCache: bypassCache.toLowerCase() === 'true' }
+      );
       if (!aiResponse.ok) {
-        const alt = await fetch(fallbackUrl, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-        }).catch(() => null);
+        const alt = await hfClient.fetch(
+          fallbackPath,
+          { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+          { bypassCache: bypassCache.toLowerCase() === 'true' }
+        ).catch(() => null);
         if (alt && alt.ok) {
           aiResponse = alt;
           console.log('[AI API] Fallback to /fast succeeded');
@@ -113,22 +100,18 @@ export async function GET(request: NextRequest) {
       }
     } catch {
       try {
-        const alt = await fetch(fallbackUrl, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-        }).catch(() => null);
+        const alt = await hfClient.fetch(
+          fallbackPath,
+          { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+          { bypassCache: bypassCache.toLowerCase() === 'true' }
+        ).catch(() => null);
         if (alt && alt.ok) {
           aiResponse = alt;
           console.log('[AI API] Primary failed, /fast succeeded');
         }
       } catch {
         // ignore here; handled below
-      } finally {
-        clearTimeout(timer);
       }
-    } finally {
-      clearTimeout(timer);
     }
 
     if (!aiResponse || !aiResponse.ok) {
@@ -152,10 +135,10 @@ export async function GET(request: NextRequest) {
         _proxy: {
           timestamp: new Date().toISOString(),
           source: 'unavailable-fallback',
-          ai_service_url: AI_SERVICE_URL,
           branch_filter: branchCode || branchFilter,
           service_unavailable: true,
-          error: errorText || statusText
+          error: errorText || statusText,
+          rateLimitStats: hfClient.getStats()
         },
         _pagination: null
       };
@@ -199,7 +182,6 @@ export async function GET(request: NextRequest) {
         data.summary.severityDistribution = dist;
       }
 
-      // Build prediction stats from results when missing
       const ps = data.summary.predictionStats || data.summary.prediction_stats;
       if (!ps && data.results.length > 0) {
         let min = Infinity;
@@ -223,15 +205,13 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    
-    
     const response = {
       ...data,
       _proxy: {
         timestamp: new Date().toISOString(),
         source: 'nextjs-api-proxy',
-        ai_service_url: AI_SERVICE_URL,
-        branch_filter: branchCode || branchFilter
+        branch_filter: branchCode || branchFilter,
+        rateLimitStats: hfClient.getStats()
       },
       _pagination: null
     };

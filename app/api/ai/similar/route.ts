@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes
@@ -25,18 +26,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Text parameter is required' }, { status: 400 });
     }
 
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
-    const targetUrl = new URL(`${AI_SERVICE_URL}/api/ai/similar`);
-    targetUrl.searchParams.set('text', text);
-    targetUrl.searchParams.set('top_k', topK);
-    targetUrl.searchParams.set('threshold', threshold);
-    targetUrl.searchParams.set('esklasi_regex', esklasiRegex);
-
-    const aiResponse = await fetch(targetUrl.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const hfClient = getHfClient();
+    const targetPath = `/api/ai/similar?text=${encodeURIComponent(text)}&top_k=${topK}&threshold=${threshold}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
+    const aiResponse = await hfClient.fetch(
+      targetPath,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+    );
 
     if (!aiResponse.ok) {
       throw new Error(`AI service error: ${aiResponse.status}`);
@@ -52,4 +47,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-// Complexity: Time O(1) + Network | Space O(1)

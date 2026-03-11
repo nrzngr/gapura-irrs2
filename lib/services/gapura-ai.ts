@@ -1,4 +1,8 @@
+import { getHfClient } from '@/lib/hf-client';
+
 const GAPURA_AI_BASE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || 'http://localhost:8000';
+
+const hfClient = getHfClient({ baseUrl: GAPURA_AI_BASE_URL });
 
 export interface SeverityDistributionAi {
   name: string;
@@ -222,38 +226,9 @@ export interface RootCauseSummary {
 }
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 60000): Promise<Response> {
-  const { signal, ...otherOptions } = options;
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  
-  const onAbort = () => {
-    clearTimeout(id);
-    controller.abort();
-  };
-
-  if (signal) {
-    if (signal.aborted) {
-      onAbort();
-    } else {
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
-  }
-
-  try {
-    const response = await fetch(url, { ...otherOptions, signal: controller.signal });
-    return response;
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      if (signal?.aborted) throw error;
-      throw new Error('Request timeout - AI service took too long to respond');
-    }
-    throw error;
-  } finally {
-    clearTimeout(id);
-    if (signal) {
-      signal.removeEventListener('abort', onAbort);
-    }
-  }
+  const client = getHfClient({ baseUrl: GAPURA_AI_BASE_URL });
+  const { signal, ...restOptions } = options;
+  return client.fetch(url, restOptions, { bypassCache: false, ttl: timeout * 2 }, signal);
 }
 
 function normalizeSeverity(key: string): string {

@@ -1,17 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     const esklasiRegex = new URL(req.url).searchParams.get('esklasi_regex') || '';
-    const url = `https://gapura-dev-gapura-ai.hf.space/api/ai/risk/hubs?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
-    const response = await fetch(url, {
-      cache: 'no-store', // Disable caching
-      headers: {
-        'Accept': 'application/json',
-      }
-    });
+    const hfClient = getHfClient();
+    const response = await hfClient.fetch(
+      `/api/ai/risk/hubs?esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+      { headers: { 'Accept': 'application/json' } }
+    );
 
     if (!response.ok) {
       console.error(`[API Proxy] Failed to fetch hub risk data: ${response.status}`);

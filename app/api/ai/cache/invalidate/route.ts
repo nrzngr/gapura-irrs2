@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
+import { getHfClient } from '@/lib/hf-client';
 
 /**
  * POST /api/ai/cache/invalidate
@@ -9,7 +10,6 @@ import { verifySession } from '@/lib/auth-utils';
  */
 export async function POST(request: Request) {
   try {
-    // Verify authentication
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     
@@ -28,7 +28,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Only allow analysts and admins
     const role = String(payload.role).trim().toUpperCase();
     if (role !== 'ANALYST' && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
       return NextResponse.json(
@@ -37,25 +36,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get query parameters
     const { searchParams } = new URL(request.url);
     const sheetName = searchParams.get('sheet_name');
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
-    // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
     try {
-      const url = sheetName 
-        ? `${AI_SERVICE_URL}/api/ai/cache/invalidate?sheet_name=${encodeURIComponent(sheetName)}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`
-        : `${AI_SERVICE_URL}/api/ai/cache/invalidate?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
-        
-      const aiResponse = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const hfClient = getHfClient();
+      const path = sheetName 
+        ? `/api/ai/cache/invalidate?sheet_name=${encodeURIComponent(sheetName)}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`
+        : `/api/ai/cache/invalidate?esklasi_regex=${encodeURIComponent(esklasiRegex)}`;
+          
+      const aiResponse = await hfClient.fetch(
+        path,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } },
+        { bypassCache: true }
+      );
+
+      hfClient.invalidateCache();
 
       if (!aiResponse.ok) {
         throw new Error(`AI service returned ${aiResponse.status}`);
@@ -66,7 +63,6 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('[AI Cache] AI service unavailable:', error);
       
-      // Return error - no mock data
       return NextResponse.json(
         { 
           error: 'AI service tidak tersedia',

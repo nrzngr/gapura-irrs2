@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
+import { getHfClient } from '@/lib/hf-client';
 
 /**
  * POST /api/ai/train
@@ -9,7 +10,6 @@ import { verifySession } from '@/lib/auth-utils';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     
@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only allow analysts and admins
     const role = String(payload.role).trim().toUpperCase();
     if (role !== 'ANALYST' && role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
       return NextResponse.json(
@@ -37,21 +36,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get query parameters
     const { searchParams } = new URL(request.url);
     const force = searchParams.get('force') || 'false';
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
-    // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/train?force=${force}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const hfClient = getHfClient();
+      const aiResponse = await hfClient.fetch(
+        `/api/ai/train?force=${force}&esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } },
+        { bypassCache: true }
+      );
 
       if (!aiResponse.ok) {
         throw new Error(`AI service returned ${aiResponse.status}`);
@@ -62,7 +57,6 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('[AI Train] AI service unavailable:', error);
       
-      // Return error - no mock data
       return NextResponse.json(
         { 
           error: 'AI service tidak tersedia',

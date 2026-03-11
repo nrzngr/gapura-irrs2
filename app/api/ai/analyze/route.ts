@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes
@@ -11,7 +12,6 @@ export const maxDuration = 300; // 5 minutes
  */
 export async function POST(req: NextRequest) {
   try {
-    // Verifikasi session
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     const session = token ? await verifySession(token) : null;
@@ -23,7 +23,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse request body
     const body = await req.json();
     const { data, options = {} } = body;
 
@@ -34,7 +33,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert reports to format yang diharapkan oleh AI model
     const convertedData = data.map((report: any) => ({
       Date_of_Event: report.Date_of_Event || report.date_of_event || report.created_at,
       Airlines: report.Airlines || report.airlines || report.airline || 'Unknown',
@@ -52,7 +50,6 @@ export async function POST(req: NextRequest) {
       Upload_Irregularity_Photo: report.Upload_Irregularity_Photo || report.photo_url || '',
     }));
 
-    // Default options
     const analysisOptions = {
       predictResolutionTime: options.predictResolutionTime !== false,
       classifySeverity: options.classifySeverity !== false,
@@ -61,12 +58,8 @@ export async function POST(req: NextRequest) {
       analyzeTrends: options.analyzeTrends !== false,
     };
 
-    // Panggil AI service (Python FastAPI)
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
-    // DEBUG: Log payload sent to AI service
     console.log('[AI Analyze Route] Sending payload to AI service:', JSON.stringify({
-      data: convertedData.slice(0, 2), // Log first 2 items to avoid spam
+      data: convertedData.slice(0, 2),
       options: analysisOptions,
     }, null, 2));
     
@@ -74,31 +67,30 @@ export async function POST(req: NextRequest) {
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/analyze?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: convertedData,
-          options: analysisOptions,
-        }),
-      });
+      const hfClient = getHfClient();
+      const aiResponse = await hfClient.fetch(
+        `/api/ai/analyze?esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: convertedData,
+            options: analysisOptions,
+          }),
+        }
+      );
 
       if (!aiResponse.ok) {
         throw new Error(`AI service error: ${aiResponse.status}`);
       }
 
       const aiResult = await aiResponse.json();
-
-      // Translate metrics to Bahasa Indonesia
       const translatedResult = translateToIndonesian(aiResult);
 
       return NextResponse.json(translatedResult);
     } catch (aiError) {
       console.error('AI Service Error:', aiError);
       
-      // Return error - no fallback/mock data
       return NextResponse.json(
         { 
           error: 'AI service tidak tersedia',

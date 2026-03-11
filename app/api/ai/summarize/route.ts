@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth-utils';
 import { cookies } from 'next/headers';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes
@@ -16,15 +17,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const category = searchParams.get('category'); // e.g. non_cargo
+    const category = searchParams.get('category');
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
     
-    // Determine path based on category
-    // If category=non_cargo => /api/ai/summarize?category=non_cargo
-    // If category=cgo => /api/ai/summarize/cgo
-    // default => /api/ai/summarize
-
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
     let path = '/api/ai/summarize';
     
     if (category === 'cgo') {
@@ -34,10 +29,12 @@ export async function GET(req: NextRequest) {
     }
 
     const sep = path.includes('?') ? '&' : '?';
-    const aiResponse = await fetch(`${AI_SERVICE_URL}${path}${sep}esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const hfClient = getHfClient();
+    const aiResponse = await hfClient.fetch(
+      `${path}${sep}esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+      { ttl: 300000 }
+    );
 
     if (!aiResponse.ok) {
       throw new Error(`AI service error: ${aiResponse.status}`);
@@ -53,4 +50,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-// Complexity: Time O(1) + Network | Space O(1)

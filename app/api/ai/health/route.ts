@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,6 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   try {
-    // Verify authentication
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     
@@ -30,19 +30,16 @@ export async function GET(request: Request) {
       );
     }
 
-    // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    
     const { searchParams } = new URL(request.url);
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/health?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const hfClient = getHfClient();
+      const aiResponse = await hfClient.fetch(
+        `/health?esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+        { bypassCache: true }
+      );
 
       if (!aiResponse.ok) {
         throw new Error(`AI service returned ${aiResponse.status}`);
@@ -53,7 +50,6 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error('[AI Health] AI service unavailable:', error);
       
-      // Return error - no mock data
       return NextResponse.json(
         { 
           error: 'AI service tidak tersedia',

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/auth-utils';
 import { reportsService } from '@/lib/services/reports-service';
+import { getHfClient } from '@/lib/hf-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,6 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   try {
-    // Verify authentication
     const cookieStore = await cookies();
     const token = cookieStore.get('session')?.value;
     
@@ -32,7 +32,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch actual reports from Google Sheets to get real data count
     let reportsCount = 0;
     try {
       const reports = await reportsService.getReports();
@@ -42,20 +41,16 @@ export async function GET(request: Request) {
       console.error('[AI Model Info] Failed to fetch reports:', err);
     }
 
-    // Call the Python AI service
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://gapura-dev-gapura-ai.hf.space';
-    console.log('[AI Model Info] URL:', AI_SERVICE_URL);
-    
     const { searchParams } = new URL(request.url);
     const esklasiRegex = searchParams.get('esklasi_regex') || '';
 
     try {
-      const aiResponse = await fetch(`${AI_SERVICE_URL}/api/ai/model-info?esklasi_regex=${encodeURIComponent(esklasiRegex)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const hfClient = getHfClient();
+      const aiResponse = await hfClient.fetch(
+        `/api/ai/model-info?esklasi_regex=${encodeURIComponent(esklasiRegex)}`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+        { ttl: 60000 }
+      );
 
       if (!aiResponse.ok) {
         throw new Error(`AI service returned ${aiResponse.status}`);
@@ -63,7 +58,6 @@ export async function GET(request: Request) {
 
       const data = await aiResponse.json();
       
-      // Override with actual Google Sheets data count
       if (data.regression?.metrics) {
         data.regression.metrics.n_samples = reportsCount || data.regression.metrics.n_samples;
       }
@@ -72,7 +66,6 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error('[AI Model Info] AI service unavailable:', error);
       
-      // Return error - no mock data
       return NextResponse.json(
         { 
           error: 'AI service tidak tersedia. Pastikan service AI berjalan di localhost:8000',
