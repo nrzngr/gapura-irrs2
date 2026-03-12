@@ -17,4 +17,4 @@ Gunakan akun berikut untuk pengujian internal. Semua akun menggunakan password y
 | Karyawan Cabang | karyawan@gapura.co.id | Gapura123! | Akses Cabang |
 | Petugas Cabang (Reporter) | reporter@gapura.demo | Gapura123! | Demo Petugas Cabang |
 | Admin (Co.ID) | admin@gapura.co.id | Gapura123! | Admin |
-
+ 
