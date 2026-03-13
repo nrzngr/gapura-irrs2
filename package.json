@@ -5,7 +5,7 @@
   "scripts": {
     "check:node": "node scripts/check-node-version.js",
     "dev": "npm run check:node && next dev --webpack",
-    "build": "npm run check:node && next build",
+    "build": "npm run check:node && next build --webpack",
     "start": "npm run check:node && next start",
     "lint": "eslint",
     "debug:sheets": "node scripts/debug-sheets.mjs",
