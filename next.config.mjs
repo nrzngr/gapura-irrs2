@@ -1,19 +1,12 @@
+import NodePolyfillPlugin from 'node-polyfill-webpack-plugin';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Mock Node.js modules for client-side bundles (needed for pptxgenjs)
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        https: false,
-        http: false,
-        path: false,
-        crypto: false,
-        stream: false,
-        zlib: false,
-      };
+      // Polyfill Node.js modules for client-side bundles (needed for pptxgenjs)
+      config.plugins.push(new NodePolyfillPlugin());
     }
     return config;
   },
