@@ -1,5 +1,3 @@
-import "server-only";
-
 interface CacheEntry<T> {
   data: T;
   expiry: number;
