@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { ChartPreview } from '@/components/builder/ChartPreview';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown as ChevronDownIcon, X, Download, FileSpreadsheet, Presentation, LayoutGrid, Box, Menu, Calendar, ArrowLeft } from 'lucide-react';
 import { DynamicFilterHeader, type FilterData } from '@/components/builder/DynamicFilterHeader';
-import { exportToXlsx, exportToPptx } from '@/lib/dashboard-export';
 import { processQuery } from '@/lib/engine/query-processor';
 import { useReportsData } from '@/hooks/use-reports-cache';
 import type { QueryResult, QueryDefinition, ChartType, ChartVisualization, QueryFilter, DashboardTile, TileLayout } from '@/types/builder';
@@ -451,8 +450,13 @@ export function CustomDashboardContent() {
         })),
         chartsData: completeChartsData,
       };
-      if (format === 'xlsx') await exportToXlsx(payload);
-      else await exportToPptx(payload);
+      if (format === 'xlsx') {
+        const { exportToXlsx } = await import('@/lib/dashboard-export');
+        await exportToXlsx(payload);
+      } else {
+        const { exportToPptx } = await import('@/lib/dashboard-export');
+        await exportToPptx(payload);
+      }
     } catch (err) { console.error('Export error:', err); }
     finally { setExportingFormat(null); }
   }, [dashboard, pages, chartsData, fetchChartData, dateFrom, dateTo, slug]);
